@@ -1,0 +1,27 @@
+{
+  "name": "merge-ball-td-siege",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "2048 merge tower defense prototype: a classic 4x4 board whose blocks are turrets (2D, PixiJS)",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:legacy": "node --test \"legacy/ball-crate/test/*.test.js\"",
+    "assets": "node tools/gen-assets.mjs",
+    "economy": "node tools/economy.mjs",
+    "pack": "node tools/pack-html.mjs",
+    "gemini:status": "node tools/gen-assets.mjs --status",
+    "gemini:probe": "node tools/gen-assets.mjs --probe",
+    "kv:gen": "node tools/gen-kv.mjs"
+  },
+  "dependencies": {
+    "pixi-filters": "^6.1.5",
+    "pixi.js": "^8.22.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4"
+  }
+}

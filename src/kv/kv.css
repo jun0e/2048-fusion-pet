@@ -1,0 +1,301 @@
+/* Key-visual demo: namecards, cut-in and the style switcher (index.html?kv) */
+.kv-cards {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 4;
+}
+
+.kv-card {
+  position: relative;
+  padding: 0;
+  background: none !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.2s;
+}
+
+.kv-port {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 3px solid var(--cream);
+  box-shadow:
+    0 0 0 2px #2b1d2e,
+    0 4px 0 2px #2b1d2e66;
+  background: var(--c);
+  transition:
+    transform 0.15s,
+    box-shadow 0.2s;
+}
+
+.kv-card.legend .kv-port {
+  border-color: #ffcf4a;
+}
+
+.kv-port > img:first-child {
+  width: 100%;
+  height: 100%;
+  display: block;
+  transition: filter 0.25s;
+}
+
+.kv-card.charging .kv-port > img:first-child {
+  filter: saturate(0.3) brightness(0.62);
+}
+
+.kv-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--f, 0) * 100%);
+  background: color-mix(in srgb, var(--c) 45%, transparent);
+  border-top: 2px solid color-mix(in srgb, var(--c) 60%, white);
+}
+
+.kv-card.ready .kv-fill {
+  display: none;
+}
+
+.kv-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.8) 50%, transparent 62%);
+  transform: translateX(-130%);
+}
+
+.kv-card.ready .kv-shine {
+  animation: kvShine 1.9s ease-in-out infinite;
+}
+
+/* ready reads by colour, a ring and a shine (not by glow alone) */
+.kv-card.ready .kv-port {
+  box-shadow:
+    0 0 0 2px #2b1d2e,
+    0 0 0 5px var(--c),
+    0 0 0 7px #2b1d2e,
+    0 4px 0 6px #2b1d2e44;
+}
+
+.kv-card.ready {
+  animation: kvBob 1.5s ease-in-out infinite;
+}
+
+.kv-glyphs {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  display: flex;
+  gap: 1px;
+}
+
+.kv-glyphs img {
+  width: 13px;
+  height: 13px;
+}
+
+.kv-name {
+  position: relative;
+  z-index: 1;
+  margin-top: -9px;
+  font: 800 10px/1 var(--font-display);
+  background: var(--cream);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 3px 6px 2px;
+  box-shadow: 0 0 0 1.5px #2b1d2e;
+  white-space: nowrap;
+  max-width: 120%;
+}
+
+.kv-card.ready .kv-name {
+  background: #2b1d2e;
+  color: var(--cream);
+  box-shadow: 0 0 0 1.5px var(--cream);
+}
+
+.kv-card.nudge {
+  animation: kvNudge 0.3s;
+}
+
+.kv-card.fire .kv-port {
+  transform: scale(1.14);
+}
+
+.kv-card.lost {
+  filter: grayscale(1) sepia(0.4);
+  animation: kvLost 1.4s ease-in forwards;
+  pointer-events: none;
+}
+
+.kv-cutin {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  z-index: 7;
+}
+
+.kv-cutin.go {
+  animation: kvCut 0.95s ease-out forwards;
+}
+
+.kv-cutin-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--c);
+  padding: 8px 18px 8px 8px;
+  border-radius: 20px;
+  border: 3px solid var(--cream);
+  box-shadow:
+    0 0 0 3px #2b1d2e,
+    0 12px 30px #0007;
+  transform: skewX(-6deg);
+}
+
+.kv-cutin-card img {
+  width: 132px;
+  height: 132px;
+  border-radius: 14px;
+  border: 3px solid var(--cream);
+  box-shadow: 0 0 0 2px #2b1d2e;
+}
+
+.kv-cutin-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.kv-cutin-text b {
+  font: 800 26px/1 var(--font-display);
+  color: var(--cream);
+  -webkit-text-stroke: 5px #2b1d2e;
+  paint-order: stroke fill;
+}
+
+.kv-cutin-text span {
+  font: 800 15px/1 var(--font-display);
+  color: #2b1d2e;
+  background: var(--cream);
+  border-radius: 999px;
+  padding: 5px 12px 3px;
+  box-shadow: 0 0 0 2px #2b1d2e;
+}
+
+.kv-style {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  background: var(--cream);
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 2px #2b1d2e,
+    var(--clay-drop);
+  pointer-events: auto;
+  z-index: 8;
+}
+
+.kv-style::before {
+  content: 'Map art';
+  font: 800 9px/1 var(--font-display);
+  color: var(--ink-soft);
+  text-align: center;
+  padding: 2px 0 1px;
+}
+
+.kv-style button {
+  font: 800 11px/1 var(--font-display) !important;
+  padding: 6px 4px 4px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-soft) !important;
+}
+
+.kv-style button.on {
+  background: #2b1d2e;
+  color: var(--cream) !important;
+}
+
+@keyframes kvShine {
+  0%,
+  35% {
+    transform: translateX(-130%);
+  }
+  75%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes kvBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes kvNudge {
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes kvLost {
+  0% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(40px) rotate(12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes kvCut {
+  0% {
+    opacity: 0;
+    transform: translateX(55%);
+  }
+  14% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  78% {
+    opacity: 1;
+    transform: translateX(-5%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-35%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kv-card.ready,
+  .kv-card.ready .kv-shine {
+    animation: none;
+  }
+}
+
+/* the showcase skips the first-run hint */
+body.kv .hint {
+  display: none;
+}

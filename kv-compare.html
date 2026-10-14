@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2048 Siege key visual</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --ink: #2b1d2e;
+        --cream: #fffaf2;
+        --bg: #17203f;
+        --soft: #c9d3ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--cream);
+        font: 700 14px/1.5 Nunito, system-ui, sans-serif;
+      }
+      header {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 20px 16px 6px;
+      }
+      h1 {
+        font: 800 26px/1.1 'Baloo 2', sans-serif;
+        margin: 0 0 4px;
+      }
+      header p {
+        margin: 0;
+        color: var(--soft);
+        max-width: 760px;
+      }
+      .bar {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+      .bar button,
+      .bar a {
+        font: 800 13px/1 'Baloo 2', sans-serif;
+        background: var(--cream);
+        color: var(--ink);
+        border: 0;
+        border-radius: 999px;
+        padding: 8px 14px 6px;
+        cursor: pointer;
+        text-decoration: none;
+        box-shadow: 0 0 0 2px var(--ink);
+      }
+      main {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 22px;
+        padding: 14px 16px 28px;
+      }
+      figure {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      figcaption {
+        text-align: center;
+      }
+      figcaption b {
+        display: block;
+        font: 800 17px/1.2 'Baloo 2', sans-serif;
+      }
+      figcaption span {
+        color: var(--soft);
+        font-size: 12px;
+      }
+      .tag {
+        display: inline-block;
+        font: 800 11px/1 'Baloo 2', sans-serif;
+        background: #ffcf4a;
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 4px 8px 2px;
+        margin-left: 6px;
+        vertical-align: 2px;
+      }
+      .phone {
+        width: calc(390px * var(--s));
+        height: calc(844px * var(--s));
+        border-radius: 34px;
+        overflow: hidden;
+        box-shadow:
+          0 0 0 3px var(--ink),
+          0 0 0 9px #0d132b,
+          0 20px 50px #0008;
+        background: #1c2547;
+      }
+      .phone iframe {
+        width: 390px;
+        height: 844px;
+        border: 0;
+        transform: scale(var(--s));
+        transform-origin: 0 0;
+      }
+      section.notes {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 0 16px 32px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 12px;
+      }
+      .note {
+        background: #222d58;
+        border-radius: 14px;
+        padding: 12px 14px;
+        box-shadow: inset 0 0 0 1px #34407a;
+      }
+      .note b {
+        font: 800 15px/1.2 'Baloo 2', sans-serif;
+        color: #ffe27a;
+      }
+      .note p {
+        margin: 4px 0 0;
+        color: var(--soft);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>2048 Siege: key visual demo</h1>
+      <p>
+        The recommended art direction running in the real game, with a pixel-art map beside it for comparison. Same seed, same board, same waves: only
+        the map art differs. In both, the namecard portraits use the second style, a soft-vinyl 3D toy render. Tap a lit namecard to cast its skill.
+      </p>
+      <div class="bar">
+        <button id="restart">Restart both</button>
+        <a href="./?kv" target="_blank">Open sticker full screen</a>
+        <a href="./?kv&amp;style=pixel" target="_blank">Open pixel full screen</a>
+        <a href="./art.html" target="_blank">Art sheet</a>
+      </div>
+    </header>
+    <main>
+      <figure>
+        <div class="phone"><iframe id="a" title="Sticker map" src="./?kv&amp;style=sticker&amp;embed"></iframe></div>
+        <figcaption><b>Sticker map <span class="tag">recommended</span></b><span>thick plum outline, cream rim, flat colour + one cel tone</span></figcaption>
+      </figure>
+      <figure>
+        <div class="phone"><iframe id="b" title="Pixel map" src="./?kv&amp;style=pixel&amp;embed"></iframe></div>
+        <figcaption><b>Pixel map</b><span>same designs on a pixel grid, palette-locked, 1 px outline</span></figcaption>
+      </figure>
+    </main>
+    <section class="notes">
+      <div class="note">
+        <b>Map tiles, 16 to 128</b>
+        <p>The number owns the top of the square; the baby peeks over the bottom edge and grows one motif piece per merge. Eggs (2, 4, 8) crack open.</p>
+      </div>
+      <div class="note">
+        <b>Roaming fusions, 256+</b>
+        <p>The fusion hops out and roams the field; its tile stays as a den with a split plate and both glyphs. Body from parent A, crest and tail from parent B.</p>
+      </div>
+      <div class="note">
+        <b>Namecards</b>
+        <p>Soft-vinyl portraits: dimmed while charging, full colour with a ring and shine when ready, a cut-in when cast. The legend wears gold and its apex halo.</p>
+      </div>
+      <div class="note">
+        <b>Stand-in art</b>
+        <p>Every creature here is drawn in code from the style brief. When Gemini billing is on, generated art replaces it through the same layers.</p>
+      </div>
+    </section>
+    <script>
+      const fit = () => {
+        const s = Math.max(0.5, Math.min(1, (window.innerHeight - 230) / 844, (window.innerWidth - 60) / 2 / 410));
+        document.documentElement.style.setProperty('--s', s.toFixed(3));
+      };
+      fit();
+      addEventListener('resize', fit);
+      document.getElementById('restart').onclick = () => {
+        for (const id of ['a', 'b']) document.getElementById(id).contentWindow.location.reload();
+      };
+    </script>
+  </body>
+</html>

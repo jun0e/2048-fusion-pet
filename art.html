@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2048 Siege art sheet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+    <style>
+      body { margin: 0; background: #1f2b57; color: #fffaf2; font: 700 14px Nunito, system-ui, sans-serif; }
+      h1 { font: 800 22px 'Baloo 2', sans-serif; margin: 16px; }
+      h2 { font: 800 16px 'Baloo 2', sans-serif; margin: 18px 16px 6px; color: #ffe27a; }
+      .row { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 16px; align-items: flex-end; }
+      .cell { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: #c9d3ff; }
+      canvas { image-rendering: auto; }
+      canvas.px { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <h1>2048 Siege: creature art sheet (code-drawn stand-ins)</h1>
+    <div id="sheet"></div>
+    <script type="module" src="/src/art/sheet.js"></script>
+  </body>
+</html>

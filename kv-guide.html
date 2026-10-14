@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2048 Siege proportion guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+    <style>
+      body {
+        margin: 0;
+        background: #17203f;
+        color: #fffaf2;
+        font: 700 14px/1.5 Nunito, system-ui, sans-serif;
+      }
+      header {
+        padding: 20px 24px 4px;
+      }
+      h1 {
+        font: 800 26px/1.1 'Baloo 2', sans-serif;
+        margin: 0 0 4px;
+      }
+      header p {
+        margin: 0;
+        color: #c9d3ff;
+        max-width: 900px;
+      }
+      #guide {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        padding: 14px 24px 32px;
+      }
+      .panel {
+        background: #1f2a55;
+        border-radius: 16px;
+        padding: 12px 14px;
+        box-shadow: inset 0 0 0 1px #34407a;
+      }
+      .panel h2 {
+        font: 800 17px/1.2 'Baloo 2', sans-serif;
+        margin: 0;
+        color: #ffe27a;
+      }
+      .panel p {
+        margin: 2px 0 8px;
+        color: #c9d3ff;
+        font-size: 12.5px;
+        max-width: 1160px;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>2048 Siege: key visual proportion guide</h1>
+      <p>
+        The proportions the creature art must hit, in every layer: map tiles (sticker), roaming fusions (sticker), namecards (vinyl). Pink lines are guides; blue
+        brackets are ratios. Numbers come from the same constants the demo uses.
+      </p>
+    </header>
+    <div id="guide"></div>
+    <script type="module" src="/src/art/guide.js"></script>
+  </body>
+</html>
