@@ -26,7 +26,7 @@ const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>';
 /**
  * @param dev  show developer controls (the Auto button): `?dev` in the URL
  */
-export function createHud(root, { onRestart, onPause, onResume, onHowTo, onSetting, onShare, onSpeed, onToggleMute, onNextWave, onChoose, onAuto, muted, dev = false }) {
+export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed, onToggleMute, onNextWave, onChoose, onAuto, muted, dev = false }) {
   root.innerHTML = `
     <div class="vignette"></div>
     <div class="flash"></div>
@@ -163,25 +163,50 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onSetti
   choiceScrim.inert = true;
   pauseScrim.inert = true;
 
-  /** Restart asks first: one stray tap must not end a long run. */
-  function confirmRestart(ask) {
-    pauseCard.classList.toggle('confirming', ask);
-    $(ask ? '[data-act="restart-no"]' : '[data-act="resume"]').focus({ preventScroll: true });
-  }
-  /** The settings page of the pause card. */
-  function showSettings(open) {
-    pauseCard.classList.toggle('settings', open);
-    $(open ? '[data-act="set-sound"]' : '[data-act="settings"]').focus({ preventScroll: true });
+  // The pause dialog keeps the focus: while it is open, the rest of the HUD is inert.
+  let inerted = [];
+  let page = 'closed';
+  /**
+   * Draw a page of the pause menu (src/ux/pause.js). 'closed' and 'help' hide the
+   * card; 'confirm' asks before a restart (one stray tap must not end a long run).
+   */
+  function setPauseView(next, info) {
+    const was = page;
+    page = next;
+    const open = next === 'main' || next === 'confirm' || next === 'settings';
+    if (!open) {
+      pauseScrim.classList.remove('open');
+      pauseScrim.inert = true;
+      for (const el of inerted) el.inert = false;
+      inerted = [];
+      return;
+    }
+    if (info) {
+      $('.pause-card h2').textContent = info.title ?? 'Paused';
+      $('.pause-sub').textContent = `Wave ${info.wave} · ${info.score.toLocaleString()} points · ${info.blocks} block${info.blocks === 1 ? '' : 's'}`;
+    }
+    pauseCard.classList.toggle('confirming', next === 'confirm');
+    pauseCard.classList.toggle('settings', next === 'settings');
+    if (!pauseScrim.classList.contains('open')) {
+      inerted = [...root.children].filter((el) => el !== pauseScrim && !el.inert);
+      for (const el of inerted) el.inert = true;
+    }
+    pauseScrim.inert = false;
+    pauseScrim.classList.add('open');
+    // focus: the page's first choice; back on the main page, the button that led away
+    const target = next === 'main' ? ({ confirm: 'restart', settings: 'settings', help: 'howto' }[was] ?? 'resume') : next === 'confirm' ? 'restart-no' : 'set-sound';
+    $(`[data-act="${target}"]`).focus({ preventScroll: true });
   }
   const shareBtn = $('[data-act="share"]');
   const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
   // one banner at a time: news that lands together shows in turn
   const banners = createBannerQueue({
-    show({ title, sub, tone }) {
+    show({ title, sub, tone, seconds }) {
       $('.banner-title').textContent = title;
       $('.banner-sub').textContent = sub;
       banner.dataset.tone = tone;
+      banner.style.animationDuration = `${seconds}s`; // long enough to read (src/ux/banners.js)
       restartAnim(banner, 'show');
     },
   });
@@ -191,13 +216,8 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onSetti
     if (!btn) return;
     const act = btn.dataset.act;
     if (act === 'again' || act === 'restart-yes') onRestart();
-    if (act === 'pause') onPause();
-    if (act === 'resume') onResume();
-    if (act === 'howto') onHowTo();
-    if (act === 'restart') confirmRestart(true);
-    if (act === 'restart-no') confirmRestart(false);
-    if (act === 'settings') showSettings(true);
-    if (act === 'settings-done') showSettings(false);
+    const to = { pause: 'main', resume: 'closed', howto: 'help', restart: 'confirm', 'restart-no': 'main', settings: 'settings', 'settings-done': 'main' }[act];
+    if (to) onMenu(to);
     if (act.startsWith('set-')) onSetting(act.slice(4));
     if (act === 'share') onShare();
     if (act === 'speed') onSpeed();
@@ -332,21 +352,7 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onSetti
       banners.clear();
       banner.classList.remove('show');
     },
-    /** The pause menu, with where the run stands. */
-    showPause({ wave, score, blocks }) {
-      $('.pause-sub').textContent = `Wave ${wave} · ${score.toLocaleString()} points · ${blocks} block${blocks === 1 ? '' : 's'}`;
-      pauseCard.classList.remove('confirming', 'settings');
-      pauseScrim.inert = false;
-      pauseScrim.classList.add('open');
-      $('[data-act="resume"]').focus({ preventScroll: true });
-    },
-    hidePause() {
-      pauseScrim.classList.remove('open');
-      pauseScrim.inert = true;
-    },
-    get pauseOpen() {
-      return pauseScrim.classList.contains('open');
-    },
+    setPauseView,
     flash(color) {
       flashEl.style.background = color;
       restartAnim(flashEl, 'go');

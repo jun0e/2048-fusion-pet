@@ -394,6 +394,21 @@ test('killing a boss hands out x2s to the other blocks: they multiply up to the 
   for (const t of rest) assert.equal(t.maxHp, maxHpFor(t.tier), 'health grows with the block');
 });
 
+test('a block that falls in the boss-kill step takes no x2', () => {
+  const r = createRun({ seed: 4, empty: true, autoChoose: true });
+  r.spawnDebug(6, 0, 0);
+  const doomed = r.spawnDebug(2, 1, 0);
+  r.spawnDebug(1, 3, 3);
+  r.nextWave();
+  doomed.hp = -3; // broken this step, swept after the reward
+  const boss = r.defense.spawn('elfRuler', { hpScale: 1 });
+  r.defense.damage(boss, 1e9, ['fire']);
+  r.step();
+  assert.ok(!r.tiles.includes(doomed), 'it fell');
+  assert.equal(doomed.tier, 2, 'with no x2 on the way out');
+  assert.ok(r.drainEvents().find((e) => e.type === 'bossReward').x2s > 0, 'the others still got theirs');
+});
+
 test('a boss x2 past 256 fills the fusion slot from the deck', () => {
   const { tiles, events } = killBoss(
     [

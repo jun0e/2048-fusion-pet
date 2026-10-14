@@ -21,6 +21,9 @@ import { createSfx } from './sfx.js';
 import { createHaptics } from './haptics.js';
 import { nextSpeed } from './ux/speed.js';
 import { describeBlock } from './ux/inspect.js';
+import { createPause } from './ux/pause.js';
+import { recordRun, replayRun, loadSaved, saveRun, clearSaved, fingerprint } from './ux/resume.js';
+import { loadStore } from './ux/coach.js';
 import { createArt } from './art/index.js';
 import { setupKv, KV_DICE } from './kv/index.js';
 
@@ -86,6 +89,10 @@ async function waitForFonts() {
   await Promise.race([Promise.all([document.fonts.load('800 64px "Baloo 2"'), document.fonts.load('700 16px "Nunito"')]), t]);
 }
 
+// The loading screen in index.html (#boot): a message while loading, gone with the first frame.
+const boot = document.getElementById('boot');
+const bootSay = (text) => boot && (boot.querySelector('.boot-msg').textContent = text);
+
 async function start() {
   await waitForFonts(); // block numbers and damage digits are drawn with Baloo 2
   await loadGeneratedAssets(); // Gemini sprites, if tools/gen-assets.mjs has produced them
@@ -109,10 +116,39 @@ async function start() {
   // what this run did, for the summary on the game-over card
   const freshStats = () => ({ bosses: 0, lost: 0, combo: 0, fusions: 0 });
   let stats = freshStats();
+  function tally(e) {
+    if (e.type === 'merge') stats.combo = Math.max(stats.combo, e.combo ?? 1);
+    else if (e.type === 'bossReward') stats.bosses += 1;
+    else if (e.type === 'classed' && e.stage === 2) stats.fusions += 1;
+    else if (e.type === 'remove' && e.reason === 'destroyed') stats.lost += 1;
+  }
   let lastSummary = null; // { wave, score }: the line to share
+  let overTimer = null; // the game-over card waits GAME_OVER_DELAY after the last block falls
   // first-run journey log (window.__mb.journey): milestones and tutorial text, wall-clock seconds
   const journey = createJourney({ now: () => performance.now() / 1000 });
-  let run = newRun();
+  // Run resume (src/ux/resume.js): every input of a run is logged with its sim step and saved;
+  // after a reload the log is replayed (the sim is deterministic) and the pause menu greets the
+  // player. The showcase and debug runs are not saved. A first run waits for its opening to end.
+  const canSave = !kvMode && !debugStart;
+  let runLog = null;
+  let saveWait = 0; // seconds until the next save may happen
+  let savedInputs = -1; // inputs in the last save
+  let run = null;
+  let resumed = false;
+  const saved = canSave && loadStore().guided ? loadSaved() : null;
+  if (saved) {
+    bootSay('Restoring your run…');
+    const back = replayRun(createRun, saved.log, { onEvents: (list) => list.forEach(tally) });
+    if (!back.over && fingerprint(back) === saved.fp) {
+      run = back;
+      runLog = recordRun(run, saved.log);
+      resumed = true;
+    } else {
+      clearSaved(); // a newer build replays it differently: start fresh
+      stats = freshStats();
+    }
+  }
+  if (!run) run = newRun();
   journey.onRunStart();
   let gameOverShown = false;
   let lastDownBy = null; // the enemy that broke the latest block
@@ -133,14 +169,13 @@ async function start() {
       r.spawnDebug(12, 2, 0).cls = { element: a, fusion: b, ultimate: c };
       r.spawnDebug(1, 3, 1);
     }
+    runLog = canSave ? recordRun(r) : null;
     return r;
   }
 
   const hud = createHud(document.getElementById('hud'), {
     onRestart: restart,
-    onPause: () => openPause(),
-    onResume: () => closePause(),
-    onHowTo: () => howTo(),
+    onMenu: (page) => (page === 'main' && pause.menu === 'closed' ? openMenu() : pause.show(page)),
     onToggleMute: () => sfx.toggle(),
     onSetting: (name) => {
       if (name === 'sound') sfx.toggle();
@@ -211,10 +246,12 @@ async function start() {
   }
 
   function restart() {
-    if (pauses.has('menu')) closePause();
+    pause.show('closed');
+    clearTimeout(overTimer); // a card still on its way from the last run must not cover this one
+    clearSaved(); // the old run is over; this one saves itself from its first input
+    pauseTitle = 'Paused';
     stats = freshStats();
     resetSpeed();
-    menuAfterHelp = false;
     hud.clearBanners();
     run = newRun();
     journey.onRunStart();
@@ -281,64 +318,52 @@ async function start() {
     return true;
   }
 
-  // The game pauses for the pause menu and for the How to play sheet; each holds its own reason.
-  const pauses = new Set();
-  let paused = false;
-  function setPause(why, on) {
-    if (on) pauses.add(why);
-    else pauses.delete(why);
-    paused = pauses.size > 0;
-  }
-  let menuAfterHelp = false; // How to play opened from the pause menu: back to the menu when it closes
-  /** Pause menu: the Pause button, Escape or P, or the tab going to the background. */
-  function openPause() {
-    if (gameOverShown || pauses.has('menu')) return;
-    setPause('menu', true);
-    syncSettings();
-    hud.showPause({ wave: run.waveNo, score: run.score, blocks: run.blocks });
-  }
-  function closePause() {
-    hud.hidePause();
-    setPause('menu', false);
-  }
-  function howTo() {
-    hud.hidePause(); // the game stays paused for the menu underneath
-    menuAfterHelp = true;
-    tutorial.openHelp(true);
-  }
-  /** Escape / P: close the help sheet first, else open or close the pause menu. */
-  function togglePause() {
-    if (tutorial.helpOpen) tutorial.openHelp(false);
-    else if (pauses.has('menu')) closePause();
-    else openPause();
-  }
-  // a phone call or a switch to another app must not cost the run: come back to the pause menu
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && !run.over) openPause();
-  });
-  // portrait only: a phone turned sideways shows "Turn your phone upright" (hud.css) and the game waits
-  const sideways = matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
-  setPause('rotate', sideways.matches);
-  sideways.addEventListener('change', (e) => setPause('rotate', e.matches));
+  let paused = false; // the pause controller (below) sets it
 
-  // first-run guided opening, one-time tips, and the "?" How to play sheet
+  // first-run guided opening, one-time tips, and the How to play sheet (from the pause menu)
   const tutorial = createTutorial(hudEl, {
     stage,
     getRun: () => run,
-    onPause: (v) => {
-      setPause('help', v);
-      if (!v && menuAfterHelp) {
-        menuAfterHelp = false;
-        hud.showPause({ wave: run.waveNo, score: run.score, blocks: run.blocks });
-      }
+    onPause: (open) => {
+      if (!open && pause.menu === 'help') pause.show('main'); // its Back button returns to the menu
     },
     onReplay: () => restart(),
     onLog: (kind, data) => journey.onCoach(kind, data),
   });
+
+  // Pause (src/ux/pause.js): the menu and its pages, and a phone held sideways.
+  let pauseTitle = 'Paused'; // 'Welcome back' after a resume
+  const pause = createPause({
+    onChange: (s) => {
+      paused = s.paused;
+      hudEl.classList.toggle('paused', paused); // banners stop with the game
+      if (s.menu === 'main') syncSettings();
+      if (s.menu === 'closed') pauseTitle = 'Paused';
+      if (s.menu !== 'closed') saveNow(); // the phone may close the tab next
+      hud.setPauseView(s.menu, { title: pauseTitle, wave: run.waveNo, score: run.score, blocks: run.blocks });
+      if ((s.menu === 'help') !== tutorial.helpOpen) tutorial.openHelp(s.menu === 'help');
+    },
+  });
+  /** The pause menu: the Pause button, Escape or P, or the tab going to the background. */
+  const openMenu = () => !gameOverShown && pause.show('main');
+  // a phone call or a switch to another app must not cost the run: save it, come back to the pause menu
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) return;
+    saveNow();
+    if (!run.over && pause.menu === 'closed') openMenu();
+  });
+  addEventListener('pagehide', () => saveNow());
+  // portrait only: a phone turned sideways shows "Turn your phone upright" (hud.css) and the game waits
+  const sideways = matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
+  pause.hold('rotate', sideways.matches);
+  sideways.addEventListener('change', (e) => pause.hold('rotate', e.matches));
   if (!kv) tutorial.start(run);
   else tutorial.setMuted(true); // the showcase has no tips
-  // a returning player (opening done) gets a goal: their best wave
-  if (!kv && !tutorial.active) tutorial.note(returnGoal(bestWave));
+  // a returning player (opening done) gets a goal: their best wave; a resumed run, the pause menu
+  if (resumed) {
+    pauseTitle = 'Welcome back';
+    openMenu();
+  } else if (!kv && !tutorial.active) tutorial.note(returnGoal(bestWave));
 
   createInput(stage.app.canvas, {
     swipe: (dir) => doSwipe(dir),
@@ -354,7 +379,7 @@ async function start() {
     },
     choose: (i) => !paused && run.pendingChoice && run.choose(i),
     nextWave: () => !paused && run.nextWave(),
-    pause: () => togglePause(),
+    pause: () => (pause.menu === 'closed' ? openMenu() : pause.back()), // Escape / P: one step back
   });
   // swipes on the HUD area outside buttons should also work
   document.getElementById('hud').style.pointerEvents = 'none';
@@ -363,6 +388,7 @@ async function start() {
 
   function handleEvents() {
     for (const e of run.drainEvents()) {
+      tally(e);
       journey.onRunEvent(e);
       tutorial.onEvent(e);
       blocks.onEvent(e);
@@ -374,7 +400,6 @@ async function start() {
           stage.shake(1 + e.tier * 0.4 + (e.combo > 1 ? 2 : 0));
           sfx.merge(e.tier, e.combo);
           haptics.play('merge');
-          stats.combo = Math.max(stats.combo, e.combo ?? 1);
           const p = client(e.x, e.y + 0.9);
           hud.popup(p.x, p.y, `+${e.value.toLocaleString()}`, e.tier);
           if (e.combo >= 2) hud.combo(e.combo);
@@ -415,7 +440,6 @@ async function start() {
           break;
         }
         case 'bossReward':
-          stats.bosses += 1;
           if (maxSpeed < 4) {
             maxSpeed = 4;
             try {
@@ -425,7 +449,11 @@ async function start() {
           }
           sfx.milestone();
           haptics.play('boss');
-          hud.banner(`${e.boss ?? 'Boss'} defeated!`, e.x2s ? `Your blocks got ${e.x2s} x2${e.x2s === 1 ? '' : 's'}. Merge the new pairs!` : 'No other block had room to grow.', 'good');
+          hud.banner(
+            `${e.boss ?? 'Boss'} defeated!`,
+            e.x2s ? `Your blocks got ${e.x2s} x2${e.x2s === 1 ? '' : 's'}.${e.pairs > 0 ? ' Merge the new pairs!' : ''}` : 'No other block had room to grow.',
+            'good',
+          );
           break;
         case 'classed': {
           // a merge awakened an element, made a fusion or an ultimate: announce the combination
@@ -434,7 +462,6 @@ async function start() {
           fx.burst(e.x, e.y, e.info.colors.map(hex), 34, { speed: 5, size: 0.3, life: 0.6, gravity: 0 });
           hud.announce(e.info);
           sfx.choose(e.stage);
-          if (e.stage === 2) stats.fusions += 1;
           if (e.stage >= 2) stage.shake(4 + e.stage * 2);
           break;
         }
@@ -464,7 +491,6 @@ async function start() {
             fx.explode(e.x, e.y, 'earth', 2.6, { flash: 0xff6b6b });
             fx.burst(e.x, e.y, [0x2a1c22, 0xff6b6b, hex(ELEMENTS[e.cls?.element]?.color ?? '#d9d2c5')], 26, { speed: 6, size: 0.3, life: 0.6, gravity: -9 });
             stage.shake(10);
-            stats.lost += 1;
             sfx.hurt();
             haptics.play('lost');
             hud.castleHit();
@@ -558,12 +584,13 @@ async function start() {
           const isBestWave = e.wave > bestWave;
           if (isBestWave) saveBestWave((bestWave = e.wave));
           lastSummary = { wave: e.wave, score: e.score };
+          clearSaved(); // nothing to resume
           const summary = { kills: e.kills, time: run.time, ...stats };
           lastLoss = { wave: e.wave, maxTier: e.maxTier };
           sfx.gameover();
           haptics.play('over');
           const cause = causeLine({ wave: e.wave, by: lastDownBy });
-          setTimeout(() => hud.showGameOver({ score: e.score, wave: e.wave, maxTier: e.maxTier, isBest, isBestWave, cause, stats: summary }), GAME_OVER_DELAY * 1000);
+          overTimer = setTimeout(() => hud.showGameOver({ score: e.score, wave: e.wave, maxTier: e.maxTier, isBest, isBestWave, cause, stats: summary }), GAME_OVER_DELAY * 1000);
           gameOverShown = true;
           select(null);
           break;
@@ -572,9 +599,19 @@ async function start() {
     }
   }
 
+  /** Save the run for a resume (at most once a second while inputs come in; at once on pause). */
+  function saveNow() {
+    if (!runLog || run.over) return;
+    saveRun(run, runLog);
+    savedInputs = runLog.inputs.length;
+    saveWait = 1;
+  }
+
   let acc = 0;
-  function update(dt) {
-    acc = paused ? 0 : acc + dt * speed; // paused: the menu, How to play, a sideways phone
+  /** One frame. `force` steps even while paused (the __mb.advance dev helper). */
+  function update(dt, force = false) {
+    const live = force || !paused; // paused: the menu, How to play, a sideways phone
+    acc = live ? acc + dt * speed : 0;
     let n = 0;
     while (acc >= PHYSICS.dt && n < 8 * speed) {
       run.step();
@@ -582,6 +619,7 @@ async function start() {
       n += 1;
     }
     handleEvents();
+    if (runLog && runLog.inputs.length !== savedInputs && (saveWait -= dt) <= 0) saveNow();
 
     hud.setScore(run.score, Math.max(best, run.score));
     hud.setNext(Math.max(1, run.maxTier));
@@ -599,9 +637,9 @@ async function start() {
     hud.setEconomy(run.coins, run.swipeCost);
     hud.setChoice(gameOverShown ? null : run.pendingChoice);
     hud.hint(false); // the tutorial teaches swiping now
-    tutorial.update(paused ? 0 : dt);
-    hud.update(paused ? 0 : dt);
-    if (!paused && !gameOverShown) auto.tick(run, dt, doSwipe);
+    tutorial.update(live ? dt : 0);
+    hud.update(live && !run.pendingChoice ? dt : 0); // banners wait behind a die card, too
+    if (live && !gameOverShown) auto.tick(run, dt, doSwipe);
     hud.setDanger(run.blocks <= 3 && run.phase === 'wave' ? 0.5 : 0);
 
     // a picked block shows its range (and its inspect card); a die card or a lost block puts it down
@@ -622,6 +660,13 @@ async function start() {
   }
 
   stage.app.ticker.add((ticker) => update(Math.min(0.1, ticker.deltaMS / 1000)));
+  // the first frame is on screen: the loading screen fades out
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      boot?.classList.add('done');
+      setTimeout(() => boot?.remove(), 600);
+    }),
+  );
 
   // handy in the console while prototyping
   window.__mb = {
@@ -636,10 +681,10 @@ async function start() {
       return { ...stage.view };
     },
     restart,
-    /** Step + render without the ticker (works in hidden tabs). */
+    /** Step + render without the ticker (works in hidden tabs, and while paused). */
     advance(seconds, fps = 60) {
       for (let i = 0; i < Math.round(seconds * fps); i++) {
-        update(1 / fps);
+        update(1 / fps, true);
         stage.app.render();
       }
     },
@@ -650,4 +695,8 @@ async function start() {
   };
 }
 
-start();
+start().catch((err) => {
+  console.error(err);
+  bootSay('Something went wrong while loading.');
+  boot?.classList.add('failed');
+});

@@ -293,13 +293,14 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       // Metal marks foes: a marked foe drops bonus coins
       addCoins(Math.round(killCoinsFor(s.waveNo, e.boss) * (1 + (e.loot ?? 0))), 'kill', e.x, e.y);
       if (e.boss) {
-        // boss reward: x2s for the other blocks, as many as the biggest block's power of two (boss-reward.js)
-        const { x2s, plan } = planBossReward(grid.tiles, GRID.size, bossRng);
+        // boss reward: x2s for the other blocks, as many as the biggest block's power of two (boss-reward.js).
+        // Blocks at 0 health this step are about to fall: they take no x2 (and pair with nothing).
+        const live = grid.tiles.filter((t) => t.hp > 0);
+        const { x2s, pairs, plan } = planBossReward(live, GRID.size, bossRng);
         for (const { id, x2 } of plan) {
-          const t = grid.tiles.find((b) => b.id === id);
+          const t = live.find((b) => b.id === id);
           if (!grid.promote(t, x2)) continue;
           for (const g of grid.drainEvents()) events.push(g);
-          t.prof = null;
           const grow = maxHpFor(t.tier) - (t.maxHp ?? 0);
           t.maxHp = maxHpFor(t.tier);
           t.hp = Math.min(t.maxHp, (t.hp ?? 0) + grow);
@@ -308,9 +309,8 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
             events.push({ type: 'classed', tileId: t.id, stage, element: t.cls.element, x: t.x, y: t.y, tier: t.tier, promoted: true, info: describeStage(t.cls, stage, t.tier) });
           }
         }
-        events.push({ type: 'bossReward', x2s, blocks: plan.length, boss: e.enemy?.def?.name ?? null, wave: s.waveNo });
-        scanUnlocks();
-        checkLock();
+        events.push({ type: 'bossReward', x2s, pairs, blocks: plan.length, boss: e.enemy?.def?.name ?? null, wave: s.waveNo });
+        checkLock(); // (no unlock check: the reward never raises the biggest block)
       }
     }
     // blocks whose hidden health ran out are destroyed for good

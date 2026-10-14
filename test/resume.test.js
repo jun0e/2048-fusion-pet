@@ -1,0 +1,77 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createRun } from '../src/sim/run.js';
+import { createRng } from '../src/sim/rng.js';
+import { recordRun, replayRun, fingerprint, saveRun, loadSaved, clearSaved } from '../src/ux/resume.js';
+
+/** Play a recorded run with random inputs for `seconds` of sim time. */
+function play(seed, seconds) {
+  const run = createRun({ seed });
+  const log = recordRun(run);
+  run.setHold(true);
+  run.setGuidedWave(true);
+  const rng = createRng(seed * 7 + 1);
+  const dirs = ['left', 'right', 'up', 'down'];
+  for (let i = 0; i < seconds * 60 && !run.over; i++) {
+    if (i === 120) run.setHold(false);
+    if (i % 25 === 0) run.move(dirs[Math.floor(rng.next() * 4)]);
+    if (i % 400 === 0) run.nextWave();
+    if (run.pendingChoice) run.choose(Math.floor(rng.next() * run.pendingChoice.offers.length));
+    run.step();
+    run.drainEvents();
+  }
+  return { run, log };
+}
+
+/** Everything a player can see about a run. */
+const state = (r) => ({
+  fp: fingerprint(r),
+  tiles: r.tiles.map((t) => [t.id, t.tier, t.col, t.row, Math.round(t.hp), JSON.stringify(t.cls)]),
+  enemies: r.enemies.filter((e) => !e.dead).map((e) => [e.type, e.lane, e.y.toFixed(4), Math.round(e.hp)]),
+  coins: r.coins,
+  time: r.time.toFixed(6),
+  owned: r.owned.join(','),
+});
+
+test('a replayed log rebuilds the run exactly', () => {
+  for (const seed of [3, 11, 42]) {
+    const { run, log } = play(seed, 90);
+    assert.ok(log.inputs.length > 50, 'a real run: many inputs');
+    const copy = replayRun(createRun, JSON.parse(JSON.stringify(log)));
+    assert.deepEqual(state(copy), state(run), `seed ${seed}`);
+  }
+});
+
+test('a resumed run keeps recording, and a second resume still matches', () => {
+  const { run, log } = play(5, 40);
+  const again = replayRun(createRun, JSON.parse(JSON.stringify(log)));
+  const log2 = recordRun(again, JSON.parse(JSON.stringify(log)));
+  for (let i = 0; i < 600 && !again.over; i++) {
+    if (i % 30 === 0) again.move(i % 60 ? 'left' : 'up');
+    if (i === 300) again.nextWave();
+    again.step();
+    again.drainEvents();
+  }
+  const third = replayRun(createRun, JSON.parse(JSON.stringify(log2)));
+  assert.deepEqual(state(third), state(again));
+  assert.ok(log2.inputs.length > log.inputs.length);
+  assert.ok(run, 'the first run stays as it was');
+});
+
+test('inputs that change nothing are not recorded; saves round-trip', () => {
+  const run = createRun({ seed: 9 });
+  const log = recordRun(run);
+  run.nextWave(); // starts wave 1
+  run.nextWave(); // a wave is on: refused, not recorded
+  assert.equal(log.inputs.filter((x) => x[1] === 'nextWave').length, 1);
+  const store = new Map();
+  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+  saveRun(run, log, storage);
+  const saved = loadSaved(storage);
+  assert.equal(saved.fp, fingerprint(run));
+  assert.equal(saved.wave, 1);
+  clearSaved(storage);
+  assert.equal(loadSaved(storage), null);
+  storage.setItem('siege:run', '{broken');
+  assert.equal(loadSaved(storage), null, 'a broken save is ignored');
+});

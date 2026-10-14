@@ -40,7 +40,7 @@ export function createInput(el, { swipe, tap, choose, nextWave, pause }) {
     s: 'down',
   };
   window.addEventListener('keydown', (e) => {
-    if (e.repeat) return;
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return; // browser shortcuts (Cmd+P prints) stay theirs
     const dir = KEYS[e.key] ?? KEYS[e.key.toLowerCase?.()];
     if (dir) {
       e.preventDefault();

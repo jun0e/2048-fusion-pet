@@ -70,6 +70,16 @@ Each phase ends with: `npm test` green, a browser check at phone sizes, and a co
 - 7.2 Tests green, a code review of 9.5 or more, `npm run pack`, and docs updated (`meta-and-hud.md` statuses, this plan).
 - 7.3 Delivery for a phone playtest: the packed single-file build as a private claude.ai Artifact (a link to open on the phone), and the LAN address of the dev server (`npm run dev` already uses `--host`).
 
+## Code review fixes (between phase 5 and phase 6)
+
+The review of the boss reward and the P0 HUD fixes scored 8/10 (nothing critical or high). Fixed:
+
+- Banners stay long enough to read (see `meta-and-hud.md`, Part D, item 1), and stop while paused or behind a die card.
+- The pause logic is a tested state machine (`src/ux/pause.js`): Escape steps back one level (the restart confirm and settings go back to the menu, How to play goes back to the menu), and focus stays in the pause dialog (the rest of the HUD is inert while it is open).
+- The boss reward plans over live blocks only (a block broken in the same step no longer takes an x2), and the planner is 10 to 20 times faster on a full board (it only looks at the links that a move changes).
+- "Merge the new pairs!" shows only when the x2s made a pair.
+- A game-over card still on its way no longer covers a restarted run; Cmd/Ctrl/Alt + a key is the browser's; the dev helper `__mb.advance()` steps while paused; `tools/boss-value.mjs` measures the economy model's boss value.
+
 ## Out of scope (next)
 
 Codex, ranking, daily seed, missions, a home screen and other meta features (Part A of `meta-and-hud.md`). The plan leaves room for them: the pause menu and the settings sheet are where Codex and Home will go.
@@ -84,5 +94,5 @@ Codex, ranking, daily seed, missions, a home screen and other meta features (Par
 | 3 Readable and easy to tap | Done |
 | 4 Dialogs on a phone | Done |
 | 5 Play controls | Done |
-| 6 Loading and resume | Not started |
+| 6 Loading and resume | Done |
 | 7 Device check and delivery | Not started |

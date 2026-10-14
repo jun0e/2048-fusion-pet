@@ -20,82 +20,71 @@
  * @param tiles  the board's blocks: { id, tier, col, row }
  * @param size   the board's width and height
  * @param rng    a seeded RNG ({ next() } in [0, 1))
- * @returns { x2s, plan: [{ id, x2 }] } x2s handed out, and how many each block takes
+ * @returns { x2s, pairs, plan: [{ id, x2 }] } x2s handed out, pairs gained, and how many x2s each block takes
  */
 export function planBossReward(tiles, size, rng) {
-  const top = tiles.reduce((m, t) => Math.max(m, t.tier), 0);
-  const cap = top; // a block can grow to equal the biggest, not past it
+  const top = tiles.reduce((m, t) => Math.max(m, t.tier), 0); // a block can grow to equal it, not past it
   const tier = new Map(tiles.map((t) => [t.id, t.tier]));
+  const room = (id) => top - tier.get(id);
+
+  // Blocks do not move during the reward, so who faces whom is fixed: each block's
+  // nearest block left, right, up and down (gaps allowed). A link joins two such
+  // neighbours once; a link between equal blocks is a pair.
   const cell = new Array(size * size).fill(null);
   for (const t of tiles) cell[t.row * size + t.col] = t.id;
-  const room = (id) => cap - tier.get(id);
-
-  /** Equal neighbours in each row and column, gaps allowed. */
-  function pairs() {
-    let n = 0;
-    for (let i = 0; i < size; i++) {
-      let inRow = 0;
-      let inCol = 0;
+  const near = new Map(tiles.map((t) => [t.id, []]));
+  const links = [];
+  for (let i = 0; i < size; i++) {
+    for (const line of [(j) => cell[i * size + j], (j) => cell[j * size + i]]) {
+      let prev = null;
       for (let j = 0; j < size; j++) {
-        const a = cell[i * size + j]; // row i, left to right
-        if (a != null) {
-          if (tier.get(a) === inRow) n += 1;
-          inRow = tier.get(a);
+        const id = line(j);
+        if (id == null) continue;
+        if (prev != null) {
+          links.push([prev, id]);
+          near.get(prev).push(id);
+          near.get(id).push(prev);
         }
-        const b = cell[j * size + i]; // column i, top to bottom
-        if (b != null) {
-          if (tier.get(b) === inCol) n += 1;
-          inCol = tier.get(b);
-        }
+        prev = id;
       }
     }
-    return n;
   }
+  const isPair = ([a, b]) => tier.get(a) === tier.get(b);
+  const pairCount = () => links.filter(isPair).length;
+  /** Pairs that touch any of `ids` (only these can change when `ids` grow). */
+  const touching = (ids) => links.filter((l) => (ids.includes(l[0]) || ids.includes(l[1])) && isPair(l)).length;
 
   /** Pairs gained (or lost, below 0) if the blocks `ids` each grew by k. */
-  function gainOf(ids, k, base) {
+  function gainOf(ids, k) {
+    const before = touching(ids);
     for (const id of ids) tier.set(id, tier.get(id) + k);
-    const gain = pairs() - base;
+    const after = touching(ids);
     for (const id of ids) tier.set(id, tier.get(id) - k);
-    return gain;
+    return after - before;
   }
 
-  /** The pairs on the board now, as [id, id] (for moves that raise both). */
-  function pairList() {
-    const out = [];
-    for (let i = 0; i < size; i++) {
-      let inRow = null;
-      let inCol = null;
-      for (let j = 0; j < size; j++) {
-        const a = cell[i * size + j];
-        if (a != null) {
-          if (inRow != null && tier.get(inRow) === tier.get(a)) out.push([inRow, a]);
-          inRow = a;
-        }
-        const b = cell[j * size + i];
-        if (b != null) {
-          if (inCol != null && tier.get(inCol) === tier.get(b)) out.push([inCol, b]);
-          inCol = b;
-        }
-      }
-    }
-    return out;
+  /** x2 counts worth trying for `ids`: one, or enough to match a neighbour (fits in `most`). */
+  function counts(ids, most) {
+    const ks = new Set([1]);
+    for (const id of ids) for (const n of near.get(id)) if (!ids.includes(n)) ks.add(tier.get(n) - tier.get(ids[0]));
+    return [...ks].filter((k) => k >= 1 && k <= most).sort((a, b) => a - b);
   }
 
   const pick = (list) => list[Math.floor(rng.next() * list.length)];
   const given = new Map();
+  const startPairs = pairCount();
   let left = top;
   while (left > 0) {
     const open = tiles.filter((t) => room(t.id) > 0).map((t) => t.id);
     if (!open.length) break; // every other block is as big as the biggest
-    const base = pairs();
+    const pairs = links.filter(isPair);
     // every move: one block up by k, or both blocks of a pair up by k
     const moves = [];
-    for (const id of open) for (let k = 1; k <= Math.min(left, room(id)); k++) moves.push({ ids: [id], k });
-    for (const [a, b] of pairList()) {
-      for (let k = 1; 2 * k <= left && k <= Math.min(room(a), room(b)); k++) moves.push({ ids: [a, b], k });
+    for (const id of open) for (const k of counts([id], Math.min(left, room(id)))) moves.push({ ids: [id], k });
+    for (const [a, b] of pairs) {
+      for (const k of counts([a, b], Math.min(Math.floor(left / 2), room(a), room(b)))) moves.push({ ids: [a, b], k });
     }
-    for (const m of moves) m.gain = gainOf(m.ids, m.k, base);
+    for (const m of moves) m.gain = gainOf(m.ids, m.k);
     let choice;
     const making = moves.filter((m) => m.gain > 0);
     if (making.length) {
@@ -107,7 +96,7 @@ export function planBossReward(tiles, size, rng) {
       // (a pair first, if the blocks outside pairs have less room than the x2s left); else break the fewest
       const ones = moves.filter((m) => m.k === 1);
       const singles = ones.filter((m) => m.ids.length === 1);
-      const paired = new Set(pairList().flat());
+      const paired = new Set(pairs.flat());
       const safe = singles.filter((m) => !paired.has(m.ids[0]));
       const safeRoom = safe.reduce((n, m) => n + room(m.ids[0]), 0);
       const together = ones.filter((m) => m.ids.length === 2 && m.gain === 0);
@@ -124,5 +113,5 @@ export function planBossReward(tiles, size, rng) {
     }
     left -= choice.ids.length * choice.k;
   }
-  return { x2s: top - left, plan: tiles.filter((t) => given.has(t.id)).map((t) => ({ id: t.id, x2: given.get(t.id) })) };
+  return { x2s: top - left, pairs: pairCount() - startPairs, plan: tiles.filter((t) => given.has(t.id)).map((t) => ({ id: t.id, x2: given.get(t.id) })) };
 }

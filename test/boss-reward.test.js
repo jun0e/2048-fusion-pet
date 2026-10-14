@@ -103,8 +103,21 @@ test('the biggest block and its equals get none; a full board hands out what fit
   const { x2s, plan } = planBossReward(ties, 4, createRng(1));
   assert.deepEqual(plan, [{ id: 3, x2: 7 }], 'only the 2 grows, up to 256');
   assert.equal(x2s, 7, 'no more room: one of the eight x2s stays unused');
-  assert.deepEqual(planBossReward([block(1, 6, 0, 0), block(2, 5, 1, 0)], 4, createRng(1)), { x2s: 1, plan: [{ id: 2, x2: 1 }] }, 'a 32 next to a 64 takes one: a pair of 64s');
-  assert.deepEqual(planBossReward([block(1, 6, 0, 0)], 4, createRng(1)), { x2s: 0, plan: [] }, 'nothing else on the board');
+  assert.deepEqual(planBossReward([block(1, 6, 0, 0), block(2, 5, 1, 0)], 4, createRng(1)), { x2s: 1, pairs: 1, plan: [{ id: 2, x2: 1 }] }, 'a 32 next to a 64 takes one: a pair of 64s');
+  assert.deepEqual(planBossReward([block(1, 6, 0, 0)], 4, createRng(1)), { x2s: 0, pairs: 0, plan: [] }, 'nothing else on the board');
+});
+
+test('the pairs it reports are the pairs the board gained', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const rng = createRng(seed * 31);
+    const tiles = [];
+    let id = 0;
+    for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) if (rng.next() < 0.7) tiles.push(block(id++, 1 + Math.floor(rng.next() * 7), col, row));
+    if (tiles.length < 2) continue;
+    const before = pairs(tiles, new Map(tiles.map((t) => [t.id, t.tier])));
+    const { pairs: made, plan } = planBossReward(tiles, 4, createRng(seed));
+    assert.equal(made, pairs(tiles, after(tiles, plan)) - before, `seed ${seed}`);
+  }
 });
 
 test('the plan is the same for the same RNG', () => {

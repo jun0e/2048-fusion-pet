@@ -279,7 +279,7 @@ P0 items can ship now. P1 items prepare the meta layer.
 
 **P0** (done on 2026-10-14)
 
-1. Done: a banner queue (`src/ux/banners.js`). Banners show one after the other; with news waiting, each stays 1.3 s, and alone it plays its full 2.2 s. The boss banner and the wave-cleared banner now both show.
+1. Done: a banner queue (`src/ux/banners.js`). Banners show one after the other, each long enough to read: 4 words a second, and 1.8 s or more even when news waits behind it (alone, it stays 0.6 s longer, 2.2 s or more). The animation takes the same time, and it stops while the game is paused or a die card is open. The boss banner and the wave-cleared banner now both show, in turn. (The first plan merged them into one banner; showing them in turn keeps each one's colour and copy.)
 2. Done: a Pause button in the top bar in place of Restart. Restart is in the pause menu, behind a confirm.
 3. Done: the pause menu: Resume, How to play, Restart. It also opens with Escape or P, and when the tab goes to the background. Codex, Settings and Quit come with the meta layer.
 4. Done: the Auto button shows only with `?dev`.

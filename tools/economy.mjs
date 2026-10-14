@@ -14,7 +14,7 @@
 //   its value (a tidy corner board); classes multiply damage (×1.3 at 16+, ×2 at 256+, ×3.5 at 4096+)
 // - pressure = wave HP ÷ (board damage per second × time the wave is on the field). Above ~1 foes leak.
 // - a boss kill's x2s (src/sim/boss-reward.js) add most of the top block's value to the board
-//   (median 0.86 over 121 boss kills in 40 autoplay games)
+//   (median 0.87 over 121 boss kills in 40 autoplay games; measure again with tools/boss-value.mjs)
 import { DEFENSE, ECONOMY, LANE_LENGTH, GRID } from '../src/config.js';
 import { ENEMY_TYPES, generateWave } from '../src/sim/enemies.js';
 import { ELEMENTS, turretDamage } from '../src/sim/classes.js';
@@ -88,7 +88,7 @@ function boardDps(value) {
 
 const breakFor = (w) => (w === 1 ? ECONOMY.prepSeconds : Math.min(ECONOMY.breakMax, ECONOMY.breakBase + ECONOMY.breakPerWave * w));
 const rows = [];
-const BOSS_X2_VALUE = 0.86; // board value a boss's x2s add, as a share of the top block (measured, see above)
+const BOSS_X2_VALUE = 0.87; // board value a boss's x2s add, as a share of the top block (measured, see above)
 let promoted = 0; // board value added by boss x2s
 const boardValue = () => 4.4 + 2.2 * swipes + promoted;
 const topOf = (v) => 2 ** Math.floor(Math.log2(v * 0.55));

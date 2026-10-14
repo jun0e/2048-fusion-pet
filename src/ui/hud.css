@@ -1286,16 +1286,16 @@ body {
   box-shadow: 0 4px 0 #c47a10, var(--clay-hi);
 }
 
-/* four icon buttons (restart, sound, auto, help): a 2×2 grid so the score cards keep their room */
+/* the top-left icon buttons (Pause, Sound; Auto with ?dev): two columns, so the score card keeps its room */
 .icons {
   display: grid;
-  grid-template-columns: repeat(2, 38px);
+  grid-template-columns: repeat(2, 44px);
   gap: 6px;
 }
 
 .icons .icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 44px; /* a finger-sized target */
+  height: 44px;
   font-size: 17px;
 }
 
@@ -1666,4 +1666,10 @@ body {
 
 .inspect-progress:empty {
   display: none;
+}
+
+/* --- banners stop with the game: paused, or behind a die card ---------------------------- */
+#hud.paused .banner.show,
+#hud.choosing .banner.show {
+  animation-play-state: paused;
 }

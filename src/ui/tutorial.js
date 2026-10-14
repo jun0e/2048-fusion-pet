@@ -51,7 +51,7 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
       <dl>${HELP.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
       <div class="help-actions">
         <button class="help-replay" type="button">Replay tutorial</button>
-        <button class="primary help-close" type="button">Back to the game</button>
+        <button class="primary help-close" type="button">Back</button>
       </div>
     </div>`;
   root.appendChild(help);
@@ -171,6 +171,7 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
     el.style.visibility = open ? 'hidden' : ''; // tips wait behind the sheet
     onPause?.(open);
     onLog?.(open ? 'help' : 'helpClose', {});
+    if (open) help.querySelector('.help-close').focus({ preventScroll: true }); // keyboard players start inside the sheet
   }
   help.querySelector('.help-close').addEventListener('click', () => openHelp(false));
   help.querySelector('.help-replay').addEventListener('click', () => {
