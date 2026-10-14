@@ -4,6 +4,12 @@
 /** Seconds between the last block falling and the game-over card. */
 export const GAME_OVER_DELAY = 0.7;
 
+/**
+ * A bubble on screen for less time than this (s) could not be read: a flash.
+ * The coach counts such a tip as unseen; the journey log counts it as a flash.
+ */
+export const FLASH_SECONDS = 1;
+
 /** The game-over card's cause line: what broke the last block. */
 export function causeLine({ wave, by = null }) {
   return by ? `A ${by} broke your last block on wave ${wave}.` : `Your last block fell on wave ${wave}.`;

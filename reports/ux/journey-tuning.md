@@ -12,7 +12,7 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 - **Less idle time:** a novice waits 17 s in countdowns in the first 5 minutes (was 43 s). A break shrinks to 4 s when no swipe is possible.
 - **Loss and retry:** the game-over card says what broke the last block. The next run opens with one lesson.
 - **Return visit:** a returning player sees their best wave as a goal.
-- **Tests:** all pass (106 tests; 79 before this work).
+- **Tests:** all pass (109 tests; 79 before this work).
 
 ## Journey contract (phase 1)
 
@@ -54,11 +54,11 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 | Pass | Change | Evidence (novice, median) |
 |---|---|---|
 | 1 Opening | 4 short steps. They advance on the first 16, a swipe, a swipe count or a timer. No taps. The defend rule moved to the first hit. Wave now at any step ends the opening. Out of coins during the opening goes to the Wave now step. | Words before the first wave 52 → 26; first turret 5.8 → 2.8 s; required taps 1 → 0 |
-| 2 Tips | Tips of 12 words or fewer, shown for their reading time. They use a priority queue (urgent, core, depth), sit 16 s apart, and depth tips wait for their wave. "Attacked" and "lost" merged into one tip. A tip that points at a block follows it when it merges, and points at the block count when the block breaks. A break or boss tip goes when its break ends. It does not start in the last 3 s of a break, and the break tip comes only when a swipe is possible. A tip that was up for less than 1 s, was dropped from a full queue, or was still waiting at a game over can come again (once for a flash). Depth tips are not offered before their wave. | Shortest gap 0.6 → 7.8 s; losses by wave 3: 3 of 24 → 0 of 24; tips up under 1 s: 1 → 0 |
+| 2 Tips | Tips of 12 words or fewer, shown for their reading time. They use a priority queue (urgent, core, depth), sit 16 s apart, and depth tips wait for their wave. "Attacked" and "lost" merged into one tip. A tip that points at a block follows it when it merges. When the block breaks, the defend tip points at the block count, and a tip about that block alone goes with it. The break tip comes only when a swipe is possible, goes when its break ends, and does not start in the last 3 s of a break. The boss tip lasts until its boss wave is over. A tip that was up for less than 1 s, was dropped from a full queue, or was still waiting at a game over can come again (once for a flash). Depth tips are not offered before their wave. | Shortest gap 0.6 → 7.8 s; losses by wave 3: 3 of 24 → 0 of 24; tips up under 1 s: 1 → 0 |
 | 3 First wave | First run only: wave 1 comes down the biggest block's column with 4 foes. The lit lane follows the block during the opening. A player who skips the tutorial gets the normal wave 1. | First block lost 33.5 → 46.8 s |
 | 4 Game over | Cause line ("A Griffin Chick broke your last block on wave 2."). The retry opens with one hint. A bubble no longer stays over the card. | Card +2 words |
 | 5 Return visit | The best wave is saved, and a returning player sees it as a goal | – |
-| 6 Idle breaks | A break shrinks to 4 s when no swipe is possible (no coins or a locked board), and Wave now pulses. The opening countdown is never cut. | Idle countdown time 43.3 → 17.2 s |
+| 6 Idle breaks | A break shrinks to 4 s when no swipe is possible (no coins or a locked board), and Wave now pulses. The opening countdown is never cut. | Idle countdown time 43.3 → 17.3 s |
 | UI | Lane tips sit above the field. Block tips go beside the block, or under the board when there is room above the coin bar and Wave now. No bubble goes over the bottom bar. A hidden bubble takes no taps. The legacy hint bar starts hidden. While the opening holds the countdown, the pill reads "First wave: when ready", not a frozen "15s". | `shots/05-guided-wave-lanes-tip.jpg`, `shots/02-turret-step.jpg` |
 
 ## Fun tests (phase 4), after tuning
@@ -93,12 +93,12 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 | Shortest gap between two tips | 0.6 s | 7.8 s |
 | Tips up for under 1 s in the first 5 minutes | 1 | 0 |
 | Defend rule on screen for 1 s or more (runs with a block hit) | 24 of 24 | 24 of 24 |
-| Idle countdown time in the first 5 minutes | 43.3 s | 17.2 s |
-| Wave of the first loss | 14 (p10: 1) | 15 (p10: 13) |
+| Idle countdown time in the first 5 minutes | 43.3 s | 17.3 s |
+| Wave of the first loss | 14 (p10: 1) | 15 (p10: 15) |
 | Game over to the next swipe | 7.0 s | 11.5 s |
 | Required tutorial taps | 1 | 0 |
 
-**Pace, not difficulty:** the number of novice runs that last 15 minutes is noisy. In two sets of 24 seeds, the tuned build keeps 9 and 4 runs; the baseline keeps 10 and 13. A split test shows the cause: the shorter idle break. With the old break rule, the tuned build keeps 16 and 14. The break makes the game faster, not harder. Players reach more waves in 15 minutes, so more runs end inside the cap. In both seed sets the earliest loss moves from wave 1 to wave 10 or later, and the latest losses move from waves 16–18 to waves 24–26.
+**Pace, not difficulty:** the number of novice runs that last 15 minutes is noisy. In two sets of 24 seeds, the tuned build keeps 9 and 4 runs; the baseline keeps 10 and 13. A split test shows the cause: the shorter idle break. With the old break rule, the tuned build keeps 16 and 15. The break makes the game faster, not harder. Players reach more waves in 15 minutes, so more runs end inside the cap. In both seed sets the earliest loss moves from wave 1 to wave 10 or later, and the latest losses move from waves 16–18 to waves 24–26.
 
 ## Tuned values
 
@@ -109,8 +109,8 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 | Tip text | `COACH.tips` | 12 words or fewer |
 | Tip time on screen | `readSeconds` | words / 2.5 + 1.5 s, at least 3 s |
 | Gap between tips | `gapAfterTip`, `urgentGap` | 16 s; 2 s for urgent tips |
-| Tip queue | `queueMax`, `priority`, `minWave`, `when`, `stale`, `reoffer` | 3; note 4, urgent 3, core 2, depth 1; colour from wave 3, unlock from wave 2; the break tip only when a swipe is possible; break and boss tips only in their own break, not in its last 3 s; dropped tips can come again |
-| Readable tips | `minSeen`, `follow`, `fallback` | up under 1 s = not seen (comes back once); tips follow a merging block; a broken block's tip points at the block count |
+| Tip queue | `queueMax`, `priority`, `minWave`, `when`, `stale`, `reoffer` | 3; note 4, urgent 3, core 2, depth 1; colour from wave 3, unlock from wave 2; the break tip only when a swipe is possible, only in its own break and not in its last 3 s; the boss tip until its boss wave is over; dropped tips can come again |
+| Readable tips | `minSeen` (`FLASH_SECONDS`), `follow`, `fallback` | up under 1 s = not seen (comes back once); tips follow a merging block; when a block breaks, the defend tip points at the block count and other tips about it go |
 | Guided first wave | `src/config.js` `GUIDED_WAVE.count` | 4 foes, first run only |
 | Idle break | `ECONOMY.brokeBreak` | 4 s when no swipe is possible |
 | Game-over delay | `src/ux/journey-tuning.js` `GAME_OVER_DELAY` | 0.7 s (unchanged) |
@@ -136,12 +136,12 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 - `src/ux/placement.js`: the bubble placement rules without the DOM.
 - `src/ux/journey.js`: the milestone log, with each bubble's time on screen. In the browser, read `window.__mb.journey`.
 - `tools/journey-probe.mjs`: the journey bot. Use `--compare` for baseline against tuned.
-- `test/journey.test.js`: 27 tests for the coach (opening, tips, queue, stale tips, flashes, tips that follow a block, autoplay, game over), the log, the guided wave, the idle break, the bubble placement, the copy and a probe smoke run.
+- `test/journey.test.js`: 30 tests for the coach (opening, tips, queue, stale tips, flashes, tips that follow a block, autoplay, game over, replay), the log, the guided wave, the idle break, the bubble placement, the copy and a probe smoke run.
 
 ## Risks and open questions
 
 1. **Bot players are a model, not people.** The reading speeds and mistake rates are estimates. Confirm with 3 to 5 real first-time players: a 5-second test of the first screen, and a watch of the first 2 minutes.
 2. **The retry is slower for readers** (7.0 to 11.5 s), because the hint gives them something to read. The "Play again" button itself is not slower.
 3. **Skilled players are short of coins** for about half of the first 5 minutes. This is economy pacing, outside this pass.
-4. **Players who never read tips can see a flash.** If a player taps Wave now the moment a break or boss tip appears, the tip goes within 1 s. It comes back once, at the next such break. In 24 fifteen-minute runs, the skilled bot (which reads no tips) saw 7 such flashes; the novice saw none.
+4. **Players who never read tips can see a flash.** If a player taps Wave now the moment the break tip appears, the tip goes within 1 s. It comes back once, at a later break. In 24 fifteen-minute runs, the skilled bot (which reads no tips) saw 1 such flash; the novice saw none.
 5. **Merge risk:** `src/main.js` and `src/sim/run.js` are shared with the art fork. The edits here are small hooks. Merge this branch before the art fork changes those files again, or rebase on its work first.

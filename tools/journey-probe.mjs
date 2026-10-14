@@ -22,8 +22,8 @@ import { createRng } from '../src/sim/rng.js';
 import { PHYSICS } from '../src/config.js';
 import { bestDir } from '../src/autoplay.js';
 import { createCoach, COACH, COACH_BASELINE, wordCount } from '../src/ux/coach.js';
-import { createJourney, FLASH_SECONDS } from '../src/ux/journey.js';
-import { GAME_OVER_DELAY, gameOverWords, causeLine, lossHint } from '../src/ux/journey-tuning.js';
+import { createJourney } from '../src/ux/journey.js';
+import { GAME_OVER_DELAY, FLASH_SECONDS, gameOverWords, causeLine, lossHint } from '../src/ux/journey-tuning.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 /** Bubbles that teach the defend rule: the baseline's guided step, the tuned tips. */

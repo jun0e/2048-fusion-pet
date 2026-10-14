@@ -6,8 +6,10 @@
 // A config holds the script and the timing. COACH_BASELINE is the opening as it
 // shipped before the journey pass; COACH is the tuned one (the default). Every
 // tuned behaviour is a config flag, so the baseline plays as it shipped. Only
-// autoplay handling (setMuted) is shared; the probe never mutes.
+// the autoplay handling (everything that checks `muted`) is shared; the probe
+// never mutes.
 import { stageFor } from '../sim/classes.js';
+import { FLASH_SECONDS } from './journey-tuning.js';
 
 export const TIPS_BASELINE = {
   merge: 'Merged! A bigger block is a stronger turret.',
@@ -63,7 +65,7 @@ export const TIPS = {
   unlock: 'New die! New 16s can roll it.',
   fusion: 'Fusion! Two elements, both effects. Next stop: 4096.',
   ultimate: 'Ultimate! It hits the whole field.',
-  boss: 'Boss next, from the red portal. Kill it to promote a block.',
+  boss: 'Boss from the red portal! Kill it to promote a block.',
   milestone: '2048! Reach 4096 for an ultimate.',
 };
 
@@ -98,12 +100,13 @@ export const COACH = {
   minWave: { colour: 3, unlock: 2 },
   // a tip is offered only when its advice can be followed ("swipe to grow" needs a possible swipe)
   when: { break: (run) => run.coins >= run.swipeCost && !run.locked },
-  // a tip whose moment has passed (its break is over) is dropped and offered again next time
-  stale: { break: breakOver, boss: breakOver },
+  // a tip whose moment has passed is dropped and offered again next time: the break tip
+  // lasts its break; the boss tip lasts until its boss wave is over
+  stale: { break: breakOver, boss: (run, q) => run.waveNo !== q.wave },
   reoffer: true, // a tip dropped unseen (queue overflow, stale, game over, a flash) can be offered again
-  minSeen: 1, // a tip on screen for less than this (s) was not read: a flash counts as unseen
+  minSeen: FLASH_SECONDS, // a tip on screen for less than this was not read: a flash counts as unseen
   follow: true, // a tip that points at a block follows it when it merges
-  fallback: { attacked: 'blocks' }, // where a tip points when its block breaks (default: nowhere)
+  fallback: { attacked: 'blocks' }, // where a tip points when its block breaks (others go with the block)
   seenWithStep: { turret: ['awaken'] }, // a guided step already covers these tips
   seenWithTip: { attacked: ['lost'] }, // a tip that already says what these say
   guidedWave: true, // first run: wave 1 comes down the first turret's column (run.setGuidedWave)
@@ -171,10 +174,10 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     return top ? { tile: top.id } : 'board';
   }
 
-  /** `log: false` re-shows a bubble the player already saw (after autoplay): not new words. */
+  /** `log: false` re-shows a bubble the player already saw (after autoplay): logged as 'reshow', no new words. */
   function show(kind, id, text, target, { ok = false, skip = false, hand = false } = {}, log = true) {
     view = { key: `${kind}:${id}:${++seq}`, kind, id, text, target: resolve(target), ok, skip, hand };
-    if (log && !muted) onLog('show', { kind, id, words: wordCount(text) });
+    if (!muted) onLog(log ? 'show' : 'reshow', { kind, id, words: wordCount(text) });
   }
   function hide() {
     if (view && !muted) onLog('hide', { kind: view.kind, id: view.id });
@@ -255,14 +258,32 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     enqueue({ id, target, wave: run().waveNo });
   }
 
-  /** Blocks merged or broke: tips that point at them move to `to(tip)`. */
-  function follow(ids, to) {
-    const moved = (q) => q?.target?.tile != null && ids.includes(q.target.tile);
-    for (const q of queue) if (moved(q)) q.target = to(q);
-    if (moved(tip)) {
-      tip.target = to(tip);
-      if (view?.kind === 'tip') view = { ...view, target: resolve(tip.target) };
+  /** Point the tip on screen somewhere else (same bubble, new ring). */
+  function aimTip(target) {
+    tip.target = target;
+    if (view?.kind === 'tip') view = { ...view, target: resolve(target) };
+  }
+
+  /** Blocks merged: tips that point at them point at the merged block. */
+  function follow(ids, id) {
+    const at = (q) => q?.target?.tile != null && ids.includes(q.target.tile);
+    for (const q of queue) if (at(q)) q.target = { tile: id };
+    if (at(tip)) aimTip({ tile: id });
+  }
+
+  /** A block broke: its tips point at their fallback (the block count), or go with it. */
+  function lose(id) {
+    const at = (q) => q?.target?.tile === id;
+    for (let i = queue.length - 1; i >= 0; i--) {
+      if (!at(queue[i])) continue;
+      const fallback = config.fallback?.[queue[i].id];
+      if (fallback) queue[i].target = fallback;
+      else unsee(queue.splice(i, 1)[0]); // about that block only: it can come with the next one
     }
+    if (!at(tip)) return;
+    const fallback = config.fallback?.[tip.id];
+    if (fallback) aimTip(fallback);
+    else endTip();
   }
 
   /** Put the next tip up; the tips it also covers count as seen and leave the queue. */
@@ -347,8 +368,8 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
         return;
       }
       if (config.follow) {
-        if (e.type === 'merge') follow(e.from ?? [], () => ({ tile: e.id }));
-        else if (e.type === 'remove') follow([e.id], (q) => config.fallback?.[q.id] ?? null);
+        if (e.type === 'merge') follow(e.from ?? [], e.id);
+        else if (e.type === 'remove') lose(e.id);
       }
       if (guided >= 0 && !muted && e.type === 'waveStart') {
         if (config.endOnWave) guide(GUIDED.length);
@@ -420,6 +441,7 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     reset() {
       store.guided = false;
       store.seen = new Set();
+      reoffered.clear();
       persist();
     },
     /** Per frame: count tips down and rotate them. */

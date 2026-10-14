@@ -177,17 +177,17 @@ test('autoplay: muted swipes teach nothing; the opening resumes where the board 
   coach.setMuted(false);
   assert.equal(coach.view.id, 'swipe');
   assert.equal(run.hold, true, 'the countdown waits again');
-  assert.deepEqual(log, ['show', 'hide'], 'the same bubble again is not new text');
+  assert.deepEqual(log, ['show', 'hide', 'reshow'], 'the same bubble again is not new text');
   coach.setMuted(true);
   coach.onSwipe();
   coach.onSwipe();
   run.tiles = [{ id: 3, tier: 4 }]; // autoplay made a 16
   coach.onEvent({ type: 'classed', stage: 1, tileId: 3 });
   tick(coach, 30);
-  assert.deepEqual(log, ['show', 'hide', 'hide'], 'nothing shown or logged while muted');
+  assert.deepEqual(log, ['show', 'hide', 'reshow', 'hide'], 'nothing shown or logged while muted');
   coach.setMuted(false);
   assert.equal(coach.view.id, 'turret', 'the 16 that autoplay made ends the first step');
-  assert.deepEqual(log, ['show', 'hide', 'hide', 'show']);
+  assert.deepEqual(log, ['show', 'hide', 'reshow', 'hide', 'show']);
   coach.onSwipe();
   assert.equal(coach.view.id, 'grow');
   tick(coach, 15);
@@ -310,6 +310,81 @@ test('the break tip comes only when a swipe is possible (it says "swipe to grow"
   assert.equal(coach.view?.id, 'break');
 });
 
+test('the boss tip lasts through its boss wave', () => {
+  const run = fakeRun();
+  run.phase = 'break';
+  run.waveNo = 5;
+  run.timer = 12;
+  run.wave = { bossLane: 2 };
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'waveIncoming', wave: 5, boss: true, lanes: [2] });
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'boss');
+  assert.deepEqual(coach.view.target, { lane: 2 });
+  run.phase = 'wave'; // Boss now, at once
+  tick(coach, 0.5);
+  assert.equal(coach.view?.id, 'boss', 'still true while the boss walks in');
+  tick(coach, 10);
+  assert.equal(store.seen.has('boss'), true);
+});
+
+test('a tip about one block goes with it when it breaks', () => {
+  const run = fakeRun();
+  run.tiles = [{ id: 4, tier: 4 }, { id: 6, tier: 4 }];
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'classed', stage: 1, tileId: 4 });
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'awaken');
+  coach.onEvent({ type: 'tileHit', id: 6 }); // attacked: waits while awaken is up
+  tick(coach, 1.3);
+  run.tiles = [{ id: 6, tier: 4 }];
+  coach.onEvent({ type: 'remove', id: 4, reason: 'destroyed' });
+  assert.equal(coach.view, null, 'its block is gone: so is the tip');
+  assert.equal(store.seen.has('awaken'), true, 'up 1.5 s: read');
+  tick(coach, 2.5);
+  assert.equal(coach.view?.id, 'attacked');
+
+  const fresh = fakeRun();
+  fresh.pendingChoice = {}; // hold the queue
+  const store2 = { guided: true, seen: new Set() };
+  const queued = createCoach({ getRun: () => fresh, store: store2, config: COACH });
+  queued.start(fresh);
+  queued.onEvent({ type: 'classed', stage: 1, tileId: 4 });
+  queued.onEvent({ type: 'remove', id: 4, reason: 'destroyed' });
+  assert.equal(store2.seen.has('awaken'), false, 'a queued tip about it can come with the next 16');
+});
+
+test('Replay tutorial also forgets which flashed tips came back', () => {
+  const run = fakeRun();
+  run.phase = 'break';
+  run.timer = 12;
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  /** One break: the break tip shows, and the wave starts within 1 s. */
+  const flash = (wave) => {
+    run.phase = 'break';
+    run.waveNo = wave;
+    coach.onEvent({ type: 'waveIncoming', wave, boss: false, lanes: [0] });
+    tick(coach, 0.2);
+    assert.equal(coach.view?.id, 'break');
+    run.phase = 'wave';
+    tick(coach, 5);
+  };
+  coach.start(run);
+  flash(2);
+  assert.equal(store.seen.has('break'), false, 'the first flash comes back');
+  flash(3);
+  assert.equal(store.seen.has('break'), true, 'the second does not');
+  coach.reset();
+  store.guided = true; // the replayed opening is not under test here
+  flash(4);
+  assert.equal(store.seen.has('break'), false, 'after a replay it comes back again');
+});
+
 test('a break tip does not start in the last 3 s of its break', () => {
   const run = fakeRun();
   run.phase = 'break';
@@ -411,7 +486,7 @@ test('autoplay: a tip it cut short is not counted twice; out of coins after it s
   coach.setMuted(false);
   tick(coach, 0.2);
   assert.equal(coach.view?.id, 'coins');
-  assert.deepEqual(log, ['show:coins', 'hide:coins'], 'shown again, not logged again');
+  assert.deepEqual(log, ['show:coins', 'hide:coins', 'reshow:coins'], 'shown again, not as new words');
 
   const broke = fakeRun();
   broke.coins = 0;
@@ -488,8 +563,22 @@ test('journey log: milestones in order, words counted before the first swipe', (
   j.onRunStart();
   t = 46;
   j.onSwipe();
+  t = 50;
+  j.onCoach('show', { kind: 'tip', id: 'coins', words: 6 });
+  t = 50.4;
+  j.onCoach('hide', { kind: 'tip', id: 'coins' }); // autoplay cut it
+  t = 60;
+  j.onCoach('reshow', { kind: 'tip', id: 'coins', words: 6 });
+  t = 63;
+  j.onCoach('hide', { kind: 'tip', id: 'coins' });
   const s = j.snapshot();
-  assert.deepEqual(s.shows.map((b) => b.up), [2.5, 37.5], 'time on screen: until the next bubble, or until it hides');
+  assert.deepEqual(
+    s.shows.map((b) => +b.up.toFixed(2)),
+    [2.5, 37.5, 3.4],
+    'time on screen: until the next bubble or a hide; a re-shown bubble adds up',
+  );
+  assert.equal(s.tipFlashes, 0, 'cut by autoplay but shown again in full: not a flash');
+  assert.equal(s.words, 6 + 7 + 6, 'a re-show adds no words');
   assert.equal(s.wordsBeforeFirstSwipe, 6);
   assert.equal(s.wordsBeforeFirstWave, 13);
   assert.equal(s.marks.firstSwipe.t, 2.5);
