@@ -25,7 +25,7 @@ Each phase ends with: `npm test` green, a browser check at phone sizes, and a co
 ### Phase 1: Fit the screen
 
 - 1.1 The stage takes its top and bottom bands from the real HUD (the bottom edge of the status bar, the top edge of the bottom bar), measured on each resize, not fixed numbers.
-- 1.2 Compact HUD on touch screens and on windows 720 px tall or less: 40 px icon buttons, a smaller score card and Top chip (no labels), a higher status bar, lower bottom bars.
+- 1.2 Compact HUD on touch screens and on windows 720 px tall or less: 44 px icon buttons, a smaller score card and Top chip (no labels), a higher status bar, lower bottom bars.
 - 1.3 One row of icons at the top left: Pause and Sound. "How to play" moves into the pause menu only.
 - 1.4 Portrait only: on a phone in landscape (coarse pointer, landscape, height under 500 px), a "Turn your phone upright" screen covers the game and the game pauses.
 - Acceptance: at 360×640 the board is 15% wider or more than now; no HUD element overlaps the lanes or the board at 360×640, 375×667, 390×844, 412×915 and 430×932.
@@ -62,7 +62,7 @@ Each phase ends with: `npm test` green, a browser check at phone sizes, and a co
 ### Phase 6: Loading and resume
 
 - 6.1 A loading screen in `index.html` (the game title on the game background, with a progress pulse). It fades out when the first frame is ready. If loading fails, it shows an error and a Retry button.
-- 6.2 Run resume: the game saves the seed and the list of inputs (swipes, Wave now, die picks, and the tutorial hold and guided-wave switches, each with its sim step). After a reload, a card offers "Continue run" or "New run"; continuing replays the inputs, which is fast and exact because the sim is deterministic. A saved run from an older build version is dropped.
+- 6.2 Run resume: the game saves the seed and the list of inputs (swipes, Wave now, die picks, and the tutorial hold and guided-wave switches, each with its sim step). After a reload it replays the inputs, which is exact because the sim is deterministic, and opens the pause menu titled "Welcome back" (Resume, or Restart run). A save from another save version, a log this build cannot replay, or a replay that ends somewhere else than its fingerprint is dropped, and a new run starts. Blocked storage means no save, never an error.
 
 ### Phase 7: Device check and delivery
 
@@ -76,9 +76,15 @@ The review of the boss reward and the P0 HUD fixes scored 8/10 (nothing critical
 
 - Banners stay long enough to read (see `meta-and-hud.md`, Part D, item 1), and stop while paused or behind a die card.
 - The pause logic is a tested state machine (`src/ux/pause.js`): Escape steps back one level (the restart confirm and settings go back to the menu, How to play goes back to the menu), and focus stays in the pause dialog (the rest of the HUD is inert while it is open).
-- The boss reward plans over live blocks only (a block broken in the same step no longer takes an x2), and the planner is 10 to 20 times faster on a full board (it only looks at the links that a move changes).
+- The boss reward plans over live blocks only (a block broken in the same step no longer takes an x2). The planner only re-counts the links that a move changes: the same speed on typical boards (about 0.1 ms), 2.5 times faster in the worst case (0.4 ms instead of 0.9 ms), and the same plans as before on 20,000 test boards.
 - "Merge the new pairs!" shows only when the x2s made a pair.
 - A game-over card still on its way no longer covers a restarted run; Cmd/Ctrl/Alt + a key is the browser's; the dev helper `__mb.advance()` steps while paused; `tools/boss-value.mjs` measures the economy model's boss value.
+
+## Final review fixes (7.5/10 → fixed)
+
+- Storage that is blocked (a sandboxed frame, private browsing) no longer throws in the resume helpers; a save from another version, a log with unknown inputs or steps out of order, and a replay that throws are refused, and a new run starts.
+- Escape from How to play no longer leaves the closed sheet reachable by keyboard: the help sheet opens or closes before the pause view decides what is inert, and closed dialogs and a hidden tutorial bubble are `visibility: hidden`.
+- "Restoring your run…" now shows before the replay; the stage re-measures when a bar changes size; a broken frame shows the failure screen with "Try again"; turning the phone upright opens the pause menu; Reduce motion also stops the red edge flash, the coin bar shake, the coin pulse and the announcement bounce; the inspect card sets its width before it measures its height; the pause dialog is named by its title; Share can copy on a plain-http address; the boss banner comes before "x4 speed unlocked".
 
 ## Device check (phase 7.1)
 

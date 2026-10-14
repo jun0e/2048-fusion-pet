@@ -120,6 +120,24 @@ test('the pairs it reports are the pairs the board gained', () => {
   }
 });
 
+test('a fixed board gets a fixed plan (the tie order between moves is part of the rule)', () => {
+  const tiles = [
+    [0, 9, 0, 0], [1, 3, 1, 0], [2, 2, 2, 0], [3, 5, 3, 0], [4, 1, 0, 1], [5, 4, 1, 1],
+    [6, 3, 2, 1], [7, 1, 3, 1], [8, 6, 0, 2], [9, 2, 1, 2], [10, 8, 3, 3],
+  ].map(([id, tier, col, row]) => block(id, tier, col, row));
+  assert.deepEqual(planBossReward(tiles, 4, createRng(11)), {
+    x2s: 9,
+    pairs: 5,
+    plan: [
+      { id: 2, x2: 1 },
+      { id: 4, x2: 3 },
+      { id: 7, x2: 2 },
+      { id: 9, x2: 2 },
+      { id: 10, x2: 1 },
+    ],
+  });
+});
+
 test('the plan is the same for the same RNG', () => {
   const tiles = [block(1, 9, 0, 0), block(2, 1, 1, 0), block(3, 2, 2, 0), block(4, 1, 0, 1), block(5, 3, 1, 1), block(6, 2, 3, 2), block(7, 1, 2, 3)];
   const a = planBossReward(tiles, 4, createRng(42));

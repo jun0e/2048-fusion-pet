@@ -2,13 +2,26 @@
 // sim step it came at. The sim is deterministic, so replaying the inputs rebuilds
 // the run exactly. The game saves this log; after a reload it replays the log and
 // shows the pause menu, so the player continues or restarts.
-// A fingerprint of the run (wave, score, coins, blocks) is saved with the log:
-// if the replay does not match it (a newer build changed the sim), the save is
-// dropped and a new run starts.
+// A save carries a version and a fingerprint of the run. A save from another
+// version, a log that does not parse, a replay that throws, or a replay that does
+// not match its fingerprint (a newer build changed the sim) is dropped, and a new
+// run starts. Storage can be blocked (a sandboxed frame, private browsing): then
+// nothing is saved, and nothing throws.
 
 export const RESUME_KEY = 'siege:run';
+/** Bump when a change makes old logs replay differently (renamed inputs, sim rules). */
+export const SAVE_VERSION = 1;
 /** Run methods that change the sim from outside (debug helpers are not saved). */
 export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave'];
+
+/** localStorage, or null where reading it throws. */
+function local() {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Record a run's inputs: wraps its step and its input methods (an input that
@@ -47,26 +60,62 @@ export function replayRun(createRun, log, { onEvents = () => {} } = {}) {
   return run;
 }
 
-/** What must match after a replay. */
-export const fingerprint = (run) => [run.waveNo, run.phase, run.score, run.coins, run.tiles.map((t) => `${t.id}:${t.tier}`).join(',')].join('|');
+/** What must match after a replay: the board (with classes and health), the economy, the deck. */
+export const fingerprint = (run) =>
+  [
+    run.waveNo,
+    run.phase,
+    run.score,
+    run.coins,
+    run.swipeCost,
+    run.kills,
+    run.owned.join('+'),
+    run.tiles.map((t) => `${t.id}:${t.tier}:${t.cls.element ?? ''}${t.cls.fusion ?? ''}${t.cls.ultimate ?? ''}:${Math.round(t.hp)}`).join(','),
+  ].join('|');
 
-/** Read the saved run (null when there is none, or it does not parse). */
-export function loadSaved(storage = globalThis.localStorage) {
+/**
+ * Rebuild the saved run, or null when it cannot be: the replay throws (a newer
+ * build) or ends somewhere else than the fingerprint says, or the run was over.
+ */
+export function restoreRun(createRun, saved, { onEvents } = {}) {
   try {
-    const v = JSON.parse(storage?.getItem(RESUME_KEY) || 'null');
-    return v && v.log && Array.isArray(v.log.inputs) ? v : null;
+    const run = replayRun(createRun, saved.log, { onEvents });
+    return !run.over && fingerprint(run) === saved.fp ? run : null;
   } catch {
     return null;
   }
 }
 
-export function saveRun(run, log, storage = globalThis.localStorage) {
+/** A log this build can replay: known inputs, at integer steps in order, within its length. */
+function validLog(log) {
+  if (!log || !Number.isInteger(log.seed) || !Number.isInteger(log.steps) || log.steps < 0 || log.steps > 4e6 || !Array.isArray(log.inputs)) return false;
+  let last = 0;
+  for (const input of log.inputs) {
+    if (!Array.isArray(input) || !RESUME_INPUTS.includes(input[1])) return false;
+    const step = input[0];
+    if (!Number.isInteger(step) || step < last || step > log.steps) return false;
+    last = step;
+  }
+  return true;
+}
+
+/** Read the saved run (null when there is none, it does not parse, or it is from another version). */
+export function loadSaved(storage = local()) {
   try {
-    storage?.setItem(RESUME_KEY, JSON.stringify({ log, fp: fingerprint(run), wave: run.waveNo, score: run.score, blocks: run.blocks }));
+    const v = JSON.parse(storage?.getItem(RESUME_KEY) || 'null');
+    return v && v.v === SAVE_VERSION && typeof v.fp === 'string' && validLog(v.log) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveRun(run, log, storage = local()) {
+  try {
+    storage?.setItem(RESUME_KEY, JSON.stringify({ v: SAVE_VERSION, log, fp: fingerprint(run) }));
   } catch {}
 }
 
-export function clearSaved(storage = globalThis.localStorage) {
+export function clearSaved(storage = local()) {
   try {
     storage?.removeItem(RESUME_KEY);
   } catch {}

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRun } from '../src/sim/run.js';
 import { createRng } from '../src/sim/rng.js';
-import { recordRun, replayRun, fingerprint, saveRun, loadSaved, clearSaved } from '../src/ux/resume.js';
+import { recordRun, replayRun, restoreRun, fingerprint, saveRun, loadSaved, clearSaved, SAVE_VERSION, RESUME_KEY } from '../src/ux/resume.js';
 
 /** Play a recorded run with random inputs for `seconds` of sim time. */
 function play(seed, seconds) {
@@ -69,9 +69,55 @@ test('inputs that change nothing are not recorded; saves round-trip', () => {
   saveRun(run, log, storage);
   const saved = loadSaved(storage);
   assert.equal(saved.fp, fingerprint(run));
-  assert.equal(saved.wave, 1);
+  assert.equal(saved.v, SAVE_VERSION);
   clearSaved(storage);
   assert.equal(loadSaved(storage), null);
   storage.setItem('siege:run', '{broken');
   assert.equal(loadSaved(storage), null, 'a broken save is ignored');
+});
+
+/** A storage stand-in. */
+function memory() {
+  const store = new Map();
+  return { store, getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+}
+
+test('blocked storage: nothing is saved, and nothing throws', () => {
+  const desc = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    get() {
+      throw new Error('SecurityError: storage is blocked');
+    },
+  });
+  try {
+    const run = createRun({ seed: 2 });
+    const log = recordRun(run);
+    assert.doesNotThrow(() => saveRun(run, log));
+    assert.equal(loadSaved(), null);
+    assert.doesNotThrow(() => clearSaved());
+  } finally {
+    if (desc) Object.defineProperty(globalThis, 'localStorage', desc);
+    else delete globalThis.localStorage;
+  }
+});
+
+test('a save this build cannot replay is refused, never thrown', () => {
+  const { run, log } = play(8, 20);
+  const storage = memory();
+  saveRun(run, log, storage);
+  const good = JSON.parse(storage.getItem(RESUME_KEY));
+  const put = (v) => storage.setItem(RESUME_KEY, JSON.stringify(v));
+  put({ ...good, v: SAVE_VERSION + 1 });
+  assert.equal(loadSaved(storage), null, 'another version');
+  put({ ...good, log: { ...good.log, inputs: [[0, 'teleport']] } });
+  assert.equal(loadSaved(storage), null, 'an input this build does not know');
+  put({ ...good, log: { ...good.log, inputs: [[5, 'move', 'left'], [2, 'move', 'up']] } });
+  assert.equal(loadSaved(storage), null, 'steps out of order');
+  put({ ...good, log: { ...good.log, steps: 1e12 } });
+  assert.equal(loadSaved(storage), null, 'a log far too long to replay');
+  // restore: a replay that throws, or ends elsewhere than its fingerprint, gives no run
+  assert.equal(restoreRun(() => { throw new Error('newer sim'); }, good), null);
+  assert.equal(restoreRun(createRun, { ...good, fp: 'something else' }), null);
+  assert.deepEqual(state(restoreRun(createRun, good)), state(run), 'a good save restores exactly');
 });

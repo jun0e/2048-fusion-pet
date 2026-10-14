@@ -34,18 +34,25 @@ export function planBossReward(tiles, size, rng) {
   for (const t of tiles) cell[t.row * size + t.col] = t.id;
   const near = new Map(tiles.map((t) => [t.id, []]));
   const links = [];
+  const link = (a, b) => {
+    links.push([a, b]);
+    near.get(a).push(b);
+    near.get(b).push(a);
+  };
+  // row i and column i side by side, cell by cell (this order breaks ties between moves)
   for (let i = 0; i < size; i++) {
-    for (const line of [(j) => cell[i * size + j], (j) => cell[j * size + i]]) {
-      let prev = null;
-      for (let j = 0; j < size; j++) {
-        const id = line(j);
-        if (id == null) continue;
-        if (prev != null) {
-          links.push([prev, id]);
-          near.get(prev).push(id);
-          near.get(id).push(prev);
-        }
-        prev = id;
+    let inRow = null;
+    let inCol = null;
+    for (let j = 0; j < size; j++) {
+      const a = cell[i * size + j]; // row i, left to right
+      if (a != null) {
+        if (inRow != null) link(inRow, a);
+        inRow = a;
+      }
+      const b = cell[j * size + i]; // column i, top to bottom
+      if (b != null) {
+        if (inCol != null) link(inCol, b);
+        inCol = b;
       }
     }
   }

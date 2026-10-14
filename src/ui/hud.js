@@ -6,7 +6,7 @@
 // numbers from config/sim data (no user input), so innerHTML is safe here.
 import { TIER_COLORS, tierValue } from '../config.js';
 import { createBannerQueue } from '../ux/banners.js';
-import { placeBubble } from '../ux/placement.js';
+import { bubbleWidth, placeBubble } from '../ux/placement.js';
 
 const ICON_SOUND =
   '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
@@ -67,7 +67,6 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       <p class="inspect-text"></p>
       <small class="inspect-progress"></small>
     </div>
-    <div class="hint hidden">Swipe anytime; each swipe costs coins. When two blocks merge, the one that slides in sets the colour. Elements awaken at 16, fuse at 256.</div>
     <div class="coinbar" aria-label="Coins">
       <span class="coin-ico"></span>
       <b class="coins">0</b>
@@ -80,16 +79,16 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
         <div class="options"></div>
       </div>
     </div>
-    <div class="rotate" aria-hidden="true">
+    <div class="rotate" role="status">
       <div class="rotate-card">
         <i class="rotate-phone"></i>
         <b>Turn your phone upright</b>
         <span>2048 Siege plays in portrait. The game waits.</span>
       </div>
     </div>
-    <div class="scrim pause-scrim" role="dialog" aria-modal="true" aria-label="Paused">
+    <div class="scrim pause-scrim" role="dialog" aria-modal="true" aria-labelledby="pause-title">
       <div class="card pause-card">
-        <h2>Paused</h2>
+        <h2 id="pause-title">Paused</h2>
         <p class="sub pause-sub"></p>
         <div class="pause-actions">
           <button class="primary" data-act="resume">Resume</button>
@@ -141,7 +140,6 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   const milestoneEl = $('.milestone');
   const vignette = $('.vignette');
   const flashEl = $('.flash');
-  const hint = $('.hint');
   const overScrim = $('.over-scrim');
   const choiceScrim = $('.choice-scrim');
   const muteBtn = $('[data-act="mute"]');
@@ -163,22 +161,29 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   choiceScrim.inert = true;
   pauseScrim.inert = true;
 
-  // The pause dialog keeps the focus: while it is open, the rest of the HUD is inert.
+  // The open dialog keeps the focus: while the menu is up (its card, or How to play over
+  // it), the rest of the HUD is inert.
   let inerted = [];
   let page = 'closed';
   /**
    * Draw a page of the pause menu (src/ux/pause.js). 'closed' and 'help' hide the
    * card; 'confirm' asks before a restart (one stray tap must not end a long run).
+   * Call it after the help sheet has opened or closed for 'help'.
    */
   function setPauseView(next, info) {
     const was = page;
     page = next;
+    for (const el of inerted) el.inert = false;
+    inerted = [];
     const open = next === 'main' || next === 'confirm' || next === 'settings';
+    if (next !== 'closed') {
+      const keep = open ? pauseScrim : root.querySelector('.help-scrim');
+      inerted = [...root.children].filter((el) => el !== keep && !el.inert);
+      for (const el of inerted) el.inert = true;
+    }
     if (!open) {
       pauseScrim.classList.remove('open');
       pauseScrim.inert = true;
-      for (const el of inerted) el.inert = false;
-      inerted = [];
       return;
     }
     if (info) {
@@ -187,12 +192,9 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     }
     pauseCard.classList.toggle('confirming', next === 'confirm');
     pauseCard.classList.toggle('settings', next === 'settings');
-    if (!pauseScrim.classList.contains('open')) {
-      inerted = [...root.children].filter((el) => el !== pauseScrim && !el.inert);
-      for (const el of inerted) el.inert = true;
-    }
     pauseScrim.inert = false;
     pauseScrim.classList.add('open');
+    if (next === was) return; // the same page (e.g. a phone turned): keep the focus where it is
     // focus: the page's first choice; back on the main page, the button that led away
     const target = next === 'main' ? ({ confirm: 'restart', settings: 'settings', help: 'howto' }[was] ?? 'resume') : next === 'confirm' ? 'restart-no' : 'set-sound';
     $(`[data-act="${target}"]`).focus({ preventScroll: true });
@@ -360,9 +362,6 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     setDanger(level) {
       vignette.style.opacity = String(level * 0.9);
     },
-    hint(visible) {
-      hint.classList.toggle('hidden', !visible);
-    },
     /** Show (or keep showing) the pending new-die pick; null hides it. */
     setChoice(choice) {
       const key = choice ? `die:${choice.tier}` : null;
@@ -463,9 +462,9 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       $('.inspect-progress').textContent = info.progress ?? '';
       card.style.setProperty('--c', info.colors[0] ?? '#d9d2c5');
       card.classList.add('on');
+      card.style.width = `${bubbleWidth({ tile: 1 }, innerWidth)}px`; // first: the height depends on it
       const floor = Math.min(...['.coinbar', '.fight'].map((s) => $(s).offsetTop));
       const p = placeBubble({ target: { tile: 1 }, rect, board, floor, vw: innerWidth, vh: innerHeight, bh: card.offsetHeight || 110 });
-      card.style.width = `${p.width}px`;
       card.style.left = `${p.left}px`;
       card.style.top = `${p.top}px`;
     },

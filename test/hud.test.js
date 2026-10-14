@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { nextSpeed } from '../src/ux/speed.js';
 import { describeBlock } from '../src/ux/inspect.js';
+import { createPause } from '../src/ux/pause.js';
 
 test('speed cycles x1, x2 (and x4 once unlocked)', () => {
   assert.equal(nextSpeed(1, 2), 2);
@@ -26,7 +27,6 @@ test('inspect card: a sleeping block, an element, a fusion, an ultimate', () => 
   assert.equal(ult.progress, null);
 });
 
-import { createPause } from '../src/ux/pause.js';
 
 test('pause menu: pages, one step back at a time', () => {
   const seen = [];

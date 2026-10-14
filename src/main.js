@@ -22,7 +22,7 @@ import { createHaptics } from './haptics.js';
 import { nextSpeed } from './ux/speed.js';
 import { describeBlock } from './ux/inspect.js';
 import { createPause } from './ux/pause.js';
-import { recordRun, replayRun, loadSaved, saveRun, clearSaved, fingerprint } from './ux/resume.js';
+import { recordRun, restoreRun, loadSaved, saveRun, clearSaved } from './ux/resume.js';
 import { loadStore } from './ux/coach.js';
 import { createArt } from './art/index.js';
 import { setupKv, KV_DICE } from './kv/index.js';
@@ -92,6 +92,13 @@ async function waitForFonts() {
 // The loading screen in index.html (#boot): a message while loading, gone with the first frame.
 const boot = document.getElementById('boot');
 const bootSay = (text) => boot && (boot.querySelector('.boot-msg').textContent = text);
+/** Loading failed, or a frame broke: the loading screen comes back with "Try again". */
+function bootFail(err) {
+  console.error(err);
+  bootSay('Something went wrong. Try again to reload the game.');
+  boot?.classList.remove('done');
+  boot?.classList.add('failed');
+}
 
 async function start() {
   await waitForFonts(); // block numbers and damage digits are drawn with Baloo 2
@@ -140,13 +147,15 @@ async function start() {
   const saved = canSave && !params.has('tutorial') && loadStore().guided ? loadSaved() : null;
   if (saved) {
     bootSay('Restoring your run…');
-    const back = replayRun(createRun, saved.log, { onEvents: (list) => list.forEach(tally) });
-    if (!back.over && fingerprint(back) === saved.fp) {
+    // let the message paint first (a replay can take a moment on a slow phone); a hidden tab has no frames
+    await Promise.race([new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))), new Promise((r) => setTimeout(r, 100))]);
+    const back = restoreRun(createRun, saved, { onEvents: (list) => list.forEach(tally) });
+    if (back) {
       run = back;
       runLog = recordRun(run, saved.log);
       resumed = true;
     } else {
-      clearSaved(); // a newer build replays it differently: start fresh
+      clearSaved(); // a newer build cannot replay it: start fresh
       stats = freshStats();
     }
   }
@@ -155,8 +164,6 @@ async function start() {
   let gameOverShown = false;
   let lastDownBy = null; // the enemy that broke the latest block
   let lastLoss = null; // how the last run ended (for the retry hint)
-  let hasMoved = false;
-  let hintDone = false;
   let selected = null; // tile id picked to show its range
   let clearBonus = 0;
 
@@ -239,11 +246,22 @@ async function start() {
         if (err?.name === 'AbortError') return; // the player closed the sheet
       }
     }
+    const line = url ? `${text} ${url}` : text;
     try {
-      await navigator.clipboard.writeText(url ? `${text} ${url}` : text);
+      await navigator.clipboard.writeText(line);
       hud.shareDone('Copied!');
     } catch {
-      hud.shareDone('Cannot share here');
+      // no Clipboard API (a plain-http address): the old copy command
+      const area = Object.assign(document.createElement('textarea'), { value: line, readOnly: true });
+      area.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+      document.body.appendChild(area);
+      area.select();
+      let copied = false;
+      try {
+        copied = document.execCommand('copy');
+      } catch {}
+      area.remove();
+      hud.shareDone(copied ? 'Copied!' : 'Cannot share here');
     }
   }
 
@@ -303,6 +321,11 @@ async function start() {
   }
   fitStage();
   addEventListener('resize', fitStage);
+  // the bars can also change size without a resize (a late font, a longer status text)
+  if (typeof ResizeObserver === 'function') {
+    const bars = new ResizeObserver(() => fitStage());
+    for (const sel of ['.statusbar', '.coinbar', '.fight']) bars.observe(hudEl.querySelector(sel));
+  }
   addEventListener('resize', () => select(null)); // an inspect card would point at the old spot
   stage.onResize(() => {
     hudEl.style.setProperty('--field-top', `${Math.round(stage.toClient(0, FIELD.spawnY + 1.05).y)}px`);
@@ -342,8 +365,9 @@ async function start() {
       if (s.menu === 'main') syncSettings();
       if (s.menu === 'closed') pauseTitle = 'Paused';
       if (s.menu !== 'closed') saveNow(); // the phone may close the tab next
-      hud.setPauseView(s.menu, { title: pauseTitle, wave: run.waveNo, score: run.score, blocks: run.blocks });
+      // the help sheet first: the pause view then knows which dialog keeps the focus
       if ((s.menu === 'help') !== tutorial.helpOpen) tutorial.openHelp(s.menu === 'help');
+      hud.setPauseView(s.menu, { title: pauseTitle, wave: run.waveNo, score: run.score, blocks: run.blocks });
     },
   });
   /** The pause menu: the Pause button, Escape or P, or the tab going to the background. */
@@ -358,7 +382,10 @@ async function start() {
   // portrait only: a phone turned sideways shows "Turn your phone upright" (hud.css) and the game waits
   const sideways = matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
   pause.hold('rotate', sideways.matches);
-  sideways.addEventListener('change', (e) => pause.hold('rotate', e.matches));
+  sideways.addEventListener('change', (e) => {
+    pause.hold('rotate', e.matches);
+    if (!e.matches && !run.over) openMenu(); // upright again: the game waits for Resume, not the turn
+  });
   if (!kv) tutorial.start(run);
   else tutorial.setMuted(true); // the showcase has no tips
   // a returning player (opening done) gets a goal: their best wave; a resumed run, the pause menu
@@ -442,13 +469,6 @@ async function start() {
           break;
         }
         case 'bossReward':
-          if (maxSpeed < 4) {
-            maxSpeed = 4;
-            try {
-              localStorage.setItem(X4_KEY, '1');
-            } catch {}
-            hud.banner('x4 speed unlocked', 'The speed button now goes x1 · x2 · x4.', 'good');
-          }
           sfx.milestone();
           haptics.play('boss');
           hud.banner(
@@ -456,6 +476,13 @@ async function start() {
             e.x2s ? `Your blocks got ${e.x2s} x2${e.x2s === 1 ? '' : 's'}.${e.pairs > 0 ? ' Merge the new pairs!' : ''}` : 'No other block had room to grow.',
             'good',
           );
+          if (maxSpeed < 4) {
+            maxSpeed = 4;
+            try {
+              localStorage.setItem(X4_KEY, '1');
+            } catch {}
+            hud.banner('x4 speed unlocked', 'The speed button now goes x1 · x2 · x4.', 'good');
+          }
           break;
         case 'classed': {
           // a merge awakened an element, made a fusion or an ultimate: announce the combination
@@ -507,7 +534,6 @@ async function start() {
           hud.banner('Board locked!', 'No swipe can move a block until one is destroyed or boss x2s make a pair.', 'boss');
           break;
         case 'waveStart':
-          hintDone = true; // the swipe tip is for the opening countdown; the wave banner takes its place
           sfx.battle(!!e.boss);
           if (e.boss) resetSpeed(); // a boss is worth watching at full detail
           if (e.boss) hud.banner(`${ENEMY_TYPES[e.boss].name} approaches!`, ENEMY_TYPES[e.boss].intro, 'boss');
@@ -638,7 +664,6 @@ async function start() {
     });
     hud.setEconomy(run.coins, run.swipeCost);
     hud.setChoice(gameOverShown ? null : run.pendingChoice);
-    hud.hint(false); // the tutorial teaches swiping now
     tutorial.update(live ? dt : 0);
     hud.update(live && !run.pendingChoice ? dt : 0); // banners wait behind a die card, too
     if (live && !gameOverShown) auto.tick(run, dt, doSwipe);
@@ -661,14 +686,17 @@ async function start() {
     stage.update(dt);
   }
 
-  stage.app.ticker.add((ticker) => update(Math.min(0.1, ticker.deltaMS / 1000)));
-  // the first frame is on screen: the loading screen fades out
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
-      boot?.classList.add('done');
-      setTimeout(() => boot?.remove(), 600);
-    }),
-  );
+  stage.app.ticker.add((ticker) => {
+    try {
+      update(Math.min(0.1, ticker.deltaMS / 1000));
+    } catch (err) {
+      // a broken frame would freeze the board with no word: show the failure screen instead
+      stage.app.ticker.stop();
+      bootFail(err);
+    }
+  });
+  // the first frame is on screen: the loading screen fades out (it stays in the page for a failure)
+  requestAnimationFrame(() => requestAnimationFrame(() => boot?.classList.add('done')));
 
   // handy in the console while prototyping
   window.__mb = {
@@ -697,8 +725,4 @@ async function start() {
   };
 }
 
-start().catch((err) => {
-  console.error(err);
-  bootSay('Something went wrong while loading.');
-  boot?.classList.add('failed');
-});
+start().catch(bootFail);

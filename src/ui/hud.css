@@ -249,25 +249,6 @@ body {
   transition: opacity 0.2s linear;
 }
 
-.hint {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--sa-b) + 22px);
-  transform: translateX(-50%);
-  padding: 8px 16px;
-  border-radius: 999px;
-  background: #fffaf2e6;
-  box-shadow: var(--clay-drop);
-  font-weight: 800;
-  font-size: 14px;
-  white-space: nowrap;
-  transition: opacity 0.4s ease;
-}
-
-.hint.hidden {
-  opacity: 0;
-}
-
 /* --- game over ----------------------------------------------------------- */
 .scrim {
   position: absolute;
@@ -278,12 +259,17 @@ body {
   backdrop-filter: blur(3px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s ease;
+  visibility: hidden; /* a closed dialog can never take the focus */
+  transition:
+    opacity 0.25s ease,
+    visibility 0s linear 0.25s;
 }
 
 .scrim.open {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
+  transition: opacity 0.25s ease;
 }
 
 .card {
@@ -666,17 +652,6 @@ body {
 .fight:active {
   transform: translateY(3px);
   box-shadow: 0 2px 0 #df9474;
-}
-
-.hint {
-  top: calc(var(--field-top, 18%) + 44px); /* over the lane field, below the portals, never over the board */
-  bottom: auto;
-  width: max-content;
-  max-width: min(420px, calc(100vw - 28px));
-  white-space: normal;
-  text-align: center;
-  font-size: 12px;
-  line-height: 1.35;
 }
 
 /* --- economy: coins, swipe price, next wave ------------------------------- */
@@ -1099,6 +1074,13 @@ body {
   opacity: 1;
 }
 
+.coach:not(.on) {
+  visibility: hidden; /* after the fade: a hidden bubble can never take the focus */
+  transition:
+    opacity 0.2s ease,
+    visibility 0s linear 0.2s;
+}
+
 #hud .coach:not(.on) button {
   pointer-events: none; /* a fading bubble takes no taps */
 }
@@ -1462,7 +1444,7 @@ body {
 
 @media (max-width: 400px) {
   .help-actions {
-    flex-direction: column-reverse; /* full-width buttons on one line each; "Back to the game" first */
+    flex-direction: column-reverse; /* full-width buttons on one line each; "Back" first */
   }
 }
 
@@ -1564,6 +1546,10 @@ body {
 .reduce-motion .score.bump,
 .reduce-motion .chip.pop,
 .reduce-motion .flash.go,
+.reduce-motion .vignette.hurt,
+.reduce-motion .coinbar.deny,
+.reduce-motion .coin-ico.gain,
+.reduce-motion .announce,
 .reduce-motion .castle.shake,
 .reduce-motion .coach-ring,
 .reduce-motion .coach-hand i,
@@ -1575,6 +1561,10 @@ body {
 .reduce-motion .card,
 .reduce-motion .choice {
   transition: none;
+}
+
+.reduce-motion .announce.out {
+  transform: none; /* it fades out in place */
 }
 
 @keyframes banner-still {

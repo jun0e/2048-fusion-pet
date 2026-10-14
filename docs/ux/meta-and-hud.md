@@ -248,7 +248,7 @@ Text only. Each screen gives what it must show (**Info**) and what the player ca
 
 ## Part C: Audit of what is missing
 
-Items are in order of impact. The numbers come from 40 autoplay games of up to 20 minutes each. Items 1 to 4 are fixed (2026-10-14, see Part D).
+Items are in order of impact. The numbers come from 40 autoplay games of up to 20 minutes each. Items 1 to 4 are fixed (2026-10-14, see Part D). The phone polish pass (`phone-polish-plan.md`, 2026-10-15) fixed items 5, 6, 7, 10, 11 (except Home), 12 and 20, and part of 9 (a tapped block shows an inspect card).
 
 | # | Gap | Why it matters | Priority |
 |---|---|---|---|
