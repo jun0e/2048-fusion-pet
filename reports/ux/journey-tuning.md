@@ -9,10 +9,11 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 - **No early losses:** no novice run lost by wave 3 (baseline: 3 of 24 lost on wave 1). The first wave of a first run now comes down the column of the player's first turret, so the turret visibly wins.
 - **Spaced tips:** ordinary tips are 16 s apart. Urgent tips (a block hit, out of coins) still come 2 s after the last one. The shortest gap went from 0.6 s to 7.8 s for a novice.
 - **Lessons stay readable:** the rule that blocks break for good is on screen for 1 s or more in every run with a block hit (24 of 24, skilled and novice). A tip follows its block when the block merges. A tip cut within 1 s comes back once.
-- **Less idle time:** a novice waits 17 s in countdowns in the first 5 minutes (was 43 s). A break shrinks to 4 s when no swipe is possible.
+- **Less idle time:** a novice waits 17.5 s in countdowns in the first 5 minutes (was 46.5 s). A break shrinks to 4 s when no swipe is possible.
 - **Loss and retry:** the game-over card says what broke the last block. The next run opens with one lesson.
 - **Return visit:** a returning player sees their best wave as a goal.
-- **Tests:** all pass (109 tests; 79 before this work).
+- **Boss reward:** a boss kill now gives x2s to the other blocks, aimed to make pairs (see "Boss reward" below). All numbers in this report use it.
+- **Tests:** all pass (118 tests; 79 before this work).
 
 ## Journey contract (phase 1)
 
@@ -58,7 +59,7 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 | 3 First wave | First run only: wave 1 comes down the biggest block's column with 4 foes. The lit lane follows the block during the opening. A player who skips the tutorial gets the normal wave 1. | First block lost 33.5 → 46.8 s |
 | 4 Game over | Cause line ("A Griffin Chick broke your last block on wave 2."). The retry opens with one hint. A bubble no longer stays over the card. | Card +2 words |
 | 5 Return visit | The best wave is saved, and a returning player sees it as a goal | – |
-| 6 Idle breaks | A break shrinks to 4 s when no swipe is possible (no coins or a locked board), and Wave now pulses. The opening countdown is never cut. | Idle countdown time 43.3 → 17.3 s |
+| 6 Idle breaks | A break shrinks to 4 s when no swipe is possible (no coins or a locked board), and Wave now pulses. The opening countdown is never cut. | Idle countdown time 46.5 → 17.5 s |
 | UI | Lane tips sit above the field. Block tips go beside the block, or under the board when there is room above the coin bar and Wave now. No bubble goes over the bottom bar. A hidden bubble takes no taps. The legacy hint bar starts hidden. While the opening holds the countdown, the pill reads "First wave: when ready", not a frozen "15s". | `shots/05-guided-wave-lanes-tip.jpg`, `shots/02-turret-step.jpg` |
 
 ## Fun tests (phase 4), after tuning
@@ -89,16 +90,16 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 | Time to the first wave | 23.8 s | 16.8 s |
 | Time to the first kill | 30.6 s | 21.7 s |
 | Time to the first block lost | 33.5 s | 46.8 s |
-| Tips in the first 5 minutes | 9 | 8 |
+| Tips in the first 5 minutes | 9 | 7 |
 | Shortest gap between two tips | 0.6 s | 7.8 s |
 | Tips up for under 1 s in the first 5 minutes | 1 | 0 |
 | Defend rule on screen for 1 s or more (runs with a block hit) | 24 of 24 | 24 of 24 |
-| Idle countdown time in the first 5 minutes | 43.3 s | 17.3 s |
-| Wave of the first loss | 14 (p10: 1) | 15 (p10: 15) |
+| Idle countdown time in the first 5 minutes | 46.5 s | 17.5 s |
+| Wave of the first loss | 14 (p10: 1) | 17 (p10: 10) |
 | Game over to the next swipe | 7.0 s | 11.5 s |
 | Required tutorial taps | 1 | 0 |
 
-**Pace, not difficulty:** the number of novice runs that last 15 minutes is noisy. In two sets of 24 seeds, the tuned build keeps 9 and 4 runs; the baseline keeps 10 and 13. A split test shows the cause: the shorter idle break. With the old break rule, the tuned build keeps 16 and 15. The break makes the game faster, not harder. Players reach more waves in 15 minutes, so more runs end inside the cap. In both seed sets the earliest loss moves from wave 1 to wave 10 or later, and the latest losses move from waves 16–18 to waves 24–26.
+**Pace, not difficulty:** the number of novice runs that last 15 minutes is noisy. In two sets of 24 seeds, the tuned build keeps 6 and 5 runs; the baseline keeps 10 and 15. A split test shows the cause: the shorter idle break. With the old break rule, the tuned build keeps 13 and 17. The break makes the game faster, not harder. Players reach more waves in 15 minutes, so more runs end inside the cap. The median loss wave moves from 13–14 to 17–20, the earliest loss from wave 1 to wave 7 or later, and the latest losses from wave 16 to waves 22–25.
 
 ## Tuned values
 
@@ -114,6 +115,26 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 | Guided first wave | `src/config.js` `GUIDED_WAVE.count` | 4 foes, first run only |
 | Idle break | `ECONOMY.brokeBreak` | 4 s when no swipe is possible |
 | Game-over delay | `src/ux/journey-tuning.js` `GAME_OVER_DELAY` | 0.7 s (unchanged) |
+
+## Boss reward (x2s)
+
+Requested on 2026-10-14. It replaces "a boss kill promotes your biggest block".
+
+- **Rule:** a boss kill gives one x2 for each doubling in the biggest block (256 = eight x2s), so all the x2s multiply up to the biggest block. They go to the other blocks only. No new block appears. One block can take several x2s. The biggest block gets none, and no block grows past it.
+- **Where they go:** each x2 goes where it makes the most new merge pairs for the x2s it costs; ties are random (seeded). A pair is two equal blocks in a row or a column with no block between them. When no pair can be made, the x2 goes at random to a block outside every pair, or to a pair that grows together (a pair first when the blocks outside pairs lack the room for the x2s left). Only when nothing else is left does an x2 break the fewest pairs.
+- **A block can grow to equal the biggest** and pair with it; one swipe then doubles the biggest block. The variant that keeps blocks one step below the biggest made the game clearly harder, so it was not used:
+
+| Boss reward (tuned journey, 48 seeds) | Skilled | Novice | Reckless |
+|---|---|---|---|
+| Before: the biggest block goes up a tier | 19 | 16 | 18 |
+| x2s, blocks may equal the biggest (shipped) | 17 | 19 | 20 |
+| x2s, blocks stay one step below the biggest | 15 | 16 | 15 |
+
+Values are the median wave of the first loss.
+
+- **Economy model** (`npm run economy`): the x2s add 0.86 of the biggest block's value to the board (median over 121 boss kills in 40 autoplay games; the old reward added exactly 1.0). Projection: first 256 at wave 10 and first 512 at wave 15 (as before), first 1024 at wave 25 (was 22). Foes start to leak at wave 30 (as before).
+- **Limit:** on a board that already has a pair on every block, the last x2s must go somewhere, and they can break a pair (the fewest possible).
+- **Code:** `src/sim/boss-reward.js` (the plan, pure), `src/sim/run.js` (applies it: health, element slots, a `bossReward` event), `src/main.js` (the "x2", "x4" popups and the banner). Tests: `test/boss-reward.test.js` and `test/run.test.js`.
 
 ## Screenshots (phone, 390×844)
 
@@ -143,5 +164,5 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 1. **Bot players are a model, not people.** The reading speeds and mistake rates are estimates. Confirm with 3 to 5 real first-time players: a 5-second test of the first screen, and a watch of the first 2 minutes.
 2. **The retry is slower for readers** (7.0 to 11.5 s), because the hint gives them something to read. The "Play again" button itself is not slower.
 3. **Skilled players are short of coins** for about half of the first 5 minutes. This is economy pacing, outside this pass.
-4. **Players who never read tips can see a flash.** If a player taps Wave now the moment the break tip appears, the tip goes within 1 s. It comes back once, at a later break. In 24 fifteen-minute runs, the skilled bot (which reads no tips) saw 1 such flash; the novice saw none.
+4. **Players who never read tips can see a flash.** If a player taps Wave now the moment the break tip appears, the tip goes within 1 s. It comes back once, at a later break. In 24 fifteen-minute runs with this build, neither bot saw one. Earlier builds showed up to 7 for the skilled bot, which reads no tips.
 5. **Merge risk:** `src/main.js` and `src/sim/run.js` are shared with the art fork. The edits here are small hooks. Merge this branch before the art fork changes those files again, or rebase on its work first.

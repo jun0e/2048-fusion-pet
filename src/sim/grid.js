@@ -165,11 +165,12 @@ export function createGrid({ seed = (Math.random() * 2 ** 32) >>> 0, spawn = tru
     return false;
   }
 
-  function promote(t) {
-    if (!t || t.tier >= MAX_TIER || cells[idx(t.col, t.row)] !== t) return false;
-    t.tier += 1;
+  /** Raise a tile `by` tiers in place (each tier is an x2). */
+  function promote(t, by = 1) {
+    if (!t || by < 1 || t.tier + by > MAX_TIER || cells[idx(t.col, t.row)] !== t) return false;
+    t.tier += by;
     s.maxTier = Math.max(s.maxTier, t.tier);
-    events.push({ type: 'promote', id: t.id, tier: t.tier, x: t.x, y: t.y });
+    events.push({ type: 'promote', id: t.id, tier: t.tier, by, x: t.x, y: t.y });
     return true;
   }
 

@@ -2,6 +2,8 @@
 
 This report records the first-run journey as it shipped (commit `afb684c`). It is phase 3 and phase 4 of `docs/ux/journey-tuning-workflow.md`. The final numbers after tuning are in `journey-tuning.md`.
 
+These numbers use the shipped boss reward (the biggest block goes up a tier). `journey-tuning.md` uses the later x2 boss reward for both columns, so its baseline numbers differ a little after wave 5.
+
 ## How it was measured
 
 - `tools/journey-probe.mjs` plays the real sim and the real tutorial coach without a browser. Run it with `node tools/journey-probe.mjs --profile=baseline --seeds=24`.

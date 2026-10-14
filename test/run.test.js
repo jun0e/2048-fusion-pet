@@ -359,32 +359,71 @@ test('a block destroyed by enemies reopens a locked board', () => {
   assert.ok(r.move('left'), 'the board moves again');
 });
 
-test('a boss promotion into 256 fills the fusion slot from the deck', () => {
-  const r = createRun({ seed: 4, empty: true, autoChoose: true, dice: ['fire', 'ice', 'metal', 'nature'] });
-  const big = r.spawnDebug(7, 0, 0);
-  big.cls = { element: 'fire' };
-  r.spawnDebug(2, 3, 3);
+/** Kill a boss on a run set up with `blocks` ([tier, col, row]); returns the run and its blocks. */
+function killBoss(blocks, opts = {}) {
+  const r = createRun({ seed: 4, empty: true, autoChoose: true, ...opts });
+  const tiles = blocks.map(([tier, col, row]) => r.spawnDebug(tier, col, row));
   r.nextWave();
   const boss = r.defense.spawn('elfRuler', { hpScale: 1 });
   r.defense.damage(boss, 1e9, ['fire']);
   r.step();
-  assert.equal(big.tier, 8);
-  assert.ok(['ice', 'metal', 'nature'].includes(big.cls.fusion), 'a different die from the deck');
-  const ev = r.drainEvents().find((e) => e.type === 'classed' && e.tileId === big.id);
-  assert.equal(ev.stage, 2);
-  assert.equal(ev.promoted, true);
+  return { r, tiles, events: r.drainEvents() };
+}
+
+test('killing a boss hands out x2s to the other blocks: they multiply up to the biggest block', () => {
+  const { r, tiles, events } = killBoss([
+    [6, 0, 0],
+    [1, 1, 0],
+    [2, 2, 2],
+    [3, 3, 3],
+  ]);
+  const [big, ...rest] = tiles;
+  assert.equal(big.tier, 6, 'the biggest block gets no x2');
+  assert.equal(r.tiles.length, 4, 'no new block');
+  const added = rest.reduce((n, t, i) => n + t.tier - [1, 2, 3][i], 0);
+  assert.equal(added, 6, '64 = 2^6: six x2s');
+  assert.ok(rest.every((t) => t.tier <= 6), 'no block grows past the biggest');
+  const reward = events.find((e) => e.type === 'bossReward');
+  assert.equal(reward.x2s, 6);
+  const promotes = events.filter((e) => e.type === 'promote');
+  assert.equal(reward.blocks, promotes.length);
+  assert.equal(
+    promotes.reduce((n, e) => n + e.by, 0),
+    6,
+  );
+  for (const t of rest) assert.equal(t.maxHp, maxHpFor(t.tier), 'health grows with the block');
 });
 
-test('killing a boss promotes the biggest block by one tier', () => {
-  const r = createRun({ seed: 4, empty: true, autoChoose: true });
-  const big = r.spawnDebug(6, 0, 0);
-  r.spawnDebug(2, 3, 3);
-  r.nextWave();
-  const boss = r.defense.spawn('elfRuler', { hpScale: 1 });
-  r.defense.damage(boss, 1e9, ['fire']);
-  r.step();
-  assert.equal(big.tier, 7);
-  assert.ok(r.drainEvents().some((e) => e.type === 'promote' && e.id === big.id));
+test('a boss x2 past 256 fills the fusion slot from the deck', () => {
+  const { tiles, events } = killBoss(
+    [
+      [9, 0, 0],
+      [7, 3, 3],
+    ],
+    { dice: ['fire', 'ice', 'metal', 'nature'] },
+  );
+  const [top, big] = tiles;
+  assert.equal(top.tier, 9);
+  assert.equal(big.tier, 9, 'the 128 takes two x2s: up to the 512, not past it');
+  assert.ok(big.cls.element, 'it awakened on the way');
+  assert.ok(['fire', 'ice', 'metal', 'nature'].includes(big.cls.fusion));
+  assert.notEqual(big.cls.fusion, big.cls.element, 'a different die from the deck');
+  const stages = events.filter((e) => e.type === 'classed' && e.tileId === big.id).map((e) => [e.stage, e.promoted]);
+  assert.deepEqual(stages.at(-1), [2, true]);
+});
+
+test('a block that jumps past 16 on boss x2s rolls its element', () => {
+  const { tiles, events } = killBoss([
+    [8, 0, 0],
+    [3, 3, 3],
+  ]);
+  const small = tiles[1];
+  assert.equal(small.tier, 8, 'the 8 grows to 256, as big as the biggest (five of the eight x2s fit)');
+  assert.ok(small.cls.element);
+  const ev = events.find((e) => e.type === 'classed' && e.tileId === small.id);
+  assert.equal(ev.stage, 1, 'the element first, then the fusion slot');
+  assert.equal(ev.promoted, true);
+  assert.equal(events.find((e) => e.type === 'bossReward').x2s, 5);
 });
 
 test('same seed and inputs replay the same run', () => {

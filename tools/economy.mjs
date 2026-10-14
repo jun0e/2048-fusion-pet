@@ -13,6 +13,8 @@
 // - a swipe adds 2.2 board value on average; the board is approximated by the binary split of
 //   its value (a tidy corner board); classes multiply damage (×1.3 at 16+, ×2 at 256+, ×3.5 at 4096+)
 // - pressure = wave HP ÷ (board damage per second × time the wave is on the field). Above ~1 foes leak.
+// - a boss kill's x2s (src/sim/boss-reward.js) add most of the top block's value to the board
+//   (median 0.86 over 121 boss kills in 40 autoplay games)
 import { DEFENSE, ECONOMY, LANE_LENGTH, GRID } from '../src/config.js';
 import { ENEMY_TYPES, generateWave } from '../src/sim/enemies.js';
 import { ELEMENTS, turretDamage } from '../src/sim/classes.js';
@@ -86,7 +88,8 @@ function boardDps(value) {
 
 const breakFor = (w) => (w === 1 ? ECONOMY.prepSeconds : Math.min(ECONOMY.breakMax, ECONOMY.breakBase + ECONOMY.breakPerWave * w));
 const rows = [];
-let promoted = 0; // board value added by boss promotions (each doubles the top block)
+const BOSS_X2_VALUE = 0.86; // board value a boss's x2s add, as a share of the top block (measured, see above)
+let promoted = 0; // board value added by boss x2s
 const boardValue = () => 4.4 + 2.2 * swipes + promoted;
 const topOf = (v) => 2 ** Math.floor(Math.log2(v * 0.55));
 let coins = ECONOMY.startCoins;
@@ -113,7 +116,7 @@ for (let w = 1; w <= waves; w++) {
   const during = spend(Math.floor(pace * st.time));
   coins += income * 0.5;
   earned += income;
-  if (st.bosses > 0.5) promoted += topOf(boardValue());
+  if (st.bosses > 0.5) promoted += BOSS_X2_VALUE * topOf(boardValue());
   rows.push({
     wave: w,
     foes: +st.count.toFixed(1),
@@ -133,5 +136,5 @@ const first = (tier) => rows.find((r) => r.top >= 2 ** tier)?.wave ?? '—';
 const leak = rows.find((r) => r.pressure > 1)?.wave ?? `>${waves}`;
 const bank = (w) => rows[w - 1]?.['left after break'];
 console.log(`pace ${pace} swipes/s · metal share ${metal}`);
-console.log(`first 64: wave ${first(6)} · 256: wave ${first(8)} · 512: wave ${first(9)} · 1024: wave ${first(10)} (boss promotions included)`);
+console.log(`first 64: wave ${first(6)} · 256: wave ${first(8)} · 512: wave ${first(9)} · 1024: wave ${first(10)} (boss x2s included)`);
 console.log(`unspent after the break, waves 5/10/20: ${bank(5)}/${bank(10)}/${bank(20)} coins · pressure passes 1 at wave ${leak} · swipes by wave ${waves}: ${swipes} · coins earned: ${Math.round(earned).toLocaleString()}`);

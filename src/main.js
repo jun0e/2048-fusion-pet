@@ -244,13 +244,17 @@ async function start() {
           break;
         }
         case 'promote': {
+          // a boss x2 (or several) on this block
           fx.burst(e.x, e.y, [0xffe27a, 0xffffff], 30, { speed: 5, size: 0.3, life: 0.6, gravity: 0 });
           fx.ring(e.x, e.y, 0xffe27a, 0.6, 2.4, 0.5);
           const p = client(e.x, e.y + 1.2);
-          hud.popup(p.x, p.y, 'Promoted!', e.tier, '#ffe27a');
-          sfx.milestone();
+          hud.popup(p.x, p.y, `x${2 ** (e.by ?? 1)}`, e.tier, '#ffe27a');
           break;
         }
+        case 'bossReward':
+          sfx.milestone();
+          hud.banner(`${e.boss ?? 'Boss'} defeated!`, e.x2s ? `Your blocks got ${e.x2s} x2${e.x2s === 1 ? '' : 's'}. Merge the new pairs!` : 'No other block had room to grow.', 'good');
+          break;
         case 'classed': {
           // a merge awakened an element, made a fusion or an ultimate: announce the combination
           const color = hex(ELEMENTS[e.element].color);
@@ -297,7 +301,7 @@ async function start() {
           for (const t of run.tiles) fx.burst(t.x, t.y, [0x9dff9d, 0xffffff], 4, { speed: 1.5, size: 0.16, life: 0.4, gravity: -3 });
           break;
         case 'locked':
-          hud.banner('Board locked!', 'No swipe can move a block until one is destroyed or a boss kill promotes one.', 'boss');
+          hud.banner('Board locked!', 'No swipe can move a block until one is destroyed or boss x2s make a pair.', 'boss');
           break;
         case 'waveStart':
           hintDone = true; // the swipe tip is for the opening countdown; the wave banner takes its place
@@ -334,10 +338,7 @@ async function start() {
           fx.burst(e.x, e.y, [hex(def.color), 0xffffff, 0xffe27a], e.boss ? 70 : 16, { speed: e.boss ? 9 : 5, size: e.boss ? 0.4 : 0.26, life: 0.6, gravity: -8 });
           fx.ring(e.x, e.y, hex(def.color), 0.3, e.boss ? 3.5 : 1.3, 0.35);
           sfx.kill(e.boss);
-          if (e.boss) {
-            stage.shake(14);
-            hud.banner(`${def.name} defeated!`, 'Your biggest block is promoted.', 'good');
-          }
+          if (e.boss) stage.shake(14); // the banner comes with the reward ('bossReward')
           break;
         }
         case 'strike':

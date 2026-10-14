@@ -6,7 +6,7 @@
 // The board can be swiped at any time, but every swipe costs coins (and, as in
 // 2048, spawns a new block). Kills drop coins, clearing a wave pays a bonus and
 // three merges in one swipe refund it. There is no selling: a locked board opens
-// up when enemies destroy a block or a boss kill promotes one.
+// up when enemies destroy a block or a boss kill's x2s make a pair.
 // Dice: blocks below 16 are plain and don't shoot. A block reaching 16 rolls a
 // random element from the deck; when elemental blocks merge, the one that slides
 // in keeps its element; 256 fuses in a second element (a unique fusion), 4096 a
@@ -21,8 +21,9 @@ import { createGrid } from './grid.js';
 import { createDefense } from './defense.js';
 import { generateWave } from './enemies.js';
 import { createRng } from './rng.js';
+import { planBossReward } from './boss-reward.js';
 import { ELEMENT_KEYS, describeStage, dieOffers, elementsOf, mergeClass, stageFor } from './classes.js';
-import { DEFENSE, DICE, ECONOMY, GUIDED_WAVE, PHYSICS, SIEGE } from '../config.js';
+import { DEFENSE, DICE, ECONOMY, GRID, GUIDED_WAVE, PHYSICS, SIEGE } from '../config.js';
 
 const DEFENSE_CLASS_TIER = DEFENSE.classTiers[0];
 
@@ -39,6 +40,7 @@ export const waveBonusFor = (wave) => Math.round(ECONOMY.waveClearBase + wave * 
 export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose = false, empty = false, dice = null, brokeBreak = ECONOMY.brokeBreak } = {}) {
   const diceRng = createRng((seed ^ 0xa5a5a5a5) >>> 0);
   const rollRng = createRng((seed ^ 0x3c6ef372) >>> 0);
+  const bossRng = createRng((seed ^ 0x27d4eb2f) >>> 0); // where boss x2s go (its own stream: other rolls stay the same)
   const events = [];
   const choices = []; // die unlocks: { kind: 'die', tier, offers }
   const notes = []; // merge results (class gained, colour overridden), emitted after the grid's events
@@ -156,9 +158,10 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
   }
 
   /**
-   * A boss promotion that lifts a block into a new class stage: at 16 it rolls
-   * its element; at 256 / 4096 there is no partner block to borrow an element
-   * from, so the open fusion / ultimate slot rolls one from the deck.
+   * A boss x2 that lifts a block into a new class stage: at 16 it rolls its
+   * element; at 256 / 4096 there is no partner block to borrow an element
+   * from, so the open fusion / ultimate slot rolls one from the deck. Fills one
+   * slot per call; returns the stage filled, 0 when none.
    */
   function promoteClass(t) {
     t.prof = null;
@@ -184,7 +187,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     return 0;
   }
 
-  // Warn once each time the board locks; a boss promotion can reopen merges.
+  // Warn once each time the board locks; a boss reward can reopen merges.
   function checkLock() {
     const locked = !grid.canMove();
     if (locked && !s.locked) events.push({ type: 'locked', wave: s.waveNo });
@@ -290,17 +293,22 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       // Metal marks foes: a marked foe drops bonus coins
       addCoins(Math.round(killCoinsFor(s.waveNo, e.boss) * (1 + (e.loot ?? 0))), 'kill', e.x, e.y);
       if (e.boss) {
-        // boss reward (Slime Legion-style upgrade card): the biggest block goes up a tier
-        const top = grid.tiles.reduce((best, t) => (!best || t.tier > best.tier ? t : best), null);
-        if (top && grid.promote(top)) {
+        // boss reward: x2s for the other blocks, as many as the biggest block's power of two (boss-reward.js)
+        const { x2s, plan } = planBossReward(grid.tiles, GRID.size, bossRng);
+        for (const { id, x2 } of plan) {
+          const t = grid.tiles.find((b) => b.id === id);
+          if (!grid.promote(t, x2)) continue;
           for (const g of grid.drainEvents()) events.push(g);
-          top.prof = null;
-          const grow = maxHpFor(top.tier) - (top.maxHp ?? 0);
-          top.maxHp = maxHpFor(top.tier);
-          top.hp = Math.min(top.maxHp, (top.hp ?? 0) + grow);
-          const stage = promoteClass(top);
-          if (stage) events.push({ type: 'classed', tileId: top.id, stage, element: top.cls.element, x: top.x, y: top.y, tier: top.tier, promoted: true, info: describeStage(top.cls, stage, top.tier) });
+          t.prof = null;
+          const grow = maxHpFor(t.tier) - (t.maxHp ?? 0);
+          t.maxHp = maxHpFor(t.tier);
+          t.hp = Math.min(t.maxHp, (t.hp ?? 0) + grow);
+          // a block that jumps several stages (an 8 that becomes a 256) fills each slot in turn
+          for (let stage = promoteClass(t); stage; stage = promoteClass(t)) {
+            events.push({ type: 'classed', tileId: t.id, stage, element: t.cls.element, x: t.x, y: t.y, tier: t.tier, promoted: true, info: describeStage(t.cls, stage, t.tier) });
+          }
         }
+        events.push({ type: 'bossReward', x2s, blocks: plan.length, boss: e.enemy?.def?.name ?? null, wave: s.waveNo });
         scanUnlocks();
         checkLock();
       }
