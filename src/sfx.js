@@ -1,5 +1,6 @@
 // Tiny synthesized sound effects (no audio files). The AudioContext is created
-// lazily on the first user gesture, as browsers require.
+// on the first user gesture, as browsers require, and resumed on later ones
+// (iOS suspends it when the app goes to the background).
 const PENTA = [0, 2, 4, 7, 9]; // major pentatonic, semitones
 
 export function createSfx() {
@@ -12,7 +13,10 @@ export function createSfx() {
   } catch {}
 
   function ensure() {
-    if (ctx) return ctx.state === 'suspended' ? (ctx.resume(), ctx) : ctx;
+    if (ctx) {
+      if (ctx.state !== 'running') ctx.resume().catch(() => {});
+      return ctx;
+    }
     if (typeof AudioContext === 'undefined') return null;
     ctx = new AudioContext();
     master = ctx.createGain();
@@ -20,8 +24,7 @@ export function createSfx() {
     master.connect(ctx.destination);
     return ctx;
   }
-  window.addEventListener('pointerdown', ensure, { once: true });
-  window.addEventListener('keydown', ensure, { once: true });
+  for (const type of ['pointerdown', 'touchend', 'keydown']) window.addEventListener(type, ensure, { passive: true });
 
   function tone(freq, { at = 0, dur = 0.14, type = 'sine', gain = 0.3, slide = 0 } = {}) {
     const c = ensure();

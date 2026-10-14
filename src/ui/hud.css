@@ -28,6 +28,7 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none; /* no "save image" callout on a long press */
   -webkit-user-select: none;
   user-select: none;
   overscroll-behavior: none;
@@ -47,6 +48,7 @@ body {
 
 #hud button {
   pointer-events: auto;
+  touch-action: manipulation; /* no double-tap zoom, no tap delay */
   font: inherit;
   color: inherit;
   border: 0;
@@ -1419,4 +1421,15 @@ body {
   .rotate-phone {
     animation: none;
   }
+}
+
+/* --- pressed states: every button answers the finger ------------------------------------ */
+.coach-ok:active,
+.help-replay:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.coach-skip:active {
+  opacity: 0.6;
 }

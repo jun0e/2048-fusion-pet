@@ -79,7 +79,7 @@ Codex, ranking, daily seed, missions, a home screen and other meta features (Par
 |---|---|
 | P0 HUD fixes (banner queue, pause menu, restart confirm, Auto behind `?dev`) | Done (`1dfaa35`) |
 | 1 Fit the screen | Done |
-| 2 Touch and system | Not started |
+| 2 Touch and system | Done |
 | 3 Readable and easy to tap | Not started |
 | 4 Dialogs on a phone | Not started |
 | 5 Play controls | Not started |

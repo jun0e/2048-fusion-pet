@@ -1,7 +1,8 @@
 // Pack the game into ONE self-contained HTML file you can send to anyone:
 // builds with Vite into a single JS bundle (no code splitting), then inlines the
 // JS and CSS into index.html. The only outside request is the Google Font, which
-// falls back to system fonts offline. Open the file straight from disk.
+// falls back to system fonts offline. Open the file straight from disk. The icons
+// become data URLs; the web app manifest is dropped (one file cannot be installed).
 //
 //   npm run pack            # → 2048-siege.html and 2048-siege-kv.html (key-visual demo)
 import { build } from 'vite';
@@ -39,6 +40,9 @@ html = html.replace(/<script type="module"[^>]*src="\.\/assets\/([^"]+)"[^>]*><\
 });
 // <link rel="stylesheet" crossorigin href="./assets/index-xxxx.css"> → inline style
 html = html.replace(/<link rel="stylesheet"[^>]*href="\.\/assets\/([^"]+)"[^>]*>/g, (_, file) => `<style>${readFileSync(join(assets, file), 'utf8')}</style>`);
+// home-screen icons → data URLs; no manifest in a single file
+html = html.replace(/<link rel="manifest"[^>]*>\s*/g, '');
+html = html.replace(/href="\.\/icons\/([^"]+\.png)"/g, (_, file) => `href="data:image/png;base64,${readFileSync(join(root, 'public', 'icons', file)).toString('base64')}"`);
 if (/\.\/assets\//.test(html)) throw new Error(`unresolved asset reference left in the HTML (${files.join(', ')})`);
 writeFileSync(target, html);
 // the key-visual demo: the same build, opening straight into ?kv mode

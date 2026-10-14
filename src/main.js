@@ -18,6 +18,7 @@ import { GAME_OVER_DELAY, causeLine, lossHint, returnGoal } from './ux/journey-t
 import { createAutoplay } from './autoplay.js';
 import { createInput } from './input.js';
 import { createSfx } from './sfx.js';
+import { createHaptics } from './haptics.js';
 import { createArt } from './art/index.js';
 import { setupKv, KV_DICE } from './kv/index.js';
 
@@ -78,6 +79,9 @@ async function start() {
   const shots = createShots(stage, fx);
   const deck = createDeck(stage);
   const sfx = createSfx();
+  const haptics = createHaptics();
+  // a game, not a page: no long-press menu or image callout
+  addEventListener('contextmenu', (e) => e.preventDefault());
   const kv = kvMode ? setupKv({ stage, fx, blocks, art, hudEl: document.getElementById('hud'), getRun: () => run, params }) : null;
 
   let best = loadBest();
@@ -276,6 +280,7 @@ async function start() {
           fx.ring(e.x, e.y, 0xffffff, 0.6, 1.6, 0.3);
           stage.shake(1 + e.tier * 0.4 + (e.combo > 1 ? 2 : 0));
           sfx.merge(e.tier, e.combo);
+          haptics.play('merge');
           const p = client(e.x, e.y + 0.9);
           hud.popup(p.x, p.y, `+${e.value.toLocaleString()}`, e.tier);
           if (e.combo >= 2) hud.combo(e.combo);
@@ -302,6 +307,7 @@ async function start() {
         case 'noCoins': {
           hud.coinDeny();
           sfx.deny();
+          haptics.play('deny');
           const c = hud.coinTarget();
           hud.popup(c.x + 60, c.y - 28, `Need ${e.cost}`, 2, '#ef6060');
           break;
@@ -316,6 +322,7 @@ async function start() {
         }
         case 'bossReward':
           sfx.milestone();
+          haptics.play('boss');
           hud.banner(`${e.boss ?? 'Boss'} defeated!`, e.x2s ? `Your blocks got ${e.x2s} x2${e.x2s === 1 ? '' : 's'}. Merge the new pairs!` : 'No other block had room to grow.', 'good');
           break;
         case 'classed': {
@@ -355,6 +362,7 @@ async function start() {
             fx.burst(e.x, e.y, [0x2a1c22, 0xff6b6b, hex(ELEMENTS[e.cls?.element]?.color ?? '#d9d2c5')], 26, { speed: 6, size: 0.3, life: 0.6, gravity: -9 });
             stage.shake(10);
             sfx.hurt();
+            haptics.play('lost');
             hud.castleHit();
             const p = client(e.x, e.y + 0.9);
             hud.popup(p.x, p.y, 'Block lost!', 4, '#ef6060');
@@ -445,6 +453,7 @@ async function start() {
           if (e.wave > loadBestWave()) saveBestWave(e.wave);
           lastLoss = { wave: e.wave, maxTier: e.maxTier };
           sfx.gameover();
+          haptics.play('over');
           const cause = causeLine({ wave: e.wave, by: lastDownBy });
           setTimeout(() => hud.showGameOver({ score: e.score, wave: e.wave, maxTier: e.maxTier, isBest, cause }), GAME_OVER_DELAY * 1000);
           gameOverShown = true;
