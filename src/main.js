@@ -160,6 +160,15 @@ async function start() {
 
   // Keep notifications off the board: tell the HUD's CSS where the lane field and the board start.
   const hudEl = document.getElementById('hud');
+  // The world fills the space between the HUD's top bars and its bottom bar. Measured (not
+  // fixed numbers), so the compact HUD of a short phone gives the board more room.
+  function fitStage() {
+    const bar = hudEl.querySelector('.statusbar');
+    const low = Math.min(...['.coinbar', '.fight'].map((s) => hudEl.querySelector(s).offsetTop));
+    stage.setInsets({ top: bar.offsetTop + bar.offsetHeight + 4, bottom: hudEl.clientHeight - low + 4 });
+  }
+  fitStage();
+  addEventListener('resize', fitStage);
   stage.onResize(() => {
     hudEl.style.setProperty('--field-top', `${Math.round(stage.toClient(0, FIELD.spawnY + 1.05).y)}px`);
     hudEl.style.setProperty('--board-top', `${Math.round(stage.toClient(0, GRID_TOP + 0.3).y)}px`);
@@ -210,6 +219,10 @@ async function start() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && !run.over) openPause();
   });
+  // portrait only: a phone turned sideways shows "Turn your phone upright" (hud.css) and the game waits
+  const sideways = matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
+  setPause('rotate', sideways.matches);
+  sideways.addEventListener('change', (e) => setPause('rotate', e.matches));
 
   // first-run guided opening, one-time tips, and the "?" How to play sheet
   const tutorial = createTutorial(hudEl, {
@@ -499,6 +512,10 @@ async function start() {
     },
     get run() {
       return run;
+    },
+    /** Layout: U = pixels per world unit (the board is 8 units wide). */
+    get view() {
+      return { ...stage.view };
     },
     restart,
     /** Step + render without the ticker (works in hidden tabs). */

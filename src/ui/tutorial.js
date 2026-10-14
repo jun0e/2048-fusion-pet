@@ -1,7 +1,7 @@
 // Tutorial view: draws what the coach (src/ux/coach.js) says. The coach owns the
 // guided opening on the first run, the one-time contextual tips and their timing;
 // this file owns the DOM: the bubble next to its target, the ring, the swipe hand,
-// and the "How to play" sheet behind the "?" button (with Replay tutorial).
+// and the "How to play" sheet (opened from the pause menu, with Replay tutorial).
 // Principles (mobile onboarding research): teach by doing, one mechanic at a
 // time, minimal text that points at the thing it talks about, never pile up
 // information the player doesn't need yet, let experienced players skip, and
@@ -39,12 +39,7 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
   const arrow = el.querySelector('.coach-arrow');
   const actions = el.querySelector('.coach-actions');
 
-  // "How to play" sheet behind a "?" button next to restart / sound
-  const helpBtn = document.createElement('button');
-  helpBtn.className = 'icon-btn help-btn';
-  helpBtn.setAttribute('aria-label', 'How to play');
-  helpBtn.textContent = '?';
-  root.querySelector('.icons')?.appendChild(helpBtn);
+  // "How to play" sheet, opened from the pause menu (main.js)
   const help = document.createElement('div');
   help.className = 'scrim help-scrim';
   help.setAttribute('role', 'dialog');
@@ -168,7 +163,7 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
     coach.skipAll();
     render();
   });
-  for (const b of [okBtn, skipBtn, helpBtn]) b.addEventListener('pointerdown', (e) => e.stopPropagation());
+  for (const b of [okBtn, skipBtn]) b.addEventListener('pointerdown', (e) => e.stopPropagation());
 
   function openHelp(open) {
     help.classList.toggle('open', open);
@@ -177,10 +172,6 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
     onPause?.(open);
     onLog?.(open ? 'help' : 'helpClose', {});
   }
-  helpBtn.addEventListener('click', () => {
-    helpBtn.blur();
-    openHelp(true);
-  });
   help.querySelector('.help-close').addEventListener('click', () => openHelp(false));
   help.querySelector('.help-replay').addEventListener('click', () => {
     coach.reset();

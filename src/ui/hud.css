@@ -1163,11 +1163,6 @@ body {
   animation: coach-swipe 1.6s ease-in-out infinite;
 }
 
-.help-btn {
-  font-family: var(--font-display) !important;
-  font-weight: 800 !important;
-  font-size: 22px;
-}
 
 .help-card {
   max-width: 360px;
@@ -1319,6 +1314,109 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .fight.nudge {
+    animation: none;
+  }
+}
+
+/* --- phones (touch screens) and short windows: a compact HUD leaves more room for the board */
+@media (max-height: 720px), (pointer: coarse) {
+  .topbar {
+    top: calc(var(--sa-t) + 6px);
+  }
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .icon-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+  .score-card {
+    min-width: 112px;
+    padding: 3px 16px 5px;
+    border-radius: 18px;
+  }
+  .score-card .label,
+  .next-card .label {
+    display: none;
+  }
+  .score-card .score {
+    font-size: 28px;
+  }
+  .next-card {
+    padding: 4px;
+    border-radius: 50%;
+  }
+  .statusbar {
+    top: calc(var(--sa-t) + 60px);
+  }
+  .coinbar {
+    bottom: calc(var(--sa-b) + 10px);
+  }
+  .fight {
+    bottom: calc(var(--sa-b) + 10px);
+  }
+}
+
+/* --- portrait only: a phone turned sideways ------------------------------------------- */
+.rotate {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  place-items: center;
+  background: #1c2547f2;
+  color: var(--cream);
+  pointer-events: auto;
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .rotate {
+    display: grid;
+  }
+}
+
+.rotate-card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+.rotate-card b {
+  font-family: var(--font-display);
+  font-size: 26px;
+}
+
+.rotate-card span {
+  font-size: 15px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.rotate-phone {
+  width: 44px;
+  height: 72px;
+  margin-bottom: 8px;
+  border: 4px solid var(--cream);
+  border-radius: 10px;
+  animation: rotate-hint 1.8s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%,
+  30% {
+    transform: rotate(-90deg);
+  }
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotate-phone {
     animation: none;
   }
 }

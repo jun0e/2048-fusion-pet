@@ -1,0 +1,87 @@
+# Phone polish plan (2048 Siege)
+
+Goal: a build that a player can pick up on a phone and play with no friction. It opens fast, fits every portrait phone, every control is easy to tap, it never loses a run by accident, and the end of a run is clear. The work is on the branch `ux-journey`. All decisions are defaults (the user asked for "default everything"); each one is written down so it can be changed.
+
+## Findings (phone audit, 2026-10-14)
+
+Measured in the browser at 360×640, 390×844, 430×932 and 844×390.
+
+1. **The board is small on short phones.** The world is about 1 : 2.1 (width : height), and the stage keeps fixed bands of 136 px (top) and 76 px (bottom) for the HUD. At 360×640 the board is 173 px wide (tiles about 40 px), half the screen width. At 390×844 it is 254 px.
+2. **Landscape on a phone is unplayable.** At 844×390 the board is about 50 px wide.
+3. **The top-left icons wrap into two rows** (Pause and Sound, then "?") at 390 px and below.
+4. **Small text and small targets.** Several labels are 9 to 11 px. The tutorial "Got it" button is about 28 px tall, and "Skip tutorial" is a text link.
+5. **The help sheet does not fit a short phone.** Its title touches the top edge, and the close buttons are below the fold.
+6. **No long-press guard.** A long press on the canvas can open the iOS callout or the Android context menu.
+7. **No loading state.** The page is blank until the fonts and textures load.
+8. **The end of a run is thin.** The game-over card has a score, a wave and the top block. There is no summary and no share.
+9. **No install support.** There is no web app manifest and no home-screen icon, so the game cannot run full screen from the home screen.
+10. **A reload loses the run.** Mobile browsers reload background tabs often.
+11. **No speed control, and no way to inspect a block.**
+
+## Phases
+
+Each phase ends with: `npm test` green, a browser check at phone sizes, and a commit. A code review (target 9.5 or more) follows phase 4 and the last phase.
+
+### Phase 1: Fit the screen
+
+- 1.1 The stage takes its top and bottom bands from the real HUD (the bottom edge of the status bar, the top edge of the bottom bar), measured on each resize, not fixed numbers.
+- 1.2 Compact HUD on touch screens and on windows 720 px tall or less: 40 px icon buttons, a smaller score card and Top chip (no labels), a higher status bar, lower bottom bars.
+- 1.3 One row of icons at the top left: Pause and Sound. "How to play" moves into the pause menu only.
+- 1.4 Portrait only: on a phone in landscape (coarse pointer, landscape, height under 500 px), a "Turn your phone upright" screen covers the game and the game pauses.
+- Acceptance: at 360×640 the board is 15% wider or more than now; no HUD element overlaps the lanes or the board at 360×640, 375×667, 390×844, 412×915 and 430×932.
+- Result: board width 172 → 197 px at 360×640 (+14%), 183 → 208 px at 375×667 (+13%), 255 → 279 px at 390×844 (+10%). No overlap at any of the five sizes. The rest of the height goes to the lanes, which the sim fixes, so +15% at 360×640 needs a shorter lane field (a gameplay change, not done).
+
+### Phase 2: Touch and system
+
+- 2.1 Block the long-press callout and the context menu on the game.
+- 2.2 Buttons do not zoom on a double tap (`touch-action: manipulation`), and every button shows a pressed state.
+- 2.3 Haptics on Android (the Vibration API): a light tick on a merge, a stronger pulse when a block is lost, a pattern for a boss kill. On by default; a setting turns them off. iOS Safari has no Vibration API, so nothing happens there.
+- 2.4 Sound starts on the first touch (the audio context resumes inside a user gesture).
+- 2.5 Install support: a web app manifest (`display: standalone`, `orientation: portrait`), icons of 192 and 512 px (plus a maskable one), an Apple touch icon, and the Apple web-app meta tags.
+
+### Phase 3: Readable and easy to tap
+
+- 3.1 No text under 12 px on the run screen and in the dialogs.
+- 3.2 Every button is 44 px tall or more: the tutorial buttons, the help sheet, the pause menu and the dialogs.
+- 3.3 The status bar shows the best wave ("Wave 3 · best 7"). The best wave becomes the main record.
+- 3.4 A larger Top chip.
+
+### Phase 4: Dialogs on a phone
+
+- 4.1 Help sheet: space for the safe area at the top, an inner scroll, and the buttons always visible at the bottom.
+- 4.2 Die card and game-over card: they fit at 360×640, and they scroll inside if a screen is too short.
+- 4.3 Run summary on the game-over card: waves, time, kills, bosses killed, blocks lost, best combo and fusions made, plus "New best wave!". Buttons: Play again (main) and Share. Share uses the Web Share API, or copies a line of text when the API is missing.
+- 4.4 Settings sheet from the pause menu: Sound, Haptics, Reduce motion, Replay tutorial.
+
+### Phase 5: Play controls
+
+- 5.1 Speed button (x1, x2), next to Pause. x4 unlocks after the first boss kill. The speed goes back to x1 when a boss wave starts and for each new run. The sim stays deterministic, because speed only adds fixed steps to each frame.
+- 5.2 Inspect card: a tap on a block shows its range (now) and a small card with its element, attack, stage and fusion progress.
+
+### Phase 6: Loading and resume
+
+- 6.1 A loading screen in `index.html` (the game title on the game background, with a progress pulse). It fades out when the first frame is ready. If loading fails, it shows an error and a Retry button.
+- 6.2 Run resume: the game saves the seed and the list of inputs (swipes, Wave now, die picks, and the tutorial hold and guided-wave switches, each with its sim step). After a reload, a card offers "Continue run" or "New run"; continuing replays the inputs, which is fast and exact because the sim is deterministic. A saved run from an older build version is dropped.
+
+### Phase 7: Device check and delivery
+
+- 7.1 A screenshot matrix (360×640, 375×667, 390×844, 412×915, 430×932): the first screen, a wave, a break with a die card, pause, help, settings, the run summary and the rotate screen.
+- 7.2 Tests green, a code review of 9.5 or more, `npm run pack`, and docs updated (`meta-and-hud.md` statuses, this plan).
+- 7.3 Delivery for a phone playtest: the packed single-file build as a private claude.ai Artifact (a link to open on the phone), and the LAN address of the dev server (`npm run dev` already uses `--host`).
+
+## Out of scope (next)
+
+Codex, ranking, daily seed, missions, a home screen and other meta features (Part A of `meta-and-hud.md`). The plan leaves room for them: the pause menu and the settings sheet are where Codex and Home will go.
+
+## Progress
+
+| Phase | Status |
+|---|---|
+| P0 HUD fixes (banner queue, pause menu, restart confirm, Auto behind `?dev`) | Done (`1dfaa35`) |
+| 1 Fit the screen | Done |
+| 2 Touch and system | Not started |
+| 3 Readable and easy to tap | Not started |
+| 4 Dialogs on a phone | Not started |
+| 5 Play controls | Not started |
+| 6 Loading and resume | Not started |
+| 7 Device check and delivery | Not started |

@@ -1,7 +1,8 @@
 // Pixi application, world→screen layout and render layers.
 // World units: x right, y up (the sim's coordinates). Screen: pixels, y down.
 // U = pixels per world unit, recomputed on resize so the deck row, the board, the
-// castle wall and the four lanes below it fit between the DOM HUD bars.
+// castle wall and the four lanes below it fit between the DOM HUD bars (their
+// heights come from setInsets, measured from the HUD).
 import { Application, Container, Graphics } from 'pixi.js';
 
 export const WORLD = { minX: -4.75, maxX: 4.75, minY: -1.7, maxY: 18.15 }; // deck row + board + lanes above (no wall)
@@ -92,6 +93,12 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
     },
     /** client coordinates → canvas pixel coordinates */
     canvasRect: () => app.canvas.getBoundingClientRect(),
+    /** The HUD bars' bands in px ({ top, bottom }): the world fills the space between them. */
+    setInsets(next) {
+      if (next.top === insets.top && next.bottom === insets.bottom) return;
+      insets = { top: next.top, bottom: next.bottom };
+      layout();
+    },
     onResize(fn) {
       listeners.push(fn);
       fn(view);

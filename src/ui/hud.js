@@ -70,6 +70,13 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
         <div class="options"></div>
       </div>
     </div>
+    <div class="rotate" aria-hidden="true">
+      <div class="rotate-card">
+        <i class="rotate-phone"></i>
+        <b>Turn your phone upright</b>
+        <span>2048 Siege plays in portrait. The game waits.</span>
+      </div>
+    </div>
     <div class="scrim pause-scrim" role="dialog" aria-modal="true" aria-label="Paused">
       <div class="card pause-card">
         <h2>Paused</h2>
