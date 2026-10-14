@@ -4,6 +4,9 @@
 // castle wall and the four lanes below it fit between the DOM HUD bars (their
 // heights come from setInsets, measured from the HUD).
 import { Application, Container, Graphics } from 'pixi.js';
+// no runtime code generation: the game also runs under a strict Content-Security-Policy
+// (no 'unsafe-eval'), e.g. as a claude.ai artifact
+import 'pixi.js/unsafe-eval';
 
 export const WORLD = { minX: -4.75, maxX: 4.75, minY: -1.7, maxY: 18.15 }; // deck row + board + lanes above (no wall)
 const LAYERS = ['bg', 'path', 'board', 'tiles', 'enemies', 'shots', 'fx', 'numbers', 'overlay'];

@@ -43,6 +43,8 @@ html = html.replace(/<link rel="stylesheet"[^>]*href="\.\/assets\/([^"]+)"[^>]*>
 // home-screen icons → data URLs; no manifest in a single file
 html = html.replace(/<link rel="manifest"[^>]*>\s*/g, '');
 html = html.replace(/href="\.\/icons\/([^"]+\.png)"/g, (_, file) => `href="data:image/png;base64,${readFileSync(join(root, 'public', 'icons', file)).toString('base64')}"`);
+// one file: no generated sprites to fetch (main.js skips the asset manifest)
+html = html.replace('<script type="module">', '<script>window.__SINGLE_FILE__ = true;</script>\n    <script type="module">');
 if (/\.\/assets\//.test(html)) throw new Error(`unresolved asset reference left in the HTML (${files.join(', ')})`);
 writeFileSync(target, html);
 // the key-visual demo: the same build, opening straight into ?kv mode

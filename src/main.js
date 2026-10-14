@@ -95,7 +95,8 @@ const bootSay = (text) => boot && (boot.querySelector('.boot-msg').textContent =
 
 async function start() {
   await waitForFonts(); // block numbers and damage digits are drawn with Baloo 2
-  await loadGeneratedAssets(); // Gemini sprites, if tools/gen-assets.mjs has produced them
+  // Gemini sprites, if tools/gen-assets.mjs has produced them (a single-file pack carries none)
+  if (!window.__SINGLE_FILE__) await loadGeneratedAssets();
 
   const stage = await createStage(document.getElementById('app'));
   const fx = createFx(stage);
