@@ -22,7 +22,7 @@ import { createDefense } from './defense.js';
 import { generateWave } from './enemies.js';
 import { createRng } from './rng.js';
 import { ELEMENT_KEYS, describeStage, dieOffers, elementsOf, mergeClass, stageFor } from './classes.js';
-import { DEFENSE, DICE, ECONOMY, PHYSICS, SIEGE } from '../config.js';
+import { DEFENSE, DICE, ECONOMY, GUIDED_WAVE, PHYSICS, SIEGE } from '../config.js';
 
 const DEFENSE_CLASS_TIER = DEFENSE.classTiers[0];
 
@@ -36,7 +36,7 @@ export const killCoinsFor = (wave, boss) => Math.round((ECONOMY.killBase + wave 
 export const breakSecondsFor = (wave) => Math.min(ECONOMY.breakMax, ECONOMY.breakBase + ECONOMY.breakPerWave * wave);
 export const waveBonusFor = (wave) => Math.round(ECONOMY.waveClearBase + wave * ECONOMY.waveClearPerWave);
 
-export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose = false, empty = false, dice = null } = {}) {
+export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose = false, empty = false, dice = null, brokeBreak = ECONOMY.brokeBreak } = {}) {
   const diceRng = createRng((seed ^ 0xa5a5a5a5) >>> 0);
   const rollRng = createRng((seed ^ 0x3c6ef372) >>> 0);
   const events = [];
@@ -104,6 +104,18 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     overReason: null,
   };
   let wave = waveFor(1);
+
+  // First run only (set by the tutorial): wave 1 comes down the biggest block's
+  // column, with fewer foes. Re-aimed after every swipe while the opening waits,
+  // so the lit lane always matches what the player built.
+  function aimGuidedWave() {
+    if (!s.guidedWave || s.waveNo !== 1 || s.phase !== 'prep') return;
+    const top = grid.tiles.reduce((b, t) => (!b || t.tier > b.tier ? t : b), null);
+    if (!top) return;
+    const lane = top.col;
+    const spawns = waveFor(1).spawns.slice(0, GUIDED_WAVE.count).map((sp) => ({ ...sp, lane }));
+    wave = { ...wave, lanes: [lane], spawns, count: spawns.length };
+  }
 
   function endRun(reason) {
     if (s.over) return;
@@ -222,6 +234,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     events.push(...notes.splice(0)); // what the merges made: new classes, overridden colours
     scanUnlocks();
     checkLock();
+    aimGuidedWave();
     return true;
   }
 
@@ -246,6 +259,11 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     checkLock();
 
     if (s.phase === 'prep' || s.phase === 'break') {
+      // out of coins (or a locked board) in a break: nothing to do but wait, so the wait gets short
+      if (s.phase === 'break' && brokeBreak != null && s.timer > brokeBreak && (s.coins < swipeCostFor(s.swipes) || s.locked) && !choices.length) {
+        s.timer = brokeBreak;
+        events.push({ type: 'breakShortened', wave: s.waveNo, timer: brokeBreak });
+      }
       if (!(s.hold && s.phase === 'prep')) s.timer -= dt; // the tutorial can hold the opening countdown
       if (s.timer <= 0) startWave();
     } else if (s.phase === 'wave') {
@@ -308,6 +326,11 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     nextWave,
     choose,
     /** Hold the opening countdown (the first-run tutorial); Wave now still works. */
+    /** First run: aim wave 1 at the player's biggest block (see aimGuidedWave). */
+    setGuidedWave: (v) => {
+      s.guidedWave = !!v;
+      aimGuidedWave();
+    },
     setHold: (v) => {
       s.hold = !!v;
     },

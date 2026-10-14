@@ -292,9 +292,9 @@ export function createHud(root, { onRestart, onToggleMute, onNextWave, onChoose,
       setTimeout(() => el.classList.add('out'), 2100);
       setTimeout(() => el.remove(), 2500);
     },
-    showGameOver({ score, wave, maxTier, isBest }) {
+    showGameOver({ score, wave, maxTier, isBest, cause = null }) {
       $('.over-title').textContent = 'Overrun!';
-      $('.over-sub').textContent = `Your last block fell on wave ${wave}.`;
+      $('.over-sub').textContent = cause ?? `Your last block fell on wave ${wave}.`;
       $('.go-score').textContent = score.toLocaleString();
       $('.go-day').textContent = String(wave);
       $('.go-top').innerHTML = chipHtml(maxTier);
@@ -303,6 +303,12 @@ export function createHud(root, { onRestart, onToggleMute, onNextWave, onChoose,
       overScrim.classList.add('open');
       // keyboard players can restart with Space/Enter; the click handler blurs it after
       setTimeout(() => overScrim.classList.contains('open') && $('[data-act="again"]').focus({ preventScroll: true }), 300);
+    },
+    /** The break shrank (no swipe possible): pulse Wave now. */
+    nudgeWave() {
+      fightBtn.classList.remove('nudge');
+      void fightBtn.offsetWidth;
+      fightBtn.classList.add('nudge');
     },
     hideGameOver() {
       overScrim.classList.remove('open');

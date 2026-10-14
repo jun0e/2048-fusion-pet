@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "5176", "--strictPort"],
       "port": 5176
+    },
+    {
+      "name": "siege-ux",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5177", "--strictPort"],
+      "port": 5177
     }
   ]
 }

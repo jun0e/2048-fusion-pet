@@ -1241,3 +1241,18 @@ body {
 .icons .auto-btn span {
   font-size: 8px;
 }
+
+/* journey: the break shrank because no swipe is possible, so Wave now pulses */
+.fight.nudge {
+  animation: fightNudge 0.5s ease-in-out 3;
+}
+@keyframes fightNudge {
+  50% {
+    transform: scale(1.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fight.nudge {
+    animation: none;
+  }
+}

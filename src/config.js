@@ -157,7 +157,13 @@ export const ECONOMY = {
   breakBase: 10, // break before wave W: min(breakMax, breakBase + breakPerWave × W) seconds
   breakPerWave: 2, // … so 14 s before wave 2, growing to …
   breakMax: 30, // … a 30 s cap from wave 10 (Wave now skips it)
+  brokeBreak: 4, // a break shrinks to this when no swipe is possible (no coins or a locked board): nothing to do but wait
 };
+
+// The first wave of a player's first run (journey tuning): it comes down the
+// column of the player's biggest block, with fewer foes, so the first turret is
+// seen to work before the siege gets real.
+export const GUIDED_WAVE = { count: 4 };
 
 // Dice: every new block spawns in the colour (element) of a random die from the
 // deck. When blocks merge, the one that slides in sets the colour. You start

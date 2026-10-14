@@ -13,6 +13,8 @@ import { createFx } from './render/fx.js';
 import { loadGeneratedAssets } from './render/textures.js';
 import { createHud } from './ui/hud.js';
 import { createTutorial } from './ui/tutorial.js';
+import { createJourney } from './ux/journey.js';
+import { GAME_OVER_DELAY, causeLine, lossHint, returnGoal } from './ux/journey-tuning.js';
 import { createAutoplay } from './autoplay.js';
 import { createInput } from './input.js';
 import { createSfx } from './sfx.js';
@@ -30,6 +32,20 @@ const loadBest = () => {
 const saveBest = (v) => {
   try {
     localStorage.setItem(BEST_KEY, String(v));
+  } catch {}
+};
+// best wave reached: the return-visit goal ("Your best is wave 12. Beat it!")
+const BEST_WAVE_KEY = 'siege:bestWave';
+const loadBestWave = () => {
+  try {
+    return Number(localStorage.getItem(BEST_WAVE_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
+const saveBestWave = (v) => {
+  try {
+    localStorage.setItem(BEST_WAVE_KEY, String(v));
   } catch {}
 };
 
@@ -63,8 +79,13 @@ async function start() {
   const kv = kvMode ? setupKv({ stage, fx, blocks, art, hudEl: document.getElementById('hud'), getRun: () => run, params }) : null;
 
   let best = loadBest();
+  // first-run journey log (window.__mb.journey): milestones and tutorial text, wall-clock seconds
+  const journey = createJourney({ now: () => performance.now() / 1000 });
   let run = newRun();
+  journey.onRunStart();
   let gameOverShown = false;
+  let lastDownBy = null; // the enemy that broke the latest block
+  let lastLoss = null; // how the last run ended (for the retry hint)
   let hasMoved = false;
   let hintDone = false;
   let selected = null; // tile id picked to show its range
@@ -101,6 +122,7 @@ async function start() {
 
   function restart() {
     run = newRun();
+    journey.onRunStart();
     blocks.reset();
     foes.reset();
     shots.reset();
@@ -110,6 +132,9 @@ async function start() {
     gameOverShown = false;
     select(null);
     if (!kv) tutorial.start(run);
+    // after a loss, the retry opens with one lesson from how that run ended
+    if (!kv && lastLoss) tutorial.note(lossHint(lastLoss), 'board');
+    lastLoss = null;
   }
 
   function select(id) {
@@ -136,6 +161,7 @@ async function start() {
   function doSwipe(dir) {
     select(null);
     if (paused || !run.move(dir)) return false;
+    journey.onSwipe(); // before the tutorial: the next bubble's words come after the swipe
     tutorial.onSwipe();
     sfx.drop(2);
     return true;
@@ -148,9 +174,12 @@ async function start() {
     getRun: () => run,
     onPause: (v) => (paused = v),
     onReplay: () => restart(),
+    onLog: (kind, data) => journey.onCoach(kind, data),
   });
   if (!kv) tutorial.start(run);
   else tutorial.setMuted(true); // the showcase has no tips
+  // a returning player (opening done) gets a goal: their best wave
+  if (!kv && !tutorial.active) tutorial.note(returnGoal(loadBestWave()));
 
   createInput(stage.app.canvas, {
     swipe: (dir) => doSwipe(dir),
@@ -174,6 +203,7 @@ async function start() {
 
   function handleEvents() {
     for (const e of run.drainEvents()) {
+      journey.onRunEvent(e);
       tutorial.onEvent(e);
       blocks.onEvent(e);
       kv?.onEvent(e);
@@ -333,14 +363,26 @@ async function start() {
         case 'summon':
           fx.burst(e.x, e.y, [0xc04848, 0xffd36b], 20, { speed: 4, size: 0.24, life: 0.5, gravity: 0 });
           break;
+        case 'tileDown': {
+          // remember what broke the block, for the game-over card's cause line
+          const en = run.enemies.find((x) => x.id === e.by);
+          lastDownBy = en ? (ENEMY_TYPES[en.type]?.name ?? null) : null;
+          break;
+        }
+        case 'breakShortened':
+          hud.nudgeWave(); // no swipe possible: the break shrinks and Wave now pulses
+          break;
         case 'gameover': {
           const isBest = e.score > best;
           if (isBest) {
             best = e.score;
             saveBest(best);
           }
+          if (e.wave > loadBestWave()) saveBestWave(e.wave);
+          lastLoss = { wave: e.wave, maxTier: e.maxTier };
           sfx.gameover();
-          setTimeout(() => hud.showGameOver({ score: e.score, wave: e.wave, maxTier: e.maxTier, isBest }), 700);
+          const cause = causeLine({ wave: e.wave, by: lastDownBy });
+          setTimeout(() => hud.showGameOver({ score: e.score, wave: e.wave, maxTier: e.maxTier, isBest, cause }), GAME_OVER_DELAY * 1000);
           gameOverShown = true;
           select(null);
           break;
@@ -399,6 +441,9 @@ async function start() {
 
   // handy in the console while prototyping
   window.__mb = {
+    get journey() {
+      return journey.snapshot();
+    },
     get run() {
       return run;
     },
