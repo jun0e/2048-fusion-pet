@@ -52,10 +52,11 @@ Exit evidence: the brief, the loop contract, the first-minute plan and the teach
 ## Phase 2: Instrument the journey
 
 1. Add a journey log. Record the time of each milestone event: first input, first swipe, first merge, first 16, first wave start, first kill, first block hit, first block lost, game over, retry.
-2. Record the tutorial events: step shown, step done, step skipped, tip shown, help opened.
-3. Record the text load: the words shown to the player before the first swipe and before the first wave.
-4. Expose the log on `window.__mb.journey` for browser checks. Keep it out of the player UI.
-5. Keep all randomness on the seeded RNG, so that each run can be repeated.
+2. Record the tutorial events: step shown, step done, step skipped, tip shown, tip hidden, help opened.
+3. Record how long each bubble stays on screen. A bubble that goes in less than 1 s was shown but not read. If you count it as shown, the metrics hide a lost lesson.
+4. Record the text load: the words shown to the player before the first swipe and before the first wave.
+5. Expose the log on `window.__mb.journey` for browser checks. Keep it out of the player UI.
+6. Keep all randomness on the seeded RNG, so that each run can be repeated.
 
 Exit evidence: one clean first run produces a complete journey log.
 
@@ -142,4 +143,6 @@ These targets are first estimates. Measure them, then adjust them.
 | First loss for the novice bot | not before wave 3 |
 | Time from game over to play again | 3 s or less |
 | Tips | one at a time, 20 s or more apart |
+| Tips up for less than 1 s (bot that reads) | none |
+| Key lessons (for example, "blocks break for good") on screen for 1 s or more | every run that needs them |
 | Softlocks | none |

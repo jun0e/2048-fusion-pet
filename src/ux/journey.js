@@ -15,6 +15,7 @@ export function createJourney({ now }) {
   const shows = []; // every bubble shown: { t, kind, id, words, up: seconds on screen, null while it is up }
   let open = null; // the bubble on screen (one at a time)
   let since = 0; // when the bubble on screen (re)appeared
+  let runFrom = 0; // index in `shows` of the current run's first bubble
   let words = 0; // tutorial words shown so far
   let runs = 0;
   let over = false;
@@ -72,6 +73,7 @@ export function createJourney({ now }) {
     /** A new run started (runs after the first are retries). */
     onRunStart() {
       runs += 1;
+      runFrom = shows.length;
       if (runs > 1 && over) mark('retry');
     },
     /** Feed the coach's log: bubbles shown, the opening done or skipped, help opened. */
@@ -85,12 +87,15 @@ export function createJourney({ now }) {
       } else if (kind === 'reshow') {
         // the same bubble back after autoplay: no new words; its time on screen adds up
         close();
-        open = shows.findLast((s) => s.kind === data.kind && s.id === data.id) ?? null;
-        if (open) {
-          open.done = open.up ?? 0;
-          open.up = null;
-          since = at();
+        for (let i = shows.length - 1; i >= runFrom && !open; i--) if (shows[i].kind === data.kind && shows[i].id === data.id) open = shows[i];
+        if (!open) {
+          // first seen in an earlier run: this run's own entry, with no new words
+          open = { t: at(), kind: data.kind, id: data.id, words: 0, up: null };
+          shows.push(open);
         }
+        open.done = open.up ?? 0;
+        open.up = null;
+        since = at();
       } else if (kind === 'hide') close();
       else if (kind === 'done') mark('openingDone');
       else if (kind === 'skip') mark('openingSkipped');

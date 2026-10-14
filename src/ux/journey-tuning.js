@@ -1,5 +1,6 @@
-// Journey timing and copy shared by the game UI (main.js, hud.js) and the
-// journey probe (tools/journey-probe.mjs), so the probe measures what ships.
+// Journey timing and copy shared by the game (main.js), the coach and the
+// journey log (src/ux), and the journey probe (tools/journey-probe.mjs), so the
+// probe measures what ships.
 
 /** Seconds between the last block falling and the game-over card. */
 export const GAME_OVER_DELAY = 0.7;

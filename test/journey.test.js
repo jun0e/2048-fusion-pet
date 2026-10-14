@@ -579,6 +579,23 @@ test('journey log: milestones in order, words counted before the first swipe', (
   );
   assert.equal(s.tipFlashes, 0, 'cut by autoplay but shown again in full: not a flash');
   assert.equal(s.words, 6 + 7 + 6, 'a re-show adds no words');
+
+  // a re-show after a restart belongs to the new run, not to the old entry
+  j.onRunStart();
+  t = 70;
+  j.onCoach('reshow', { kind: 'tip', id: 'coins', words: 6 });
+  t = 72;
+  j.onCoach('hide', { kind: 'tip', id: 'coins' });
+  const s2 = j.snapshot();
+  assert.equal(s2.shows.length, 4);
+  assert.deepEqual(
+    s2.shows.slice(2).map((b) => [b.t, +b.up.toFixed(2), b.words]),
+    [
+      [50, 3.4, 6],
+      [70, 2, 0],
+    ],
+  );
+  assert.equal(s2.words, 6 + 7 + 6);
   assert.equal(s.wordsBeforeFirstSwipe, 6);
   assert.equal(s.wordsBeforeFirstWave, 13);
   assert.equal(s.marks.firstSwipe.t, 2.5);
