@@ -17,6 +17,9 @@ function fakeRun() {
     wave: { bossLane: null },
     waveNo: 1,
     phase: 'prep',
+    coins: 100,
+    swipeCost: 5,
+    locked: false,
     pendingChoice: null,
     setHold(v) {
       this.hold = v;
@@ -52,6 +55,7 @@ test('baseline coach: the opening as it shipped (swipe, cost, defend, start)', (
 
 test('tuned opening: short bubbles, no required taps, steps advance by playing', () => {
   const run = fakeRun();
+  run.tiles = [{ id: 1, tier: 3 }, { id: 2, tier: 3 }]; // the two opening 8s
   const coach = createCoach({ getRun: () => run, config: COACH });
   coach.start(run);
   assert.equal(run.guidedWave, true, 'first run: wave 1 is aimed at the first turret');
@@ -63,9 +67,10 @@ test('tuned opening: short bubbles, no required taps, steps advance by playing',
   coach.onSwipe();
   assert.equal(coach.view.id, 'swipe', 'a swipe that makes no 16 does not finish the first step');
   coach.onSwipe();
-  coach.onEvent({ type: 'classed', stage: 1, tileId: 1 }); // the 8s merged: a 16
+  run.tiles = [{ id: 3, tier: 4 }, { id: 4, tier: 1 }]; // the 8s merged: a 16
+  coach.onEvent({ type: 'classed', stage: 1, tileId: 3 });
   assert.equal(coach.view.id, 'turret');
-  assert.deepEqual(coach.view.target, { tile: 1 }, '"top" points at the biggest block');
+  assert.deepEqual(coach.view.target, { tile: 3 }, '"top" points at the biggest block');
   tick(coach, 4.2);
   assert.equal(coach.view.id, 'grow', 'the turret step moves on by itself');
   coach.onSwipe();
@@ -83,7 +88,8 @@ test('tuned tips: urgent first, depth waits for its wave, ordinary tips 16 s apa
   const run = fakeRun();
   const coach = createCoach({ getRun: () => run, store: { guided: true, seen: new Set() }, config: COACH });
   coach.start(run);
-  coach.onEvent({ type: 'override', tileId: 1 }); // colour: depth, waits for wave 3
+  coach.onEvent({ type: 'override', tileId: 1 }); // colour: a depth tip, not offered before wave 3
+  assert.equal(coach.store.seen.has('colour'), false);
   coach.onEvent({ type: 'coins', reason: 'kill' }); // core
   coach.onEvent({ type: 'tileHit', id: 1 }); // urgent
   tick(coach, 0.2);
@@ -96,10 +102,11 @@ test('tuned tips: urgent first, depth waits for its wave, ordinary tips 16 s apa
   tick(coach, 2.5);
   assert.equal(coach.view?.id, 'coins');
   tick(coach, 40);
-  assert.equal(coach.view, null, 'colour waits for wave 3');
+  assert.equal(coach.view, null);
   run.waveNo = 3;
+  coach.onEvent({ type: 'override', tileId: 1 });
   tick(coach, 0.2);
-  assert.equal(coach.view?.id, 'colour');
+  assert.equal(coach.view?.id, 'colour', 'offered at the first override from wave 3');
 });
 
 test('tips show once; notes show but are not remembered', () => {
@@ -211,6 +218,7 @@ test('a full queue drops the oldest of the least important tips, which can come 
   const store = { guided: true, seen: new Set() };
   const coach = createCoach({ getRun: () => run, store, config: COACH });
   coach.start(run);
+  run.waveNo = 3; // depth tips are offered from here
   run.pendingChoice = {}; // a die choice is open: tips wait
   coach.onEvent({ type: 'dieGained' }); // depth
   coach.onEvent({ type: 'override', tileId: 1 }); // depth
@@ -231,6 +239,7 @@ test('a break tip that misses its break is dropped and comes at the next break',
   const run = fakeRun();
   run.phase = 'break';
   run.waveNo = 2;
+  run.timer = 12;
   const store = { guided: true, seen: new Set() };
   const coach = createCoach({ getRun: () => run, store, config: COACH });
   coach.start(run);
@@ -248,6 +257,180 @@ test('a break tip that misses its break is dropped and comes at the next break',
   coach.onEvent({ type: 'waveIncoming', wave: 3, boss: false, lanes: [0] });
   tick(coach, 0.2);
   assert.equal(coach.view?.id, 'break');
+});
+
+test('a break tip on screen goes when the wave starts; a flash comes again, the next tip sooner', () => {
+  const run = fakeRun();
+  run.phase = 'break';
+  run.waveNo = 2;
+  run.timer = 12;
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'waveIncoming', wave: 2, boss: false, lanes: [0] });
+  tick(coach, 0.5);
+  assert.equal(coach.view?.id, 'break');
+  run.phase = 'wave'; // the player taps Wave now, as the tip says
+  coach.onEvent({ type: 'kill' });
+  tick(coach, 0.1);
+  assert.equal(coach.view, null, 'not over the wave');
+  assert.equal(store.seen.has('break'), false, 'up under 1 s: not read');
+  coach.onEvent({ type: 'coins', reason: 'kill' });
+  tick(coach, 1.5);
+  assert.equal(coach.view, null, 'an ordinary tip still waits');
+  tick(coach, 1);
+  assert.equal(coach.view?.id, 'coins', 'after a flash the gap is the short one');
+  tick(coach, 25); // the coins tip goes, and its 16 s gap passes
+  run.phase = 'break';
+  run.waveNo = 3;
+  run.timer = 12;
+  coach.onEvent({ type: 'waveIncoming', wave: 3, boss: false, lanes: [0] });
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'break', 'offered again at the next break');
+  run.phase = 'wave';
+  tick(coach, 0.1);
+  assert.equal(store.seen.has('break'), true, 'a second flash counts as seen: no flicker every break');
+});
+
+test('the break tip comes only when a swipe is possible (it says "swipe to grow")', () => {
+  const run = fakeRun();
+  run.phase = 'break';
+  run.waveNo = 2;
+  run.timer = 12;
+  run.coins = 2;
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'waveIncoming', wave: 2, boss: false, lanes: [0] });
+  assert.equal(store.seen.has('break'), false);
+  run.waveNo = 3;
+  run.coins = 50;
+  coach.onEvent({ type: 'waveIncoming', wave: 3, boss: false, lanes: [0] });
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'break');
+});
+
+test('a break tip does not start in the last 3 s of its break', () => {
+  const run = fakeRun();
+  run.phase = 'break';
+  run.waveNo = 2;
+  run.timer = 2;
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'waveIncoming', wave: 2, boss: false, lanes: [0] });
+  tick(coach, 0.2);
+  assert.equal(coach.view, null);
+  assert.equal(store.seen.has('break'), false, 'it waits for the next break');
+});
+
+test('a tip follows its block when it merges, and points at the block count when it breaks', () => {
+  const run = fakeRun();
+  run.tiles = [{ id: 1, tier: 2 }, { id: 2, tier: 2 }, { id: 9, tier: 4 }];
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'tileHit', id: 1 });
+  tick(coach, 0.2);
+  assert.deepEqual(coach.view.target, { tile: 1 });
+  const key = coach.view.key;
+  run.tiles = [{ id: 5, tier: 3 }, { id: 9, tier: 4 }];
+  coach.onEvent({ type: 'merge', id: 5, from: [1, 2], tier: 3 });
+  tick(coach, 0.2);
+  assert.equal(coach.view.key, key, 'the same bubble');
+  assert.deepEqual(coach.view.target, { tile: 5 }, 'it follows the merged block');
+  run.tiles = [{ id: 9, tier: 4 }];
+  coach.onEvent({ type: 'remove', id: 5, reason: 'destroyed' });
+  tick(coach, 0.2);
+  assert.equal(coach.view.target, 'blocks', 'its block broke: it points at the block count');
+  tick(coach, 10);
+  assert.equal(coach.view, null);
+  assert.equal(store.seen.has('attacked'), true, 'read in full');
+
+  // the baseline keeps the old rule: a tip whose block went goes too
+  const base = fakeRun();
+  base.tiles = [{ id: 1, tier: 2 }];
+  const old = createCoach({ getRun: () => base, store: { guided: true, seen: new Set() }, config: COACH_BASELINE });
+  old.start(base);
+  old.onEvent({ type: 'tileHit', id: 1 });
+  tick(old, 0.2);
+  assert.equal(old.view.id, 'attacked');
+  base.tiles = [{ id: 5, tier: 3 }];
+  old.onEvent({ type: 'merge', id: 5, from: [1], tier: 3 });
+  tick(old, 0.2);
+  assert.equal(old.view, null);
+});
+
+test('the attacked tip covers the lost tip when it shows; a flash leaves both to come again', () => {
+  const run = fakeRun();
+  run.pendingChoice = {}; // hold the queue
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'tileHit', id: 1 });
+  coach.onEvent({ type: 'remove', id: 7, reason: 'destroyed' });
+  assert.equal(store.seen.has('lost'), true, 'queued');
+  run.pendingChoice = null;
+  tick(coach, 0.2);
+  assert.equal(coach.view.id, 'attacked');
+  coach.onEvent({ type: 'gameover', wave: 2 }); // within 1 s: a flash
+  assert.equal(store.seen.has('attacked'), false);
+  assert.equal(store.seen.has('lost'), false, 'it left the queue with the attacked tip, so it comes back too');
+  coach.start(run);
+  coach.onEvent({ type: 'remove', id: 8, reason: 'destroyed' });
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'lost');
+});
+
+test('autoplay: no tips are offered or saved while it plays; a restart does not hold its countdown', () => {
+  const run = fakeRun();
+  let saves = 0;
+  const coach = createCoach({ getRun: () => run, store: { guided: true, seen: new Set() }, save: () => (saves += 1), config: COACH });
+  coach.start(run);
+  coach.setMuted(true);
+  for (const type of ['tileHit', 'noCoins', 'waveStart']) coach.onEvent({ type, id: 1, lanes: [0] });
+  coach.onEvent({ type: 'merge', id: 3, from: [1, 2] });
+  assert.equal(saves, 0);
+  assert.equal(coach.store.seen.size, 0);
+
+  const fresh = createCoach({ getRun: () => run, config: COACH });
+  fresh.setMuted(true);
+  fresh.start(run); // Restart while autoplay plays
+  assert.equal(run.hold, false, 'the countdown runs for the bot');
+  assert.equal(run.guidedWave, true);
+});
+
+test('autoplay: a tip it cut short is not counted twice; out of coins after it skips to Wave now', () => {
+  const run = fakeRun();
+  const log = [];
+  const coach = createCoach({ getRun: () => run, store: { guided: true, seen: new Set() }, onLog: (k, d) => log.push(`${k}:${d.id ?? ''}`), config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'coins', reason: 'kill' });
+  tick(coach, 0.5);
+  coach.setMuted(true);
+  coach.setMuted(false);
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'coins');
+  assert.deepEqual(log, ['show:coins', 'hide:coins'], 'shown again, not logged again');
+
+  const broke = fakeRun();
+  broke.coins = 0;
+  broke.swipeCost = 5;
+  const opening = createCoach({ getRun: () => broke, config: COACH });
+  opening.start(broke);
+  opening.setMuted(true);
+  opening.setMuted(false);
+  assert.equal(opening.view.id, 'start', 'no coins: only Wave now is left');
+  assert.equal(broke.hold, false);
+
+  // the baseline opening does not end when autoplay stops during a wave
+  const base = fakeRun();
+  const old = createCoach({ getRun: () => base, config: COACH_BASELINE });
+  old.start(base);
+  old.setMuted(true);
+  base.phase = 'wave';
+  old.setMuted(false);
+  assert.equal(old.view.id, 'swipe');
 });
 
 test('a game over clears the bubble; an unfinished opening starts again on the retry', () => {
@@ -271,12 +454,13 @@ test('a game over forgets the tips still waiting; the baseline keeps its bubble'
   const coach = createCoach({ getRun: () => run, store, config: COACH });
   coach.start(run);
   coach.onEvent({ type: 'coins', reason: 'kill' });
-  tick(coach, 0.2);
-  coach.onEvent({ type: 'tileHit', id: 1 }); // waits for the urgent gap
+  tick(coach, 1.5); // up long enough to read
+  coach.onEvent({ type: 'tileHit', id: 1 }); // waits while the coins tip is up
   coach.onEvent({ type: 'gameover', wave: 2 });
   assert.equal(coach.view, null);
-  assert.equal(store.seen.has('coins'), true, 'a tip on screen counts as seen');
+  assert.equal(store.seen.has('coins'), true, 'a tip the player could read counts as seen');
   assert.equal(store.seen.has('attacked'), false, 'a waiting one does not');
+  assert.equal(store.seen.has('lost'), false, 'nor what it would have covered');
 
   const base = fakeRun();
   const old = createCoach({ getRun: () => base, config: COACH_BASELINE });
@@ -298,12 +482,14 @@ test('journey log: milestones in order, words counted before the first swipe', (
   t = 10;
   j.onRunEvent({ type: 'waveStart', wave: 1 });
   t = 40;
+  j.onCoach('hide', { kind: 'guided', id: 'turret' });
   j.onRunEvent({ type: 'gameover', wave: 3, score: 100, maxTier: 5 });
   t = 45;
   j.onRunStart();
   t = 46;
   j.onSwipe();
   const s = j.snapshot();
+  assert.deepEqual(s.shows.map((b) => b.up), [2.5, 37.5], 'time on screen: until the next bubble, or until it hides');
   assert.equal(s.wordsBeforeFirstSwipe, 6);
   assert.equal(s.wordsBeforeFirstWave, 13);
   assert.equal(s.marks.firstSwipe.t, 2.5);
@@ -336,6 +522,13 @@ test('a skip switches the guided wave off: wave 1 is the normal one again', () =
   coach.skipAll();
   assert.deepEqual(r.wave.spawns, normal.spawns);
   assert.deepEqual(r.wave.lanes, normal.lanes);
+
+  const w = createRun({ seed: 5 });
+  w.setGuidedWave(true);
+  w.nextWave();
+  const guided = w.wave;
+  w.setGuidedWave(false);
+  assert.equal(w.wave, guided, 'a wave already under way is left alone');
 });
 
 test('a break shrinks when no swipe is possible, and only then', () => {
@@ -388,6 +581,10 @@ test('bubble placement: above the bottom bar, lanes above the field, blocks besi
   p = placeBubble({ target: { tile: 1 }, rect: tile, board, floor: 760, vw, vh, bh });
   assert.notEqual(p.top, board.bottom + 6, 'not under the board when the bottom bar leaves no room');
   assert.ok(p.top + bh <= 760 - 8, 'never over the bottom bar');
+
+  const castle = { left: 290, top: 300, right: 370, bottom: 400 }; // upper half: the bubble goes below
+  p = placeBubble({ target: 'blocks', rect: castle, floor: 450, vw, vh, bh });
+  assert.equal(p.top, 450 - 8 - bh, 'pushed up to stay above the bottom bar');
 
   const lane = { left: 150, top: 120, right: 240, bottom: 300 };
   p = placeBubble({ target: { lane: 2 }, rect: lane, vw, vh, bh });

@@ -14,18 +14,20 @@
 //   skilled  — reads 5 words/s, swipes every 0.5 s with the autoplay strategy, presses Wave now
 //   novice   — reads 3 words/s, reads every tip, swipes every 1.2 s, 45% of swipes random, waits for countdowns
 //   reckless — skips the tutorial, swipes at random, then retries after the game over
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { writeFileSync, mkdirSync, realpathSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRun, swipeCostFor } from '../src/sim/run.js';
 import { createRng } from '../src/sim/rng.js';
 import { PHYSICS } from '../src/config.js';
 import { bestDir } from '../src/autoplay.js';
 import { createCoach, COACH, COACH_BASELINE, wordCount } from '../src/ux/coach.js';
-import { createJourney } from '../src/ux/journey.js';
+import { createJourney, FLASH_SECONDS } from '../src/ux/journey.js';
 import { GAME_OVER_DELAY, gameOverWords, causeLine, lossHint } from '../src/ux/journey-tuning.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+/** Bubbles that teach the defend rule: the baseline's guided step, the tuned tips. */
+const DEFEND = ['defend', 'attacked', 'lost'];
 const DIRS = ['left', 'right', 'up', 'down'];
 
 /** What a player meets: the coach config, the sim options, the game-over card, the retry hint. */
@@ -226,10 +228,14 @@ export function playJourney({ seed, persona, profile = PROFILES.tuned, maxSecond
     taps,
     tipTaps,
     tipsFirst5: snap.shows.filter((s) => s.kind === 'tip' && s.t <= 300).length,
+    flashesFirst5: snap.shows.filter((s) => s.kind === 'tip' && s.t <= 300 && s.up != null && s.up < FLASH_SECONDS).length,
+    // the rule that blocks break for good: shown long enough to read (only runs where a block was hit)
+    defendRead: m.firstHit ? snap.shows.some((s) => DEFEND.includes(s.id) && (s.up == null || s.up >= FLASH_SECONDS)) : null,
     minTipGap: snap.minTipGap,
     waitedFirst5,
     idleFirst5,
     survived: !m.gameOver,
+    shows: snap.shows, // every bubble, with its time on screen (for digging into one run)
   };
 }
 
@@ -247,6 +253,7 @@ const KEYS = [
   ['firstKill', 'Time to first kill (s)'],
   ['firstLost', 'Time to first block lost (s)'],
   ['tipsFirst5', 'Tips in first 5 min'],
+  ['flashesFirst5', 'Tips up under 1 s in first 5 min'],
   ['minTipGap', 'Shortest gap between tips (s)'],
   ['waitedFirst5', 'Coin-limited time in first 5 min (s)'],
   ['idleFirst5', 'Idle countdown time in first 5 min (s)'],
@@ -265,6 +272,7 @@ export function summarize(rows) {
   const out = {};
   for (const [k] of KEYS) out[k] = { p10: quant(rows.map((r) => r[k]), 0.1), med: quant(rows.map((r) => r[k]), 0.5), p90: quant(rows.map((r) => r[k]), 0.9), n: rows.filter((r) => r[k] != null).length };
   out.survived = rows.filter((r) => r.survived).length;
+  out.defendRead = { yes: rows.filter((r) => r.defendRead).length, of: rows.filter((r) => r.defendRead != null).length };
   out.runs = rows.length;
   return out;
 }
@@ -299,6 +307,7 @@ export function toMarkdown(result) {
       });
       lines.push(`| ${label} | ${cells.join(' | ')} |`);
     }
+    lines.push(`| Defend rule up 1 s or more (runs with a block hit) | ${coaches.map((c) => `${result[c][p].sum.defendRead.yes} of ${result[c][p].sum.defendRead.of}`).join(' | ')} |`);
     lines.push(`| Runs that never lost (15 min cap) | ${coaches.map((c) => `${result[c][p].sum.survived} of ${result[c][p].sum.runs}`).join(' | ')} |`, '');
   }
   return lines.join('\n');
@@ -306,7 +315,16 @@ export function toMarkdown(result) {
 
 // --- CLI -----------------------------------------------------------------------------
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+/** Run as a script (also through a symlinked path), not imported by the tests. */
+function isMain() {
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) {
   const arg = (k, d) => (process.argv.find((a) => a.startsWith(`--${k}=`)) ?? '').split('=')[1] || d;
   const compare = process.argv.includes('--compare');
   const which = arg('profile', 'tuned');
@@ -319,13 +337,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   console.log(`\n${seeds} seeds × ${Object.keys(PERSONAS).length} players × ${profiles.length} profile(s) in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
   const mdPath = arg('md', null);
   const jsonPath = arg('json', null);
+  // relative paths are from the repo root; absolute paths stay as they are
   if (mdPath) {
-    mkdirSync(dirname(join(root, mdPath)), { recursive: true });
-    writeFileSync(join(root, mdPath), md + '\n');
+    mkdirSync(dirname(resolve(root, mdPath)), { recursive: true });
+    writeFileSync(resolve(root, mdPath), md + '\n');
   }
   if (jsonPath) {
-    mkdirSync(dirname(join(root, jsonPath)), { recursive: true });
+    mkdirSync(dirname(resolve(root, jsonPath)), { recursive: true });
     const slim = Object.fromEntries(Object.entries(result).map(([c, ps]) => [c, Object.fromEntries(Object.entries(ps).map(([p, v]) => [p, v.sum]))]));
-    writeFileSync(join(root, jsonPath), JSON.stringify(slim, null, 1));
+    writeFileSync(resolve(root, jsonPath), JSON.stringify(slim, null, 1));
   }
 }

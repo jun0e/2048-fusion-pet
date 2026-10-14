@@ -3,6 +3,9 @@
 // log runs in the browser (window.__mb.journey) and in the headless journey
 // probe (tools/journey-probe.mjs). Times are seconds since the log started.
 
+/** A bubble on screen for less time than this (s) could not be read: a flash. */
+export const FLASH_SECONDS = 1;
+
 /** The milestones, in the order a first run usually meets them. */
 export const MILESTONES = ['firstSwipe', 'firstMerge', 'firstTurret', 'firstWave', 'firstHit', 'firstKill', 'firstLost', 'firstBroke', 'firstLocked', 'gameOver', 'retry', 'retrySwipe'];
 
@@ -10,10 +13,16 @@ export function createJourney({ now }) {
   const t0 = now();
   const at = () => now() - t0;
   const marks = {}; // milestone → { t, ...data }
-  const shows = []; // every bubble shown: { t, kind, id, words }
+  const shows = []; // every bubble shown: { t, kind, id, words, up: seconds on screen once it went }
+  let open = null; // the bubble on screen (one at a time)
   let words = 0; // tutorial words shown so far
   let runs = 0;
   let over = false;
+
+  function close() {
+    if (open) open.up = at() - open.t;
+    open = null;
+  }
 
   function mark(name, data = {}) {
     if (marks[name]) return false;
@@ -68,9 +77,12 @@ export function createJourney({ now }) {
     /** Feed the coach's log: bubbles shown, the opening done or skipped, help opened. */
     onCoach(kind, data = {}) {
       if (kind === 'show') {
+        close(); // a new bubble replaces the last one
         words += data.words ?? 0;
-        shows.push({ t: at(), kind: data.kind, id: data.id, words: data.words ?? 0 });
-      } else if (kind === 'done') mark('openingDone');
+        open = { t: at(), kind: data.kind, id: data.id, words: data.words ?? 0, up: null };
+        shows.push(open);
+      } else if (kind === 'hide') close();
+      else if (kind === 'done') mark('openingDone');
       else if (kind === 'skip') mark('openingSkipped');
       else if (kind === 'help') mark('firstHelp');
     },
@@ -93,6 +105,7 @@ export function createJourney({ now }) {
         wordsBeforeFirstSwipe: marks.firstSwipe?.words ?? null,
         wordsBeforeFirstWave: marks.firstWave?.words ?? null,
         tipsShown: tips.length,
+        tipFlashes: tips.filter((s) => s.up != null && s.up < FLASH_SECONDS).length,
         minTipGap,
       };
     },

@@ -106,9 +106,12 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
     skipBtn.style.display = v.skip ? '' : 'none';
     actions.style.display = v.ok || v.skip ? '' : 'none';
     hand.style.display = v.hand ? '' : 'none';
-    el.dataset.target = typeof v.target === 'string' ? v.target : v.target ? 'point' : 'none';
-    current = v.target;
+    aim(v.target);
     place();
+  }
+  function aim(target) {
+    current = target;
+    el.dataset.target = typeof target === 'string' ? target : target ? 'point' : 'none';
   }
   function hide() {
     el.classList.remove('on');
@@ -149,7 +152,10 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
       shown = key;
       if (v) show(v);
       else hide();
-    } else if (v) place();
+    } else if (v) {
+      if (v.target !== current) aim(v.target); // its block merged or broke: follow it
+      place();
+    }
   }
 
   okBtn.addEventListener('click', () => {
