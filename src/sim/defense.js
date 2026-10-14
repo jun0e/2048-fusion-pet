@@ -7,12 +7,15 @@
 // lowers their `hp`; the run removes blocks that reach 0.
 //
 // Position along a lane is `s` (0 = portal); on the board enemies move freely and `s` tracks how deep they are.
-// Each block shoots by its class's spec (classes.js `shoot`): a range (reach up
-// its lane from the wall across N neighbouring lanes, or a circle around the
-// block), a target rule (front-most, strongest, weakest, unpoisoned, biggest
-// crowd) and a pattern: single shot, 3-shot burst, slow lance, fast sniper round,
-// homing dart, lobbed mortar, a blade that flies the whole lane, a 3-way seed
-// spread or an instant chain. Enemies already doomed by shots in flight are skipped.
+// Each block attacks by its class's spec (classes.js `shoot`): a range (reach up
+// and down its lane across N neighbouring lanes, or a circle around the block), a
+// target rule (front-most, nearest, toughest, weakest) and a pattern: Ember Breath
+// (an instant cone), Wing Gust (the whole lane, knockback), Bramble Shell (a ring
+// pulse: root, thorns, regrow), Echo Harpoon (a homing lance at the toughest foe),
+// Venom Spit (a lobbed glob that leaves a poison puddle), Horn Arc (an instant chain),
+// Pride Pounce (a leap onto the weakest foe: killing bite, bonus coins) and Quake
+// Stomp (a 3-lane shockwave: knockback, stun). Plain blocks shoot pebbles.
+// Statuses: burn, poison (+ weaken at full stacks), chill, freeze, stun, root, loot.
 
 import { DEFENSE, FIELD, GRID, LANE_LENGTH, SIEGE, laneAt, laneX } from '../config.js';
 import { ENEMY_TYPES } from './enemies.js';
@@ -28,7 +31,9 @@ export function createDefense({ rng }) {
   const cool = new Map(); // block id → seconds until it can fire
   const sig = new Map(); // block id → seconds charged toward its ultimate signature
   const pendingSpawns = [];
+  const puddles = []; // Venom Spit: { id, x, y, r, t, max, prof, tier }
   let nextEnemy = 1;
+  let nextPuddle = 1;
   let nextShot = 1;
 
   function place(e) {
@@ -67,6 +72,13 @@ export function createDefense({ rng }) {
       chillSlow: 0,
       freezeT: 0,
       iceHits: 0,
+      braceT: 0, // just knocked back: the next push slides it less
+      holdBraceT: 0, // just stunned or rooted: the next hold is shorter
+      stunT: 0, // stunned: no moving, no biting
+      rootT: 0, // rooted: no moving (it can still bite)
+      weakT: 0, // weakened by full poison stacks: softer bites
+      weakPct: 0,
+      puddleT: 0, // time spent in venom puddles toward the next stack
       lootT: 0, // Metal's mark: seconds left
       lootPct: 0, // … and the coin bonus it pays on death
       healT: 0,
@@ -119,16 +131,22 @@ export function createDefense({ rng }) {
 
   function addBurn(e, burn, hitDamage) {
     if (!burn || e.element === 'fire') return;
-    e.burn.stacks = Math.min(burn.max, e.burn.stacks + 1);
+    e.burn.stacks = Math.max(e.burn.stacks, Math.min(burn.max, e.burn.stacks + 1)); // a weaker source never lowers stacks
     e.burn.t = burn.dur;
     e.burn.dps = Math.max(e.burn.dps, burn.dpsPct * hitDamage);
   }
 
   function addPoison(e, poison, hitDamage) {
     if (!poison) return;
-    e.poison.stacks = Math.min(poison.max, e.poison.stacks + 1);
+    e.poison.stacks = Math.max(e.poison.stacks, Math.min(poison.max, e.poison.stacks + 1));
     e.poison.t = poison.dur;
     e.poison.dps = Math.max(e.poison.dps, poison.dpsPct * hitDamage);
+    if (poison.weaken && e.poison.stacks >= poison.max) {
+      // full stacks: the venom saps it, so it bites blocks softer while it lasts
+      if (e.weakT <= 0) events.push({ type: 'weaken', id: e.id, x: e.x, y: e.y });
+      e.weakT = poison.dur;
+      e.weakPct = Math.max(e.weakPct, poison.weaken);
+    }
   }
 
   function mark(e, pct, dur) {
@@ -148,8 +166,22 @@ export function createDefense({ rng }) {
     }
   }
 
+  /** Bramble Shell: the block and its orthogonal neighbours regrow `pct` of their max health. */
+  function regrow(tile, pct) {
+    for (const t of blocksNow) {
+      if (!(t.hp > 0 && t.hp < t.maxHp)) continue;
+      if (Math.abs(t.x - tile.x) + Math.abs(t.y - tile.y) > GRID.cell + 0.01) continue;
+      const before = t.hp;
+      t.hp = Math.min(t.maxHp, t.hp + t.maxHp * pct);
+      events.push({ type: 'tileHeal', id: t.id, x: t.x, y: t.y, amount: t.hp - before, from: { x: tile.x, y: tile.y } });
+    }
+  }
+
   function knock(e, amount) {
-    const a = e.boss ? amount * 0.3 : amount;
+    // bosses half as far; a foe pushed in the last 1.5 s is braced and slides only 40% as far,
+    // so a gust stalls a lane without holding it forever
+    const a = amount * (e.boss ? 0.5 : 1) * (e.braceT > 0 ? 0.4 : 1);
+    e.braceT = 1.5;
     if (e.mode === 'lane') {
       e.s = Math.max(0, e.s - a);
       place(e);
@@ -198,20 +230,39 @@ export function createDefense({ rng }) {
       const dy = t.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
       if (d > SIEGE.contact + 0.01) {
+        if (e.rootT > 0 || e.stunT > 0) {
+          e.wasAttacking = false; // held in place by roots or a stun
+          e.lane = laneOfX(e.x);
+          e.s = FIELD.spawnY - e.y;
+          return;
+        }
         const step = Math.min(speed * dt, d - SIEGE.contact);
         e.x += (dx / d) * step;
         e.y += (dy / d) * step;
         e.dirX = dx / d;
         e.dirY = dy / d;
-      } else if (!frozen) {
+      } else if (frozen || e.stunT > 0) {
+        // held while biting: the bite timer pauses (it doesn't restart)
+        e.attacking = false;
+        e.lane = laneOfX(e.x);
+        e.s = FIELD.spawnY - e.y;
+        return;
+      } else {
         // bite the block's hidden health: one hit every biteEvery seconds
         if (!e.wasAttacking) e.hitT = SIEGE.biteEvery - SIEGE.firstBite;
         e.attacking = true;
         e.hitT += dt;
         if (e.hitT >= SIEGE.biteEvery) {
           e.hitT -= SIEGE.biteEvery;
-          t.hp -= e.atk;
-          events.push({ type: 'tileHit', id: t.id, x: t.x, y: t.y, amount: e.atk, from: { x: e.x, y: e.y } });
+          const bite = e.atk * (e.weakT > 0 ? 1 - e.weakPct : 1);
+          t.hp -= bite;
+          events.push({ type: 'tileHit', id: t.id, x: t.x, y: t.y, amount: bite, from: { x: e.x, y: e.y } });
+          // Bramble Shell: biting a thorny block hurts
+          const tp = t.cls ? profileFor(t) : null;
+          if (tp?.thorns && tp.shoots) {
+            const dealt = damage(e, tp.damage * tp.thorns.pct, ['nature']);
+            events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#4cd964'], crit: false, thorns: true });
+          }
           if (t.hp <= 0 && !t.downed) {
             t.downed = true;
             events.push({ type: 'tileDown', id: t.id, x: t.x, y: t.y, tier: t.tier, by: e.id });
@@ -240,7 +291,66 @@ export function createDefense({ rng }) {
         events.push({ type: 'freeze', id: e.id, x: e.x, y: e.y });
       }
     }
+    // holds brace like knockback: a foe held in the last 1.5 s is held only 40% as long,
+    // so fast fusions stall foes without freezing them in place for good
+    const hold = (dur) => {
+      const d = dur * (e.boss ? 0.5 : 1) * (e.holdBraceT > 0 ? 0.4 : 1);
+      e.holdBraceT = Math.max(e.holdBraceT, d + 1.5);
+      return d;
+    };
+    if (prof.stun && !e.dead && rng.next() < prof.stun.chance) {
+      if (e.stunT <= 0) events.push({ type: 'stun', id: e.id, x: e.x, y: e.y });
+      e.stunT = Math.max(e.stunT, hold(prof.stun.dur));
+    }
+    if (prof.root && !e.dead) e.rootT = Math.max(e.rootT, hold(prof.root.dur));
     if (prof.knockback) knock(e, prof.knockback);
+  }
+
+  /** One foe hit by an area attack (cone, gust, pulse, quake, glob): damage + statuses; the primary can take a killing bite. */
+  function hitOne(prof, dmg, e, primary = null) {
+    if (e.dead) return;
+    let d = dmg;
+    if (prof.bite && e === primary && e.hp / e.maxHp < prof.bite.below && rng.next() < prof.bite.chance) {
+      d *= prof.bite.mult;
+      events.push({ type: 'bite', id: e.id, x: e.x, y: e.y });
+    }
+    if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur);
+    const dealt = damage(e, d, prof.kinds);
+    applyStatuses(e, prof, d);
+    events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: prof.colors, crit: d > dmg });
+  }
+
+  /** An area attack lands: every foe in `hits` takes it; a chain (Lightning fusions) jumps on from the target. */
+  function area(prof, hits, origin, kind, target, extra = {}) {
+    const primary = hits.includes(target) ? target : hits[0];
+    for (const e of hits) hitOne(prof, prof.damage, e, primary);
+    if (prof.chain && hits.length) chainFrom(prof, primary, new Set(hits), origin);
+    events.push({ type: 'impact', x: hits[0]?.x ?? origin.x, y: hits[0]?.y ?? origin.y, kind, element: prof.element, pattern: prof.shoot?.pattern, tier: origin.tier ?? 1, colors: prof.colors, splash: 0, area: true, ...extra });
+  }
+
+  function chainFrom(prof, first, used, origin) {
+    const pts = [{ x: first.x, y: first.y }];
+    let last = first;
+    let d = prof.damage;
+    for (let k = 0; k < prof.chain.jumps; k++) {
+      let best = null;
+      let bestD = prof.chain.range;
+      for (const e of alive()) {
+        if (used.has(e)) continue;
+        const dd = dist(e, last);
+        if (dd <= bestD) {
+          best = e;
+          bestD = dd;
+        }
+      }
+      if (!best) break;
+      d *= prof.chain.falloff;
+      hitOne(prof, d, best);
+      used.add(best);
+      pts.push({ x: best.x, y: best.y });
+      last = best;
+    }
+    if (pts.length > 1) events.push({ type: 'impact', x: last.x, y: last.y, kind: 'zap', element: prof.element, pattern: 'chain', tier: origin.tier ?? 1, colors: prof.colors, splash: 0, chain: pts });
   }
 
   const alive = () => enemies.filter((e) => !e.dead && !e.gone);
@@ -299,7 +409,14 @@ export function createDefense({ rng }) {
     const impactY = primary.y;
     // Nature: each attack may repair a block (rolled once per attack, not per splash target)
     if (heal && prof.heal && rng.next() < prof.heal.chance) healBlocks(prof.heal.pct, primary);
-    for (const [e, d] of hits) {
+    if (heal && prof.regrow && origin.tileRef) regrow(origin.tileRef, prof.regrow.pct);
+    for (const [e, d0] of hits) {
+      let d = d0;
+      // Pride Pounce: a killing bite on a wounded foe hits double
+      if (prof.bite && e === primary && e.hp / e.maxHp < prof.bite.below && rng.next() < prof.bite.chance) {
+        d *= prof.bite.mult;
+        events.push({ type: 'bite', id: e.id, x: e.x, y: e.y });
+      }
       if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur); // before the damage, so Metal's own killing blow pays out
       const dealt = damage(e, d, prof.kinds);
       applyStatuses(e, prof, d);
@@ -331,11 +448,22 @@ export function createDefense({ rng }) {
    */
   function inRange(e, b, shoot) {
     if (shoot.radius != null) return Math.hypot(e.x - b.x, e.y - b.y) <= shoot.radius;
+    if (shoot.pattern === 'cone') return inCone(e, b, shoot, Math.sign(e.y - b.y) || 1);
     return Math.abs(e.lane - laneOfX(b.x)) <= shoot.lanes && Math.abs(e.y - b.y) <= shoot.reach + 1e-6;
+  }
+
+  /** Ember Breath: a cone up (or down) the lane, widening to half a lane each side at its tip. */
+  function inCone(e, b, shoot, dir) {
+    const along = (e.y - b.y) * dir;
+    if (along < -0.3 || along > shoot.reach + 1e-6) return false;
+    // its own lane at the mouth, plus half a lane each side at the tip (a fusion's extra lanes widen it)
+    const t = Math.max(0, along) / shoot.reach;
+    return Math.abs(e.x - b.x) <= (GRID.cell / 2) * (1 + t * (1 + (shoot.lanes ?? 0)));
   }
 
   const SORTS = {
     front: (a, b) => b.s - a.s,
+    nearest: null, // set per block in pickTargets
     strongest: (a, b) => b.hp - b.incoming - (a.hp - a.incoming) || b.s - a.s,
     weakest: (a, b) => a.hp - a.incoming - (b.hp - b.incoming) || b.s - a.s,
     unpoisoned: (a, b) => (a.poison.stacks > 0) - (b.poison.stacks > 0) || b.s - a.s,
@@ -343,11 +471,12 @@ export function createDefense({ rng }) {
 
   /** Up to `n` targets in range, best first by the class's target rule. */
   function pickTargets(pool, b, shoot, n = 1) {
-    const inR = pool.filter((e) => inRange(e, b, shoot));
+    const inR = pool.filter((e) => !e.dead && inRange(e, b, shoot));
     if (!inR.length) return [];
     const live = inR.filter((e) => e.hp - e.incoming > 0);
     const list = live.length ? live : inR; // everything doomed: still shoot the best one
-    if (shoot.target === 'crowd') {
+    if (shoot.target === 'nearest') list.sort((p, q) => dist(p, b) - dist(q, b));
+    else if (shoot.target === 'crowd') {
       const crowd = (e) => list.reduce((k, o) => k + (dist(o, e) <= 1.3 ? 1 : 0), 0);
       list.sort((p, q) => crowd(q) - crowd(p) || q.s - p.s);
     } else list.sort(SORTS[shoot.target] ?? SORTS.front);
@@ -378,7 +507,10 @@ export function createDefense({ rng }) {
       heal: true,
       ...extra,
     };
-    if (sh.kind === 'homing') target.incoming += sh.damage;
+    if (sh.kind === 'homing') {
+      target.incoming += sh.damage;
+      sh.reserved = true; // only reserving shots give the reservation back
+    }
     shots.push(sh);
     return sh;
   }
@@ -386,7 +518,7 @@ export function createDefense({ rng }) {
   function fireTurrets(dt, blocks) {
     const pool = alive();
     for (const tile of blocks) {
-      // a fusion that roams the field (key-visual demo) shoots from where it stands
+      // a fusion that roams the field (the pets layer) shoots from where it stands
       const b = tile.roam ? { ...tile, x: tile.roam.x, y: tile.roam.y } : tile;
       const prof = profileFor(tile);
       if (!prof.shoots) continue; // blocks below 16 don't shoot
@@ -396,9 +528,63 @@ export function createDefense({ rng }) {
         const targets = pickTargets(pool, b, shoot, shoot.pattern === 'spread' ? shoot.count : 1);
         const target = targets[0];
         if (target) {
+          const origin = { ...b, tileRef: tile };
           switch (shoot.pattern) {
             case 'chain':
-              resolve(prof, prof.damage, target, b, 'zap'); // lightning is instant
+              resolve(prof, prof.damage, target, origin, 'zap'); // Horn Arc is instant
+              break;
+            case 'cone': {
+              // Ember Breath: everything in the cone, toward the foe it saw first
+              const dir = Math.sign(target.y - b.y) || 1;
+              const hits = pool.filter((e) => !e.dead && inCone(e, b, shoot, dir));
+              area(prof, hits, origin, 'breath', target);
+              events.push({ type: 'breath', x: b.x, y: b.y, dir, reach: shoot.reach, lanes: shoot.lanes ?? 0, colors: prof.colors, tier: b.tier });
+              if (prof.regrow) regrow(tile, prof.regrow.pct);
+              break;
+            }
+            case 'gust': {
+              // Wing Gust: every foe in the lane(s), pushed back
+              const lane = laneOfX(b.x);
+              const hits = pool.filter((e) => !e.dead && Math.abs(e.lane - lane) <= shoot.lanes && Math.abs(e.y - b.y) <= shoot.reach);
+              area(prof, hits, origin, 'gust', target);
+              events.push({ type: 'gust', x: b.x, y: b.y, lane, lanes: shoot.lanes, reach: shoot.reach, colors: prof.colors, tier: b.tier });
+              if (prof.regrow) regrow(tile, prof.regrow.pct);
+              break;
+            }
+            case 'pulse': {
+              // Bramble Shell: a thorny ring; regrows the block and its neighbours when it bites
+              const hits = pool.filter((e) => !e.dead && dist(e, b) <= shoot.radius);
+              area(prof, hits, origin, 'pulse', target);
+              events.push({ type: 'pulse', x: b.x, y: b.y, radius: shoot.radius, colors: prof.colors, tier: b.tier });
+              if (prof.regrow && hits.length) regrow(tile, prof.regrow.pct);
+              break;
+            }
+            case 'quake': {
+              // Quake Stomp: a shockwave across its lane and both neighbours
+              const lane = laneOfX(b.x);
+              const hits = pool.filter((e) => !e.dead && Math.abs(e.lane - lane) <= shoot.lanes && Math.abs(e.y - b.y) <= shoot.reach);
+              area(prof, hits, origin, 'quake', target);
+              events.push({ type: 'quake', x: b.x, y: b.y, lane, lanes: shoot.lanes, reach: shoot.reach, colors: prof.colors, tier: b.tier });
+              if (prof.regrow) regrow(tile, prof.regrow.pct);
+              break;
+            }
+            case 'pounce':
+              // Pride Pounce: the cub leaps onto its prey and bounds back
+              events.push({ type: 'pounce', from: { x: b.x, y: b.y }, to: { x: target.x, y: target.y }, colors: prof.colors, tier: b.tier });
+              resolve(prof, prof.damage, target, origin, 'pounce');
+              break;
+            case 'spit': {
+              // Venom Spit: a glob lobbed where the foe will be; it leaves a puddle
+              const T = shoot.flight;
+              const lead = target.freezeT > 0 || target.stunT > 0 || target.rootT > 0 ? 0 : target.speed * (1 - (target.chillT > 0 ? target.chillSlow : 0)) * T;
+              const land = target.mode === 'lane' ? laneAt(target.lane, Math.min(LANE_LENGTH, target.s + lead)) : { x: target.x, y: target.y };
+              launch(b, prof, target, { kind: 'lob', spit: true, x1: land.x, y1: land.y, t: 0, T, tileRef: tile });
+              break;
+            }
+            case 'lance':
+              // Echo Harpoon: the sonar ping marks the prey, the harpoon follows
+              events.push({ type: 'ping', id: target.id, x: target.x, y: target.y, from: { x: b.x, y: b.y } });
+              launch(b, prof, target, { tileRef: tile });
               break;
             case 'burst':
               // 3 fireballs in quick succession at the same foe
@@ -435,7 +621,7 @@ export function createDefense({ rng }) {
               break;
             }
             default:
-              launch(b, prof, target); // single, lance, sniper: straight homing shots
+              launch(b, prof, target, { tileRef: tile }); // single, sniper: straight homing shots
           }
           events.push({ type: 'fire', id: b.id, x: b.x, y: b.y, colors: prof.colors, tier: b.tier, pattern: shoot.pattern, target: { x: target.x, y: target.y } });
           c = 1 / prof.rate;
@@ -535,6 +721,20 @@ export function createDefense({ rng }) {
 
   // A boulder lands: splash around the foe nearest the landing point (or a miss).
   function land(sh) {
+    if (sh.spit) {
+      // the glob splashes the foes where it lands, then leaves a puddle
+      const pr = sh.prof.puddle ?? { radius: 2, dur: 3, every: 0.5 };
+      // the glob hits within a cell of where it lands; the (wider) puddle does the rest over time
+      const impactR = Math.min(GRID.cell, pr.radius);
+      const hits = alive().filter((e) => Math.hypot(e.x - sh.x1, e.y - sh.y1) <= impactR);
+      const primary = hits.find((e) => e.id === sh.targetId) ?? hits[0];
+      for (const e of hits) hitOne(sh.prof, sh.damage, e, primary);
+      if (sh.prof.chain && hits.length) chainFrom(sh.prof, primary, new Set(hits), sh);
+      if (sh.prof.regrow && hits.length && sh.tileRef) regrow(sh.tileRef, sh.prof.regrow.pct);
+      puddles.push({ id: nextPuddle++, x: sh.x1, y: sh.y1, r: pr.radius, t: pr.dur, max: pr.dur, every: pr.every, prof: sh.prof, tier: sh.tier });
+      events.push({ type: 'impact', x: sh.x1, y: sh.y1, kind: 'lob', element: sh.prof.element, pattern: 'spit', tier: sh.tier, colors: sh.prof.colors, splash: pr.radius, miss: !hits.length });
+      return;
+    }
     const r = Math.max(0.9, sh.prof.splash?.radius ?? 0.9);
     let best = null;
     let bestD = r;
@@ -548,7 +748,7 @@ export function createDefense({ rng }) {
     const t = enemies.find((e) => e.id === sh.targetId);
     if (best) resolve(sh.prof, sh.damage, best, sh, 'lob');
     else events.push({ type: 'impact', x: sh.x1, y: sh.y1, kind: 'lob', element: sh.prof.element, pattern: 'lob', tier: sh.tier, colors: sh.prof.colors, splash: r, miss: true });
-    if (t) t.incoming = Math.max(0, t.incoming - sh.damage);
+    if (t && sh.reserved) t.incoming = Math.max(0, t.incoming - sh.damage);
   }
 
   function moveShots(dt) {
@@ -592,8 +792,8 @@ export function createDefense({ rng }) {
       const d = Math.hypot(dx, dy);
       const step = sh.speed * dt;
       if (d <= step + HIT_RADIUS) {
-        if (t) t.incoming = Math.max(0, t.incoming - sh.damage);
-        if (alive_) resolve(sh.prof, sh.damage, t, sh, 'shot', { heal: sh.heal });
+        if (t && sh.reserved) t.incoming = Math.max(0, t.incoming - sh.damage);
+        if (alive_) resolve(sh.prof, sh.damage, t, { ...sh, tileRef: sh.tileRef }, 'shot', { heal: sh.heal });
         else events.push({ type: 'impact', x: sh.tx, y: sh.ty, kind: 'shot', element: sh.prof.element, pattern: sh.pattern, tier: sh.tier, colors: sh.prof.colors, splash: 0, miss: true });
         sh.dead = true;
         continue;
@@ -645,7 +845,16 @@ export function createDefense({ rng }) {
       }
       const frozen = e.freezeT > 0;
       if (frozen) e.freezeT = Math.max(0, e.freezeT - dt);
-      const speed = frozen ? 0 : e.speed * (1 - (e.chillT > 0 ? e.chillSlow : 0));
+      const held = e.stunT > 0 || e.rootT > 0;
+      const speed = frozen || held ? 0 : e.speed * (1 - (e.chillT > 0 ? e.chillSlow : 0));
+      if (e.stunT > 0) e.stunT = Math.max(0, e.stunT - dt);
+      if (e.braceT > 0) e.braceT = Math.max(0, e.braceT - dt);
+      if (e.holdBraceT > 0) e.holdBraceT = Math.max(0, e.holdBraceT - dt);
+      if (e.rootT > 0) e.rootT = Math.max(0, e.rootT - dt);
+      if (e.weakT > 0) {
+        e.weakT = Math.max(0, e.weakT - dt);
+        if (e.weakT === 0) e.weakPct = 0;
+      }
       if (e.mode === 'lane') {
         e.s += speed * dt;
         place(e);
@@ -662,10 +871,36 @@ export function createDefense({ rng }) {
     }
   }
 
+  /**
+   * Venom puddles: a foe standing in one gains a poison stack every `every` seconds. Only
+   * the strongest puddle it stands in counts (overlaps don't multiply the rate), and its
+   * progress toward the next stack resets when it steps out.
+   */
+  function tickPuddles(dt) {
+    for (const pd of puddles) pd.t -= dt;
+    if (puddles.length) {
+      for (const e of alive()) {
+        let pd = null;
+        for (const p of puddles) if (p.t > 0 && Math.hypot(e.x - p.x, e.y - p.y) <= p.r && (!pd || p.prof.damage > pd.prof.damage)) pd = p;
+        if (!pd) {
+          e.puddleT = 0;
+          continue;
+        }
+        e.puddleT += dt;
+        while (e.puddleT >= pd.every) {
+          e.puddleT -= pd.every;
+          addPoison(e, pd.prof.poison, pd.prof.damage);
+        }
+      }
+    }
+    for (let i = puddles.length - 1; i >= 0; i--) if (puddles[i].t <= 0) puddles.splice(i, 1);
+  }
+
   function step(dt, blocks) {
     blocksNow = blocks;
     fireTurrets(dt, blocks);
     moveShots(dt);
+    tickPuddles(dt);
     updateEnemies(dt);
     for (const p of pendingSpawns.splice(0)) spawn(p.type, p);
     for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead || enemies[i].gone) enemies.splice(i, 1);
@@ -694,6 +929,7 @@ export function createDefense({ rng }) {
   return {
     enemies,
     shots,
+    puddles,
     spawn,
     damage,
     step,

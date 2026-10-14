@@ -5,7 +5,8 @@
 //
 //   npm run pack            # → 2048-siege.html and 2048-siege-kv.html (key-visual demo)
 import { build } from 'vite';
-import { readFileSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, rmSync, readdirSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,6 +41,34 @@ html = html.replace(/<script type="module"[^>]*src="\.\/assets\/([^"]+)"[^>]*><\
 // <link rel="stylesheet" crossorigin href="./assets/index-xxxx.css"> → inline style
 html = html.replace(/<link rel="stylesheet"[^>]*href="\.\/assets\/([^"]+)"[^>]*>/g, (_, file) => `<style>${readFileSync(join(assets, file), 'utf8')}</style>`);
 if (/\.\/assets\//.test(html)) throw new Error(`unresolved asset reference left in the HTML (${files.join(', ')})`);
+// the generated sprites (public/assets/manifest.json) ride along as WebP data URLs, so the
+// file shows the Gemini art straight from disk; the game reads them from window.__GEN__
+const manifestFile = join(root, 'public', 'assets', 'manifest.json');
+if (existsSync(manifestFile)) {
+  const entries = Object.entries(JSON.parse(readFileSync(manifestFile, 'utf8')).files ?? {});
+  const src = entries.map(([, f]) => join(root, 'public', 'assets', f)).filter((f) => existsSync(f));
+  const webp = execFileSync(
+    'python3',
+    ['-c', `import sys, io, base64, json
+from PIL import Image
+out = {}
+for p in sys.argv[1:]:
+    im = Image.open(p)
+    b = io.BytesIO()
+    im.save(b, 'WEBP', quality=88, method=6)
+    out[p] = base64.b64encode(b.getvalue()).decode()
+print(json.dumps(out))`, ...src],
+    { maxBuffer: 1 << 30 },
+  );
+  const data = JSON.parse(webp);
+  const gen = {};
+  for (const [key, f] of entries) {
+    const p = join(root, 'public', 'assets', f);
+    if (data[p]) gen[key] = `data:image/webp;base64,${data[p]}`;
+  }
+  html = html.replace('<script type="module">', `<script>window.__GEN__ = ${JSON.stringify({ files: gen })};</script>\n    <script type="module">`);
+  console.log(`embedded ${Object.keys(gen).length} generated sprites (${(JSON.stringify(gen).length / 1048576).toFixed(1)} MB as WebP)`);
+}
 writeFileSync(target, html);
 // the key-visual demo: the same build, opening straight into ?kv mode
 const kvTarget = join(root, '2048-siege-kv.html');

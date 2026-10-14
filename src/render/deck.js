@@ -2,7 +2,7 @@
 // die-shaped badges above the board. A newly unlocked die pops in.
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { ELEMENTS } from '../sim/classes.js';
-import { iconTex } from './textures.js';
+import { iconTex, generatedTex } from './textures.js';
 
 const SIZE = 0.72; // die size, world units
 const GAP = 0.2;
@@ -29,11 +29,12 @@ export function createDeck(stage) {
       views = owned.map((element) => {
         const c = new Container();
         const body = new Graphics();
-        const icon = new Sprite(iconTex(element));
+        const badge = generatedTex(`badge.${element}`); // the generated badge is a whole die face
+        const icon = new Sprite(badge ?? iconTex(element));
         icon.anchor.set(0.5);
         c.addChild(body, icon);
         layer.addChild(c);
-        return { c, body, icon, element, pop: key && fresh.includes(element) ? 1 : 0 };
+        return { c, body, icon, badge: !!badge, element, pop: key && fresh.includes(element) ? 1 : 0 };
       });
       key = k;
     }
@@ -44,6 +45,12 @@ export function createDeck(stage) {
       v.c.position.set(stage.sx(x), stage.sy(Y));
       v.c.scale.set(1 + Math.sin(v.pop * Math.PI) * 0.5);
       const s = SIZE * U;
+      if (v.badge) {
+        v.body.clear();
+        const t = v.icon.texture;
+        v.icon.scale.set((s * 1.1) / Math.max(t.width, t.height, 1));
+        return;
+      }
       v.body
         .clear()
         .roundRect(-s / 2, -s / 2 + 0.05 * U, s, s, s * 0.24)

@@ -30,6 +30,16 @@ const DEFENSE_CLASS_TIER = DEFENSE.classTiers[0];
 export const maxHpFor = (tier) => Math.round(SIEGE.hpPerTier * tier ** SIEGE.hpExp);
 /** Price of the next swipe after `swipes` paid swipes. */
 export const swipeCostFor = (swipes) => ECONOMY.swipeBase + Math.floor(swipes / ECONOMY.swipeStepEvery) * ECONOMY.swipeStep;
+
+/**
+ * Taking a block off the board: a turret (16+) sells for one swipe's price; a dormant
+ * block (below 16) costs three swipes to break. → { kind: 'sell'|'break', amount } with
+ * amount > 0 paid to the player, < 0 charged.
+ */
+export function discardPrice(tier, swipes) {
+  const swipe = swipeCostFor(swipes);
+  return stageFor(tier) >= 1 ? { kind: 'sell', amount: ECONOMY.sellSwipes * swipe } : { kind: 'break', amount: -ECONOMY.breakSwipes * swipe };
+}
 /** Coins dropped by a kill during `wave`. */
 export const killCoinsFor = (wave, boss) => Math.round((ECONOMY.killBase + wave * ECONOMY.killPerWave) * (boss ? ECONOMY.bossMult : 1));
 /** Seconds of break before `wave` (the player can skip it with Wave now). */
@@ -312,6 +322,31 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       s.hold = !!v;
     },
     spawnDebug: (tier, col, row) => grid.spawnDebug(tier, col, row),
+    /** What taking this block off the board would pay (+) or cost (−), or null if it can't go. */
+    discardPrice: (id) => {
+      const t = grid.tiles.find((x) => x.id === id);
+      return t ? discardPrice(t.tier, s.swipes) : null;
+    },
+    /**
+     * Sell a turret or break a dormant block (see discardPrice). The last block can't go
+     * (it would end the run), and breaking needs the coins. → { ok, kind, amount } or { ok: false, reason }
+     */
+    discard: (id) => {
+      const t = grid.tiles.find((x) => x.id === id);
+      if (!t || s.over) return { ok: false, reason: 'gone' };
+      if (grid.tiles.length <= 1) return { ok: false, reason: 'last' };
+      const price = discardPrice(t.tier, s.swipes);
+      if (price.amount < 0 && s.coins < -price.amount) {
+        events.push({ type: 'noCoins', cost: -price.amount, coins: s.coins });
+        return { ok: false, reason: 'coins', cost: -price.amount };
+      }
+      grid.remove(t, price.kind === 'sell' ? 'sold' : 'broken');
+      for (const g of grid.drainEvents()) events.push(g);
+      s.coins = Math.max(0, s.coins + price.amount);
+      events.push({ type: 'discard', ...price, tier: t.tier, x: t.x, y: t.y, total: s.coins });
+      checkLock();
+      return { ok: true, ...price };
+    },
     /** Fire a block's active skill (key-visual namecards); returns foes caught. */
     castSkill: (id, opts) => {
       const t = grid.tiles.find((x) => x.id === id);

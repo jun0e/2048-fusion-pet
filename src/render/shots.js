@@ -1,15 +1,16 @@
-// Projectile views. Each shot uses its class's first element's shape (fusions
-// tint it in the newest element's colour): fireballs, crystal lances, homing
-// darts, lobbed boulders, crescent blades, steel stars, leaf seeds, pebbles.
+// Projectile views. The basic attacks that fly are Echo Harpoon's ice lance and
+// Venom Spit's lobbed glob (plus plain pebbles); the instant ones (breath, gust,
+// pulse, quake, pounce, arc) are drawn from their events in main.js. Each shot uses its
+// class's first element's shape (fusions tint it in the newest element's colour).
 // Every shot has a bold outline, a glow, a ground shadow and a trail; lobbed
 // boulders rise and fall over their shadow. Impacts play an element-specific
 // 8-frame explosion at the point of contact.
-import { Container, Sprite } from 'pixi.js';
+import { Container, Graphics, Sprite } from 'pixi.js';
 import { projTex, softDot, shadowTex, hasGenerated } from './textures.js';
 
 const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 const SHAPE = { fire: 'fire', ice: 'ice', poison: 'poison', earth: 'earth', wind: 'wind', metal: 'metal', nature: 'nature' };
-const SIZE = { lance: 1.45, lob: 1.35, sniper: 0.95, spread: 0.9, blade: 1.6, burst: 0.95, homing: 1, single: 1 };
+const SIZE = { lance: 1.45, lob: 1.35, spit: 1.1, sniper: 0.95, spread: 0.9, blade: 1.6, burst: 0.95, homing: 1, single: 1 };
 const LOB_HEIGHT = 1.1; // world units at the top of the arc (plus growth: it comes toward the camera)
 
 function lookFor(prof) {
@@ -35,11 +36,30 @@ export function createShots(stage, fx) {
   const layer = new Container();
   stage.layers.shots.addChild(shadowLayer, layer);
   const views = new Map();
+  const puddleLayer = new Graphics(); // Venom Spit puddles, on the ground under the foes
+  stage.layers.path.addChild(puddleLayer);
   let frame = 0;
 
-  function sync(shots, dt) {
+  /** Venom puddles: a glossy pool that fades as it dries, with a bubble now and then. */
+  function drawPuddles(puddles, U) {
+    puddleLayer.clear();
+    for (const p of puddles ?? []) {
+      const life = Math.max(0, Math.min(1, p.t / p.max));
+      const fade = Math.min(1, life * 3); // dries away over its last third
+      const x = stage.sx(p.x);
+      const y = stage.sy(p.y);
+      const r = p.r * U;
+      const c = hex(p.prof.colors.at(-1));
+      puddleLayer.circle(x, y, r).fill({ color: c, alpha: 0.32 * fade }).stroke({ width: 0.08 * U, color: 0xd8ff7a, alpha: 0.55 * fade });
+      puddleLayer.circle(x - r * 0.3, y - r * 0.25, r * 0.35).fill({ color: 0xffffff, alpha: 0.12 * fade });
+      if (Math.random() < 0.08 * fade) fx.burst(p.x + (Math.random() - 0.5) * p.r, p.y + (Math.random() - 0.5) * p.r, [0xd8ff7a, c], 1, { speed: 0.6, size: 0.16, life: 0.6, gravity: 1.5 });
+    }
+  }
+
+  function sync(shots, dt, puddles) {
     frame += 1;
     const U = stage.view.U;
+    drawPuddles(puddles, U);
     const live = new Set();
     for (const s of shots) {
       live.add(s.id);
@@ -122,6 +142,7 @@ export function createShots(stage, fx) {
   }
 
   function reset() {
+    puddleLayer.clear();
     for (const v of views.values()) {
       v.c.destroy({ children: true });
       v.shadow.destroy();

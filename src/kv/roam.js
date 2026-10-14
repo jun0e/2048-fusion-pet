@@ -14,7 +14,6 @@ const hex = (c) => parseInt(c.replace('#', ''), 16);
 const Y_MIN = GRID_TOP + 1.1;
 const Y_MAX = FIELD.spawnY - 2.4;
 const X_MAX = GRID.cell * 1.8;
-const ART_FEET = 0.89; // feet sit near the bottom of the creature canvas
 
 export function createRoamers(stage, fx, art, { seed = 4096 } = {}) {
   // seeded, so the sticker and pixel maps on the compare page play out the same
@@ -40,7 +39,7 @@ export function createRoamers(stage, fx, art, { seed = 4096 } = {}) {
     const halo = new Sprite();
     halo.anchor.set(0.5);
     const body = new Sprite();
-    body.anchor.set(0.5, ART_FEET);
+    body.anchor.set(0.5, 0.89); // re-set per texture from art.roamerFit
     c.addChild(shadow, ring, glow, halo, body);
     layer.addChild(c);
     const v = {
@@ -128,6 +127,8 @@ export function createRoamers(stage, fx, art, { seed = 4096 } = {}) {
       if (key !== v.key) {
         v.key = key;
         v.body.texture = art.roamer(t.cls);
+        v.fit = art.roamerFit(t.cls); // code-drawn canvases are padded, generated sprites trimmed
+        v.body.anchor.set(0.5, v.fit.feet);
         v.halo.visible = legend;
         if (legend) v.halo.texture = art.halo(t.cls.ultimate);
         v.ring.clear();
@@ -177,8 +178,8 @@ export function createRoamers(stage, fx, art, { seed = 4096 } = {}) {
 
       // view
       const px = art.style === 'pixel';
-      const size = GRID.cell * U * (legend ? 1.62 : 1.42); // canvas height: the creature itself is ~1.0–1.2 cells
-      let s = size / (v.body.texture.height || 1);
+      const tex = v.body.texture;
+      let s = Math.min((GRID.cell * U * v.fit.height) / (tex.height || 1), (GRID.cell * U * v.fit.maxW) / (tex.width || 1)); // the creature itself is ~1.0–1.2 cells
       if (px) s = Math.max(1, Math.round(s * 2) / 2); // half-pixel steps keep pixel art crisp-ish
       const sx = stage.sx(v.x);
       const sy = stage.sy(v.y);

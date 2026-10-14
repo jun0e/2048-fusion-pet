@@ -95,7 +95,7 @@ test('reaching 4096 adds the stayer’s element as the ultimate', () => {
 test('announcements describe what combined', () => {
   const b = block(12, { element: 'fire', fusion: 'ice', ultimate: 'lightning' });
   const one = describeStage(b.cls, 1, 4);
-  assert.equal(one.name, 'Flame Burst');
+  assert.equal(one.name, 'Ember Breath');
   assert.deepEqual(one.parts.map((p) => p.name), ['16', 'Fire']);
   const two = describeStage(b.cls, 2, 8);
   assert.equal(two.name, 'Frostnova');
@@ -126,7 +126,7 @@ test('profiles combine element effects: Frostnova burns and slows; Metal loots; 
   assert.ok(blue.damage > fire.damage, 'higher tier hits harder');
   const ult = profileFor(block(12, { element: 'fire', fusion: 'ice', ultimate: 'earth' }));
   assert.equal(ult.signature.effect, APEX.earth.effect);
-  assert.ok(ult.splash, 'apex element adds its own effect');
+  assert.ok(ult.stun && ult.knockback, 'apex element adds its own effects');
   assert.deepEqual(profileFor(block(2)).kinds, ['physical']);
   assert.equal(profileFor(block(3)).shoots, false, 'below 16 a block does not shoot');
   assert.equal(profileFor(block(4, { element: 'fire' })).shoots, true);
@@ -136,7 +136,24 @@ test('profiles combine element effects: Frostnova burns and slows; Metal loots; 
   const harvest = profileFor(block(8, { element: 'metal', fusion: 'nature' }));
   assert.equal(harvest.name, 'Harvest');
   const nature = profileFor(block(4, { element: 'nature' }));
-  assert.ok(harvest.loot.pct > metal.loot.pct && harvest.heal.chance > nature.heal.chance, 'both boosted');
+  assert.ok(harvest.loot.pct > metal.loot.pct && harvest.regrow.pct > nature.regrow.pct, 'both boosted');
+  assert.equal(harvest.shoot.pattern, 'pounce', "a fusion attacks with its first element's shape");
+});
+
+test('the basic attacks grow from 16 to 128 (one step per merge), and fusions are fully grown', () => {
+  const at = (tier, element) => profileFor(block(tier, { element }));
+  assert.equal(at(4, 'fire').shoot.reach, 4, 'Ember Breath: 2 cells at 16 …');
+  assert.equal(at(7, 'fire').shoot.reach, 6, '… 3 cells at 128');
+  assert.equal(at(7, 'fire').burn.max, 3, 'the burn cap stays at 3 (tuned)');
+  assert.deepEqual([4, 5, 6, 7].map((t) => at(t, 'lightning').chain.jumps + 1), [3, 4, 5, 6], 'Horn Arc chains 3 → 6 foes');
+  assert.equal(at(4, 'ice').freeze.every, 4);
+  assert.equal(at(7, 'ice').freeze.every, 3, 'Echo Harpoon freezes every 3rd hit at 128');
+  assert.equal(at(5, 'ice').shoot.lanes, 0);
+  assert.equal(at(6, 'ice').shoot.lanes, 1, 'from 64 the ping covers the neighbouring lanes');
+  assert.equal(at(7, 'wind').shoot.lanes, 1, 'at 128 the gust catches the neighbouring lanes');
+  assert.ok(at(7, 'nature').regrow.pct > at(4, 'nature').regrow.pct);
+  assert.ok(at(7, 'metal').bite.chance > at(4, 'metal').bite.chance && at(7, 'metal').loot.pct === 1);
+  assert.equal(profileFor(block(8, { element: 'fire', fusion: 'wind' })).shoot.reach, 6, 'a fusion breathes the full-grown cone');
 });
 
 test('the 4-piece border counts merges to the next milestone', () => {

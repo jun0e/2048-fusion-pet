@@ -1,4 +1,3864 @@
 {
-  "files": {},
-  "generatedAt": "2026-10-12T05:10:40.070Z"
+  "files": {
+    "pet.fire.16": "gen/pet.fire.16.png",
+    "pet.fire.32": "gen/pet.fire.32.png",
+    "pet.fire.64": "gen/pet.fire.64.png",
+    "egg.2": "gen/egg.2.png",
+    "pet.ice.16": "gen/pet.ice.16.png",
+    "pet.fire.128": "gen/pet.fire.128.png",
+    "egg.4": "gen/egg.4.png",
+    "egg.8": "gen/egg.8.png",
+    "pet.ice.32": "gen/pet.ice.32.png",
+    "pet.ice.64": "gen/pet.ice.64.png",
+    "pet.ice.128": "gen/pet.ice.128.png",
+    "pet.lightning.16": "gen/pet.lightning.16.png",
+    "pet.poison.16": "gen/pet.poison.16.png",
+    "pet.lightning.32": "gen/pet.lightning.32.png",
+    "pet.poison.32": "gen/pet.poison.32.png",
+    "pet.poison.64": "gen/pet.poison.64.png",
+    "pet.lightning.64": "gen/pet.lightning.64.png",
+    "pet.lightning.128": "gen/pet.lightning.128.png",
+    "pet.earth.16": "gen/pet.earth.16.png",
+    "pet.poison.128": "gen/pet.poison.128.png",
+    "pet.earth.32": "gen/pet.earth.32.png",
+    "pet.wind.16": "gen/pet.wind.16.png",
+    "pet.earth.64": "gen/pet.earth.64.png",
+    "pet.wind.32": "gen/pet.wind.32.png",
+    "pet.earth.128": "gen/pet.earth.128.png",
+    "pet.wind.64": "gen/pet.wind.64.png",
+    "pet.metal.16": "gen/pet.metal.16.png",
+    "pet.metal.32": "gen/pet.metal.32.png",
+    "pet.wind.128": "gen/pet.wind.128.png",
+    "pet.nature.16": "gen/pet.nature.16.png",
+    "pet.nature.32": "gen/pet.nature.32.png",
+    "pet.metal.64": "gen/pet.metal.64.png",
+    "pet.metal.128": "gen/pet.metal.128.png",
+    "pet.nature.64": "gen/pet.nature.64.png",
+    "pet.nature.128": "gen/pet.nature.128.png",
+    "enemy.pixie": "gen/enemy.pixie.png",
+    "enemy.griffinChick": "gen/enemy.griffinChick.png",
+    "enemy.leafSprite": "gen/enemy.leafSprite.png",
+    "enemy.axolotlFairy": "gen/enemy.axolotlFairy.png",
+    "fusion.fire+ice": "gen/fusion.fire+ice.png",
+    "fusion.fire+lightning": "gen/fusion.fire+lightning.png",
+    "fusion.fire+poison": "gen/fusion.fire+poison.png",
+    "fusion.fire+earth": "gen/fusion.fire+earth.png",
+    "fusion.fire+wind": "gen/fusion.fire+wind.png",
+    "fusion.ice+lightning": "gen/fusion.ice+lightning.png",
+    "fusion.ice+poison": "gen/fusion.ice+poison.png",
+    "fusion.ice+earth": "gen/fusion.ice+earth.png",
+    "fusion.ice+wind": "gen/fusion.ice+wind.png",
+    "fusion.lightning+poison": "gen/fusion.lightning+poison.png",
+    "fusion.lightning+earth": "gen/fusion.lightning+earth.png",
+    "fusion.lightning+wind": "gen/fusion.lightning+wind.png",
+    "fusion.poison+earth": "gen/fusion.poison+earth.png",
+    "fusion.poison+wind": "gen/fusion.poison+wind.png",
+    "fusion.earth+wind": "gen/fusion.earth+wind.png",
+    "fusion.fire+metal": "gen/fusion.fire+metal.png",
+    "fusion.ice+metal": "gen/fusion.ice+metal.png",
+    "fusion.lightning+metal": "gen/fusion.lightning+metal.png",
+    "fusion.poison+metal": "gen/fusion.poison+metal.png",
+    "fusion.earth+metal": "gen/fusion.earth+metal.png",
+    "fusion.wind+metal": "gen/fusion.wind+metal.png",
+    "fusion.fire+nature": "gen/fusion.fire+nature.png",
+    "fusion.ice+nature": "gen/fusion.ice+nature.png",
+    "fusion.lightning+nature": "gen/fusion.lightning+nature.png",
+    "fusion.poison+nature": "gen/fusion.poison+nature.png",
+    "fusion.earth+nature": "gen/fusion.earth+nature.png",
+    "fusion.wind+nature": "gen/fusion.wind+nature.png",
+    "fusion.metal+nature": "gen/fusion.metal+nature.png",
+    "portrait.fire+ice": "gen/portrait.fire+ice.png",
+    "portrait.fire+lightning": "gen/portrait.fire+lightning.png",
+    "portrait.fire+poison": "gen/portrait.fire+poison.png",
+    "portrait.fire+earth": "gen/portrait.fire+earth.png",
+    "portrait.fire+wind": "gen/portrait.fire+wind.png",
+    "portrait.ice+lightning": "gen/portrait.ice+lightning.png",
+    "portrait.ice+poison": "gen/portrait.ice+poison.png",
+    "portrait.ice+earth": "gen/portrait.ice+earth.png",
+    "portrait.ice+wind": "gen/portrait.ice+wind.png",
+    "portrait.lightning+poison": "gen/portrait.lightning+poison.png",
+    "portrait.lightning+earth": "gen/portrait.lightning+earth.png",
+    "portrait.lightning+wind": "gen/portrait.lightning+wind.png",
+    "portrait.poison+earth": "gen/portrait.poison+earth.png",
+    "portrait.poison+wind": "gen/portrait.poison+wind.png",
+    "portrait.earth+wind": "gen/portrait.earth+wind.png",
+    "portrait.fire+metal": "gen/portrait.fire+metal.png",
+    "portrait.ice+metal": "gen/portrait.ice+metal.png",
+    "portrait.lightning+metal": "gen/portrait.lightning+metal.png",
+    "portrait.poison+metal": "gen/portrait.poison+metal.png",
+    "portrait.earth+metal": "gen/portrait.earth+metal.png",
+    "portrait.wind+metal": "gen/portrait.wind+metal.png",
+    "portrait.fire+nature": "gen/portrait.fire+nature.png",
+    "portrait.ice+nature": "gen/portrait.ice+nature.png",
+    "portrait.lightning+nature": "gen/portrait.lightning+nature.png",
+    "portrait.poison+nature": "gen/portrait.poison+nature.png",
+    "portrait.earth+nature": "gen/portrait.earth+nature.png",
+    "portrait.wind+nature": "gen/portrait.wind+nature.png",
+    "portrait.metal+nature": "gen/portrait.metal+nature.png",
+    "halo.fire": "gen/halo.fire.png",
+    "halo.ice": "gen/halo.ice.png",
+    "halo.lightning": "gen/halo.lightning.png",
+    "halo.poison": "gen/halo.poison.png",
+    "halo.earth": "gen/halo.earth.png",
+    "halo.wind": "gen/halo.wind.png",
+    "halo.metal": "gen/halo.metal.png",
+    "halo.nature": "gen/halo.nature.png",
+    "enemy.hoodedFlier": "gen/enemy.hoodedFlier.png",
+    "enemy.flameSprite": "gen/enemy.flameSprite.png",
+    "enemy.ninja": "gen/enemy.ninja.png",
+    "enemy.armoredSoldier": "gen/enemy.armoredSoldier.png",
+    "enemy.ringMonk": "gen/enemy.ringMonk.png",
+    "enemy.kiteMinion": "gen/enemy.kiteMinion.png",
+    "enemy.villager": "gen/enemy.villager.png",
+    "enemy.wyvern": "gen/enemy.wyvern.png",
+    "enemy.phoenix": "gen/enemy.phoenix.png",
+    "enemy.redDragon": "gen/enemy.redDragon.png",
+    "enemy.elfRuler": "gen/enemy.elfRuler.png",
+    "enemy.kiteNinja": "gen/enemy.kiteNinja.png",
+    "enemy.dragonRider": "gen/enemy.dragonRider.png",
+    "badge.fire": "gen/badge.fire.png",
+    "badge.ice": "gen/badge.ice.png",
+    "badge.lightning": "gen/badge.lightning.png",
+    "badge.poison": "gen/badge.poison.png",
+    "badge.earth": "gen/badge.earth.png",
+    "badge.wind": "gen/badge.wind.png",
+    "badge.metal": "gen/badge.metal.png",
+    "badge.nature": "gen/badge.nature.png",
+    "env.background": "gen/env.background.png",
+    "pet.fire.scared": "gen/pet.fire.scared.png",
+    "pet.fire.blink": "gen/pet.fire.blink.png",
+    "pet.ice.scared": "gen/pet.ice.scared.png",
+    "pet.ice.blink": "gen/pet.ice.blink.png",
+    "pet.lightning.scared": "gen/pet.lightning.scared.png",
+    "pet.lightning.blink": "gen/pet.lightning.blink.png",
+    "pet.poison.scared": "gen/pet.poison.scared.png",
+    "pet.poison.blink": "gen/pet.poison.blink.png",
+    "pet.earth.scared": "gen/pet.earth.scared.png",
+    "pet.earth.blink": "gen/pet.earth.blink.png",
+    "pet.wind.scared": "gen/pet.wind.scared.png",
+    "pet.wind.blink": "gen/pet.wind.blink.png",
+    "pet.metal.scared": "gen/pet.metal.scared.png",
+    "pet.metal.blink": "gen/pet.metal.blink.png",
+    "pet.nature.scared": "gen/pet.nature.scared.png",
+    "pet.nature.blink": "gen/pet.nature.blink.png",
+    "portrait.fire+ice.ascended": "gen/portrait.fire+ice.ascended.png",
+    "portrait.fire+lightning.ascended": "gen/portrait.fire+lightning.ascended.png",
+    "portrait.fire+poison.ascended": "gen/portrait.fire+poison.ascended.png",
+    "portrait.fire+earth.ascended": "gen/portrait.fire+earth.ascended.png",
+    "portrait.fire+wind.ascended": "gen/portrait.fire+wind.ascended.png",
+    "portrait.ice+lightning.ascended": "gen/portrait.ice+lightning.ascended.png",
+    "portrait.ice+poison.ascended": "gen/portrait.ice+poison.ascended.png",
+    "portrait.ice+earth.ascended": "gen/portrait.ice+earth.ascended.png",
+    "portrait.ice+wind.ascended": "gen/portrait.ice+wind.ascended.png",
+    "portrait.lightning+poison.ascended": "gen/portrait.lightning+poison.ascended.png",
+    "portrait.lightning+earth.ascended": "gen/portrait.lightning+earth.ascended.png",
+    "portrait.lightning+wind.ascended": "gen/portrait.lightning+wind.ascended.png",
+    "portrait.poison+earth.ascended": "gen/portrait.poison+earth.ascended.png",
+    "portrait.poison+wind.ascended": "gen/portrait.poison+wind.ascended.png",
+    "portrait.earth+wind.ascended": "gen/portrait.earth+wind.ascended.png",
+    "portrait.fire+metal.ascended": "gen/portrait.fire+metal.ascended.png",
+    "portrait.ice+metal.ascended": "gen/portrait.ice+metal.ascended.png",
+    "portrait.lightning+metal.ascended": "gen/portrait.lightning+metal.ascended.png",
+    "portrait.poison+metal.ascended": "gen/portrait.poison+metal.ascended.png",
+    "portrait.earth+metal.ascended": "gen/portrait.earth+metal.ascended.png",
+    "portrait.wind+metal.ascended": "gen/portrait.wind+metal.ascended.png",
+    "portrait.fire+nature.ascended": "gen/portrait.fire+nature.ascended.png",
+    "portrait.ice+nature.ascended": "gen/portrait.ice+nature.ascended.png",
+    "portrait.lightning+nature.ascended": "gen/portrait.lightning+nature.ascended.png",
+    "portrait.poison+nature.ascended": "gen/portrait.poison+nature.ascended.png",
+    "portrait.earth+nature.ascended": "gen/portrait.earth+nature.ascended.png",
+    "portrait.wind+nature.ascended": "gen/portrait.wind+nature.ascended.png",
+    "portrait.metal+nature.ascended": "gen/portrait.metal+nature.ascended.png",
+    "enemy.elfRuler.portrait": "gen/enemy.elfRuler.portrait.png",
+    "enemy.kiteNinja.portrait": "gen/enemy.kiteNinja.portrait.png",
+    "enemy.dragonRider.portrait": "gen/enemy.dragonRider.portrait.png"
+  },
+  "generatedAt": "2026-10-14T15:41:12.312Z",
+  "meta": {
+    "pet.fire.16": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          9,
+          245,
+          5
+        ],
+        "coverage": 0.62,
+        "size": [
+          320,
+          276
+        ],
+        "in_palette": 0.912,
+        "snapped": true,
+        "colours_used": 7,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:23:43.030Z"
+    },
+    "pet.fire.32": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          235,
+          6
+        ],
+        "coverage": 0.618,
+        "size": [
+          320,
+          282
+        ],
+        "in_palette": 0.932,
+        "snapped": true,
+        "colours_used": 7,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:24:01.781Z"
+    },
+    "pet.fire.64": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          17,
+          227,
+          6
+        ],
+        "coverage": 0.62,
+        "size": [
+          320,
+          282
+        ],
+        "in_palette": 0.913,
+        "snapped": true,
+        "colours_used": 6,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:24:14.314Z"
+    },
+    "egg.2": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          9,
+          236,
+          7
+        ],
+        "coverage": 0.692,
+        "size": [
+          274,
+          320
+        ],
+        "in_palette": 0.966,
+        "snapped": true,
+        "colours_used": 6,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:24:28.180Z"
+    },
+    "pet.ice.16": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          8,
+          243,
+          6
+        ],
+        "coverage": 0.59,
+        "size": [
+          320,
+          273
+        ],
+        "in_palette": 0.956,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:24:33.714Z"
+    },
+    "pet.fire.128": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          16,
+          227,
+          6
+        ],
+        "coverage": 0.63,
+        "size": [
+          320,
+          283
+        ],
+        "in_palette": 0.913,
+        "snapped": true,
+        "colours_used": 7,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:29:34.823Z"
+    },
+    "egg.4": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          14,
+          227,
+          7
+        ],
+        "coverage": 0.693,
+        "size": [
+          273,
+          320
+        ],
+        "in_palette": 0.96,
+        "snapped": true,
+        "colours_used": 5,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:25:42.968Z"
+    },
+    "egg.8": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          20,
+          221,
+          7
+        ],
+        "coverage": 0.691,
+        "size": [
+          273,
+          320
+        ],
+        "in_palette": 0.951,
+        "snapped": true,
+        "colours_used": 5,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:26:02.571Z"
+    },
+    "pet.ice.32": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          240,
+          7
+        ],
+        "coverage": 0.566,
+        "size": [
+          320,
+          289
+        ],
+        "in_palette": 0.945,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:26:03.179Z"
+    },
+    "pet.ice.64": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          20,
+          236,
+          8
+        ],
+        "coverage": 0.566,
+        "size": [
+          320,
+          289
+        ],
+        "in_palette": 0.932,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:26:37.728Z"
+    },
+    "pet.ice.128": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          241,
+          5
+        ],
+        "coverage": 0.579,
+        "size": [
+          320,
+          320
+        ],
+        "in_palette": 0.864,
+        "snapped": true,
+        "colours_used": 7,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:29:00.200Z"
+    },
+    "pet.lightning.16": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          11,
+          247,
+          5
+        ],
+        "coverage": 0.62,
+        "size": [
+          274,
+          320
+        ],
+        "in_palette": 0.917,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:30:12.834Z"
+    },
+    "pet.poison.16": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          40,
+          251
+        ],
+        "coverage": 0.618,
+        "size": [
+          287,
+          320
+        ],
+        "in_palette": 0.607,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0.0796,
+        "ok": false
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:32:14.589Z"
+    },
+    "pet.lightning.32": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          15,
+          240,
+          8
+        ],
+        "coverage": 0.582,
+        "size": [
+          256,
+          320
+        ],
+        "in_palette": 0.905,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:33:19.026Z"
+    },
+    "pet.poison.32": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          34,
+          250
+        ],
+        "coverage": 0.706,
+        "size": [
+          287,
+          320
+        ],
+        "in_palette": 0.684,
+        "snapped": true,
+        "colours_used": 10,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:34:21.127Z"
+    },
+    "pet.poison.64": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          30,
+          250
+        ],
+        "coverage": 0.718,
+        "size": [
+          287,
+          320
+        ],
+        "in_palette": 0.68,
+        "snapped": true,
+        "colours_used": 10,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:35:04.097Z"
+    },
+    "pet.lightning.64": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          15,
+          240,
+          7
+        ],
+        "coverage": 0.601,
+        "size": [
+          256,
+          320
+        ],
+        "in_palette": 0.899,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:36:26.637Z"
+    },
+    "pet.lightning.128": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          237,
+          7
+        ],
+        "coverage": 0.566,
+        "size": [
+          265,
+          320
+        ],
+        "in_palette": 0.774,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:37:31.511Z"
+    },
+    "pet.earth.16": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          7,
+          246,
+          5
+        ],
+        "coverage": 0.577,
+        "size": [
+          320,
+          309
+        ],
+        "in_palette": 0.962,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:39:01.249Z"
+    },
+    "pet.poison.128": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          33,
+          251
+        ],
+        "coverage": 0.761,
+        "size": [
+          301,
+          320
+        ],
+        "in_palette": 0.747,
+        "snapped": true,
+        "colours_used": 10,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:39:07.484Z"
+    },
+    "pet.earth.32": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          241,
+          6
+        ],
+        "coverage": 0.567,
+        "size": [
+          317,
+          320
+        ],
+        "in_palette": 0.951,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:40:23.182Z"
+    },
+    "pet.wind.16": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          51,
+          250
+        ],
+        "coverage": 0.615,
+        "size": [
+          253,
+          320
+        ],
+        "in_palette": 0.897,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:41:58.861Z"
+    },
+    "pet.earth.64": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          239,
+          7
+        ],
+        "coverage": 0.572,
+        "size": [
+          317,
+          320
+        ],
+        "in_palette": 0.954,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:42:05.035Z"
+    },
+    "pet.wind.32": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          47,
+          248
+        ],
+        "coverage": 0.617,
+        "size": [
+          249,
+          320
+        ],
+        "in_palette": 0.9,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:43:14.919Z"
+    },
+    "pet.earth.128": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          14,
+          240,
+          5
+        ],
+        "coverage": 0.57,
+        "size": [
+          305,
+          320
+        ],
+        "in_palette": 0.971,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:44:07.038Z"
+    },
+    "pet.wind.64": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          251,
+          42,
+          249
+        ],
+        "coverage": 0.564,
+        "size": [
+          305,
+          320
+        ],
+        "in_palette": 0.886,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:45:03.149Z"
+    },
+    "pet.metal.16": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          7,
+          246,
+          5
+        ],
+        "coverage": 0.585,
+        "size": [
+          284,
+          320
+        ],
+        "in_palette": 0.921,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:46:42.731Z"
+    },
+    "pet.metal.32": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          15,
+          239,
+          7
+        ],
+        "coverage": 0.667,
+        "size": [
+          320,
+          317
+        ],
+        "in_palette": 0.894,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:47:31.631Z"
+    },
+    "pet.wind.128": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          250,
+          41,
+          247
+        ],
+        "coverage": 0.599,
+        "size": [
+          305,
+          320
+        ],
+        "in_palette": 0.879,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:48:51.773Z"
+    },
+    "pet.nature.16": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          57,
+          250
+        ],
+        "coverage": 0.601,
+        "size": [
+          307,
+          320
+        ],
+        "in_palette": 0.782,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:49:11.173Z"
+    },
+    "pet.nature.32": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          51,
+          251
+        ],
+        "coverage": 0.609,
+        "size": [
+          305,
+          320
+        ],
+        "in_palette": 0.798,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:50:17.440Z"
+    },
+    "pet.metal.64": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          237,
+          7
+        ],
+        "coverage": 0.666,
+        "size": [
+          320,
+          317
+        ],
+        "in_palette": 0.883,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:51:20.034Z"
+    },
+    "pet.metal.128": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          16,
+          235,
+          7
+        ],
+        "coverage": 0.667,
+        "size": [
+          320,
+          317
+        ],
+        "in_palette": 0.874,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:52:52.334Z"
+    },
+    "pet.nature.64": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          50,
+          251
+        ],
+        "coverage": 0.649,
+        "size": [
+          310,
+          320
+        ],
+        "in_palette": 0.793,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:53:47.669Z"
+    },
+    "pet.nature.128": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          47,
+          250
+        ],
+        "coverage": 0.638,
+        "size": [
+          305,
+          320
+        ],
+        "in_palette": 0.771,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:54:09.422Z"
+    },
+    "enemy.pixie": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          9,
+          243,
+          6
+        ],
+        "coverage": 0.579,
+        "size": [
+          210,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:55:10.013Z"
+    },
+    "enemy.griffinChick": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          16,
+          240,
+          8
+        ],
+        "coverage": 0.519,
+        "size": [
+          201,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:56:32.322Z"
+    },
+    "enemy.leafSprite": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          2,
+          249
+        ],
+        "coverage": 0.567,
+        "size": [
+          209,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T07:58:15.029Z"
+    },
+    "enemy.axolotlFairy": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          14,
+          237,
+          6
+        ],
+        "coverage": 0.545,
+        "size": [
+          235,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:00:23.259Z"
+    },
+    "fusion.fire+ice": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          17,
+          229,
+          6
+        ],
+        "coverage": 0.582,
+        "size": [
+          319,
+          320
+        ],
+        "in_palette": 0.84,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:19:08.976Z"
+    },
+    "fusion.fire+lightning": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          12,
+          234,
+          6
+        ],
+        "coverage": 0.561,
+        "size": [
+          308,
+          320
+        ],
+        "in_palette": 0.81,
+        "snapped": true,
+        "colours_used": 11,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:23:53.867Z"
+    },
+    "fusion.fire+poison": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          9,
+          249
+        ],
+        "coverage": 0.558,
+        "size": [
+          302,
+          320
+        ],
+        "in_palette": 0.822,
+        "snapped": true,
+        "colours_used": 11,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:25:15.739Z"
+    },
+    "fusion.fire+earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          17,
+          229,
+          6
+        ],
+        "coverage": 0.533,
+        "size": [
+          320,
+          296
+        ],
+        "in_palette": 0.887,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:26:34.353Z"
+    },
+    "fusion.fire+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          4,
+          249
+        ],
+        "coverage": 0.628,
+        "size": [
+          302,
+          320
+        ],
+        "in_palette": 0.843,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:27:16.879Z"
+    },
+    "fusion.ice+lightning": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          15,
+          234,
+          7
+        ],
+        "coverage": 0.549,
+        "size": [
+          320,
+          316
+        ],
+        "in_palette": 0.886,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:28:34.870Z"
+    },
+    "fusion.ice+poison": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          32,
+          251
+        ],
+        "coverage": 0.493,
+        "size": [
+          303,
+          320
+        ],
+        "in_palette": 0.84,
+        "snapped": true,
+        "colours_used": 11,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:29:53.911Z"
+    },
+    "fusion.ice+earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          11,
+          235,
+          5
+        ],
+        "coverage": 0.504,
+        "size": [
+          320,
+          304
+        ],
+        "in_palette": 0.925,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:30:07.262Z"
+    },
+    "fusion.ice+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          21,
+          249
+        ],
+        "coverage": 0.654,
+        "size": [
+          320,
+          299
+        ],
+        "in_palette": 0.902,
+        "snapped": true,
+        "colours_used": 12,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:31:28.684Z"
+    },
+    "fusion.lightning+poison": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          254,
+          23,
+          249
+        ],
+        "coverage": 0.519,
+        "size": [
+          300,
+          320
+        ],
+        "in_palette": 0.63,
+        "snapped": true,
+        "colours_used": 12,
+        "fringe": 0.0014,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:32:06.152Z"
+    },
+    "fusion.lightning+earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          15,
+          228,
+          8
+        ],
+        "coverage": 0.481,
+        "size": [
+          269,
+          320
+        ],
+        "in_palette": 0.691,
+        "snapped": true,
+        "colours_used": 14,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:36:05.070Z"
+    },
+    "fusion.lightning+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          19,
+          250
+        ],
+        "coverage": 0.55,
+        "size": [
+          280,
+          320
+        ],
+        "in_palette": 0.569,
+        "snapped": true,
+        "colours_used": 12,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:36:20.346Z"
+    },
+    "fusion.poison+earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          27,
+          251
+        ],
+        "coverage": 0.601,
+        "size": [
+          273,
+          320
+        ],
+        "in_palette": 0.691,
+        "snapped": true,
+        "colours_used": 14,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:38:00.332Z"
+    },
+    "fusion.poison+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          32,
+          251
+        ],
+        "coverage": 0.627,
+        "size": [
+          309,
+          320
+        ],
+        "in_palette": 0.729,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0.0004,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:38:16.296Z"
+    },
+    "fusion.earth+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          254,
+          18,
+          250
+        ],
+        "coverage": 0.586,
+        "size": [
+          320,
+          312
+        ],
+        "in_palette": 0.961,
+        "snapped": true,
+        "colours_used": 11,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:42:03.143Z"
+    },
+    "fusion.fire+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          15,
+          235,
+          7
+        ],
+        "coverage": 0.582,
+        "size": [
+          295,
+          320
+        ],
+        "in_palette": 0.776,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:42:16.278Z"
+    },
+    "fusion.ice+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          17,
+          231,
+          6
+        ],
+        "coverage": 0.503,
+        "size": [
+          320,
+          310
+        ],
+        "in_palette": 0.864,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:43:36.686Z"
+    },
+    "fusion.lightning+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          16,
+          231,
+          6
+        ],
+        "coverage": 0.482,
+        "size": [
+          278,
+          320
+        ],
+        "in_palette": 0.658,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:44:17.598Z"
+    },
+    "fusion.poison+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          27,
+          250
+        ],
+        "coverage": 0.675,
+        "size": [
+          275,
+          320
+        ],
+        "in_palette": 0.779,
+        "snapped": true,
+        "colours_used": 14,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:45:38.535Z"
+    },
+    "fusion.earth+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          240,
+          6
+        ],
+        "coverage": 0.584,
+        "size": [
+          320,
+          303
+        ],
+        "in_palette": 0.949,
+        "snapped": true,
+        "colours_used": 12,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:46:15.434Z"
+    },
+    "fusion.wind+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          250,
+          33,
+          248
+        ],
+        "coverage": 0.563,
+        "size": [
+          320,
+          299
+        ],
+        "in_palette": 0.878,
+        "snapped": true,
+        "colours_used": 11,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:47:37.505Z"
+    },
+    "fusion.fire+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          11,
+          249
+        ],
+        "coverage": 0.573,
+        "size": [
+          320,
+          303
+        ],
+        "in_palette": 0.786,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:48:34.474Z"
+    },
+    "fusion.ice+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          26,
+          251
+        ],
+        "coverage": 0.53,
+        "size": [
+          320,
+          294
+        ],
+        "in_palette": 0.867,
+        "snapped": true,
+        "colours_used": 12,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:49:32.938Z"
+    },
+    "fusion.lightning+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          29,
+          250
+        ],
+        "coverage": 0.527,
+        "size": [
+          275,
+          320
+        ],
+        "in_palette": 0.632,
+        "snapped": true,
+        "colours_used": 13,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:50:12.908Z"
+    },
+    "fusion.poison+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          28,
+          250
+        ],
+        "coverage": 0.732,
+        "size": [
+          316,
+          320
+        ],
+        "in_palette": 0.799,
+        "snapped": true,
+        "colours_used": 14,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:51:37.985Z"
+    },
+    "fusion.earth+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          254,
+          30,
+          251
+        ],
+        "coverage": 0.584,
+        "size": [
+          320,
+          308
+        ],
+        "in_palette": 0.936,
+        "snapped": true,
+        "colours_used": 10,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:53:15.965Z"
+    },
+    "fusion.wind+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          39,
+          248
+        ],
+        "coverage": 0.518,
+        "size": [
+          320,
+          312
+        ],
+        "in_palette": 0.847,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:54:14.874Z"
+    },
+    "fusion.metal+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          251,
+          23,
+          250
+        ],
+        "coverage": 0.637,
+        "size": [
+          320,
+          294
+        ],
+        "in_palette": 0.824,
+        "snapped": true,
+        "colours_used": 14,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:55:55.850Z"
+    },
+    "portrait.fire+ice": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T08:56:09.433Z"
+    },
+    "portrait.fire+lightning": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T09:53:15.457Z"
+    },
+    "portrait.fire+poison": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T09:54:10.235Z"
+    },
+    "portrait.fire+earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T09:54:51.248Z"
+    },
+    "portrait.fire+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T09:56:07.875Z"
+    },
+    "portrait.ice+lightning": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T09:57:22.341Z"
+    },
+    "portrait.ice+poison": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T09:57:55.983Z"
+    },
+    "portrait.ice+earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T09:59:36.678Z"
+    },
+    "portrait.ice+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T09:59:49.570Z"
+    },
+    "portrait.lightning+poison": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:01:06.169Z"
+    },
+    "portrait.lightning+earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:02:28.977Z"
+    },
+    "portrait.lightning+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:02:52.378Z"
+    },
+    "portrait.poison+earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:04:08.909Z"
+    },
+    "portrait.poison+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:04:45.208Z"
+    },
+    "portrait.earth+wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:06:00.503Z"
+    },
+    "portrait.fire+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:07:15.490Z"
+    },
+    "portrait.ice+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:07:50.556Z"
+    },
+    "portrait.lightning+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:09:05.880Z"
+    },
+    "portrait.poison+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:10:21.456Z"
+    },
+    "portrait.earth+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:10:56.133Z"
+    },
+    "portrait.wind+metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:12:10.440Z"
+    },
+    "portrait.fire+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:12:55.547Z"
+    },
+    "portrait.ice+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:14:15.098Z"
+    },
+    "portrait.lightning+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:14:49.922Z"
+    },
+    "portrait.poison+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:16:08.092Z"
+    },
+    "portrait.earth+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:16:45.090Z"
+    },
+    "portrait.wind+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:18:06.166Z"
+    },
+    "portrait.metal+nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:19:23.913Z"
+    },
+    "halo.fire": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          21,
+          217,
+          9
+        ],
+        "coverage": 0.352,
+        "size": [
+          314,
+          320
+        ],
+        "in_palette": 0.82,
+        "snapped": true,
+        "colours_used": 10,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:19:58.699Z"
+    },
+    "halo.ice": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          18,
+          222,
+          5
+        ],
+        "coverage": 0.396,
+        "size": [
+          317,
+          320
+        ],
+        "in_palette": 0.888,
+        "snapped": true,
+        "colours_used": 10,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:21:13.652Z"
+    },
+    "halo.lightning": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          20,
+          221,
+          5
+        ],
+        "coverage": 0.48,
+        "size": [
+          287,
+          320
+        ],
+        "in_palette": 0.88,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:21:50.316Z"
+    },
+    "halo.poison": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          20,
+          222,
+          6
+        ],
+        "coverage": 0.499,
+        "size": [
+          309,
+          320
+        ],
+        "in_palette": 0.774,
+        "snapped": true,
+        "colours_used": 7,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:23:07.870Z"
+    },
+    "halo.earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          19,
+          221,
+          7
+        ],
+        "coverage": 0.616,
+        "size": [
+          315,
+          320
+        ],
+        "in_palette": 0.883,
+        "snapped": true,
+        "colours_used": 10,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:23:43.213Z"
+    },
+    "halo.wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          22,
+          224,
+          7
+        ],
+        "coverage": 0.463,
+        "size": [
+          320,
+          319
+        ],
+        "in_palette": 0.861,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:55:36.383Z"
+    },
+    "halo.metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          16,
+          230,
+          7
+        ],
+        "coverage": 0.629,
+        "size": [
+          317,
+          320
+        ],
+        "in_palette": 0.883,
+        "snapped": true,
+        "colours_used": 7,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:56:08.716Z"
+    },
+    "halo.nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          19,
+          219,
+          6
+        ],
+        "coverage": 0.622,
+        "size": [
+          318,
+          320
+        ],
+        "in_palette": 0.843,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:56:42.659Z"
+    },
+    "enemy.hoodedFlier": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          235,
+          7
+        ],
+        "coverage": 0.521,
+        "size": [
+          239,
+          256
+        ],
+        "fringe": 0.0001,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:57:58.516Z"
+    },
+    "enemy.flameSprite": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          13,
+          237,
+          6
+        ],
+        "coverage": 0.534,
+        "size": [
+          200,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T10:58:52.057Z"
+    },
+    "enemy.ninja": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          14,
+          234,
+          7
+        ],
+        "coverage": 0.489,
+        "size": [
+          171,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:00:08.530Z"
+    },
+    "enemy.armoredSoldier": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          12,
+          234,
+          6
+        ],
+        "coverage": 0.453,
+        "size": [
+          231,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:00:42.038Z"
+    },
+    "enemy.ringMonk": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          12,
+          238,
+          7
+        ],
+        "coverage": 0.583,
+        "size": [
+          153,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:01:56.986Z"
+    },
+    "enemy.kiteMinion": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          11,
+          238,
+          6
+        ],
+        "coverage": 0.441,
+        "size": [
+          232,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:03:12.808Z"
+    },
+    "enemy.villager": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          14,
+          237,
+          7
+        ],
+        "coverage": 0.423,
+        "size": [
+          203,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:03:46.281Z"
+    },
+    "enemy.wyvern": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          14,
+          249
+        ],
+        "coverage": 0.456,
+        "size": [
+          256,
+          253
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:04:59.435Z"
+    },
+    "enemy.phoenix": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          14,
+          237,
+          8
+        ],
+        "coverage": 0.487,
+        "size": [
+          218,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:06:13.034Z"
+    },
+    "enemy.redDragon": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          14,
+          237,
+          8
+        ],
+        "coverage": 0.493,
+        "size": [
+          227,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:06:45.484Z"
+    },
+    "enemy.elfRuler": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          12,
+          236,
+          7
+        ],
+        "coverage": 0.588,
+        "size": [
+          305,
+          384
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:08:00.243Z"
+    },
+    "enemy.kiteNinja": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          10,
+          239,
+          6
+        ],
+        "coverage": 0.505,
+        "size": [
+          357,
+          384
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:09:14.249Z"
+    },
+    "enemy.dragonRider": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          12,
+          239,
+          8
+        ],
+        "coverage": 0.498,
+        "size": [
+          329,
+          384
+        ],
+        "fringe": 0.0001,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:09:48.807Z"
+    },
+    "badge.fire": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          10,
+          247,
+          6
+        ],
+        "coverage": 0.745,
+        "size": [
+          192,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:11:02.155Z"
+    },
+    "badge.ice": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          10,
+          247,
+          5
+        ],
+        "coverage": 0.815,
+        "size": [
+          192,
+          191
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:12:13.783Z"
+    },
+    "badge.lightning": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          9,
+          247,
+          5
+        ],
+        "coverage": 0.77,
+        "size": [
+          192,
+          191
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:12:44.975Z"
+    },
+    "badge.poison": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          251,
+          3,
+          249
+        ],
+        "coverage": 0.794,
+        "size": [
+          192,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:13:58.090Z"
+    },
+    "badge.earth": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          8,
+          247,
+          6
+        ],
+        "coverage": 0.777,
+        "size": [
+          192,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:15:08.872Z"
+    },
+    "badge.wind": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          254,
+          64,
+          250
+        ],
+        "coverage": 0.754,
+        "size": [
+          192,
+          191
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:15:40.138Z"
+    },
+    "badge.metal": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          8,
+          246,
+          4
+        ],
+        "coverage": 0.775,
+        "size": [
+          192,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:16:53.214Z"
+    },
+    "badge.nature": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          254,
+          62,
+          253
+        ],
+        "coverage": 0.766,
+        "size": [
+          192,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:18:11.598Z"
+    },
+    "env.background": {
+      "qa": {
+        "src": [
+          768,
+          1376
+        ],
+        "coverage": 1,
+        "size": [
+          893,
+          1600
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T11:18:46.130Z"
+    },
+    "pet.fire.scared": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          16,
+          233,
+          6
+        ],
+        "coverage": 0.62,
+        "size": [
+          320,
+          276
+        ],
+        "in_palette": 0.899,
+        "snapped": true,
+        "colours_used": 7,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T14:58:43.972Z"
+    },
+    "pet.fire.blink": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          15,
+          237,
+          7
+        ],
+        "coverage": 0.62,
+        "size": [
+          320,
+          276
+        ],
+        "in_palette": 0.914,
+        "snapped": true,
+        "colours_used": 7,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T14:59:37.485Z"
+    },
+    "pet.ice.scared": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          11,
+          243,
+          6
+        ],
+        "coverage": 0.59,
+        "size": [
+          320,
+          273
+        ],
+        "in_palette": 0.953,
+        "snapped": true,
+        "colours_used": 10,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:00:45.520Z"
+    },
+    "pet.ice.blink": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          10,
+          236,
+          6
+        ],
+        "coverage": 0.589,
+        "size": [
+          320,
+          273
+        ],
+        "in_palette": 0.957,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:01:57.547Z"
+    },
+    "pet.lightning.scared": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          19,
+          238,
+          7
+        ],
+        "coverage": 0.62,
+        "size": [
+          274,
+          320
+        ],
+        "in_palette": 0.908,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:02:56.973Z"
+    },
+    "pet.lightning.blink": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          15,
+          241,
+          7
+        ],
+        "coverage": 0.619,
+        "size": [
+          274,
+          320
+        ],
+        "in_palette": 0.915,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:03:09.161Z"
+    },
+    "pet.poison.scared": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          34,
+          249
+        ],
+        "coverage": 0.706,
+        "size": [
+          287,
+          320
+        ],
+        "in_palette": 0.77,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:04:18.451Z"
+    },
+    "pet.poison.blink": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          34,
+          249
+        ],
+        "coverage": 0.706,
+        "size": [
+          287,
+          320
+        ],
+        "in_palette": 0.741,
+        "snapped": true,
+        "colours_used": 10,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:04:29.527Z"
+    },
+    "pet.earth.scared": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          9,
+          239,
+          6
+        ],
+        "coverage": 0.577,
+        "size": [
+          320,
+          309
+        ],
+        "in_palette": 0.953,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:04:43.102Z"
+    },
+    "pet.earth.blink": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          12,
+          239,
+          5
+        ],
+        "coverage": 0.577,
+        "size": [
+          320,
+          309
+        ],
+        "in_palette": 0.961,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:05:15.941Z"
+    },
+    "pet.wind.scared": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          47,
+          250
+        ],
+        "coverage": 0.616,
+        "size": [
+          252,
+          320
+        ],
+        "in_palette": 0.879,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:05:28.342Z"
+    },
+    "pet.wind.blink": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          46,
+          249
+        ],
+        "coverage": 0.616,
+        "size": [
+          252,
+          320
+        ],
+        "in_palette": 0.882,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:05:38.918Z"
+    },
+    "pet.metal.scared": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          15,
+          241,
+          7
+        ],
+        "coverage": 0.585,
+        "size": [
+          284,
+          320
+        ],
+        "in_palette": 0.905,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:06:51.552Z"
+    },
+    "pet.metal.blink": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          12,
+          245,
+          5
+        ],
+        "coverage": 0.585,
+        "size": [
+          284,
+          320
+        ],
+        "in_palette": 0.915,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:08:03.904Z"
+    },
+    "pet.nature.scared": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          46,
+          250
+        ],
+        "coverage": 0.6,
+        "size": [
+          307,
+          320
+        ],
+        "in_palette": 0.752,
+        "snapped": true,
+        "colours_used": 9,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:08:47.358Z"
+    },
+    "pet.nature.blink": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          51,
+          248
+        ],
+        "coverage": 0.6,
+        "size": [
+          307,
+          320
+        ],
+        "in_palette": 0.798,
+        "snapped": true,
+        "colours_used": 8,
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:10:00.261Z"
+    },
+    "portrait.fire+ice.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:10:33.584Z"
+    },
+    "portrait.fire+lightning.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:11:49.605Z"
+    },
+    "portrait.fire+poison.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:13:03.263Z"
+    },
+    "portrait.fire+earth.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:13:37.331Z"
+    },
+    "portrait.fire+wind.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:14:52.060Z"
+    },
+    "portrait.ice+lightning.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:16:05.728Z"
+    },
+    "portrait.ice+poison.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:16:39.277Z"
+    },
+    "portrait.ice+earth.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:17:53.707Z"
+    },
+    "portrait.ice+wind.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:19:12.085Z"
+    },
+    "portrait.lightning+poison.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:19:44.748Z"
+    },
+    "portrait.lightning+earth.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:21:00.878Z"
+    },
+    "portrait.lightning+wind.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:21:34.345Z"
+    },
+    "portrait.poison+earth.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:22:50.010Z"
+    },
+    "portrait.poison+wind.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:24:03.057Z"
+    },
+    "portrait.earth+wind.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:25:06.013Z"
+    },
+    "portrait.fire+metal.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:25:38.330Z"
+    },
+    "portrait.ice+metal.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:27:19.655Z"
+    },
+    "portrait.lightning+metal.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:27:31.862Z"
+    },
+    "portrait.poison+metal.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:28:52.939Z"
+    },
+    "portrait.earth+metal.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:30:09.212Z"
+    },
+    "portrait.wind+metal.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:30:58.659Z"
+    },
+    "portrait.fire+nature.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:31:45.397Z"
+    },
+    "portrait.ice+nature.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:33:04.882Z"
+    },
+    "portrait.lightning+nature.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:33:40.260Z"
+    },
+    "portrait.poison+nature.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:34:35.985Z"
+    },
+    "portrait.earth+nature.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:35:49.088Z"
+    },
+    "portrait.wind+nature.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:37:03.036Z"
+    },
+    "portrait.metal+nature.ascended": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:37:39.861Z"
+    },
+    "enemy.elfRuler.portrait": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:38:53.180Z"
+    },
+    "enemy.kiteNinja.portrait": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:40:09.278Z"
+    },
+    "enemy.dragonRider.portrait": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "coverage": 1,
+        "size": [
+          512,
+          512
+        ],
+        "ok": true
+      },
+      "model": "gemini-3.1-flash-image",
+      "at": "2026-10-14T15:41:12.312Z"
+    }
+  }
 }

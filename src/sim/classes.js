@@ -13,118 +13,148 @@
 
 import { DEFENSE } from '../config.js';
 
+// The basic attacks (redesign, src/art/attack-design.js): each element animal attacks the
+// way the animal would, and between them they cover every range and targeting type.
+// Distances are world units (1 cell = GRID.cell = 2). `grow(s)` scales an element from
+// 16 (s = 0) to 128 (s = 3); fusions use it fully grown. Damage values are the design's
+// ×0.42: area attacks and crowd control made the design's numbers twice as strong as the
+// old attacks, and at ×0.42 autoplay reaches the same wave as before (median ≈ 19).
 export const ELEMENTS = {
   fire: {
     name: 'Fire',
-    attack: 'Flame Burst',
+    attack: 'Ember Breath',
     color: '#ff7a3d',
-    desc: 'A burst of 3 fireballs at close range. Burns: damage over time that stacks.',
-    rate: 0.9, // bursts per second
-    dmg: 0.4, // per fireball
-    shoot: { pattern: 'burst', count: 3, gap: 0.1, reach: 4, lanes: 0, target: 'front' },
+    desc: 'Breathes a short cone of fire up its lane that hits every foe in it. Burns: damage over time that stacks.',
+    rate: 1.0,
+    dmg: 0.23, // to every foe in the cone
+    shoot: { pattern: 'cone', reach: 4, lanes: 0, target: 'front' }, // 2 cells, widening to half a lane each side
     kind: 'fire',
-    burn: { dpsPct: 0.32, dur: 3, max: 3 },
+    burn: { dpsPct: 0.45, dur: 3, max: 3 }, // of a hit per second per stack (tuned down so Fire doesn't out-hit Ice on bosses)
+    grow: (s) => ({ shoot: { reach: 4 + (2 * s) / 3 } }), // the breath grows; the burn cap stays at 3
   },
   ice: {
     name: 'Ice',
-    attack: 'Frost Lance',
+    attack: 'Echo Harpoon',
     color: '#7fd4ff',
-    desc: 'A heavy lance at the toughest foe, from far away. Slows; every 4th hit freezes.',
+    desc: 'A sonar ping finds the toughest foe up to 5 cells along its lane and an ice harpoon follows. Slows; every 4th hit on the same foe freezes it.',
     rate: 0.6,
-    dmg: 1.5,
-    shoot: { pattern: 'lance', speed: 0.75, reach: 7, lanes: 0, target: 'strongest' },
+    dmg: 0.91, // the Hunter leads on single tough foes
+    shoot: { pattern: 'lance', speed: 0.75, reach: 10, lanes: 0, target: 'strongest' },
     kind: 'ice',
     chill: { slow: 0.35, dur: 2 },
     freeze: { every: 4, dur: 1.0 },
+    grow: (s) => ({ chill: { slow: 0.35 + s / 30 }, freeze: { every: s >= 3 ? 3 : 4 }, shoot: { lanes: s >= 2 ? 1 : 0 } }),
   },
   lightning: {
     name: 'Lightning',
-    attack: 'Chain Spark',
+    attack: 'Horn Arc',
     color: '#ffe14d',
-    desc: 'Instant bolt that arcs to 2 more foes, across neighbouring lanes.',
+    desc: 'An instant bolt from the horn to the nearest foe that leaps to more foes close by, across lanes. Each jump hits a little less and may stun.',
     rate: 0.85,
-    dmg: 0.85,
-    shoot: { pattern: 'chain', reach: 5.5, lanes: 1, target: 'front' },
+    dmg: 0.37,
+    shoot: { pattern: 'chain', radius: 7, target: 'nearest' }, // 3.5 cells
     kind: 'lightning',
-    chain: { jumps: 2, range: 2.6, falloff: 0.8 },
+    chain: { jumps: 2, range: 2.6, falloff: 0.85 }, // 3 foes, jumps of 1.3 cells
+    stun: { chance: 0.15, dur: 0.4 },
+    grow: (s) => ({ chain: { jumps: 2 + s } }), // 3 → 6 foes
   },
   poison: {
     name: 'Poison',
-    attack: 'Seeker Dart',
+    attack: 'Venom Spit',
     color: '#b46cff',
-    desc: 'Homing darts that seek unpoisoned foes in 3 lanes. Poison stacks up to 6.',
-    rate: 1.1,
-    dmg: 0.7,
-    shoot: { pattern: 'homing', speed: 0.85, reach: 6.5, lanes: 1, target: 'unpoisoned' },
+    desc: 'Spits a venom glob that leaves a puddle on the path. Foes in it gain poison stacks; at full stacks they are weakened and hit blocks 30% softer.',
+    rate: 0.9,
+    dmg: 0.16,
+    shoot: { pattern: 'spit', flight: 0.6, radius: 6, target: 'front' }, // 3 cells
     kind: 'poison',
-    poison: { dpsPct: 0.18, dur: 5, max: 6 },
+    poison: { dpsPct: 0.34, dur: 3, max: 6, weaken: 0.3 }, // of a hit per second per stack (≈0.05 D/s)
+    puddle: { radius: 2, dur: 3, every: 0.5 },
+    grow: (s) => ({ puddle: { dur: 3 + (2 * s) / 3, radius: 2 + s / 3 } }),
   },
   earth: {
     name: 'Earth',
-    attack: 'Boulder Mortar',
+    attack: 'Quake Stomp',
     color: '#c79a62',
-    desc: 'Lobs a boulder into the biggest crowd near the wall: heavy splash, knockback.',
-    rate: 0.6,
-    dmg: 1.8,
-    shoot: { pattern: 'lob', flight: 0.75, reach: 4.5, lanes: 0, target: 'crowd' },
+    desc: 'Stomps a shockwave across its lane and both neighbours: a heavy hit that knocks foes back and stuns them.',
+    rate: 0.45,
+    dmg: 0.82,
+    shoot: { pattern: 'quake', reach: 3, lanes: 1, target: 'front' }, // 1.5 cells deep, 3 lanes wide
     kind: 'physical',
-    splash: { radius: 1.3, pct: 0.6 },
-    knockback: 0.5,
+    knockback: 1, // half a cell
+    stun: { chance: 1, dur: 0.3 },
+    grow: (s) => ({ shoot: { reach: 3 + (2 * s) / 3 }, stun: { dur: 0.3 + 0.1 * s } }),
   },
   wind: {
     name: 'Wind',
-    attack: 'Gale Blade',
+    attack: 'Wing Gust',
     color: '#bff7e6',
-    desc: 'A blade that flies the whole lane, hitting every foe it passes, and slows.',
+    desc: 'A wingbeat sends a gust 5 cells up its lane: every foe in it is hit and pushed back.',
     rate: 0.8,
-    dmg: 0.85,
-    shoot: { pattern: 'blade', speed: 1.1, reach: 8, lanes: 0, target: 'front' },
+    dmg: 0.27,
+    shoot: { pattern: 'gust', reach: 10, lanes: 0, target: 'front' },
     kind: 'physical',
-    pierce: { len: 1.6 },
-    chill: { slow: 0.2, dur: 1.5 },
+    knockback: 1, // half a cell (bosses less)
+    grow: (s) => ({ knockback: 1 + s / 3, shoot: { lanes: s >= 3 ? 1 : 0 } }),
   },
   metal: {
     name: 'Metal',
-    attack: 'Coin Sniper',
+    attack: 'Pride Pounce',
     color: '#c9d3df',
-    desc: 'A very fast shot at the weakest foe in the lane. Marked foes drop +60% coins.',
-    rate: 0.9,
-    dmg: 1.1,
-    shoot: { pattern: 'sniper', speed: 3, reach: 8, lanes: 0, target: 'weakest' },
+    desc: 'The cub leaps onto the weakest foe nearby. A killing bite on wounded foes, and its prey drops bonus coins.',
+    rate: 1.0,
+    dmg: 0.45,
+    shoot: { pattern: 'pounce', radius: 6, target: 'weakest' }, // 3 cells
     kind: 'physical',
+    bite: { chance: 0.25, below: 0.5, mult: 2 },
     loot: { pct: 0.6, dur: 3 },
+    grow: (s) => ({ bite: { chance: 0.25 + 0.05 * s }, loot: { pct: 0.6 + (0.4 * s) / 3 } }),
   },
   nature: {
     name: 'Nature',
-    attack: 'Seed Spread',
+    attack: 'Bramble Shell',
     color: '#4cd964',
-    desc: '3 seeds at foes in a big circle around the block; 20% chance to repair the most damaged block by 12%.',
-    rate: 1.0,
-    dmg: 0.5, // per seed
-    shoot: { pattern: 'spread', count: 3, radius: 6.5, target: 'front' }, // a circle around the block
+    desc: 'A thorny ring pulses around the block: it roots foes, hurts anything that bites the block, and regrows the block and its neighbours.',
+    rate: 0.5,
+    dmg: 0.54,
+    shoot: { pattern: 'pulse', radius: 2, target: 'front' }, // 1 cell around the block
     kind: 'nature',
-    heal: { chance: 0.2, pct: 0.12 }, // repairs the most damaged block
+    root: { dur: 0.6 },
+    thorns: { pct: 0.25 }, // of a hit, to each foe that bites the block
+    regrow: { pct: 0.03 }, // of max health, to the block and its neighbours per pulse that hits
+    grow: (s) => ({ shoot: { radius: 2 + s / 3 }, regrow: { pct: 0.03 + 0.01 * s }, thorns: { pct: 0.25 + 0.05 * s } }),
   },
 };
 export const ELEMENT_KEYS = Object.keys(ELEMENTS);
+
+/** Growth stage of a class: 0 at 16 … 3 at 128; fusions and ultimates are fully grown. */
+export const growthOf = (tier) => Math.max(0, Math.min(3, tier - 4));
+
+/** An element at a growth stage: its data with the stage's overrides merged in. */
+export function grownElement(key, s = 0) {
+  const e = ELEMENTS[key];
+  if (!e.grow || s <= 0) return e;
+  const over = e.grow(s);
+  const out = { ...e };
+  for (const [k, v] of Object.entries(over)) out[k] = v && typeof v === 'object' && !Array.isArray(v) ? { ...e[k], ...v } : v;
+  return out;
+}
 
 /** How a dormant block (below 16) shoots: a single plain pebble. */
 export const PLAIN_SHOOT = { pattern: 'single', reach: 5, lanes: 0, target: 'front' };
 
 /**
- * Range of a class: the first (sliding) element's shape. Lane ranges reach
- * `reach` up and down the lane from the block, across `lanes` neighbouring lanes
- * each side; a circle range (`radius`) is measured from the block.
- * Fusions take the longer reach and the wider lane cover of the two elements.
+ * Range of a class: the first element's shape at its growth stage (cone, lane line, ring,
+ * circle, 3-lane wave). A fusion keeps that shape; a lane attack takes the widest lane
+ * cover of its elements.
  */
-export function shootFor(cls, active) {
+export function shootFor(cls, active, tier = 4) {
   if (!active || !cls.element) return { ...PLAIN_SHOOT };
-  const a = ELEMENTS[cls.element].shoot;
-  const shoot = { ...a };
-  if (a.radius == null) {
+  const s = cls.fusion ? 3 : growthOf(tier);
+  const shoot = { ...grownElement(cls.element, s).shoot };
+  // fusions keep the first element's shape; a lane attack takes the widest lane cover
+  if (shoot.lanes != null) {
     for (const k of [cls.fusion, cls.ultimate].filter(Boolean)) {
-      const o = ELEMENTS[k].shoot;
-      if (o.reach != null) shoot.reach = Math.max(shoot.reach, o.reach);
+      const o = grownElement(k, 3).shoot;
       if (o.lanes != null) shoot.lanes = Math.max(shoot.lanes, o.lanes);
     }
   }
@@ -234,12 +264,12 @@ export const APEX = {
 export const TAGS = {
   fire: 'Burn',
   ice: 'Slow + Freeze',
-  lightning: 'Chain',
-  poison: 'Poison',
-  earth: 'Splash + Knockback',
-  wind: 'Pierce + Slow',
-  metal: 'Bonus coins',
-  nature: 'Block repair',
+  lightning: 'Chain + Stun',
+  poison: 'Poison + Weaken',
+  earth: 'Knockback + Stun',
+  wind: 'Knockback',
+  metal: 'Killing bite + Coins',
+  nature: 'Root + Thorns + Regrow',
 };
 
 // --- stages -----------------------------------------------------------------
@@ -345,6 +375,7 @@ function addComponents(p, el, boost) {
       dpsPct: Math.max(p.poison?.dpsPct ?? 0, el.poison.dpsPct * boost),
       dur: Math.max(p.poison?.dur ?? 0, el.poison.dur),
       max: Math.max(p.poison?.max ?? 0, Math.round(el.poison.max * boost)),
+      weaken: Math.max(p.poison?.weaken ?? 0, el.poison.weaken ?? 0),
     };
   }
   if (el.chill) {
@@ -366,6 +397,12 @@ function addComponents(p, el, boost) {
       falloff: el.chain.falloff,
     };
   }
+  if (el.stun) p.stun = { chance: Math.min(1, Math.max(p.stun?.chance ?? 0, el.stun.chance * boost)), dur: Math.max(p.stun?.dur ?? 0, el.stun.dur * Math.sqrt(boost)) };
+  if (el.root) p.root = { dur: Math.max(p.root?.dur ?? 0, el.root.dur * boost) };
+  if (el.thorns) p.thorns = { pct: Math.min(0.8, Math.max(p.thorns?.pct ?? 0, el.thorns.pct * boost)) };
+  if (el.regrow) p.regrow = { pct: Math.min(0.12, Math.max(p.regrow?.pct ?? 0, el.regrow.pct * boost)) };
+  if (el.bite) p.bite = { chance: Math.min(0.8, Math.max(p.bite?.chance ?? 0, el.bite.chance * boost)), below: el.bite.below, mult: el.bite.mult };
+  if (el.puddle) p.puddle = { radius: el.puddle.radius * Math.sqrt(boost), dur: el.puddle.dur * boost, every: el.puddle.every };
   if (el.splash) {
     p.splash = { radius: el.splash.radius + (boost - 1) * 0.8, pct: Math.min(1, el.splash.pct * boost) };
   }
@@ -390,7 +427,7 @@ export function profileFor(ball) {
     p.kinds.push('physical'); // an element-less 16+ (debug) shoots plain pebbles
   } else if (!c.fusion) {
     p.active = true;
-    const e = ELEMENTS[c.element];
+    const e = grownElement(c.element, growthOf(ball.tier));
     addComponents(p, e, 1);
     p.name = e.attack;
     p.colors = [e.color];
@@ -398,8 +435,8 @@ export function profileFor(ball) {
     p.dmgMult = e.dmg;
   } else {
     p.active = true;
-    const a = ELEMENTS[c.element];
-    const b = ELEMENTS[c.fusion];
+    const a = grownElement(c.element, 3);
+    const b = grownElement(c.fusion, 3);
     addComponents(p, a, 1.5);
     addComponents(p, b, 1.5);
     p.name = FUSIONS[fusionKey(c.element, c.fusion)].name;
@@ -408,7 +445,7 @@ export function profileFor(ball) {
     p.rate = a.rate;
     p.dmgMult = a.dmg * 1.25;
     if (c.ultimate) {
-      const x = ELEMENTS[c.ultimate];
+      const x = grownElement(c.ultimate, 3);
       addComponents(p, x, 2);
       p.signature = APEX[c.ultimate];
       p.name = `${APEX[c.ultimate].name} ${p.name}`;
@@ -417,7 +454,7 @@ export function profileFor(ball) {
     }
   }
   p.element = p.active ? c.element : null;
-  p.shoot = shootFor(c, p.active);
+  p.shoot = shootFor(c, p.active, ball.tier);
   p.damage = turretDamage(ball.tier) * p.dmgMult;
   ball.prof = p;
   return p;

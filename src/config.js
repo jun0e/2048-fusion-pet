@@ -153,6 +153,8 @@ export const ECONOMY = {
   waveClearBase: 15, // bonus when a wave is cleared: waveClearBase + waveClearPerWave × wave
   waveClearPerWave: 3,
   comboAt: 3, // 3+ merges in one swipe refund that swipe
+  sellSwipes: 1, // selling a turret (16+) pays the price of one swipe …
+  breakSwipes: 3, // … breaking a dormant block (below 16) costs three swipes
   prepSeconds: 15, // before the first wave (Wave now skips it)
   breakBase: 10, // break before wave W: min(breakMax, breakBase + breakPerWave × W) seconds
   breakPerWave: 2, // … so 14 s before wave 2, growing to …

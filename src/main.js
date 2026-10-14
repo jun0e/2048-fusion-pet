@@ -2,7 +2,7 @@ import './ui/hud.css';
 import { createRun } from './sim/run.js';
 import { ENEMY_TYPES } from './sim/enemies.js';
 import { ELEMENTS, profileFor } from './sim/classes.js';
-import { FIELD, GRID, GRID_TOP, PHYSICS, cellX, cellY } from './config.js';
+import { FIELD, GRID, GRID_TOP, PHYSICS, cellX, cellY, laneX } from './config.js';
 import { createStage } from './render/stage.js';
 import { createScenery } from './render/scenery.js';
 import { createBlocks } from './render/blocks.js';
@@ -13,11 +13,13 @@ import { createFx } from './render/fx.js';
 import { loadGeneratedAssets } from './render/textures.js';
 import { createHud } from './ui/hud.js';
 import { createTutorial } from './ui/tutorial.js';
+import { createInspect } from './ui/inspect.js';
 import { createAutoplay } from './autoplay.js';
 import { createInput } from './input.js';
 import { createSfx } from './sfx.js';
 import { createArt } from './art/index.js';
 import { setupKv, KV_DICE } from './kv/index.js';
+import { setupPets } from './kv/pets.js';
 
 const BEST_KEY = 'mb:best';
 const loadBest = () => {
@@ -37,7 +39,9 @@ const saveBest = (v) => {
 const params = new URLSearchParams(location.search);
 const seedParam = params.has('seed') ? Number(params.get('seed')) >>> 0 : undefined;
 const debugStart = params.has('debug');
-// ?kv: the key-visual demo (the recommended art direction, see src/kv/index.js)
+// The game draws its pets with the sticker art (Gemini sprites from tools/pipeline.mjs when
+// generated): creatures on tiles, roaming fusions, namecards. ?style=classic brings back the
+// plain blocks. ?kv: the key-visual demo (preset board, style switcher; see src/kv/index.js)
 const kvMode = params.has('kv') || window.__KV__ === true; // the packed 2048-siege-kv.html sets __KV__
 const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 
@@ -54,13 +58,15 @@ async function start() {
   const stage = await createStage(document.getElementById('app'));
   const fx = createFx(stage);
   const scenery = createScenery(stage);
-  const art = kvMode ? createArt(params.get('style') || 'sticker') : null;
+  const style = params.get('style') || 'sticker';
+  const art = kvMode || style !== 'classic' ? createArt(style) : null;
   const blocks = createBlocks(stage, fx, { art });
   const foes = createFoes(stage, fx);
   const shots = createShots(stage, fx);
   const deck = createDeck(stage);
   const sfx = createSfx();
   const kv = kvMode ? setupKv({ stage, fx, blocks, art, hudEl: document.getElementById('hud'), getRun: () => run, params }) : null;
+  const pets = !kvMode && art ? setupPets({ stage, fx, art, hudEl: document.getElementById('hud'), getRun: () => run }) : null;
 
   let best = loadBest();
   let run = newRun();
@@ -99,6 +105,14 @@ async function start() {
     muted: sfx.muted,
   });
 
+  // tap a block: a card says what it does (attack, numbers, effects, what it becomes next)
+  const inspect = createInspect(document.getElementById('hud'), {
+    stage,
+    art,
+    onClose: () => select(null),
+    onDiscard: (id) => run.discard(id).ok && select(null), // sell a turret / break a dormant block
+  });
+
   function restart() {
     run = newRun();
     blocks.reset();
@@ -106,6 +120,7 @@ async function start() {
     shots.reset();
     fx.reset();
     kv?.reset();
+    pets?.reset();
     hud.hideGameOver();
     gameOverShown = false;
     select(null);
@@ -177,6 +192,7 @@ async function start() {
       tutorial.onEvent(e);
       blocks.onEvent(e);
       kv?.onEvent(e);
+      pets?.onEvent(e);
       switch (e.type) {
         case 'merge': {
           fx.burst(e.x, e.y, [0xffffff, 0xffe27a], 10 + e.tier * 2, { speed: 4, size: 0.24, life: 0.45, gravity: 0 });
@@ -203,6 +219,22 @@ async function start() {
             fx.coinDrop(e.x, e.y, 3, coinTarget, coinPulse);
           } else if (e.reason === 'clear') {
             fx.coinDrop(0, 4, 10, coinTarget, coinPulse);
+          }
+          break;
+        }
+        case 'discard': {
+          // a sold turret pays out in coins; a broken block crumbles and the price leaves
+          const p = client(e.x, e.y + 0.9);
+          if (e.kind === 'sell') {
+            fx.burst(e.x, e.y, [0xffd34a, 0xffffff], 18, { speed: 4, size: 0.24, life: 0.5, gravity: -6 });
+            fx.coinDrop(e.x, e.y, Math.min(6, 2 + Math.floor(e.amount / 5)), coinTarget, coinPulse);
+            hud.popup(p.x, p.y, `Sold +${e.amount}`, 4, '#ffd34a');
+            sfx.coin();
+          } else {
+            fx.burst(e.x, e.y, [0xc9b08a, 0x8a7462, 0xffffff], 22, { speed: 5, size: 0.26, life: 0.5, gravity: -9 });
+            stage.shake(4);
+            hud.popup(p.x, p.y, `Broken −${-e.amount}`, 3, '#ef6060');
+            sfx.deny();
           }
           break;
         }
@@ -293,8 +325,63 @@ async function start() {
           break;
         }
         case 'impact':
-          shots.impact(e);
+          if (!e.area) shots.impact(e); // area attacks draw their own shape below
           if (e.kind === 'zap') sfx.kill(false);
+          break;
+        // --- the basic attacks' shapes (the sim already applied the hits) ---
+        case 'breath': {
+          // Ember Breath: a fan of flame up (or down) the lane
+          const cols = [...e.colors.map(hex), 0xffb347, 0xffe27a];
+          const up = e.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+          fx.burst(e.x, e.y + e.dir * 0.4, cols, 22 + (e.lanes ?? 0) * 8, { speed: e.reach / 0.32, size: 0.32, life: 0.32, gravity: 0, spread: 0.75 + (e.lanes ?? 0) * 0.35, dir: up });
+          fx.ring(e.x, e.y + e.dir * 0.5, cols[0], 0.2, 0.9, 0.2);
+          break;
+        }
+        case 'gust':
+          // Wing Gust: a streak of wind up the whole lane (and the neighbours at 128)
+          for (let l = e.lane - e.lanes; l <= e.lane + e.lanes; l++) {
+            if (l < 0 || l >= FIELD.lanes) continue;
+            fx.slash(l, FIELD.spawnY - e.y, e.reach, hex(e.colors.at(-1)));
+          }
+          fx.burst(e.x, e.y + 0.5, [0xffffff, hex(e.colors.at(-1))], 10, { speed: 7, size: 0.2, life: 0.35, gravity: 0, spread: 0.4, dir: Math.PI / 2 });
+          break;
+        case 'pulse': {
+          // Bramble Shell: a thorny ring around the block
+          const c = hex(e.colors.at(-1));
+          fx.ring(e.x, e.y, c, 0.3, e.radius, 0.45, 2);
+          fx.ring(e.x, e.y, 0x8a5a33, 0.2, e.radius * 0.8, 0.35, 1);
+          fx.burst(e.x, e.y, [c, 0x7cd15a, 0x8a5a33], 16, { speed: e.radius * 3, size: 0.22, life: 0.35, gravity: 0 });
+          break;
+        }
+        case 'quake':
+          // Quake Stomp: a shockwave across three lanes
+          for (let l = e.lane - e.lanes; l <= e.lane + e.lanes; l++) {
+            if (l < 0 || l >= FIELD.lanes) continue;
+            fx.ring(laneX(l), e.y, hex(e.colors.at(-1)), 0.3, e.reach * 0.9, 0.4, 1.6);
+            fx.burst(laneX(l), e.y, [0xc79a62, 0x8b6b4a, 0xeadbc0], 9, { speed: 4, size: 0.26, life: 0.45, gravity: -7 });
+          }
+          stage.shake(4);
+          break;
+        case 'pounce': {
+          // Pride Pounce: a golden leap onto the prey
+          fx.beam(e.from.x, e.from.y, e.to.x, e.to.y, 0xffd34a);
+          fx.burst(e.to.x, e.to.y, [0xffd34a, 0xffffff, hex(e.colors.at(-1))], 12, { speed: 5, size: 0.22, life: 0.3, gravity: 0 });
+          break;
+        }
+        case 'ping':
+          // Echo Harpoon: the sonar ping finds its prey
+          fx.ring(e.x, e.y, 0x9be7f5, 0.15, 1.3, 0.35, 1.2);
+          fx.ring(e.x, e.y, 0xffffff, 0.1, 0.8, 0.25, 0.8);
+          break;
+        case 'stun':
+          fx.burst(e.x, e.y + 0.7, [0xffe14d, 0xffffff], 7, { speed: 1.6, size: 0.17, life: 0.5, gravity: 0 });
+          break;
+        case 'weaken':
+          fx.burst(e.x, e.y + 0.5, [0xa35cf0, 0xd9b3ff], 8, { speed: 1.8, size: 0.18, life: 0.45, gravity: -5 });
+          break;
+        case 'bite':
+          fx.burst(e.x, e.y, [0xff6b6b, 0xffd34a, 0xffffff], 14, { speed: 6, size: 0.24, life: 0.3, gravity: 0 });
+          fx.ring(e.x, e.y, 0xffd34a, 0.2, 1.2, 0.25, 1.5);
           break;
         case 'freeze':
           fx.burst(e.x, e.y, [0xbfeaff, 0xffffff], 14, { speed: 3, size: 0.2, life: 0.4, gravity: 0 });
@@ -382,15 +469,17 @@ async function start() {
     const picked = selected != null && run.tiles.find((t) => t.id === selected);
     if (selected != null && !picked) select(null);
     scenery.showRange(picked ? { x: picked.x, y: picked.y, shoot: profileFor(picked).shoot } : null);
+    inspect.show(picked && !run.pendingChoice && !gameOverShown ? picked : null, picked ? { price: run.discardPrice(picked.id), coins: run.coins, last: run.tiles.length <= 1 } : {}, dt);
 
     const perLane = [0, 0, 0, 0];
     for (const e of run.enemies) if (!e.dead && !e.gone) perLane[e.lane] += 1;
     scenery.update(dt, { lanes: run.wave.lanes, bossLane: run.wave.bossLane, phase: run.phase, perLane });
     kv?.update(run, dt);
+    pets?.update(run, dt);
     blocks.sync(run, dt);
     deck.sync(run, dt);
     foes.sync(run.enemies, dt);
-    shots.sync(run.shots, dt);
+    shots.sync(run.shots, dt, run.defense.puddles);
     fx.update(dt);
     stage.update(dt);
   }

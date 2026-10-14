@@ -328,9 +328,47 @@ test('enemies left alone eat the board', () => {
   assert.equal(r.overReason, 'overrun');
 });
 
-test('there is no selling in siege', () => {
+test('a turret (16+) sells for one swipe; the block is gone and the swipe price is unchanged', () => {
   const r = createRun({ seed: 2, empty: true, dice: ['fire'] });
-  assert.equal(r.sell, undefined);
+  const t = r.spawnDebug(4, 0, 0);
+  t.cls = { element: 'fire' };
+  r.spawnDebug(1, 1, 0);
+  const coins = r.coins;
+  const cost = r.swipeCost;
+  assert.deepEqual(r.discardPrice(t.id), { kind: 'sell', amount: cost });
+  assert.deepEqual(r.discard(t.id), { ok: true, kind: 'sell', amount: cost });
+  assert.equal(r.coins, coins + cost);
+  assert.equal(r.tiles.length, 1);
+  assert.equal(r.swipeCost, cost, 'selling is not a swipe');
+  const ev = r.drainEvents();
+  assert.ok(ev.some((e) => e.type === 'remove' && e.reason === 'sold'));
+  assert.ok(ev.some((e) => e.type === 'discard' && e.kind === 'sell'));
+});
+
+test('a dormant block (below 16) costs three swipes to break', () => {
+  const r = createRun({ seed: 2, empty: true, dice: ['fire'] });
+  const egg = r.spawnDebug(2, 0, 0);
+  r.spawnDebug(1, 1, 0);
+  const coins = r.coins;
+  const cost = 3 * r.swipeCost;
+  assert.deepEqual(r.discardPrice(egg.id), { kind: 'break', amount: -cost });
+  assert.equal(r.discard(egg.id).ok, true);
+  assert.equal(r.coins, coins - cost);
+  assert.ok(r.drainEvents().some((e) => e.type === 'remove' && e.reason === 'broken'));
+});
+
+test('breaking needs the coins, and the last block can never go', () => {
+  const r = createRun({ seed: 2, empty: true, dice: ['fire'] });
+  const egg = r.spawnDebug(2, 0, 0);
+  const other = r.spawnDebug(1, 1, 0);
+  r.addCoins(-r.coins); // broke
+  assert.deepEqual(r.discard(egg.id), { ok: false, reason: 'coins', cost: 3 * r.swipeCost });
+  assert.equal(r.tiles.length, 2);
+  assert.ok(r.drainEvents().some((e) => e.type === 'noCoins'));
+  r.addCoins(1000);
+  assert.equal(r.discard(egg.id).ok, true);
+  assert.deepEqual(r.discard(other.id), { ok: false, reason: 'last' });
+  assert.equal(r.tiles.length, 1);
 });
 
 test('a locked board warns once but the run goes on', () => {

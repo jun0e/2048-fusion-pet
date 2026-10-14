@@ -1,5 +1,6 @@
 {
   "weeklyLimitUsd": 58.33,
   "weeklyLimitImages": null,
-  "stopAt": 0.8
+  "stopAt": 0.8,
+  "monthlyLimitUsd": 16.5
 }
