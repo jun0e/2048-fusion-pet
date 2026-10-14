@@ -8,6 +8,7 @@
 // run starts. Storage can be blocked (a sandboxed frame, private browsing): then
 // nothing is saved, and nothing throws.
 
+/** Also in index.html: New run on the failure screen removes this key itself (it must work without main.js). */
 export const RESUME_KEY = 'siege:run';
 /** Bump when a change makes old logs replay differently (renamed inputs, sim rules). */
 export const SAVE_VERSION = 1;
@@ -81,7 +82,8 @@ export function restoreRun(createRun, saved, { onEvents } = {}) {
   try {
     const run = replayRun(createRun, saved.log, { onEvents });
     return !run.over && fingerprint(run) === saved.fp ? run : null;
-  } catch {
+  } catch (err) {
+    console.warn('Saved run not restored:', err);
     return null;
   }
 }

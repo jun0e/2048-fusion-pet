@@ -89,15 +89,18 @@ async function waitForFonts() {
   await Promise.race([Promise.all([document.fonts.load('800 64px "Baloo 2"'), document.fonts.load('700 16px "Nunito"')]), t]);
 }
 
-// The loading screen in index.html (#boot): a message while loading, gone with the first frame.
+// The loading screen in index.html (#boot): a message while loading, hidden after the first frame.
 const boot = document.getElementById('boot');
 const bootSay = (text) => boot && (boot.querySelector('.boot-msg').textContent = text);
-/** Loading failed, or a frame broke: the loading screen comes back with "Try again". */
+let failed = false; // after a failure: no more saves, and the loading screen stays up
+/** Loading failed, or a frame broke: the loading screen comes back with "Try again" and "New run". */
 function bootFail(err) {
   console.error(err);
-  bootSay('Something went wrong. Try again to reload the game.');
+  failed = true;
   boot?.classList.remove('done');
   boot?.classList.add('failed');
+  // the message changes once the screen shows again: a hidden live region announces nothing
+  setTimeout(() => bootSay('Something went wrong. Try again to reload the game.'), 100);
 }
 
 async function start() {
@@ -256,6 +259,7 @@ async function start() {
       area.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
       document.body.appendChild(area);
       area.select();
+      area.setSelectionRange(0, area.value.length); // iOS Safari: select() alone selects nothing
       let copied = false;
       try {
         copied = document.execCommand('copy');
@@ -384,7 +388,8 @@ async function start() {
   pause.hold('rotate', sideways.matches);
   sideways.addEventListener('change', (e) => {
     pause.hold('rotate', e.matches);
-    if (!e.matches && !run.over) openMenu(); // upright again: the game waits for Resume, not the turn
+    // upright again: the game waits for Resume, not the turn; an open menu stays on its page
+    if (!e.matches && !run.over && pause.menu === 'closed') openMenu();
   });
   if (!kv) tutorial.start(run);
   else tutorial.setMuted(true); // the showcase has no tips
@@ -629,7 +634,8 @@ async function start() {
 
   /** Save the run for a resume (at most once a second while inputs come in; at once on pause). */
   function saveNow() {
-    if (!runLog || run.over) return;
+    // none after a failure: a broken frame can leave the run half-stepped, and the save on the way out would undo New run (index.html)
+    if (!runLog || run.over || failed) return;
     saveRun(run, runLog);
     savedInputs = runLog.inputs.length;
     saveWait = 1;
@@ -695,8 +701,9 @@ async function start() {
       bootFail(err);
     }
   });
-  // the first frame is on screen: the loading screen fades out (it stays in the page for a failure)
-  requestAnimationFrame(() => requestAnimationFrame(() => boot?.classList.add('done')));
+  // the first frame is on screen: the loading screen fades out (it stays in the page for a failure,
+  // and stays up if a frame already broke)
+  requestAnimationFrame(() => requestAnimationFrame(() => !failed && boot?.classList.add('done')));
 
   // handy in the console while prototyping
   window.__mb = {

@@ -102,7 +102,8 @@ test('blocked storage: nothing is saved, and nothing throws', () => {
   }
 });
 
-test('a save this build cannot replay is refused, never thrown', () => {
+test('a save this build cannot replay is refused, never thrown', (t) => {
+  const warn = t.mock.method(console, 'warn', () => {}); // the refused replay below is logged
   const { run, log } = play(8, 20);
   const storage = memory();
   saveRun(run, log, storage);
@@ -118,6 +119,7 @@ test('a save this build cannot replay is refused, never thrown', () => {
   assert.equal(loadSaved(storage), null, 'a log far too long to replay');
   // restore: a replay that throws, or ends elsewhere than its fingerprint, gives no run
   assert.equal(restoreRun(() => { throw new Error('newer sim'); }, good), null);
+  assert.equal(warn.mock.callCount(), 1, 'a replay that throws is logged');
   assert.equal(restoreRun(createRun, { ...good, fp: 'something else' }), null);
   assert.deepEqual(state(restoreRun(createRun, good)), state(run), 'a good save restores exactly');
 });
