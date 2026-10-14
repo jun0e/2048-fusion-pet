@@ -1,9 +1,9 @@
 // Swipe (touch or mouse drag), tap and keyboard input for the 2048 board.
 // Arrows / WASD swipe; a tap (no drag) picks a block to show its range; 1-3 pick a
-// class card; F / Space / Enter send the next wave early.
+// class card; F / Space / Enter send the next wave early; Escape / P pause.
 const SWIPE_PX = 24;
 
-export function createInput(el, { swipe, tap, choose, nextWave }) {
+export function createInput(el, { swipe, tap, choose, nextWave, pause }) {
   let start = null;
 
   el.addEventListener('pointerdown', (e) => {
@@ -46,6 +46,10 @@ export function createInput(el, { swipe, tap, choose, nextWave }) {
       e.preventDefault();
       swipe(dir);
     } else if (['1', '2', '3'].includes(e.key)) choose(Number(e.key) - 1);
+    else if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+      e.preventDefault();
+      pause?.();
+    }
     else if (e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === 'Enter') {
       if (document.activeElement?.tagName === 'BUTTON') return;
       e.preventDefault();

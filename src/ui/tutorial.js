@@ -215,6 +215,13 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
     get active() {
       return coach.active;
     },
+    /** The "How to play" sheet (it pauses the game while open). */
+    openHelp(open = true) {
+      openHelp(open);
+    },
+    get helpOpen() {
+      return help.classList.contains('open');
+    },
     /** Autoplay: step aside (no bubbles, no countdown hold); resume the opening when it stops. */
     setMuted(v) {
       coach.setMuted(v);

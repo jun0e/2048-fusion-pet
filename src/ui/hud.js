@@ -1,12 +1,12 @@
 // DOM HUD: score, best, top block, wave/phase/blocks-left status, the coin bar
 // (coins + next swipe price), the next-wave button, class-choice
-// cards, banners, floating popups, flashes and the game-over card.
+// cards, banners (queued, src/ux/banners.js), floating popups, flashes, the
+// pause menu and the game-over card.
 // Pure presentation; main.js feeds it. All markup is built from constants and
 // numbers from config/sim data (no user input), so innerHTML is safe here.
 import { TIER_COLORS, tierValue } from '../config.js';
+import { createBannerQueue } from '../ux/banners.js';
 
-const ICON_RESTART =
-  '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>';
 const ICON_SOUND =
   '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
 const ICON_MUTE =
@@ -22,15 +22,18 @@ function chipHtml(tier, cls = '') {
 const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>';
 
-export function createHud(root, { onRestart, onToggleMute, onNextWave, onChoose, onAuto, muted }) {
+/**
+ * @param dev  show developer controls (the Auto button): `?dev` in the URL
+ */
+export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggleMute, onNextWave, onChoose, onAuto, muted, dev = false }) {
   root.innerHTML = `
     <div class="vignette"></div>
     <div class="flash"></div>
     <div class="topbar">
       <div class="icons">
-        <button class="icon-btn" data-act="restart" aria-label="Restart">${ICON_RESTART}</button>
+        <button class="icon-btn" data-act="pause" aria-label="Pause">${ICON_PAUSE}</button>
         <button class="icon-btn" data-act="mute" aria-label="Toggle sound">${muted ? ICON_MUTE : ICON_SOUND}</button>
-        <button class="icon-btn auto-btn" data-act="auto" aria-label="Autoplay" aria-pressed="false">${ICON_PLAY}<span>Auto</span></button>
+        ${dev ? `<button class="icon-btn auto-btn" data-act="auto" aria-label="Autoplay" aria-pressed="false">${ICON_PLAY}<span>Auto</span></button>` : ''}
       </div>
       <div class="score-card">
         <div class="label">Score</div>
@@ -65,6 +68,24 @@ export function createHud(root, { onRestart, onToggleMute, onNextWave, onChoose,
       <div class="choice">
         <div class="choice-head"><div class="choice-chip"></div><div><h2 class="choice-title"></h2><p class="choice-sub"></p></div></div>
         <div class="options"></div>
+      </div>
+    </div>
+    <div class="scrim pause-scrim" role="dialog" aria-modal="true" aria-label="Paused">
+      <div class="card pause-card">
+        <h2>Paused</h2>
+        <p class="sub pause-sub"></p>
+        <div class="pause-actions">
+          <button class="primary" data-act="resume">Resume</button>
+          <button class="soft" data-act="howto">How to play</button>
+          <button class="soft" data-act="restart">Restart run</button>
+        </div>
+        <div class="pause-confirm">
+          <p class="confirm-text">Restart? This run ends.</p>
+          <div class="confirm-actions">
+            <button class="soft" data-act="restart-no">Keep playing</button>
+            <button class="danger" data-act="restart-yes">Restart</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="scrim over-scrim" role="dialog" aria-modal="true" aria-label="Game over">
@@ -103,16 +124,40 @@ export function createHud(root, { onRestart, onToggleMute, onNextWave, onChoose,
   const costEl = $('.cost-n');
   const coinIco = $('.coin-ico');
   const announceStack = $('.announce-stack');
+  const pauseScrim = $('.pause-scrim');
+  const pauseCard = $('.pause-card');
 
   // Closed dialogs must not hold focus while invisible.
   overScrim.inert = true;
   choiceScrim.inert = true;
+  pauseScrim.inert = true;
+
+  /** Restart asks first: one stray tap must not end a long run. */
+  function confirmRestart(ask) {
+    pauseCard.classList.toggle('confirming', ask);
+    $(ask ? '[data-act="restart-no"]' : '[data-act="resume"]').focus({ preventScroll: true });
+  }
+
+  // one banner at a time: news that lands together shows in turn
+  const banners = createBannerQueue({
+    show({ title, sub, tone }) {
+      $('.banner-title').textContent = title;
+      $('.banner-sub').textContent = sub;
+      banner.dataset.tone = tone;
+      restartAnim(banner, 'show');
+    },
+  });
 
   root.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.dataset.act;
-    if (act === 'restart' || act === 'again') onRestart();
+    if (act === 'again' || act === 'restart-yes') onRestart();
+    if (act === 'pause') onPause();
+    if (act === 'resume') onResume();
+    if (act === 'howto') onHowTo();
+    if (act === 'restart') confirmRestart(true);
+    if (act === 'restart-no') confirmRestart(false);
     if (act === 'mute') muteBtn.innerHTML = onToggleMute() ? ICON_MUTE : ICON_SOUND;
     if (act === 'auto') {
       const on = onAuto();
@@ -229,11 +274,33 @@ export function createHud(root, { onRestart, onToggleMute, onNextWave, onChoose,
       milestoneEl.textContent = tierValue(tier).toLocaleString();
       restartAnim(milestoneEl, 'show');
     },
+    /** Queue a banner; it shows when the one on screen has had its reading time. */
     banner(title, sub = '', tone = '') {
-      $('.banner-title').textContent = title;
-      $('.banner-sub').textContent = sub;
-      banner.dataset.tone = tone;
-      restartAnim(banner, 'show');
+      banners.push({ title, sub, tone });
+    },
+    /** Per frame (0 while paused): rotate the banners. */
+    update(dt) {
+      banners.update(dt);
+    },
+    /** A new run: drop the banners still waiting, and the one on screen. */
+    clearBanners() {
+      banners.clear();
+      banner.classList.remove('show');
+    },
+    /** The pause menu, with where the run stands. */
+    showPause({ wave, score, blocks }) {
+      $('.pause-sub').textContent = `Wave ${wave} · ${score.toLocaleString()} points · ${blocks} block${blocks === 1 ? '' : 's'}`;
+      pauseCard.classList.remove('confirming');
+      pauseScrim.inert = false;
+      pauseScrim.classList.add('open');
+      $('[data-act="resume"]').focus({ preventScroll: true });
+    },
+    hidePause() {
+      pauseScrim.classList.remove('open');
+      pauseScrim.inert = true;
+    },
+    get pauseOpen() {
+      return pauseScrim.classList.contains('open');
     },
     flash(color) {
       flashEl.style.background = color;

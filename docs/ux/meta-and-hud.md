@@ -97,7 +97,7 @@ Text only. Each screen gives what it must show (**Info**) and what the player ca
 - Top bar
   - Info: score [have]; best score [have]; top block chip [have]; wave number and chapter [have]; phase pill (countdown, foes left, boss) [have]; blocks left, with a low warning at 3 [have]; best wave marker ("Wave 7 · best 12") [miss]; current speed [new].
   - Records: the card shows the best score, but the return goal uses the best wave. Two different records [part].
-  - Buttons: Pause [miss]; Speed x1/x2/x4 [new]. Today: Restart [have, no confirm], Sound [have], Auto [dev], Help "?" [have, it pauses the run].
+  - Buttons: Pause [have]; Sound [have]; Help "?" [have, it pauses the run]; Speed x1/x2/x4 [new]. The Auto button shows only with `?dev` [dev]. Restart moved into the pause menu, behind a confirm [have].
 - Field (lanes)
   - Info: 4 lanes with portals [have]; lit lanes for the next wave [have]; boss lane in red [have]; enemies with HP bars, a boss HP number and status badges [have]; damage numbers [have]; boss HP bar in the HUD [miss].
   - Buttons: tap an enemy to inspect it [miss].
@@ -136,7 +136,7 @@ Text only. Each screen gives what it must show (**Info**) and what the player ca
 **2.5 Boss break and boss wave**
 
 - Info: "Boss in N s!" [have]; "Boss next: name. Line up your blocks under the red lane." [have]; boss intro banner [have]; boss HP on the boss [have]; boss HP bar in the HUD [miss]; what the kill gives ("x2s for your blocks") [part, in one tip only].
-- Moments: "Boss defeated! N x2s" banner [part, lost in most boss kills, see Part C, item 1]; "x2", "x4" popups on blocks [have].
+- Moments: "Boss defeated! N x2s" banner [have; banners now wait their turn, see Part C, item 1]; "x2", "x4" popups on blocks [have].
 
 **2.6 Die pick (first 64, 256 and 512)**
 
@@ -153,10 +153,11 @@ Text only. Each screen gives what it must show (**Info**) and what the player ca
 
 - Info: the coin bar shakes, and a "Need N" popup shows [have]; a tip, the first time: "Out of coins. Kills and cleared waves pay more." [have].
 
-**2.9 Pause menu** [miss]
+**2.9 Pause menu** [have]
 
-- Info: the run so far (wave, score, time) [miss]; damage meter [new].
-- Buttons: Resume [miss]; Codex [new]; Settings [miss]; Restart, with a confirm [miss]; Quit to home, with a confirm, and the run is saved [new].
+- Opens with the Pause button, Escape or P, and when the tab goes to the background [have].
+- Info: the run so far (wave, score, blocks) [have]; time [miss]; damage meter [new].
+- Buttons: Resume [have]; How to play, which returns to this menu [have]; Restart, with a confirm [have]; Codex [new]; Settings [miss]; Quit to home, with a confirm, and the run is saved [new].
 
 **2.10 Help sheet "How to play"** [have]
 
@@ -168,7 +169,7 @@ Text only. Each screen gives what it must show (**Info**) and what the player ca
 **2.12 Autoplay** [dev]
 
 - Info: the Auto button shows its state; the tutorial steps aside [have].
-- This is a developer tool on the player HUD. Hide it in player builds, or make it a feature with rules.
+- A developer tool: the button shows only with `?dev` in the URL [have].
 
 **2.13 Revive offer** [new, optional]
 
@@ -247,14 +248,14 @@ Text only. Each screen gives what it must show (**Info**) and what the player ca
 
 ## Part C: Audit of what is missing
 
-Items are in order of impact. The numbers come from 40 autoplay games of up to 20 minutes each.
+Items are in order of impact. The numbers come from 40 autoplay games of up to 20 minutes each. Items 1 to 4 are fixed (2026-10-14, see Part D).
 
 | # | Gap | Why it matters | Priority |
 |---|---|---|---|
-| 1 | **Banners replace each other.** The run screen has one banner slot, and a new banner replaces the old one at once. In 82 of 121 boss kills, "Boss defeated! N x2s" was replaced in the same frame by "Wave N cleared!", because the boss was the last foe. In 57 cases, "Board locked!" met a wave-start banner in the same frame (the bot taps Wave now when the board locks). | Players miss the boss reward and other important news. | P0 |
-| 2 | **Restart is one tap with no confirm**, next to the Sound button. | One wrong tap ends a long run. | P0 |
-| 3 | **No pause button.** Only the help sheet pauses the run. | A phone call or a notification costs the run. A mobile game must have one. | P0 |
-| 4 | **The Auto button is on the player HUD.** | It is a developer tool that plays the game for the player. | P0 (hide it in player builds) |
+| 1 | **Banners replace each other.** The run screen has one banner slot, and a new banner replaces the old one at once. In 82 of 121 boss kills, "Boss defeated! N x2s" was replaced in the same frame by "Wave N cleared!", because the boss was the last foe. In 57 cases, "Board locked!" met a wave-start banner in the same frame (the bot taps Wave now when the board locks). | Players miss the boss reward and other important news. | P0, fixed |
+| 2 | **Restart is one tap with no confirm**, next to the Sound button. | One wrong tap ends a long run. | P0, fixed |
+| 3 | **No pause button.** Only the help sheet pauses the run. | A phone call or a notification costs the run. A mobile game must have one. | P0, fixed |
+| 4 | **The Auto button is on the player HUD.** | It is a developer tool that plays the game for the player. | P0, fixed (`?dev` only) |
 | 5 | **No loading state.** | The first frame is blank or half drawn on a slow network. | P1 |
 | 6 | **No run resume.** | A closed tab or a reload loses the run, and mobile browsers close tabs often. | P1 |
 | 7 | **Two different records.** The score card and "New best!" use the best score; the return goal (and a ranking later) uses the best wave. | The goal is not clear. Make the best wave the main record, and show the best score in the summary. | P1 |
@@ -276,12 +277,12 @@ Items are in order of impact. The numbers come from 40 autoplay games of up to 2
 
 P0 items can ship now. P1 items prepare the meta layer.
 
-**P0**
+**P0** (done on 2026-10-14)
 
-1. Banner queue: show banners one after the other, each for 1.5 s or more. Merge the boss pair into one banner: "Elf Ruler defeated! 8 x2s · Wave 10 cleared +60".
-2. Put a Pause button in the top bar in place of Restart. Move Restart into the pause menu, behind a confirm.
-3. Pause menu: Resume, Codex (later), Settings, Restart, Quit.
-4. Hide the Auto button in player builds. Keep it behind a developer flag, as for `?kv`.
+1. Done: a banner queue (`src/ux/banners.js`). Banners show one after the other; with news waiting, each stays 1.3 s, and alone it plays its full 2.2 s. The boss banner and the wave-cleared banner now both show.
+2. Done: a Pause button in the top bar in place of Restart. Restart is in the pause menu, behind a confirm.
+3. Done: the pause menu: Resume, How to play, Restart. It also opens with Escape or P, and when the tab goes to the background. Codex, Settings and Quit come with the meta layer.
+4. Done: the Auto button shows only with `?dev`.
 
 **P1**
 

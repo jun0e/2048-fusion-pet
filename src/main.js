@@ -55,6 +55,8 @@ const seedParam = params.has('seed') ? Number(params.get('seed')) >>> 0 : undefi
 const debugStart = params.has('debug');
 // ?kv: the key-visual demo (the recommended art direction, see src/kv/index.js)
 const kvMode = params.has('kv') || window.__KV__ === true; // the packed 2048-siege-kv.html sets __KV__
+// ?dev: developer controls on the HUD (the Auto button: the bot plays)
+const devMode = params.has('dev');
 const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 
 async function waitForFonts() {
@@ -107,8 +109,11 @@ async function start() {
 
   const hud = createHud(document.getElementById('hud'), {
     onRestart: restart,
+    onPause: () => openPause(),
+    onResume: () => closePause(),
+    onHowTo: () => howTo(),
     onToggleMute: () => sfx.toggle(),
-    onNextWave: () => run.nextWave(),
+    onNextWave: () => !paused && run.nextWave(),
     onAuto: () => {
       // autoplay: the bot plays; the tutorial steps aside while it does
       const on = auto.toggle();
@@ -116,11 +121,15 @@ async function start() {
       if (on) run.setHold(false);
       return on;
     },
-    onChoose: (i) => run.choose(i),
+    onChoose: (i) => !paused && run.choose(i),
     muted: sfx.muted,
+    dev: devMode,
   });
 
   function restart() {
+    if (pauses.has('menu')) closePause();
+    menuAfterHelp = false;
+    hud.clearBanners();
     run = newRun();
     journey.onRunStart();
     blocks.reset();
@@ -167,12 +176,52 @@ async function start() {
     return true;
   }
 
-  // first-run guided opening, one-time tips, and the "?" How to play sheet
+  // The game pauses for the pause menu and for the How to play sheet; each holds its own reason.
+  const pauses = new Set();
   let paused = false;
+  function setPause(why, on) {
+    if (on) pauses.add(why);
+    else pauses.delete(why);
+    paused = pauses.size > 0;
+  }
+  let menuAfterHelp = false; // How to play opened from the pause menu: back to the menu when it closes
+  /** Pause menu: the Pause button, Escape or P, or the tab going to the background. */
+  function openPause() {
+    if (gameOverShown || pauses.has('menu')) return;
+    setPause('menu', true);
+    hud.showPause({ wave: run.waveNo, score: run.score, blocks: run.blocks });
+  }
+  function closePause() {
+    hud.hidePause();
+    setPause('menu', false);
+  }
+  function howTo() {
+    hud.hidePause(); // the game stays paused for the menu underneath
+    menuAfterHelp = true;
+    tutorial.openHelp(true);
+  }
+  /** Escape / P: close the help sheet first, else open or close the pause menu. */
+  function togglePause() {
+    if (tutorial.helpOpen) tutorial.openHelp(false);
+    else if (pauses.has('menu')) closePause();
+    else openPause();
+  }
+  // a phone call or a switch to another app must not cost the run: come back to the pause menu
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && !run.over) openPause();
+  });
+
+  // first-run guided opening, one-time tips, and the "?" How to play sheet
   const tutorial = createTutorial(hudEl, {
     stage,
     getRun: () => run,
-    onPause: (v) => (paused = v),
+    onPause: (v) => {
+      setPause('help', v);
+      if (!v && menuAfterHelp) {
+        menuAfterHelp = false;
+        hud.showPause({ wave: run.waveNo, score: run.score, blocks: run.blocks });
+      }
+    },
     onReplay: () => restart(),
     onLog: (kind, data) => journey.onCoach(kind, data),
   });
@@ -185,7 +234,7 @@ async function start() {
     swipe: (dir) => doSwipe(dir),
     // tap a block to see its range; tap it again (or anywhere else) to put it down
     tap: (cx, cy) => {
-      if (run.over || run.pendingChoice) return;
+      if (paused || run.over || run.pendingChoice) return;
       const p = stage.toWorld(cx, cy);
       const col = Math.round((p.x - cellX(0)) / GRID.cell);
       const row = Math.floor(p.y / GRID.cell);
@@ -193,8 +242,9 @@ async function start() {
       if (!tile) return select(null);
       select(tile.id === selected ? null : tile.id);
     },
-    choose: (i) => run.pendingChoice && run.choose(i),
-    nextWave: () => run.nextWave(),
+    choose: (i) => !paused && run.pendingChoice && run.choose(i),
+    nextWave: () => !paused && run.nextWave(),
+    pause: () => togglePause(),
   });
   // swipes on the HUD area outside buttons should also work
   document.getElementById('hud').style.pointerEvents = 'none';
@@ -419,6 +469,7 @@ async function start() {
     hud.setChoice(gameOverShown ? null : run.pendingChoice);
     hud.hint(false); // the tutorial teaches swiping now
     tutorial.update(paused ? 0 : dt);
+    hud.update(paused ? 0 : dt);
     if (!paused && !gameOverShown) auto.tick(run, dt, doSwipe);
     hud.setDanger(run.blocks <= 3 && run.phase === 'wave' ? 0.5 : 0);
 

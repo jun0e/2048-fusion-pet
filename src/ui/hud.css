@@ -282,6 +282,63 @@ body {
   transform: scale(1);
 }
 
+/* --- pause menu: Resume, How to play, Restart (with a confirm) ------------- */
+.pause-actions,
+.confirm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.confirm-actions {
+  flex-direction: row;
+}
+
+.confirm-actions button {
+  flex: 1;
+}
+
+.soft,
+.danger {
+  padding: 11px;
+  border-radius: 16px;
+  font-weight: 800 !important;
+  font-size: 16px;
+}
+
+.soft {
+  background: var(--cream-2) !important;
+  box-shadow: 0 4px 0 #96785a33;
+}
+
+.danger {
+  background: #ffd0c8 !important;
+  box-shadow: 0 4px 0 #d9826f;
+}
+
+.soft:active,
+.danger:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.pause-confirm {
+  display: none;
+}
+
+.confirm-text {
+  margin: 0 0 12px;
+  font-weight: 800;
+}
+
+.pause-card.confirming .pause-actions {
+  display: none;
+}
+
+.pause-card.confirming .pause-confirm {
+  display: block;
+}
+
 .card h2 {
   margin: 0;
   font-family: var(--font-display);
@@ -1188,8 +1245,13 @@ body {
   }
 }
 
-.help-scrim {
+.help-scrim,
+.over-scrim {
   z-index: 6; /* above coach tips */
+}
+
+.pause-scrim {
+  z-index: 9; /* above everything on the run screen: coach tips, namecards, cut-ins */
 }
 
 /* autoplay toggle */
