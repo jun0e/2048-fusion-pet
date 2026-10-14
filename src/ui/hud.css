@@ -108,7 +108,7 @@ body {
 }
 
 .score-card .label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -133,6 +133,23 @@ body {
   animation: bump 0.28s ease;
 }
 
+.top-right {
+  justify-self: end;
+  display: flex;
+  align-items: start;
+  gap: 8px;
+}
+
+.speed-btn {
+  font-family: var(--font-display) !important;
+  font-weight: 800 !important;
+  font-size: 17px;
+}
+
+.speed-btn.fast {
+  background: var(--butter) !important;
+}
+
 .next-card {
   justify-self: end;
   padding: 6px 10px 8px;
@@ -143,7 +160,7 @@ body {
 }
 
 .next-card .label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -302,6 +319,7 @@ body {
 
 .soft,
 .danger {
+  min-height: 46px;
   padding: 11px;
   border-radius: 16px;
   font-weight: 800 !important;
@@ -368,7 +386,7 @@ body {
 }
 
 .stat .label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -483,16 +501,6 @@ body {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .popup,
-  .combo.show,
-  .milestone.show,
-  .score.bump,
-  .chip.pop {
-    animation-duration: 0.01s;
-  }
-}
-
 /* --- defense layer ------------------------------------------------------- */
 .statusbar {
   position: absolute;
@@ -520,6 +528,12 @@ body {
   display: flex;
   gap: 6px;
   align-items: baseline;
+}
+
+.day .best-wave {
+  font-weight: 700;
+  color: var(--ink-soft);
+  font-size: 12px;
 }
 
 .day .chapter {
@@ -939,15 +953,6 @@ body {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .banner.show,
-  .flash.go,
-  .castle.shake,
-  .vignette.hurt {
-    animation-duration: 0.01s;
-  }
-}
-
 /* --- class combination announcements -------------------------------------- */
 #hud.choosing .announce-stack {
   top: calc(var(--sa-t) + 12px);
@@ -1007,7 +1012,7 @@ body {
   border-radius: 999px;
   background: #57453614;
   font-family: var(--font-body);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -1112,19 +1117,21 @@ body {
 }
 
 .coach-ok {
-  padding: 5px 14px;
+  min-height: 44px;
+  padding: 10px 18px;
   border-radius: 999px;
   background: #ffd34a !important;
   box-shadow: 0 3px 0 #c47a10;
   font-weight: 800 !important;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .coach-skip {
-  padding: 5px 8px;
+  min-height: 44px;
+  padding: 10px 12px;
   background: none !important;
   color: var(--ink-soft) !important;
-  font-size: 12px;
+  font-size: 14px;
   text-decoration: underline;
 }
 
@@ -1168,6 +1175,8 @@ body {
 
 .help-card {
   max-width: 360px;
+  display: flex;
+  flex-direction: column;
   text-align: left;
 }
 
@@ -1176,6 +1185,11 @@ body {
 }
 
 .help-card dl {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y; /* the rules scroll; the title and the buttons stay */
   margin: 0 0 14px;
   font-size: 13px;
   line-height: 1.4;
@@ -1204,6 +1218,7 @@ body {
 }
 
 .help-replay {
+  min-height: 46px;
   padding: 10px;
   border-radius: 14px;
   background: var(--cream-2) !important;
@@ -1232,13 +1247,6 @@ body {
   100% {
     transform: translateX(90px) scale(1);
     opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .coach-ring,
-  .coach-hand i {
-    animation: none;
   }
 }
 
@@ -1314,20 +1322,14 @@ body {
     transform: scale(1.08);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .fight.nudge {
-    animation: none;
-  }
-}
-
 /* --- phones (touch screens) and short windows: a compact HUD leaves more room for the board */
 @media (max-height: 720px), (pointer: coarse) {
   .topbar {
     top: calc(var(--sa-t) + 6px);
   }
   .icon-btn {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
   .icon-btn svg {
     width: 20px;
@@ -1417,12 +1419,6 @@ body {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .rotate-phone {
-    animation: none;
-  }
-}
-
 /* --- pressed states: every button answers the finger ------------------------------------ */
 .coach-ok:active,
 .help-replay:active {
@@ -1432,4 +1428,242 @@ body {
 
 .coach-skip:active {
   opacity: 0.6;
+}
+
+/* --- dialogs on a phone: never taller than the screen; long content scrolls inside ------ */
+.card,
+.choice {
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - var(--sa-t) - var(--sa-b) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.help-card {
+  overflow: hidden; /* its rule list scrolls instead */
+}
+
+@media (max-width: 400px) {
+  .help-actions {
+    flex-direction: column-reverse; /* full-width buttons on one line each; "Back to the game" first */
+  }
+}
+
+/* --- run summary on the game-over card ----------------------------------------------- */
+.over-card .stats {
+  grid-template-rows: auto auto;
+}
+
+.go-extra {
+  min-height: 1.3em;
+  margin: -6px 0 14px;
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.over-actions {
+  display: grid;
+  gap: 10px;
+}
+
+/* --- settings page of the pause card ------------------------------------------------- */
+.pause-settings {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pause-card.settings .pause-actions {
+  display: none;
+}
+
+.pause-card.settings .pause-settings {
+  display: flex;
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: var(--cream-2) !important;
+  box-shadow: 0 4px 0 #96785a33;
+  font-weight: 800 !important;
+  font-size: 16px;
+}
+
+.switch[hidden] {
+  display: none;
+}
+
+.switch i {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: #57453633;
+  transition: background 0.15s ease;
+}
+
+.switch i::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px #0003;
+  transition: transform 0.15s ease;
+}
+
+.switch[aria-checked='true'] i {
+  background: var(--sage-d);
+}
+
+.switch[aria-checked='true'] i::after {
+  transform: translateX(20px);
+}
+
+/* --- Reduce motion (a setting; it starts from the system preference) ------------------ */
+/* News still shows for its full time, but fades in place: no slide, no scale, no shake. */
+.reduce-motion .banner.show {
+  animation-name: banner-still;
+}
+
+.reduce-motion .popup,
+.reduce-motion .milestone.show {
+  animation-name: fade-still;
+}
+
+.reduce-motion .combo.show {
+  animation-name: combo-still;
+}
+
+.reduce-motion .score.bump,
+.reduce-motion .chip.pop,
+.reduce-motion .flash.go,
+.reduce-motion .castle.shake,
+.reduce-motion .coach-ring,
+.reduce-motion .coach-hand i,
+.reduce-motion .fight.nudge,
+.reduce-motion .rotate-phone {
+  animation: none;
+}
+
+.reduce-motion .card,
+.reduce-motion .choice {
+  transition: none;
+}
+
+@keyframes banner-still {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+  8%,
+  85% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes fade-still {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+  15%,
+  75% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes combo-still {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%);
+  }
+  15%,
+  75% {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%);
+  }
+}
+
+/* --- inspect card: a tapped block, in words (beside it, like a tutorial bubble) -------- */
+.inspect {
+  position: absolute;
+  z-index: 5;
+  padding: 10px 14px 12px;
+  border-radius: 16px;
+  border-left: 6px solid var(--c, #d9d2c5);
+  background: var(--cream);
+  box-shadow: var(--clay-drop), var(--clay-hi);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.inspect.on {
+  opacity: 1;
+}
+
+.inspect-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.inspect-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+
+.inspect-kind {
+  color: var(--ink-soft);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.inspect-name {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.inspect-text {
+  margin: 2px 0 0;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.inspect-progress {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.inspect-progress:empty {
+  display: none;
 }

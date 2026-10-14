@@ -48,7 +48,8 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
   const sx = (x) => view.ox + x * view.U;
   const sy = (y) => view.oy - y * view.U;
 
-  // screen shake + full-screen flash
+  // screen shake + full-screen flash (both off when the player reduces motion)
+  let reduced = false;
   const shake = { amp: 0, t: 0 };
   const flashG = new Graphics();
   layers.overlay.addChild(flashG);
@@ -93,6 +94,10 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
     },
     /** client coordinates → canvas pixel coordinates */
     canvasRect: () => app.canvas.getBoundingClientRect(),
+    /** The Reduce motion setting: no screen shake, no full-screen flash. */
+    setReducedMotion(v) {
+      reduced = !!v;
+    },
     /** The HUD bars' bands in px ({ top, bottom }): the world fills the space between them. */
     setInsets(next) {
       if (next.top === insets.top && next.bottom === insets.bottom) return;
@@ -104,9 +109,11 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
       fn(view);
     },
     shake(px) {
+      if (reduced) return;
       shake.amp = Math.min(22, shake.amp + px);
     },
     flash(color, alpha = 0.35) {
+      if (reduced) return;
       flash.color = color;
       flash.a = Math.max(flash.a, alpha);
     },

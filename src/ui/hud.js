@@ -6,6 +6,7 @@
 // numbers from config/sim data (no user input), so innerHTML is safe here.
 import { TIER_COLORS, tierValue } from '../config.js';
 import { createBannerQueue } from '../ux/banners.js';
+import { placeBubble } from '../ux/placement.js';
 
 const ICON_SOUND =
   '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
@@ -25,7 +26,7 @@ const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>';
 /**
  * @param dev  show developer controls (the Auto button): `?dev` in the URL
  */
-export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggleMute, onNextWave, onChoose, onAuto, muted, dev = false }) {
+export function createHud(root, { onRestart, onPause, onResume, onHowTo, onSetting, onShare, onSpeed, onToggleMute, onNextWave, onChoose, onAuto, muted, dev = false }) {
   root.innerHTML = `
     <div class="vignette"></div>
     <div class="flash"></div>
@@ -40,13 +41,16 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
         <div class="score">0</div>
         <div class="best">Best 0</div>
       </div>
-      <div class="next-card">
-        <div class="label">Top</div>
-        <div class="next-slot"></div>
+      <div class="top-right">
+        <button class="icon-btn speed-btn" data-act="speed" aria-label="Game speed x1">x1</button>
+        <div class="next-card">
+          <div class="label">Top</div>
+          <div class="next-slot"></div>
+        </div>
       </div>
     </div>
     <div class="statusbar">
-      <div class="day"><b class="day-n">Wave 1</b><span class="chapter">Eternal Forest</span></div>
+      <div class="day"><b class="day-n">Wave 1</b><span class="best-wave"></span><span class="chapter">Eternal Forest</span></div>
       <div class="phase">Get ready</div>
       <div class="castle" aria-label="Blocks left">
         <span class="castle-ico">▦</span>
@@ -57,6 +61,12 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
     <div class="milestone"></div>
     <div class="banner"><b class="banner-title"></b><span class="banner-sub"></span></div>
     <div class="announce-stack" aria-live="polite"></div>
+    <div class="inspect" aria-live="polite">
+      <div class="inspect-head"><b class="inspect-value"></b><span class="inspect-kind"></span></div>
+      <b class="inspect-name"></b>
+      <p class="inspect-text"></p>
+      <small class="inspect-progress"></small>
+    </div>
     <div class="hint hidden">Swipe anytime; each swipe costs coins. When two blocks merge, the one that slides in sets the colour. Elements awaken at 16, fuse at 256.</div>
     <div class="coinbar" aria-label="Coins">
       <span class="coin-ico"></span>
@@ -84,7 +94,14 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
         <div class="pause-actions">
           <button class="primary" data-act="resume">Resume</button>
           <button class="soft" data-act="howto">How to play</button>
+          <button class="soft" data-act="settings">Settings</button>
           <button class="soft" data-act="restart">Restart run</button>
+        </div>
+        <div class="pause-settings">
+          <button class="switch" data-act="set-sound" role="switch" aria-checked="true"><span>Sound</span><i></i></button>
+          <button class="switch" data-act="set-haptics" role="switch" aria-checked="true"><span>Vibration</span><i></i></button>
+          <button class="switch" data-act="set-motion" role="switch" aria-checked="false"><span>Reduce motion</span><i></i></button>
+          <button class="primary" data-act="settings-done">Done</button>
         </div>
         <div class="pause-confirm">
           <p class="confirm-text">Restart? This run ends.</p>
@@ -96,16 +113,23 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
       </div>
     </div>
     <div class="scrim over-scrim" role="dialog" aria-modal="true" aria-label="Game over">
-      <div class="card">
-        <h2 class="over-title">Overflow!</h2>
-        <p class="sub over-sub">The crate is full.</p>
+      <div class="card over-card">
+        <h2 class="over-title">Overrun!</h2>
+        <p class="sub over-sub"></p>
         <div class="badge-slot"></div>
         <div class="stats">
-          <div class="stat"><div class="label">Score</div><div class="val go-score">0</div></div>
           <div class="stat"><div class="label">Wave</div><div class="val go-day">1</div></div>
+          <div class="stat"><div class="label">Score</div><div class="val go-score">0</div></div>
           <div class="stat"><div class="label">Top block</div><div class="go-top"></div></div>
+          <div class="stat"><div class="label">Kills</div><div class="val go-kills">0</div></div>
+          <div class="stat"><div class="label">Bosses</div><div class="val go-bosses">0</div></div>
+          <div class="stat"><div class="label">Time</div><div class="val go-time">0:00</div></div>
         </div>
-        <button class="primary" data-act="again">Play again</button>
+        <p class="go-extra"></p>
+        <div class="over-actions">
+          <button class="primary" data-act="again">Play again</button>
+          <button class="soft" data-act="share">Share</button>
+        </div>
       </div>
     </div>`;
 
@@ -144,6 +168,13 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
     pauseCard.classList.toggle('confirming', ask);
     $(ask ? '[data-act="restart-no"]' : '[data-act="resume"]').focus({ preventScroll: true });
   }
+  /** The settings page of the pause card. */
+  function showSettings(open) {
+    pauseCard.classList.toggle('settings', open);
+    $(open ? '[data-act="set-sound"]' : '[data-act="settings"]').focus({ preventScroll: true });
+  }
+  const shareBtn = $('[data-act="share"]');
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
   // one banner at a time: news that lands together shows in turn
   const banners = createBannerQueue({
@@ -165,6 +196,11 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
     if (act === 'howto') onHowTo();
     if (act === 'restart') confirmRestart(true);
     if (act === 'restart-no') confirmRestart(false);
+    if (act === 'settings') showSettings(true);
+    if (act === 'settings-done') showSettings(false);
+    if (act.startsWith('set-')) onSetting(act.slice(4));
+    if (act === 'share') onShare();
+    if (act === 'speed') onSpeed();
     if (act === 'mute') muteBtn.innerHTML = onToggleMute() ? ICON_MUTE : ICON_SOUND;
     if (act === 'auto') {
       const on = onAuto();
@@ -214,12 +250,14 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
       shownNext = tier;
       nextSlot.innerHTML = chipHtml(tier, 'pop');
     },
-    setStatus({ wave, chapter, phase, timer, holding = false, left, blocks, boss }) {
+    setStatus({ wave, chapter, phase, timer, holding = false, left, blocks, boss, bestWave = 0 }) {
       const secs = Math.ceil(timer);
-      const key = `${wave}|${chapter}|${phase}|${secs}|${holding}|${left}|${blocks}|${boss}`;
+      const key = `${wave}|${chapter}|${phase}|${secs}|${holding}|${left}|${blocks}|${boss}|${bestWave}`;
       if (key === shownStatus) return;
       shownStatus = key;
       $('.day-n').textContent = `Wave ${wave}`;
+      // the record to beat (the main record: the best wave reached)
+      $('.best-wave').textContent = bestWave > 0 ? `best ${bestWave}` : '';
       $('.chapter').textContent = chapter;
       const labels = {
         // the opening holds the countdown while the tutorial teaches: no frozen number
@@ -297,7 +335,7 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
     /** The pause menu, with where the run stands. */
     showPause({ wave, score, blocks }) {
       $('.pause-sub').textContent = `Wave ${wave} · ${score.toLocaleString()} points · ${blocks} block${blocks === 1 ? '' : 's'}`;
-      pauseCard.classList.remove('confirming');
+      pauseCard.classList.remove('confirming', 'settings');
       pauseScrim.inert = false;
       pauseScrim.classList.add('open');
       $('[data-act="resume"]').focus({ preventScroll: true });
@@ -367,13 +405,27 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
       setTimeout(() => el.classList.add('out'), 2100);
       setTimeout(() => el.remove(), 2500);
     },
-    showGameOver({ score, wave, maxTier, isBest, cause = null }) {
-      $('.over-title').textContent = 'Overrun!';
+    /**
+     * The end of a run: the cause, the records broken, and a summary.
+     * stats: { kills, bosses, time (s), lost, combo, fusions }
+     */
+    showGameOver({ score, wave, maxTier, isBest, isBestWave = false, cause = null, stats = {} }) {
       $('.over-sub').textContent = cause ?? `Your last block fell on wave ${wave}.`;
       $('.go-score').textContent = score.toLocaleString();
       $('.go-day').textContent = String(wave);
       $('.go-top').innerHTML = chipHtml(maxTier);
-      $('.badge-slot').innerHTML = isBest ? '<div class="new-best">New best!</div>' : '';
+      $('.go-kills').textContent = (stats.kills ?? 0).toLocaleString();
+      $('.go-bosses').textContent = String(stats.bosses ?? 0);
+      $('.go-time').textContent = mmss(stats.time ?? 0);
+      const extra = [];
+      if (stats.combo >= 2) extra.push(`Best combo ×${stats.combo}`);
+      if (stats.fusions) extra.push(`${stats.fusions} fusion${stats.fusions === 1 ? '' : 's'}`);
+      if (stats.lost) extra.push(`${stats.lost} block${stats.lost === 1 ? '' : 's'} lost`);
+      $('.go-extra').textContent = extra.join(' · ');
+      // the best wave is the main record; a best score alone gets its own badge
+      const badge = isBestWave ? 'New best wave!' : isBest ? 'New best score!' : '';
+      $('.badge-slot').innerHTML = badge ? `<div class="new-best">${badge}</div>` : '';
+      shareBtn.textContent = 'Share';
       overScrim.inert = false;
       overScrim.classList.add('open');
       // keyboard players can restart with Space/Enter; the click handler blurs it after
@@ -384,6 +436,49 @@ export function createHud(root, { onRestart, onPause, onResume, onHowTo, onToggl
       fightBtn.classList.remove('nudge');
       void fightBtn.offsetWidth;
       fightBtn.classList.add('nudge');
+    },
+    /** The speed button: x1, x2, x4 (lit when faster than x1). */
+    setSpeed(n) {
+      const btn = $('[data-act="speed"]');
+      btn.textContent = `x${n}`;
+      btn.classList.toggle('fast', n > 1);
+      btn.setAttribute('aria-label', `Game speed x${n}`);
+    },
+    /**
+     * The inspect card beside a tapped block (placement rules: src/ux/placement.js).
+     * info: describeBlock(tile); rect / board: client boxes of the block and the board
+     */
+    showInspect(info, rect, board) {
+      const card = $('.inspect');
+      $('.inspect-value').textContent = info.value.toLocaleString();
+      $('.inspect-kind').textContent = info.kind;
+      $('.inspect-name').textContent = info.name;
+      $('.inspect-text').textContent = info.text;
+      $('.inspect-progress').textContent = info.progress ?? '';
+      card.style.setProperty('--c', info.colors[0] ?? '#d9d2c5');
+      card.classList.add('on');
+      const floor = Math.min(...['.coinbar', '.fight'].map((s) => $(s).offsetTop));
+      const p = placeBubble({ target: { tile: 1 }, rect, board, floor, vw: innerWidth, vh: innerHeight, bh: card.offsetHeight || 110 });
+      card.style.width = `${p.width}px`;
+      card.style.left = `${p.left}px`;
+      card.style.top = `${p.top}px`;
+    },
+    hideInspect() {
+      $('.inspect').classList.remove('on');
+    },
+    /** Share feedback on the button ("Copied!"), then back to "Share". */
+    shareDone(label) {
+      shareBtn.textContent = label;
+      setTimeout(() => (shareBtn.textContent = 'Share'), 1800);
+    },
+    /** Switch states in the settings page (and the Sound icon in the top bar). */
+    setSettings({ sound, haptics, hapticsSupported, motion }) {
+      const set = (act, on) => $(`[data-act="${act}"]`).setAttribute('aria-checked', String(on));
+      set('set-sound', sound);
+      set('set-haptics', haptics);
+      set('set-motion', motion);
+      $('[data-act="set-haptics"]').hidden = !hapticsSupported; // no Vibration API on iOS
+      muteBtn.innerHTML = sound ? ICON_SOUND : ICON_MUTE;
     },
     hideGameOver() {
       overScrim.classList.remove('open');

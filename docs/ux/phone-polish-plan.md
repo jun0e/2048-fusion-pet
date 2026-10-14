@@ -51,11 +51,12 @@ Each phase ends with: `npm test` green, a browser check at phone sizes, and a co
 - 4.1 Help sheet: space for the safe area at the top, an inner scroll, and the buttons always visible at the bottom.
 - 4.2 Die card and game-over card: they fit at 360×640, and they scroll inside if a screen is too short.
 - 4.3 Run summary on the game-over card: waves, time, kills, bosses killed, blocks lost, best combo and fusions made, plus "New best wave!". Buttons: Play again (main) and Share. Share uses the Web Share API, or copies a line of text when the API is missing.
-- 4.4 Settings sheet from the pause menu: Sound, Haptics, Reduce motion, Replay tutorial.
+- 4.4 Settings page in the pause card: Sound, Vibration (hidden where the Vibration API is missing), Reduce motion. Replay tutorial stays in the help sheet.
+- 4.5 Found on the way: under the system's reduced-motion setting, banners and popups had a 0.01 s animation, so they vanished at once. Reduce motion is now a setting (it starts from the system preference) that fades news in place for its full time and stops shakes, flashes and pulses (canvas included).
 
 ### Phase 5: Play controls
 
-- 5.1 Speed button (x1, x2), next to Pause. x4 unlocks after the first boss kill. The speed goes back to x1 when a boss wave starts and for each new run. The sim stays deterministic, because speed only adds fixed steps to each frame.
+- 5.1 Speed button (x1, x2), at the top right next to the Top chip (a third icon on the left would wrap the top bar on a 360 px phone). x4 unlocks after the first boss kill. The speed goes back to x1 when a boss wave starts and for each new run. The sim stays deterministic, because speed only adds fixed steps to each frame.
 - 5.2 Inspect card: a tap on a block shows its range (now) and a small card with its element, attack, stage and fusion progress.
 
 ### Phase 6: Loading and resume
@@ -80,8 +81,8 @@ Codex, ranking, daily seed, missions, a home screen and other meta features (Par
 | P0 HUD fixes (banner queue, pause menu, restart confirm, Auto behind `?dev`) | Done (`1dfaa35`) |
 | 1 Fit the screen | Done |
 | 2 Touch and system | Done |
-| 3 Readable and easy to tap | Not started |
-| 4 Dialogs on a phone | Not started |
-| 5 Play controls | Not started |
+| 3 Readable and easy to tap | Done |
+| 4 Dialogs on a phone | Done |
+| 5 Play controls | Done |
 | 6 Loading and resume | Not started |
 | 7 Device check and delivery | Not started |

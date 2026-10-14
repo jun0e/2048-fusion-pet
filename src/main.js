@@ -19,6 +19,8 @@ import { createAutoplay } from './autoplay.js';
 import { createInput } from './input.js';
 import { createSfx } from './sfx.js';
 import { createHaptics } from './haptics.js';
+import { nextSpeed } from './ux/speed.js';
+import { describeBlock } from './ux/inspect.js';
 import { createArt } from './art/index.js';
 import { setupKv, KV_DICE } from './kv/index.js';
 
@@ -58,6 +60,24 @@ const debugStart = params.has('debug');
 const kvMode = params.has('kv') || window.__KV__ === true; // the packed 2048-siege-kv.html sets __KV__
 // ?dev: developer controls on the HUD (the Auto button: the bot plays)
 const devMode = params.has('dev');
+// Reduce motion: a setting that starts from the system preference
+const MOTION_KEY = 'siege:motion';
+// x4 speed unlocks for good after the first boss kill
+const X4_KEY = 'siege:x4';
+const loadX4 = () => {
+  try {
+    return localStorage.getItem(X4_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+const loadReduceMotion = () => {
+  try {
+    const v = localStorage.getItem(MOTION_KEY);
+    if (v != null) return v === '1';
+  } catch {}
+  return matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
 const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 
 async function waitForFonts() {
@@ -85,6 +105,11 @@ async function start() {
   const kv = kvMode ? setupKv({ stage, fx, blocks, art, hudEl: document.getElementById('hud'), getRun: () => run, params }) : null;
 
   let best = loadBest();
+  let bestWave = loadBestWave();
+  // what this run did, for the summary on the game-over card
+  const freshStats = () => ({ bosses: 0, lost: 0, combo: 0, fusions: 0 });
+  let stats = freshStats();
+  let lastSummary = null; // { wave, score }: the line to share
   // first-run journey log (window.__mb.journey): milestones and tutorial text, wall-clock seconds
   const journey = createJourney({ now: () => performance.now() / 1000 });
   let run = newRun();
@@ -117,6 +142,23 @@ async function start() {
     onResume: () => closePause(),
     onHowTo: () => howTo(),
     onToggleMute: () => sfx.toggle(),
+    onSetting: (name) => {
+      if (name === 'sound') sfx.toggle();
+      if (name === 'haptics') haptics.set(!haptics.on);
+      if (name === 'motion') {
+        reduceMotion = !reduceMotion;
+        try {
+          localStorage.setItem(MOTION_KEY, reduceMotion ? '1' : '0');
+        } catch {}
+        applyMotion();
+      }
+      syncSettings();
+    },
+    onShare: () => share(),
+    onSpeed: () => {
+      speed = nextSpeed(speed, maxSpeed);
+      hud.setSpeed(speed);
+    },
     onNextWave: () => !paused && run.nextWave(),
     onAuto: () => {
       // autoplay: the bot plays; the tutorial steps aside while it does
@@ -130,8 +172,48 @@ async function start() {
     dev: devMode,
   });
 
+  let speed = 1; // sim steps per frame are multiplied by this (src/ux/speed.js)
+  let maxSpeed = loadX4() ? 4 : 2;
+  function resetSpeed() {
+    speed = 1;
+    hud.setSpeed(1);
+  }
+  let reduceMotion = loadReduceMotion();
+  function applyMotion() {
+    document.documentElement.classList.toggle('reduce-motion', reduceMotion);
+    stage.setReducedMotion(reduceMotion);
+  }
+  applyMotion();
+  function syncSettings() {
+    hud.setSettings({ sound: !sfx.muted, haptics: haptics.on, hapticsSupported: haptics.supported, motion: reduceMotion });
+  }
+  syncSettings();
+
+  /** Share the run: the system share sheet, else copy the line. */
+  async function share() {
+    if (!lastSummary) return;
+    const text = `I held the siege to wave ${lastSummary.wave} in 2048 Siege (${lastSummary.score.toLocaleString()} points). Can you beat it?`;
+    const url = /^https?:$/.test(location.protocol) ? `${location.origin}${location.pathname}` : '';
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: '2048 Siege', text, ...(url && { url }) });
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return; // the player closed the sheet
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url ? `${text} ${url}` : text);
+      hud.shareDone('Copied!');
+    } catch {
+      hud.shareDone('Cannot share here');
+    }
+  }
+
   function restart() {
     if (pauses.has('menu')) closePause();
+    stats = freshStats();
+    resetSpeed();
     menuAfterHelp = false;
     hud.clearBanners();
     run = newRun();
@@ -153,6 +235,15 @@ async function start() {
   function select(id) {
     selected = id;
     blocks.select(id);
+    const t = id == null ? null : run.tiles.find((b) => b.id === id);
+    if (!t) return hud.hideInspect();
+    // the inspect card goes beside the block, like a tutorial bubble
+    const box = (x0, y0, x1, y1) => {
+      const a = stage.toClient(x0, y0);
+      const b = stage.toClient(x1, y1);
+      return { left: Math.min(a.x, b.x), top: Math.min(a.y, b.y), right: Math.max(a.x, b.x), bottom: Math.max(a.y, b.y) };
+    };
+    hud.showInspect(describeBlock(t), box(t.x - 0.95, t.y + 0.95, t.x + 0.95, t.y - 0.95), box(-4.3, GRID_TOP + 0.3, 4.3, -0.3));
   }
 
   // where dropped coins fly to: the HUD coin icon, in world space
@@ -173,6 +264,7 @@ async function start() {
   }
   fitStage();
   addEventListener('resize', fitStage);
+  addEventListener('resize', () => select(null)); // an inspect card would point at the old spot
   stage.onResize(() => {
     hudEl.style.setProperty('--field-top', `${Math.round(stage.toClient(0, FIELD.spawnY + 1.05).y)}px`);
     hudEl.style.setProperty('--board-top', `${Math.round(stage.toClient(0, GRID_TOP + 0.3).y)}px`);
@@ -202,6 +294,7 @@ async function start() {
   function openPause() {
     if (gameOverShown || pauses.has('menu')) return;
     setPause('menu', true);
+    syncSettings();
     hud.showPause({ wave: run.waveNo, score: run.score, blocks: run.blocks });
   }
   function closePause() {
@@ -245,7 +338,7 @@ async function start() {
   if (!kv) tutorial.start(run);
   else tutorial.setMuted(true); // the showcase has no tips
   // a returning player (opening done) gets a goal: their best wave
-  if (!kv && !tutorial.active) tutorial.note(returnGoal(loadBestWave()));
+  if (!kv && !tutorial.active) tutorial.note(returnGoal(bestWave));
 
   createInput(stage.app.canvas, {
     swipe: (dir) => doSwipe(dir),
@@ -281,6 +374,7 @@ async function start() {
           stage.shake(1 + e.tier * 0.4 + (e.combo > 1 ? 2 : 0));
           sfx.merge(e.tier, e.combo);
           haptics.play('merge');
+          stats.combo = Math.max(stats.combo, e.combo ?? 1);
           const p = client(e.x, e.y + 0.9);
           hud.popup(p.x, p.y, `+${e.value.toLocaleString()}`, e.tier);
           if (e.combo >= 2) hud.combo(e.combo);
@@ -321,6 +415,14 @@ async function start() {
           break;
         }
         case 'bossReward':
+          stats.bosses += 1;
+          if (maxSpeed < 4) {
+            maxSpeed = 4;
+            try {
+              localStorage.setItem(X4_KEY, '1');
+            } catch {}
+            hud.banner('x4 speed unlocked', 'The speed button now goes x1 · x2 · x4.', 'good');
+          }
           sfx.milestone();
           haptics.play('boss');
           hud.banner(`${e.boss ?? 'Boss'} defeated!`, e.x2s ? `Your blocks got ${e.x2s} x2${e.x2s === 1 ? '' : 's'}. Merge the new pairs!` : 'No other block had room to grow.', 'good');
@@ -332,6 +434,7 @@ async function start() {
           fx.burst(e.x, e.y, e.info.colors.map(hex), 34, { speed: 5, size: 0.3, life: 0.6, gravity: 0 });
           hud.announce(e.info);
           sfx.choose(e.stage);
+          if (e.stage === 2) stats.fusions += 1;
           if (e.stage >= 2) stage.shake(4 + e.stage * 2);
           break;
         }
@@ -361,6 +464,7 @@ async function start() {
             fx.explode(e.x, e.y, 'earth', 2.6, { flash: 0xff6b6b });
             fx.burst(e.x, e.y, [0x2a1c22, 0xff6b6b, hex(ELEMENTS[e.cls?.element]?.color ?? '#d9d2c5')], 26, { speed: 6, size: 0.3, life: 0.6, gravity: -9 });
             stage.shake(10);
+            stats.lost += 1;
             sfx.hurt();
             haptics.play('lost');
             hud.castleHit();
@@ -377,6 +481,7 @@ async function start() {
         case 'waveStart':
           hintDone = true; // the swipe tip is for the opening countdown; the wave banner takes its place
           sfx.battle(!!e.boss);
+          if (e.boss) resetSpeed(); // a boss is worth watching at full detail
           if (e.boss) hud.banner(`${ENEMY_TYPES[e.boss].name} approaches!`, ENEMY_TYPES[e.boss].intro, 'boss');
           else hud.banner(`Wave ${e.wave}`, `${e.chapter} · ${e.count} foes`);
           break;
@@ -450,12 +555,15 @@ async function start() {
             best = e.score;
             saveBest(best);
           }
-          if (e.wave > loadBestWave()) saveBestWave(e.wave);
+          const isBestWave = e.wave > bestWave;
+          if (isBestWave) saveBestWave((bestWave = e.wave));
+          lastSummary = { wave: e.wave, score: e.score };
+          const summary = { kills: e.kills, time: run.time, ...stats };
           lastLoss = { wave: e.wave, maxTier: e.maxTier };
           sfx.gameover();
           haptics.play('over');
           const cause = causeLine({ wave: e.wave, by: lastDownBy });
-          setTimeout(() => hud.showGameOver({ score: e.score, wave: e.wave, maxTier: e.maxTier, isBest, cause }), GAME_OVER_DELAY * 1000);
+          setTimeout(() => hud.showGameOver({ score: e.score, wave: e.wave, maxTier: e.maxTier, isBest, isBestWave, cause, stats: summary }), GAME_OVER_DELAY * 1000);
           gameOverShown = true;
           select(null);
           break;
@@ -466,9 +574,9 @@ async function start() {
 
   let acc = 0;
   function update(dt) {
-    acc = paused ? 0 : acc + dt; // How to play pauses the game
+    acc = paused ? 0 : acc + dt * speed; // paused: the menu, How to play, a sideways phone
     let n = 0;
-    while (acc >= PHYSICS.dt && n < 8) {
+    while (acc >= PHYSICS.dt && n < 8 * speed) {
       run.step();
       acc -= PHYSICS.dt;
       n += 1;
@@ -486,6 +594,7 @@ async function start() {
       left: run.left,
       blocks: run.blocks,
       boss: run.wave.boss,
+      bestWave,
     });
     hud.setEconomy(run.coins, run.swipeCost);
     hud.setChoice(gameOverShown ? null : run.pendingChoice);
@@ -495,9 +604,9 @@ async function start() {
     if (!paused && !gameOverShown) auto.tick(run, dt, doSwipe);
     hud.setDanger(run.blocks <= 3 && run.phase === 'wave' ? 0.5 : 0);
 
-    // a picked block shows its range
+    // a picked block shows its range (and its inspect card); a die card or a lost block puts it down
     const picked = selected != null && run.tiles.find((t) => t.id === selected);
-    if (selected != null && !picked) select(null);
+    if (selected != null && (!picked || run.pendingChoice)) select(null);
     scenery.showRange(picked ? { x: picked.x, y: picked.y, shoot: profileFor(picked).shoot } : null);
 
     const perLane = [0, 0, 0, 0];
