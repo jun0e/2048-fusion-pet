@@ -80,6 +80,13 @@ The review of the boss reward and the P0 HUD fixes scored 8/10 (nothing critical
 - "Merge the new pairs!" shows only when the x2s made a pair.
 - A game-over card still on its way no longer covers a restarted run; Cmd/Ctrl/Alt + a key is the browser's; the dev helper `__mb.advance()` steps while paused; `tools/boss-value.mjs` measures the economy model's boss value.
 
+## Device check (phase 7.1)
+
+Screenshots in `reports/ux/shots/phone/` (390×844 unless named): first screen, a wave, the die card, pause, settings, How to play, the run summary, the first screen at 360×640, and the rotate screen at 740×360. Found and fixed on the way:
+
+- At 360 and 375 px the three status pills overlapped ("First wave: when ready" is the longest text). On screens 380 px wide or less the status text is a step smaller, and the block count shows as the icon and the number.
+- `?tutorial` replays the opening; it now starts a fresh run instead of resuming a saved one.
+
 ## Out of scope (next)
 
 Codex, ranking, daily seed, missions, a home screen and other meta features (Part A of `meta-and-hud.md`). The plan leaves room for them: the pause menu and the settings sheet are where Codex and Home will go.
@@ -95,4 +102,4 @@ Codex, ranking, daily seed, missions, a home screen and other meta features (Par
 | 4 Dialogs on a phone | Done |
 | 5 Play controls | Done |
 | 6 Loading and resume | Done |
-| 7 Device check and delivery | Not started |
+| 7 Device check and delivery | Device check done; delivery after the final review |

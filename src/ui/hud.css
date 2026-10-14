@@ -548,6 +548,23 @@ body {
   overflow: hidden;
 }
 
+@media (width <= 380px) {
+  /* a 360 px phone: the three status pills must fit one row */
+  .statusbar {
+    gap: 6px;
+    font-size: 12px;
+  }
+  .statusbar > * {
+    padding: 5px 8px;
+  }
+  .statusbar .phase {
+    font-size: 13px;
+  }
+  .castle-unit {
+    display: none; /* the icon and the count stay ("Blocks left" for screen readers) */
+  }
+}
+
 @media (width <= 420px) {
   .day .chapter {
     display: none;

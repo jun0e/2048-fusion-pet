@@ -13,7 +13,7 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 - **Loss and retry:** the game-over card says what broke the last block. The next run opens with one lesson.
 - **Return visit:** a returning player sees their best wave as a goal.
 - **Boss reward:** a boss kill now gives x2s to the other blocks, aimed to make pairs (see "Boss reward" below). All numbers in this report use it.
-- **Tests:** all pass (118 tests; 79 before this work).
+- **Tests:** all pass (131 tests; 79 before this work).
 
 ## Journey contract (phase 1)
 
@@ -95,11 +95,11 @@ This report is phase 8 of `docs/ux/journey-tuning-workflow.md`. It covers the fi
 | Tips up for under 1 s in the first 5 minutes | 1 | 0 |
 | Defend rule on screen for 1 s or more (runs with a block hit) | 24 of 24 | 24 of 24 |
 | Idle countdown time in the first 5 minutes | 46.5 s | 17.5 s |
-| Wave of the first loss | 14 (p10: 1) | 17 (p10: 10) |
+| Wave of the first loss | 13 (p10: 1) | 17 (p10: 10) |
 | Game over to the next swipe | 7.0 s | 11.5 s |
 | Required tutorial taps | 1 | 0 |
 
-**Pace, not difficulty:** the number of novice runs that last 15 minutes is noisy. In two sets of 24 seeds, the tuned build keeps 6 and 5 runs; the baseline keeps 10 and 15. A split test shows the cause: the shorter idle break. With the old break rule, the tuned build keeps 13 and 17. The break makes the game faster, not harder. Players reach more waves in 15 minutes, so more runs end inside the cap. The median loss wave moves from 13–14 to 17–20, the earliest loss from wave 1 to wave 7 or later, and the latest losses from wave 16 to waves 22–25.
+**Pace, not difficulty:** the number of novice runs that last 15 minutes is noisy. In two sets of 24 seeds, the tuned build keeps 6 and 5 runs; the baseline keeps 9 and 15. A split test shows the cause: the shorter idle break. With the old break rule, the tuned build keeps 13 and 17. The break makes the game faster, not harder. Players reach more waves in 15 minutes, so more runs end inside the cap. The median loss wave moves from 13 to 17–20, the earliest loss from wave 1 to wave 7 or later, and the latest losses from wave 16 to wave 25.
 
 ## Tuned values
 
@@ -132,7 +132,7 @@ Requested on 2026-10-14. It replaces "a boss kill promotes your biggest block".
 
 Values are the median wave of the first loss.
 
-- **Economy model** (`npm run economy`): the x2s add 0.86 of the biggest block's value to the board (median over 121 boss kills in 40 autoplay games; the old reward added exactly 1.0). Projection: first 256 at wave 10 and first 512 at wave 15 (as before), first 1024 at wave 25 (was 22). Foes start to leak at wave 30 (as before).
+- **Economy model** (`npm run economy`): the x2s add 0.87 of the biggest block's value to the board (median 0.87 over 121 boss kills in 40 autoplay games, `tools/boss-value.mjs`; the old reward added exactly 1.0). Projection: first 256 at wave 10 and first 512 at wave 15 (as before), first 1024 at wave 25 (was 22). Foes start to leak at wave 30 (as before).
 - **Limit:** on a board that already has a pair on every block, the last x2s must go somewhere, and they can break a pair (the fewest possible).
 - **Code:** `src/sim/boss-reward.js` (the plan, pure), `src/sim/run.js` (applies it: health, element slots, a `bossReward` event), `src/main.js` (the "x2", "x4" popups and the banner). Tests: `test/boss-reward.test.js` and `test/run.test.js`.
 

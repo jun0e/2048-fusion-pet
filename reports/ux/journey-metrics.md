@@ -40,13 +40,13 @@
 | Tips in first 5 min | 9 (5–9) | 7 (7–8) |
 | Tips up under 1 s in first 5 min | 1 (0–1) | 0 (0–0) |
 | Shortest gap between tips (s) | 0.6 (0.6–4.8) | 7.8 (5.6–9.9) |
-| Coin-limited time in first 5 min (s) | 64.5 (0–78.0) | 53.7 (42.8–78.0) |
-| Idle countdown time in first 5 min (s) | 46.5 (0–56.1) | 17.5 (13.5–20.2) |
-| Wave of first loss | 14 (1–15) | 17 (10–21) |
+| Coin-limited time in first 5 min (s) | 64.5 (0–76.0) | 53.7 (42.8–78.0) |
+| Idle countdown time in first 5 min (s) | 46.5 (0–54.5) | 17.5 (13.5–20.2) |
+| Wave of first loss | 13 (1–15) | 17 (10–22) |
 | Game over to next swipe (s) | 7.0 (7.0–7.0) | 11.5 (11.5–11.5) |
 | Required tutorial taps | 1 (1–1) | 0 (0–0) |
 | Defend rule up 1 s or more (runs with a block hit) | 24 of 24 | 24 of 24 |
-| Runs that never lost (15 min cap) | 10 of 24 | 6 of 24 |
+| Runs that never lost (15 min cap) | 9 of 24 | 6 of 24 |
 
 ### Reckless player
 

@@ -135,7 +135,8 @@ async function start() {
   let savedInputs = -1; // inputs in the last save
   let run = null;
   let resumed = false;
-  const saved = canSave && loadStore().guided ? loadSaved() : null;
+  // ?tutorial replays the opening from scratch: a fresh run, not a resumed one
+  const saved = canSave && !params.has('tutorial') && loadStore().guided ? loadSaved() : null;
   if (saved) {
     bootSay('Restoring your run…');
     const back = replayRun(createRun, saved.log, { onEvents: (list) => list.forEach(tally) });
