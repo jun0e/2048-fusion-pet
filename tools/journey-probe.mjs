@@ -16,7 +16,7 @@
 //   reckless — skips the tutorial, swipes at random, then retries after the game over
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRun, swipeCostFor } from '../src/sim/run.js';
 import { createRng } from '../src/sim/rng.js';
 import { PHYSICS } from '../src/config.js';
@@ -306,7 +306,7 @@ export function toMarkdown(result) {
 
 // --- CLI -----------------------------------------------------------------------------
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const arg = (k, d) => (process.argv.find((a) => a.startsWith(`--${k}=`)) ?? '').split('=')[1] || d;
   const compare = process.argv.includes('--compare');
   const which = arg('profile', 'tuned');

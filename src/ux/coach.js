@@ -5,6 +5,7 @@
 //
 // A config holds the script and the timing. COACH_BASELINE is the opening as it
 // shipped before the journey pass; COACH is the tuned one (the default).
+import { stageFor } from '../sim/classes.js';
 
 export const TIPS_BASELINE = {
   merge: 'Merged! A bigger block is a stronger turret.',
@@ -64,13 +65,17 @@ export const TIPS = {
   milestone: '2048! Reach 4096 for an ultimate.',
 };
 
+/** A break tip is out of date once the break it was offered in ends. */
+const breakOver = (run, q) => run.phase !== 'break' || run.waveNo !== q.wave;
+
 /** Seconds a tip stays up: long enough to read slowly, never under 3 s. */
 export const readSeconds = (text) => Math.max(3, wordCount(text) / 2.5 + 1.5);
 
 export const COACH = {
   name: 'tuned',
   guided: [
-    { id: 'swipe', text: 'Swipe to merge the two 8s.', target: 'board', hand: true, skip: true, doneOn: 'swipe' },
+    // the first step ends on the first 16 (a swipe that only moves the 8s does not count)
+    { id: 'swipe', text: 'Swipe to merge the two 8s.', target: 'board', hand: true, skip: true, doneOn: 'turret' },
     { id: 'turret', text: 'A 16 shoots enemies in its column.', target: 'top', doneOn: 'swipe', after: 4 },
     { id: 'grow', text: 'Keep merging. Each swipe costs coins.', target: 'coins', swipes: 3, after: 12 },
     { id: 'start', text: 'Tap Wave now when you are ready.', target: 'wave', doneOn: 'waveStart', release: true },
@@ -86,9 +91,15 @@ export const COACH = {
   priority: { note: 4, attacked: 3, lost: 3, broke: 3, lanes: 2, coins: 2, break: 2, merge: 2, boss: 2 },
   // depth waits until the basics have had time to land
   minWave: { colour: 3, unlock: 2 },
+  // a tip whose moment has passed (its break is over) is dropped and offered again next time
+  stale: { break: breakOver, boss: breakOver },
+  reoffer: true, // a tip dropped unseen (queue overflow, stale, game over) can be offered again
   seenWithStep: { turret: ['awaken'] }, // a guided step already covers these tips
   seenWithTip: { attacked: ['lost'] }, // a tip that already says what these say
   guidedWave: true, // first run: wave 1 comes down the first turret's column (run.setGuidedWave)
+  endOnWave: true, // a wave that starts during the opening ends it (the player chose to start)
+  brokeStep: 'start', // out of coins during the opening: skip to this step (Wave now still works)
+  clearOnGameOver: true, // a game over clears the bubble; tips still waiting are offered again later
 };
 
 export const HELP = [
@@ -123,7 +134,7 @@ export function saveStore(store) {
 }
 
 /**
- * @param getRun  () => the current run (setHold, tiles, wave, pendingChoice)
+ * @param getRun  () => the current run (setHold, setGuidedWave, tiles, wave, waveNo, phase, pendingChoice)
  * @param store   { guided, seen } progress; `save(store)` persists it
  * @param onLog   (kind, data) for the journey log: 'show', 'hide', 'done', 'skip'
  */
@@ -133,7 +144,8 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
   let muted = false; // autoplay is on
   let tip = null; // { id, target, t }
   const queue = [];
-  let gap = 0;
+  let wait = 0; // seconds since the last tip went away
+  let need = 0; // how long an ordinary tip must wait after it
   let view = null;
   let seq = 0;
   let stepT = 0; // seconds in the current guided step
@@ -148,16 +160,22 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     return top ? { tile: top.id } : 'board';
   }
 
-  function show(kind, id, text, target, { ok = false, skip = false, hand = false } = {}) {
+  /** `log: false` re-shows a bubble the player already saw (after autoplay): not new words. */
+  function show(kind, id, text, target, { ok = false, skip = false, hand = false } = {}, log = true) {
     view = { key: `${kind}:${id}:${++seq}`, kind, id, text, target: resolve(target), ok, skip, hand };
-    onLog('show', { kind, id, words: wordCount(text) });
+    if (log && !muted) onLog('show', { kind, id, words: wordCount(text) });
   }
   function hide() {
-    if (view) onLog('hide', { kind: view.kind, id: view.id });
+    if (view && !muted) onLog('hide', { kind: view.kind, id: view.id });
     view = null;
   }
+  /** A tip went away: ordinary tips now wait `gap` seconds, urgent ones only urgentGap. */
+  function rest(gap) {
+    wait = 0;
+    need = gap;
+  }
 
-  function guide(i) {
+  function guide(i, { reshow = false } = {}) {
     guided = i;
     if (i >= GUIDED.length) {
       guided = -1;
@@ -171,12 +189,22 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     stepT = 0;
     stepSwipes = 0;
     if (g.release) run().setHold?.(false);
-    for (const id of config.seenWithStep?.[g.id] ?? []) store.seen.add(id);
-    show('guided', g.id, g.text, g.target, g);
+    for (const id of config.seenWithStep?.[g.id] ?? []) {
+      store.seen.add(id);
+      const k = queue.findIndex((q) => q.id === id);
+      if (k >= 0) queue.splice(k, 1); // this step says it already
+    }
+    show('guided', g.id, g.text, g.target, g, !reshow);
+  }
+
+  /** Jump forward to the step called `id` (never back). */
+  function jump(id) {
+    const i = GUIDED.findIndex((g) => g.id === id);
+    if (i > guided) guide(i);
   }
 
   function advance(trigger) {
-    if (guided < 0) return;
+    if (guided < 0 || muted) return; // autoplay's swipes don't teach the player anything
     const g = GUIDED[guided];
     if (trigger === 'swipe' && g.swipes) {
       stepSwipes += 1;
@@ -194,8 +222,15 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     if (queue.length > config.queueMax) {
       let worst = 0;
       for (let i = 1; i < queue.length; i++) if (prio(queue[i].id) < prio(queue[worst].id)) worst = i;
-      queue.splice(worst, 1);
+      unsee(queue.splice(worst, 1)[0]);
     }
+  }
+
+  /** A queued tip that will not show now: let it be offered again next time. */
+  function unsee(q) {
+    if (!q || q.id === 'note' || !config.reoffer) return; // the baseline forgot dropped tips for good
+    store.seen.delete(q.id);
+    persist();
   }
 
   /** Queue a tip the first time something happens. */
@@ -205,7 +240,7 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     store.seen.add(id);
     for (const other of config.seenWithTip?.[id] ?? []) store.seen.add(other);
     persist();
-    enqueue({ id, target });
+    enqueue({ id, target, wave: run().waveNo });
   }
 
   function skipAll() {
@@ -216,6 +251,7 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     tip = null;
     queue.length = 0;
     run().setHold?.(false);
+    run().setGuidedWave?.(false); // a player who skips gets the normal first wave
     hide();
     onLog('skip', {});
   }
@@ -237,15 +273,22 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     },
     /** Feed every run event. */
     onEvent(e) {
-      if (e.type === 'gameover') {
-        // the run is over: clear the bubble; an unfinished opening starts again on the retry
+      if (e.type === 'gameover' && config.clearOnGameOver) {
+        // the run is over: clear the bubble; tips still waiting come back later;
+        // an unfinished opening starts again on the retry
+        for (const q of queue) unsee(q);
+        queue.length = 0;
         guided = -1;
         tip = null;
-        queue.length = 0;
         hide();
         return;
       }
-      if (guided >= 0 && e.type === 'waveStart') advance('waveStart');
+      if (guided >= 0 && !muted && e.type === 'waveStart') {
+        if (config.endOnWave) guide(GUIDED.length);
+        else advance('waveStart');
+      }
+      if (e.type === 'classed' && e.stage === 1) advance('turret');
+      if (guided >= 0 && !muted && e.type === 'noCoins' && config.brokeStep) jump(config.brokeStep);
       switch (e.type) {
         case 'merge':
           if (guided < 0) offer('merge', { tile: e.id });
@@ -296,7 +339,7 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
       if (guided >= 0) advance('ok');
       else if (tip) {
         tip = null;
-        gap = config.gapAfterOk;
+        rest(config.gapAfterOk);
         hide();
       }
     },
@@ -304,7 +347,7 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     /** A one-off message as a tip (not remembered): the retry hint, the return-visit goal. */
     note(text, target = null) {
       if (!text) return;
-      enqueue({ id: 'note', text, target });
+      enqueue({ id: 'note', text, target, wave: run().waveNo });
     },
     /** Replay from the help sheet: forget all progress. */
     reset() {
@@ -326,18 +369,22 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
         const gone = tip.target?.tile != null && !run().tiles.some((t) => t.id === tip.target.tile);
         if (tip.t <= 0 || gone) {
           tip = null;
-          gap = config.gapAfterTip;
+          rest(config.gapAfterTip);
           hide();
         }
         return;
       }
-      gap -= dt;
+      wait += dt;
+      // drop tips whose moment has passed (they are offered again at the next such moment)
+      for (let i = queue.length - 1; i >= 0; i--) {
+        if (config.stale?.[queue[i].id]?.(run(), queue[i])) unsee(queue.splice(i, 1)[0]);
+      }
       if (!queue.length || run().pendingChoice) return;
       // the most important tip whose wave has come
       const i = queue.findIndex((q) => (config.minWave?.[q.id] ?? 0) <= run().waveNo);
       if (i < 0) return;
       const urgent = config.urgent.includes(queue[i].id);
-      if (gap > (urgent ? Math.max(0, config.gapAfterTip - config.urgentGap) : 0)) return;
+      if (wait < (urgent ? Math.min(need, config.urgentGap) : need)) return;
       const next = queue.splice(i, 1)[0];
       const text = next.text ?? TIPS[next.id];
       tip = { ...next, t: config.tipSeconds(text) };
@@ -355,11 +402,28 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     },
     /** Autoplay: step aside (no bubbles, no countdown hold); resume the opening when it stops. */
     setMuted(v) {
-      muted = v;
-      if (muted) {
-        hide();
+      v = !!v;
+      if (v === muted) return;
+      if (v) {
+        hide(); // the player saw it go
+        muted = true;
+        if (tip) {
+          // a tip cut short comes back after autoplay
+          const { t, ...q } = tip;
+          tip = null;
+          enqueue(q);
+        }
         run().setHold?.(false);
-      } else if (guided >= 0) guide(guided);
+        return;
+      }
+      muted = false;
+      if (guided < 0) return;
+      // catch up with what autoplay did: a started wave ends the opening; a 16 ends the first step
+      if (run().phase !== 'prep') return guide(GUIDED.length);
+      let i = guided;
+      while (i < GUIDED.length && GUIDED[i].doneOn === 'turret' && run().tiles.some((t) => stageFor(t.tier) >= 1)) i += 1;
+      run().setHold?.(!GUIDED.slice(0, i + 1).some((g) => g.release)); // hold again until the release step
+      guide(i, { reshow: i === guided });
     },
   };
 }

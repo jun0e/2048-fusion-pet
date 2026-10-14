@@ -325,12 +325,13 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     move,
     nextWave,
     choose,
-    /** Hold the opening countdown (the first-run tutorial); Wave now still works. */
-    /** First run: aim wave 1 at the player's biggest block (see aimGuidedWave). */
+    /** First run: aim wave 1 at the player's biggest block (see aimGuidedWave); off restores the normal wave 1. */
     setGuidedWave: (v) => {
       s.guidedWave = !!v;
-      aimGuidedWave();
+      if (s.guidedWave) aimGuidedWave();
+      else if (s.waveNo === 1 && s.phase === 'prep') wave = waveFor(1);
     },
+    /** Hold the opening countdown (the first-run tutorial); Wave now still works. */
     setHold: (v) => {
       s.hold = !!v;
     },
@@ -367,6 +368,10 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     },
     get phase() {
       return s.phase;
+    },
+    /** The opening countdown is held (the first-run tutorial is still teaching). */
+    get holding() {
+      return !!s.hold && s.phase === 'prep';
     },
     /** Seconds until the next wave during prep / break. */
     get timer() {

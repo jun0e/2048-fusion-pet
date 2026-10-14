@@ -12,8 +12,8 @@
 | Time to first block hit (s) | 21.9 (20.3–36.7) | 17.5 (15.4–28.5) |
 | Time to first kill (s) | 19.9 (18.5–22.7) | 15.4 (14.3–18.4) |
 | Time to first block lost (s) | 41.7 (24.5–79.3) | 41.6 (17.4–76.3) |
-| Tips in first 5 min | 10 (8–10) | 8 (7–8) |
-| Shortest gap between tips (s) | 0.6 (0.6–6.1) | 7.4 (5.9–17.2) |
+| Tips in first 5 min | 10 (8–10) | 8 (7–9) |
+| Shortest gap between tips (s) | 0.6 (0.6–6.1) | 7.4 (5.9–16.0) |
 | Coin-limited time in first 5 min (s) | 153.4 (140.9–168.9) | 154.6 (133.6–172.3) |
 | Idle countdown time in first 5 min (s) | 0.2 (0.2–0.2) | 0.2 (0.1–0.2) |
 | Wave of first loss | 16 (12–25) | 18 (10–29) |
@@ -32,14 +32,14 @@
 | Words before first wave | 52 (52–52) | 26 (26–26) |
 | Reading time before first wave (s) | 20.5 (20.5–20.5) | 11.9 (11.9–11.9) |
 | Time to first wave (s) | 23.8 (23.5–24.1) | 16.8 (16.3–17.1) |
-| Time to first block hit (s) | 31.3 (29.4–34.0) | 25.4 (22.6–70.9) |
-| Time to first kill (s) | 30.6 (27.4–34.4) | 21.8 (20.6–24.6) |
-| Time to first block lost (s) | 33.5 (31.4–36.4) | 46.8 (25.1–139.9) |
+| Time to first block hit (s) | 31.3 (29.4–34.0) | 25.5 (22.6–70.9) |
+| Time to first kill (s) | 30.6 (27.4–34.4) | 21.7 (20.4–24.6) |
+| Time to first block lost (s) | 33.5 (31.4–36.4) | 46.8 (25.1–141.2) |
 | Tips in first 5 min | 9 (5–10) | 8 (7–8) |
-| Shortest gap between tips (s) | 0.6 (0.6–4.8) | 8.2 (5.6–9.9) |
-| Coin-limited time in first 5 min (s) | 61.1 (0–80.4) | 56.8 (48.0–90.1) |
-| Idle countdown time in first 5 min (s) | 43.3 (0–56.9) | 17.1 (13.6–20.5) |
-| Wave of first loss | 14 (1–16) | 15 (11–20) |
+| Shortest gap between tips (s) | 0.6 (0.6–4.8) | 7.8 (5.6–9.9) |
+| Coin-limited time in first 5 min (s) | 61.1 (0–80.4) | 58.8 (49.4–88.9) |
+| Idle countdown time in first 5 min (s) | 43.3 (0–56.9) | 17.2 (13.6–20.5) |
+| Wave of first loss | 14 (1–16) | 16 (10–20) |
 | Game over to next swipe (s) | 7.0 (7.0–7.0) | 11.5 (11.5–11.5) |
 | Required tutorial taps | 1 (1–1) | 0 (0–0) |
 | Runs that never lost (15 min cap) | 10 of 24 | 5 of 24 |
@@ -55,15 +55,15 @@
 | Words before first wave | 15 (15–15) | 6 (6–6) |
 | Reading time before first wave (s) | 0 (0–0) | 0 (0–0) |
 | Time to first wave (s) | 6.5 (6.4–7.0) | 6.5 (6.4–7.0) |
-| Time to first block hit (s) | 13.5 (11.0–24.6) | 19.0 (11.9–24.5) |
-| Time to first kill (s) | 11.1 (9.2–18.7) | 10.4 (8.9–24.0) |
-| Time to first block lost (s) | 27.0 (15.3–67.1) | 26.9 (16.2–69.8) |
+| Time to first block hit (s) | 13.5 (11.0–24.6) | 13.5 (11.0–24.6) |
+| Time to first kill (s) | 11.1 (9.2–18.7) | 11.1 (9.2–18.7) |
+| Time to first block lost (s) | 27.0 (15.3–67.1) | 27.0 (15.3–67.1) |
 | Tips in first 5 min | 0 (0–0) | 0 (0–1) |
 | Shortest gap between tips (s) | – | – |
-| Coin-limited time in first 5 min (s) | 208.0 (178.7–234.2) | 201.9 (180.0–225.6) |
+| Coin-limited time in first 5 min (s) | 208.0 (178.7–234.2) | 208.0 (178.7–234.2) |
 | Idle countdown time in first 5 min (s) | 0.2 (0.1–0.3) | 0.2 (0.1–0.3) |
-| Wave of first loss | 17 (10–26) | 17 (5–25) |
+| Wave of first loss | 17 (10–26) | 17 (10–26) |
 | Game over to next swipe (s) | 2.8 (2.8–2.8) | 3.0 (3.0–3.0) |
 | Required tutorial taps | 1 (1–1) | 1 (1–1) |
-| Runs that never lost (15 min cap) | 3 of 24 | 2 of 24 |
+| Runs that never lost (15 min cap) | 3 of 24 | 3 of 24 |
 

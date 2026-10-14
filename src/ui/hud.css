@@ -1018,6 +1018,10 @@ body {
   opacity: 1;
 }
 
+#hud .coach:not(.on) button {
+  pointer-events: none; /* a fading bubble takes no taps */
+}
+
 .coach-ring {
   position: absolute;
   border: 3px solid #ffd34a;

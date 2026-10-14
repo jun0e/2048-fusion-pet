@@ -9,6 +9,7 @@
 // Progress is kept in localStorage; `?tutorial` in the URL resets it.
 import { FIELD, GRID_TOP, laneX } from '../config.js';
 import { createCoach, loadStore, saveStore, HELP } from '../ux/coach.js';
+import { bubbleWidth, placeBubble } from '../ux/placement.js';
 
 export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }) {
   const store = loadStore({ reset: new URLSearchParams(location.search).has('tutorial') });
@@ -27,6 +28,7 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
       </div>
       <i class="coach-arrow"></i>
     </div>`;
+  el.inert = true; // no focus or taps while the bubble is hidden
   root.appendChild(el);
   const ring = el.querySelector('.coach-ring');
   const hand = el.querySelector('.coach-hand');
@@ -61,6 +63,14 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
 
   const run = () => getRun();
   const domRect = (sel) => root.querySelector(sel)?.getBoundingClientRect() ?? null;
+  /** The top of the bottom bar (coins, Wave now): bubbles stay above it. */
+  const floorTop = () =>
+    Math.min(
+      ...['.coinbar', '.fight.show'].map((sel) => {
+        const r = domRect(sel);
+        return r && r.height ? r.top : Infinity;
+      }),
+    );
   const worldRect = (x0, y0, x1, y1) => {
     const a = stage.toClient(x0, y0);
     const b = stage.toClient(x1, y1);
@@ -76,7 +86,7 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
     if (target === 'coins') return domRect('.coinbar');
     if (target === 'blocks') return domRect('.statusbar .castle');
     if (target === 'wave') {
-      const r = domRect('.fight');
+      const r = domRect('.fight.show'); // hidden during a wave: no ring around nothing
       return r && r.width ? r : null;
     }
     if (target === 'deck') return worldRect(-3.6, -0.55, 3.6, -1.55);
@@ -90,6 +100,7 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
 
   function show(v) {
     el.classList.add('on');
+    el.inert = false;
     text.textContent = v.text;
     okBtn.style.display = v.ok ? '' : 'none';
     skipBtn.style.display = v.skip ? '' : 'none';
@@ -101,69 +112,32 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
   }
   function hide() {
     el.classList.remove('on');
+    el.inert = true;
     current = null;
   }
 
-  // bubble next to its target (below it in the upper half of the screen, above it otherwise), arrow pointing at it
+  // bubble next to its target, arrow pointing at it (the rules: src/ux/placement.js)
   function place() {
     const r = targetRect(current);
     const vw = innerWidth;
     const vh = innerHeight;
-    // a block is where the action is: a narrower bubble beside it, not on top of it
-    const beside = current?.tile != null;
-    const bw = Math.min(beside ? 232 : 300, vw - 24);
-    bubble.style.width = `${bw}px`;
-    const bh = bubble.offsetHeight || 80;
-    if (!r) {
-      ring.style.display = 'none';
-      arrow.style.display = 'none';
-      bubble.style.left = `${(vw - bw) / 2}px`;
-      bubble.style.top = `${vh * 0.3}px`;
-      return;
-    }
-    ring.style.display = '';
-    arrow.style.display = '';
+    bubble.style.width = `${bubbleWidth(current, vw)}px`; // first: the height depends on it
+    const p = placeBubble({ target: current, rect: r, board: targetRect('board'), floor: floorTop(), vw, vh, bh: bubble.offsetHeight || 80 });
+    bubble.style.left = `${p.left}px`;
+    bubble.style.top = `${p.top}px`;
+    ring.style.display = r ? '' : 'none';
+    arrow.style.display = p.arrow ? '' : 'none';
+    if (!r) return;
     const pad = 6;
     ring.style.left = `${r.left - pad}px`;
     ring.style.top = `${r.top - pad}px`;
     ring.style.width = `${r.right - r.left + pad * 2}px`;
     ring.style.height = `${r.bottom - r.top + pad * 2}px`;
-    const cx = (r.left + r.right) / 2;
-    let below = (r.top + r.bottom) / 2 < vh * 0.5;
-    let top = below ? r.bottom + 16 : r.top - bh - 16;
-    top = Math.max(8, Math.min(vh - bh - 8, top));
-    // a target taller than the room left (the board): sit the bubble inside its top edge instead
-    if (below && r.bottom - r.top > vh * 0.3) top = Math.max(8, r.top + 12);
-    // a lane: above the field (over the score bar), so no lane and no foe is hidden
-    if (current?.lane != null) {
-      below = false;
-      top = Math.max(8, r.top - bh - 12);
+    if (p.arrow) {
+      arrow.className = `coach-arrow ${p.arrow.side}`;
+      arrow.style.left = `${p.arrow.x}px`;
     }
-    // a block on the board: under the board if there is room (over the deck row, not over the lanes)
-    if (current?.tile != null) {
-      const board = targetRect('board');
-      if (board && vh - board.bottom - 8 >= bh) {
-        top = board.bottom + 6;
-        below = true;
-      }
-    }
-    let left = Math.max(12, Math.min(vw - bw - 12, cx - bw / 2));
-    if (beside) {
-      // keep the target's column clear: sit on the roomier side of it if the bubble fits there
-      const leftSide = r.left - bw - 8;
-      const rightSide = r.right + 8;
-      if (cx > vw / 2 && leftSide >= 12) left = leftSide;
-      else if (cx <= vw / 2 && rightSide + bw <= vw - 12) left = rightSide;
-      else if (leftSide >= 12) left = leftSide;
-      else if (rightSide + bw <= vw - 12) left = rightSide;
-    }
-    bubble.style.left = `${left}px`;
-    bubble.style.top = `${top}px`;
-    const inside = below && r.bottom - r.top > vh * 0.3 && current?.tile == null;
-    arrow.style.display = inside ? 'none' : '';
-    arrow.className = `coach-arrow ${below ? 'up' : 'down'}`;
-    arrow.style.left = `${Math.max(16, Math.min(bw - 16, cx - left))}px`;
-    hand.style.left = `${cx}px`;
+    hand.style.left = `${(r.left + r.right) / 2}px`;
     hand.style.top = `${(r.top + r.bottom) / 2}px`;
   }
 

@@ -409,6 +409,7 @@ async function start() {
       chapter: run.wave.chapter.name,
       phase: run.phase,
       timer: run.timer,
+      holding: run.holding,
       left: run.left,
       blocks: run.blocks,
       boss: run.wave.boss,

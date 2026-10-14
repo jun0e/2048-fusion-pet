@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createCoach, COACH, COACH_BASELINE, wordCount } from '../src/ux/coach.js';
+import { placeBubble, bubbleWidth, BUBBLE } from '../src/ux/placement.js';
 import { createJourney } from '../src/ux/journey.js';
 import { causeLine, lossHint, returnGoal, gameOverWords } from '../src/ux/journey-tuning.js';
 import { createRun } from '../src/sim/run.js';
@@ -15,6 +16,7 @@ function fakeRun() {
     tiles: [{ id: 1, tier: 4 }],
     wave: { bossLane: null },
     waveNo: 1,
+    phase: 'prep',
     pendingChoice: null,
     setHold(v) {
       this.hold = v;
@@ -59,6 +61,9 @@ test('tuned opening: short bubbles, no required taps, steps advance by playing',
   }
   assert.equal(coach.view.id, 'swipe');
   coach.onSwipe();
+  assert.equal(coach.view.id, 'swipe', 'a swipe that makes no 16 does not finish the first step');
+  coach.onSwipe();
+  coach.onEvent({ type: 'classed', stage: 1, tileId: 1 }); // the 8s merged: a 16
   assert.equal(coach.view.id, 'turret');
   assert.deepEqual(coach.view.target, { tile: 1 }, '"top" points at the biggest block');
   tick(coach, 4.2);
@@ -127,6 +132,124 @@ test('skip ends the opening and silences every tip', () => {
   assert.equal(coach.view, null);
 });
 
+test('Wave now during the opening ends it, and the lanes tip comes next', () => {
+  const run = fakeRun();
+  const coach = createCoach({ getRun: () => run, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'waveStart', wave: 1, lanes: [1] });
+  assert.equal(coach.store.guided, true);
+  assert.equal(coach.active, false);
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'lanes');
+
+  const base = fakeRun();
+  const old = createCoach({ getRun: () => base, config: COACH_BASELINE });
+  old.start(base);
+  old.onEvent({ type: 'waveStart', wave: 1, lanes: [1] });
+  assert.equal(old.view.id, 'swipe', 'the baseline waits for its own steps');
+});
+
+test('out of coins during the opening: skip to Wave now', () => {
+  const run = fakeRun();
+  const coach = createCoach({ getRun: () => run, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'noCoins', cost: 5, coins: 0 });
+  assert.equal(coach.view.id, 'start');
+  assert.equal(run.hold, false, 'the countdown runs again');
+});
+
+test('autoplay: muted swipes teach nothing; the opening resumes where the board is', () => {
+  const run = fakeRun();
+  run.tiles = [{ id: 1, tier: 3 }, { id: 2, tier: 3 }];
+  const log = [];
+  const coach = createCoach({ getRun: () => run, config: COACH, onLog: (k) => log.push(k) });
+  coach.start(run);
+  coach.setMuted(true);
+  assert.equal(coach.view, null);
+  assert.equal(run.hold, false, 'autoplay lets the countdown run');
+  coach.setMuted(false);
+  assert.equal(coach.view.id, 'swipe');
+  assert.equal(run.hold, true, 'the countdown waits again');
+  assert.deepEqual(log, ['show', 'hide'], 'the same bubble again is not new text');
+  coach.setMuted(true);
+  coach.onSwipe();
+  coach.onSwipe();
+  run.tiles = [{ id: 3, tier: 4 }]; // autoplay made a 16
+  coach.onEvent({ type: 'classed', stage: 1, tileId: 3 });
+  tick(coach, 30);
+  assert.deepEqual(log, ['show', 'hide', 'hide'], 'nothing shown or logged while muted');
+  coach.setMuted(false);
+  assert.equal(coach.view.id, 'turret', 'the 16 that autoplay made ends the first step');
+  assert.deepEqual(log, ['show', 'hide', 'hide', 'show']);
+  coach.onSwipe();
+  assert.equal(coach.view.id, 'grow');
+  tick(coach, 15);
+  assert.equal(coach.view.id, 'start');
+  coach.onEvent({ type: 'waveStart', wave: 1, lanes: [0] });
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'lanes');
+  tick(coach, 40);
+  assert.equal(coach.view, null, 'the awaken tip queued while muted is covered by the turret step');
+});
+
+test('a tip cut short by autoplay comes back after it', () => {
+  const run = fakeRun();
+  const coach = createCoach({ getRun: () => run, store: { guided: true, seen: new Set() }, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'coins', reason: 'kill' });
+  tick(coach, 0.2);
+  assert.equal(coach.view.id, 'coins');
+  coach.setMuted(true);
+  tick(coach, 10);
+  coach.setMuted(false);
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'coins');
+});
+
+test('a full queue drops the oldest of the least important tips, which can come back', () => {
+  const run = fakeRun();
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  run.pendingChoice = {}; // a die choice is open: tips wait
+  coach.onEvent({ type: 'dieGained' }); // depth
+  coach.onEvent({ type: 'override', tileId: 1 }); // depth
+  coach.onEvent({ type: 'coins', reason: 'kill' }); // core
+  coach.onEvent({ type: 'tileHit', id: 1 }); // urgent: the queue overflows
+  tick(coach, 1);
+  assert.equal(coach.view, null);
+  assert.equal(store.seen.has('unlock'), false, 'the oldest depth tip was dropped and forgotten');
+  assert.equal(store.seen.has('colour'), true);
+  run.pendingChoice = null;
+  tick(coach, 0.2);
+  assert.equal(coach.view.id, 'attacked');
+  coach.onEvent({ type: 'dieGained' });
+  assert.equal(store.seen.has('unlock'), true, 'offered again at the next unlock');
+});
+
+test('a break tip that misses its break is dropped and comes at the next break', () => {
+  const run = fakeRun();
+  run.phase = 'break';
+  run.waveNo = 2;
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'coins', reason: 'kill' });
+  tick(coach, 0.2);
+  assert.equal(coach.view.id, 'coins');
+  coach.onEvent({ type: 'waveIncoming', wave: 2, boss: false, lanes: [0] });
+  tick(coach, 6); // the coins tip goes; the 16 s gap starts
+  run.phase = 'wave'; // the player starts wave 2 inside the gap
+  tick(coach, 20);
+  assert.equal(coach.view, null, 'no break tip during a wave');
+  assert.equal(store.seen.has('break'), false);
+  run.phase = 'break';
+  run.waveNo = 3;
+  coach.onEvent({ type: 'waveIncoming', wave: 3, boss: false, lanes: [0] });
+  tick(coach, 0.2);
+  assert.equal(coach.view?.id, 'break');
+});
+
 test('a game over clears the bubble; an unfinished opening starts again on the retry', () => {
   const run = fakeRun();
   const coach = createCoach({ getRun: () => run, config: COACH });
@@ -140,6 +263,26 @@ test('a game over clears the bubble; an unfinished opening starts again on the r
   coach.start(next);
   assert.equal(coach.view.id, 'swipe', 'the opening starts over');
   assert.equal(next.hold, true);
+});
+
+test('a game over forgets the tips still waiting; the baseline keeps its bubble', () => {
+  const run = fakeRun();
+  const store = { guided: true, seen: new Set() };
+  const coach = createCoach({ getRun: () => run, store, config: COACH });
+  coach.start(run);
+  coach.onEvent({ type: 'coins', reason: 'kill' });
+  tick(coach, 0.2);
+  coach.onEvent({ type: 'tileHit', id: 1 }); // waits for the urgent gap
+  coach.onEvent({ type: 'gameover', wave: 2 });
+  assert.equal(coach.view, null);
+  assert.equal(store.seen.has('coins'), true, 'a tip on screen counts as seen');
+  assert.equal(store.seen.has('attacked'), false, 'a waiting one does not');
+
+  const base = fakeRun();
+  const old = createCoach({ getRun: () => base, config: COACH_BASELINE });
+  old.start(base);
+  old.onEvent({ type: 'gameover', wave: 1 });
+  assert.equal(old.view.id, 'swipe', 'baseline parity');
 });
 
 test('journey log: milestones in order, words counted before the first swipe', () => {
@@ -184,6 +327,17 @@ test('guided first wave: aimed down the biggest block, with fewer foes', () => {
   assert.deepEqual(r.wave.lanes, [top2.col], 'the lit lane follows the biggest block');
 });
 
+test('a skip switches the guided wave off: wave 1 is the normal one again', () => {
+  const r = createRun({ seed: 5 });
+  const normal = r.wave;
+  const coach = createCoach({ getRun: () => r, config: COACH });
+  coach.start(r);
+  assert.equal(r.wave.count, GUIDED_WAVE.count);
+  coach.skipAll();
+  assert.deepEqual(r.wave.spawns, normal.spawns);
+  assert.deepEqual(r.wave.lanes, normal.lanes);
+});
+
 test('a break shrinks when no swipe is possible, and only then', () => {
   /** Merge the opening 8s into a 16, aim wave 1 at it, and play to the break. */
   const toBreak = (opts) => {
@@ -212,6 +366,37 @@ test('a break shrinks when no swipe is possible, and only then', () => {
   old.addCoins(-1e6);
   old.step();
   assert.ok(old.timer > ECONOMY.brokeBreak, 'the rule can be switched off (the baseline journey)');
+
+  const prep = createRun({ seed: 3 });
+  prep.addCoins(-1e6);
+  prep.step();
+  assert.ok(prep.timer > ECONOMY.brokeBreak, 'the opening countdown is never cut');
+});
+
+test('bubble placement: above the bottom bar, lanes above the field, blocks beside or under the board', () => {
+  const vw = 390;
+  const vh = 844;
+  const bh = 70;
+  const board = { left: 20, top: 380, right: 370, bottom: 700 };
+  const tile = { left: 24, top: 400, right: 104, bottom: 480 }; // a block in the left column
+  assert.equal(bubbleWidth({ tile: 1 }, vw), BUBBLE.besideWidth);
+  assert.equal(bubbleWidth('coins', 300), 276, 'never wider than the screen');
+
+  let p = placeBubble({ target: { tile: 1 }, rect: tile, board, floor: 800, vw, vh, bh });
+  assert.equal(p.top, board.bottom + 6, 'room under the board: the bubble sits there');
+  assert.ok(p.left >= tile.right, "beside the block: its column stays clear");
+  p = placeBubble({ target: { tile: 1 }, rect: tile, board, floor: 760, vw, vh, bh });
+  assert.notEqual(p.top, board.bottom + 6, 'not under the board when the bottom bar leaves no room');
+  assert.ok(p.top + bh <= 760 - 8, 'never over the bottom bar');
+
+  const lane = { left: 150, top: 120, right: 240, bottom: 300 };
+  p = placeBubble({ target: { lane: 2 }, rect: lane, vw, vh, bh });
+  assert.ok(p.top + bh <= lane.top, 'a lane tip sits above the field');
+  assert.equal(p.arrow.side, 'down');
+
+  p = placeBubble({ target: 'wave', rect: null, vw, vh, bh });
+  assert.equal(p.arrow, null, 'no target on screen: centred, no arrow');
+  assert.equal(p.left, (vw - BUBBLE.width) / 2);
 });
 
 test('game-over copy and the retry hint', () => {

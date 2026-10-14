@@ -162,15 +162,16 @@ export function createHud(root, { onRestart, onToggleMute, onNextWave, onChoose,
       shownNext = tier;
       nextSlot.innerHTML = chipHtml(tier, 'pop');
     },
-    setStatus({ wave, chapter, phase, timer, left, blocks, boss }) {
+    setStatus({ wave, chapter, phase, timer, holding = false, left, blocks, boss }) {
       const secs = Math.ceil(timer);
-      const key = `${wave}|${chapter}|${phase}|${secs}|${left}|${blocks}|${boss}`;
+      const key = `${wave}|${chapter}|${phase}|${secs}|${holding}|${left}|${blocks}|${boss}`;
       if (key === shownStatus) return;
       shownStatus = key;
       $('.day-n').textContent = `Wave ${wave}`;
       $('.chapter').textContent = chapter;
       const labels = {
-        prep: `First wave in ${secs}s`,
+        // the opening holds the countdown while the tutorial teaches: no frozen number
+        prep: holding ? 'First wave: when ready' : `First wave in ${secs}s`,
         break: boss ? `Boss in ${secs}s!` : `Next wave in ${secs}s`,
         wave: boss ? `Boss wave! ${left} left` : `${left} foe${left === 1 ? '' : 's'} left`,
         over: 'Defeat',
@@ -183,7 +184,7 @@ export function createHud(root, { onRestart, onToggleMute, onNextWave, onChoose,
       const waiting = phase === 'prep' || phase === 'break';
       fightBtn.classList.toggle('show', waiting);
       fightBtn.classList.toggle('boss', !!boss);
-      fightBtn.textContent = `${boss ? 'Boss' : `Wave ${wave}`} now ▶ ${secs}`;
+      fightBtn.textContent = `${boss ? 'Boss' : `Wave ${wave}`} now ▶${holding ? '' : ` ${secs}`}`;
     },
     /** Coin counter and the price of the next swipe. */
     setEconomy(coins, cost) {
