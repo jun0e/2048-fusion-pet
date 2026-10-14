@@ -127,6 +127,21 @@ test('skip ends the opening and silences every tip', () => {
   assert.equal(coach.view, null);
 });
 
+test('a game over clears the bubble; an unfinished opening starts again on the retry', () => {
+  const run = fakeRun();
+  const coach = createCoach({ getRun: () => run, config: COACH });
+  coach.start(run);
+  coach.onSwipe();
+  assert.ok(coach.view);
+  coach.onEvent({ type: 'gameover', wave: 1, score: 16, maxTier: 4 });
+  assert.equal(coach.view, null, 'nothing over the game-over card');
+  assert.equal(coach.store.guided, false);
+  const next = fakeRun();
+  coach.start(next);
+  assert.equal(coach.view.id, 'swipe', 'the opening starts over');
+  assert.equal(next.hold, true);
+});
+
 test('journey log: milestones in order, words counted before the first swipe', () => {
   let t = 0;
   const j = createJourney({ now: () => t });

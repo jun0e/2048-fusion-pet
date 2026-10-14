@@ -54,7 +54,7 @@ export function createHud(root, { onRestart, onToggleMute, onNextWave, onChoose,
     <div class="milestone"></div>
     <div class="banner"><b class="banner-title"></b><span class="banner-sub"></span></div>
     <div class="announce-stack" aria-live="polite"></div>
-    <div class="hint">Swipe anytime; each swipe costs coins. When two blocks merge, the one that slides in sets the colour. Elements awaken at 16, fuse at 256.</div>
+    <div class="hint hidden">Swipe anytime; each swipe costs coins. When two blocks merge, the one that slides in sets the colour. Elements awaken at 16, fuse at 256.</div>
     <div class="coinbar" aria-label="Coins">
       <span class="coin-ico"></span>
       <b class="coins">0</b>

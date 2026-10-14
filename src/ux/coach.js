@@ -237,6 +237,14 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     },
     /** Feed every run event. */
     onEvent(e) {
+      if (e.type === 'gameover') {
+        // the run is over: clear the bubble; an unfinished opening starts again on the retry
+        guided = -1;
+        tip = null;
+        queue.length = 0;
+        hide();
+        return;
+      }
       if (guided >= 0 && e.type === 'waveStart') advance('waveStart');
       switch (e.type) {
         case 'merge':

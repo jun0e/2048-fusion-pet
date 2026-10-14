@@ -109,7 +109,9 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
     const r = targetRect(current);
     const vw = innerWidth;
     const vh = innerHeight;
-    const bw = Math.min(300, vw - 24);
+    // a block is where the action is: a narrower bubble beside it, not on top of it
+    const beside = current?.tile != null;
+    const bw = Math.min(beside ? 232 : 300, vw - 24);
     bubble.style.width = `${bw}px`;
     const bh = bubble.offsetHeight || 80;
     if (!r) {
@@ -127,15 +129,37 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
     ring.style.width = `${r.right - r.left + pad * 2}px`;
     ring.style.height = `${r.bottom - r.top + pad * 2}px`;
     const cx = (r.left + r.right) / 2;
-    const below = (r.top + r.bottom) / 2 < vh * 0.5;
+    let below = (r.top + r.bottom) / 2 < vh * 0.5;
     let top = below ? r.bottom + 16 : r.top - bh - 16;
     top = Math.max(8, Math.min(vh - bh - 8, top));
     // a target taller than the room left (the board): sit the bubble inside its top edge instead
     if (below && r.bottom - r.top > vh * 0.3) top = Math.max(8, r.top + 12);
-    const left = Math.max(12, Math.min(vw - bw - 12, cx - bw / 2));
+    // a lane: above the field (over the score bar), so no lane and no foe is hidden
+    if (current?.lane != null) {
+      below = false;
+      top = Math.max(8, r.top - bh - 12);
+    }
+    // a block on the board: under the board if there is room (over the deck row, not over the lanes)
+    if (current?.tile != null) {
+      const board = targetRect('board');
+      if (board && vh - board.bottom - 8 >= bh) {
+        top = board.bottom + 6;
+        below = true;
+      }
+    }
+    let left = Math.max(12, Math.min(vw - bw - 12, cx - bw / 2));
+    if (beside) {
+      // keep the target's column clear: sit on the roomier side of it if the bubble fits there
+      const leftSide = r.left - bw - 8;
+      const rightSide = r.right + 8;
+      if (cx > vw / 2 && leftSide >= 12) left = leftSide;
+      else if (cx <= vw / 2 && rightSide + bw <= vw - 12) left = rightSide;
+      else if (leftSide >= 12) left = leftSide;
+      else if (rightSide + bw <= vw - 12) left = rightSide;
+    }
     bubble.style.left = `${left}px`;
     bubble.style.top = `${top}px`;
-    const inside = below && r.bottom - r.top > vh * 0.3;
+    const inside = below && r.bottom - r.top > vh * 0.3 && current?.tile == null;
     arrow.style.display = inside ? 'none' : '';
     arrow.className = `coach-arrow ${below ? 'up' : 'down'}`;
     arrow.style.left = `${Math.max(16, Math.min(bw - 16, cx - left))}px`;
