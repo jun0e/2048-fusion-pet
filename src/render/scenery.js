@@ -194,7 +194,8 @@ export function createScenery(stage) {
     const sy = stage.sy;
     const lanes = state?.lanes ?? [];
     const warn = state && (state.phase === 'prep' || state.phase === 'break');
-    const pulse = 0.5 + 0.5 * Math.sin(time * 6);
+    // a slow, gentle breath (photosafe: its red step stays under the red-flash threshold)
+    const pulse = 0.5 + 0.5 * Math.sin(time * 3);
 
     dangerG.clear();
     colG.clear();
@@ -216,7 +217,7 @@ export function createScenery(stage) {
 
       const x = laneX(lane);
       const color = boss ? 0xff4d4d : 0xff8a5c;
-      const heat = warn && active ? 0.1 + 0.1 * pulse : busy ? Math.min(0.14, 0.05 + busy * 0.025) : 0;
+      const heat = warn && active ? 0.1 + 0.04 * pulse : busy ? Math.min(0.14, 0.05 + busy * 0.025) : 0;
       if (heat > 0) {
         dangerG.roundRect(sx(x) - (LANE_W / 2) * U, sy(FIELD.spawnY + 0.4), LANE_W * U, (FIELD.spawnY + 0.4 - LANE_BOTTOM) * U, 0.26 * U).fill({ color, alpha: heat });
         colG.roundRect(sx(x - GRID.cell * 0.48), sy(BOARD_TOP + 0.1), GRID.cell * 0.96 * U, (BOARD_TOP + 0.2) * U, 0.32 * U).fill({ color, alpha: heat * 0.7 });

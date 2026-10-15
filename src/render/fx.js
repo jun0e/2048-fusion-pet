@@ -4,6 +4,7 @@
 import { BitmapFont, BitmapText, Container, Graphics, Sprite } from 'pixi.js';
 import { laneAt } from '../config.js';
 import { softDot, ringTex, sparkTex, projTex, coinTex, boomFrames } from './textures.js';
+import { FLASH_DOT } from '../ux/photosafe.js';
 
 const MAX_PARTS = 900;
 const MAX_NUMS = 90;
@@ -169,7 +170,8 @@ export function createFx(stage) {
     sp.anchor.set(0.5);
     boomLayer.addChild(sp);
     booms.push({ sp, frames, x, y, size, t: 0, dur });
-    if (flash != null) particle(softDot(), x, y, { life: 0.16, size: size * 1.3, grow: 0.6, color: flash });
+    // the flash dot stays small and soft (photosafe: many of them never add up to a large flash)
+    if (flash != null && !stage.reduced) particle(softDot(), x, y, { life: FLASH_DOT.life, size: Math.min(size * 1.3, FLASH_DOT.maxSize), grow: 0.6, color: flash, alpha: FLASH_DOT.alpha });
   }
 
   function updateBooms(dt) {

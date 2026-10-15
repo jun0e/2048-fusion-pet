@@ -7,6 +7,7 @@ import { Application, Container, Graphics } from 'pixi.js';
 // no runtime code generation: the game also runs under a strict Content-Security-Policy
 // (no 'unsafe-eval'), e.g. as a claude.ai artifact
 import 'pixi.js/unsafe-eval';
+import { createFlashGuard, washAlpha, washLevel } from '../ux/photosafe.js';
 
 export const WORLD = { minX: -4.75, maxX: 4.75, minY: -1.7, maxY: 18.15 }; // deck row + board + lanes above (no wall)
 const LAYERS = ['bg', 'path', 'board', 'tiles', 'enemies', 'shots', 'fx', 'numbers', 'overlay'];
@@ -51,14 +52,19 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
   const sx = (x) => view.ox + x * view.U;
   const sy = (y) => view.oy - y * view.U;
 
-  // screen shake + full-screen flash (both off when the player reduces motion)
+  // screen shake + full-screen wash (both off when the player reduces motion). A wash is
+  // photosafe (src/ux/photosafe.js): below the flash thresholds, faded in and out, and one at
+  // most per second of real time; the HUD's red edge pulse takes from the same budget.
   let reduced = false;
   const shake = { amp: 0, t: 0 };
   const flashG = new Graphics();
   layers.overlay.addChild(flashG);
-  const flash = { a: 0, color: 0xffffff };
+  const flash = { peak: 0, t: 0, color: 0xffffff };
+  const guard = createFlashGuard();
+  let clock = 0; // real seconds (frame time), whatever the game speed
 
   function update(dt) {
+    clock += dt;
     if (shake.amp > 0.2) {
       shake.t += dt * 60;
       shake.amp *= Math.exp(-dt * 10);
@@ -67,12 +73,14 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
       shake.amp = 0;
       root.position.set(0, 0);
     }
-    if (flash.a > 0.01) {
-      flash.a *= Math.exp(-dt * 5);
-      flashG.clear().rect(-50, -50, view.w + 100, view.h + 100).fill({ color: flash.color, alpha: flash.a });
-    } else if (flash.a) {
-      flash.a = 0;
-      flashG.clear();
+    if (flash.peak) {
+      flash.t += dt;
+      const a = washLevel(flash.peak, flash.t);
+      if (a > 0) flashG.clear().rect(-50, -50, view.w + 100, view.h + 100).fill({ color: flash.color, alpha: a });
+      else {
+        flash.peak = 0;
+        flashG.clear();
+      }
     }
   }
 
@@ -97,9 +105,24 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
     },
     /** client coordinates → canvas pixel coordinates */
     canvasRect: () => app.canvas.getBoundingClientRect(),
-    /** The Reduce motion setting: no screen shake, no full-screen flash. */
+    /** The Reduce motion setting: no screen shake, no full-screen wash, no flash dots. */
     setReducedMotion(v) {
       reduced = !!v;
+      if (reduced) {
+        flash.peak = 0;
+        flashG.clear();
+      }
+    },
+    get reduced() {
+      return reduced;
+    },
+    /** May a large flash (the HUD's red edge pulse) start now? Takes the shared one-a-second budget. */
+    takeFlash() {
+      return !reduced && guard.take(clock);
+    },
+    /** The wash on screen now (0 = none), for checks. */
+    get washLevel() {
+      return flash.peak ? washLevel(flash.peak, flash.t) : 0;
     },
     /** The HUD bars' bands in px ({ top, bottom }): the world fills the space between them. */
     setInsets(next) {
@@ -115,10 +138,12 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
       if (reduced) return;
       shake.amp = Math.min(22, shake.amp + px);
     },
-    flash(color, alpha = 0.35) {
-      if (reduced) return;
+    /** A soft full-screen wash: `alpha` is capped below the flash thresholds for its colour; dropped within a second of the last large flash. */
+    flash(color, alpha = 1) {
+      if (reduced || !guard.take(clock)) return;
       flash.color = color;
-      flash.a = Math.max(flash.a, alpha);
+      flash.peak = washAlpha(color, alpha);
+      flash.t = 0;
     },
     update,
   };

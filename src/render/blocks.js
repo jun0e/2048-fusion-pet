@@ -5,6 +5,7 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { GRID, cellX, cellY } from '../config.js';
 import { ELEMENTS, fusionOf, milestonePieces } from '../sim/classes.js';
 import { blockTex, softDot, sparkTex, BLOCK_PX } from './textures.js';
+import { HIT_TINT } from '../ux/photosafe.js';
 
 const SLIDE = 0.11;
 const ease = (t) => 1 - (1 - t) ** 3;
@@ -130,10 +131,13 @@ export function createBlocks(stage, fx, { art = null } = {}) {
       const y = fy0 + (t.y - fy0) * e;
       v.c.position.set(stage.sx(x), stage.sy(y));
       v.glow.position.copyFrom(v.c.position);
-      // siege: hit = red flash + shudder, repaired = green flash (health itself stays hidden)
-      v.hurt = Math.max(0, (v.hurt ?? 0) - dt * 4);
+      // siege: hit = red tint + shudder, repaired = green flash (health itself stays hidden). The red
+      // holds while hits keep coming and then fades (photosafe: no blinking with every hit).
+      if (v.hurtHold > 0) v.hurtHold -= dt;
+      else v.hurt = Math.max(0, (v.hurt ?? 0) - dt * HIT_TINT.decay);
+      v.shudder = Math.max(0, (v.shudder ?? 0) - dt * 4); // each hit: a short shudder
       v.healed = Math.max(0, (v.healed ?? 0) - dt * 3);
-      if (v.hurt > 0) v.c.position.x += Math.sin(time * 90 + t.id) * 0.06 * U * v.hurt;
+      if (v.shudder > 0) v.c.position.x += Math.sin(time * 90 + t.id) * 0.06 * U * v.shudder;
       v.body.tint = v.hurt > 0.02 ? mixColor(0xffffff, 0xff6a6a, v.hurt) : v.healed > 0.02 ? mixColor(0xffffff, 0x8dff9d, v.healed) : 0xffffff;
 
       if (v.delay > 0) v.delay -= dt;
@@ -255,7 +259,11 @@ export function createBlocks(stage, fx, { art = null } = {}) {
       if (e.reason !== 'destroyed') fx.burst(e.x, e.y, [0xffd34a, 0xffffff, 0xe89a16], 18, { speed: 4, size: 0.24, life: 0.45, gravity: -6 });
     } else if (e.type === 'tileHit') {
       const v = views.get(e.id);
-      if (v) v.hurt = 1;
+      if (v) {
+        v.hurt = 1;
+        v.hurtHold = HIT_TINT.hold;
+        v.shudder = 1;
+      }
     } else if (e.type === 'tileHeal') {
       const v = views.get(e.id);
       if (v) v.healed = 1;

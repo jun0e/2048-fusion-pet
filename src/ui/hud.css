@@ -610,18 +610,7 @@ body {
 }
 
 .vignette.hurt {
-  animation: hurt 0.45s ease;
-}
-
-.flash {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  mix-blend-mode: screen;
-}
-
-.flash.go {
-  animation: flash 0.5s ease-out;
+  animation: hurt 0.6s ease-in-out; /* photosafe: HURT_PULSE.seconds; one at most per second (main.js asks stage.takeFlash) */
 }
 
 .fight {
@@ -907,22 +896,10 @@ body {
     box-shadow: inset 0 0 0 0 #ff3b3b00;
   }
   30% {
-    box-shadow: inset 0 0 80px 10px #ff3b3b88;
+    box-shadow: inset 0 0 80px 10px #ff3b3b59; /* alpha 0.35: HURT_PULSE in src/ux/photosafe.js */
   }
   100% {
     box-shadow: inset 0 0 0 0 #ff3b3b00;
-  }
-}
-
-@keyframes flash {
-  0% {
-    opacity: 0;
-  }
-  15% {
-    opacity: 0.45;
-  }
-  100% {
-    opacity: 0;
   }
 }
 
@@ -1545,7 +1522,6 @@ body {
 
 .reduce-motion .score.bump,
 .reduce-motion .chip.pop,
-.reduce-motion .flash.go,
 .reduce-motion .vignette.hurt,
 .reduce-motion .coinbar.deny,
 .reduce-motion .coin-ico.gain,

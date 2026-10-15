@@ -1,7 +1,7 @@
 // DOM HUD: score, best, top block, wave/phase/blocks-left status, the coin bar
 // (coins + next swipe price), the next-wave button, class-choice
-// cards, banners (queued, src/ux/banners.js), floating popups, flashes, the
-// pause menu and the game-over card.
+// cards, banners (queued, src/ux/banners.js), floating popups, the red edge pulse,
+// the pause menu and the game-over card.
 // Pure presentation; main.js feeds it. All markup is built from constants and
 // numbers from config/sim data (no user input), so innerHTML is safe here.
 import { TIER_COLORS, tierValue } from '../config.js';
@@ -28,7 +28,6 @@ const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>';
 export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed, onToggleMute, onNextWave, onChoose, onAuto, muted, dev = false }) {
   root.innerHTML = `
     <div class="vignette"></div>
-    <div class="flash"></div>
     <div class="topbar">
       <div class="icons">
         <button class="icon-btn" data-act="pause" aria-label="Pause">${ICON_PAUSE}</button>
@@ -132,7 +131,6 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   const comboEl = $('.combo');
   const milestoneEl = $('.milestone');
   const vignette = $('.vignette');
-  const flashEl = $('.flash');
   const overScrim = $('.over-scrim');
   const choiceScrim = $('.choice-scrim');
   const muteBtn = $('[data-act="mute"]');
@@ -310,9 +308,10 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       const r = coinIco.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     },
-    castleHit() {
+    /** A block fell. `pulse`: the red edge pulse may play (the photosafe budget, stage.takeFlash). */
+    castleHit(pulse = true) {
       restartAnim(castleEl, 'shake');
-      restartAnim(vignette, 'hurt');
+      if (pulse) restartAnim(vignette, 'hurt');
     },
     popup(x, y, text, tier, color) {
       const el = document.createElement('div');
@@ -348,10 +347,6 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       banner.classList.remove('show');
     },
     setPauseView,
-    flash(color) {
-      flashEl.style.background = color;
-      restartAnim(flashEl, 'go');
-    },
     setDanger(level) {
       vignette.style.opacity = String(level * 0.9);
     },

@@ -24,6 +24,7 @@ import { createHaptics } from './haptics.js';
 import { nextSpeed } from './ux/speed.js';
 import { createPause } from './ux/pause.js';
 import { recordRun, restoreRun, loadSaved, saveRun, clearSaved } from './ux/resume.js';
+import { SIGNATURE_TINT } from './ux/photosafe.js';
 import { loadStore } from './ux/coach.js';
 import { createArt } from './art/index.js';
 import { setupKv, KV_DICE } from './kv/index.js';
@@ -563,7 +564,7 @@ async function start() {
             stage.shake(10);
             sfx.hurt();
             haptics.play('lost');
-            hud.castleHit();
+            hud.castleHit(stage.takeFlash()); // the red edge pulse shares the one-a-second flash budget
             const p = client(e.x, e.y + 0.9);
             hud.popup(p.x, p.y, 'Block lost!', 4, '#ef6060');
           }
@@ -677,8 +678,8 @@ async function start() {
           fx.spread(e.from, e.to);
           break;
         case 'signature': {
-          const tint = { globalBurn: 0xff7a3d, globalFreeze: 0x7fd4ff, vortex: 0xbff7e6, contagion: 0xb46cff, gild: 0xffd34a, bloom: 0x4cd964 }[e.effect];
-          if (tint) stage.flash(tint, 0.28);
+          const tint = SIGNATURE_TINT[e.effect];
+          if (tint) stage.flash(tint); // photosafe: a soft wash, one a second at most (src/ux/photosafe.js)
           fx.ring(e.x, e.y, hex(e.colors.at(-1)), 0.8, 3.2, 0.5);
           const p = client(e.x, e.y + 1.3);
           hud.popup(p.x, p.y, e.name, 12, e.colors.at(-1));
@@ -822,6 +823,10 @@ async function start() {
     },
     spawn: (tier, col, row) => run.spawnDebug(tier, col, row),
     coins: (n) => run.addCoins(n),
+    /** The full-screen wash on screen now (0 = none): photosafe checks. */
+    get wash() {
+      return stage.washLevel;
+    },
     select,
     cell: (col, row) => ({ x: cellX(col), y: cellY(row) }),
   };
