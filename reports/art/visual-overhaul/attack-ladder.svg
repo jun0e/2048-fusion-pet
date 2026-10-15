@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 800" width="1240" height="800" font-family="Helvetica, Arial, sans-serif">
+  <title>2048 Siege: attack progression ladder for Fire, Ice and Wind (16 to 4096)</title>
+  <desc>Each cell is one lane seen from above (foes arrive from the top, the block sits at the bottom). What changes per stage: size, count, shape, trail, secondary motion. Theme-neutral greys with one muted tint per element.</desc>
+  <style>
+    .h   { font-size: 16px; fill: #2b1d2e; font-weight: 700; }
+    .col { font-size: 11px; fill: #2b1d2e; font-weight: 700; letter-spacing: 0.5px; }
+    .row { font-size: 12px; fill: #2b1d2e; font-weight: 700; }
+    .cap { font-size: 9px; fill: #3d3843; }
+    .lane { fill: #ece6d8; stroke: #a9a295; stroke-width: 1; }
+    .tile { fill: #fffaf2; stroke: #2b1d2e; stroke-width: 1.5; }
+    .foe  { fill: #2b1d2e; }
+    .pet  { fill: #6a6788; stroke: #2b1d2e; stroke-width: 1; }
+    .fire { fill: #c98a5a; }
+    .fire2 { fill: #e7c3a3; }
+    .ice  { fill: #7f9cb8; }
+    .ice2 { fill: #c7d6e6; }
+    .wind { fill: #8fae9f; }
+    .wind2 { fill: #cfe0d6; }
+    .ink  { stroke: #2b1d2e; fill: none; stroke-width: 1.2; }
+    .ghost { opacity: 0.35; }
+    .smoke { fill: #8d8793; opacity: 0.6; }
+    .halo { fill: none; stroke: #b59a4a; stroke-width: 3; }
+  </style>
+  <defs>
+    <symbol id="lanecell" viewBox="0 0 220 200">
+      <rect x="0" y="0" width="220" height="200" fill="#ffffff" stroke="#d6d2c9"/>
+      <rect x="90" y="6" width="40" height="112" rx="4" class="lane"/>
+      <path d="M94,34 L126,34 M94,62 L126,62 M94,90 L126,90" stroke="#bdb5a6" stroke-width="1"/>
+      <rect x="92" y="112" width="36" height="30" rx="6" class="tile"/>
+    </symbol>
+    <symbol id="foe" viewBox="0 0 20 16"><ellipse cx="10" cy="8" rx="8" ry="6" fill="#2b1d2e"/></symbol>
+    <symbol id="ember" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#c98a5a"/></symbol>
+    <symbol id="shard" viewBox="0 0 10 16"><polygon points="5,0 10,8 5,16 0,8" fill="#c7d6e6" stroke="#2b1d2e" stroke-width="0.8"/></symbol>
+    <symbol id="feather" viewBox="0 0 10 16"><path d="M5,0 C9,4 9,12 5,16 C1,12 1,4 5,0 Z" fill="#cfe0d6" stroke="#2b1d2e" stroke-width="0.8"/><path d="M5,2 L5,14" stroke="#2b1d2e" stroke-width="0.6"/></symbol>
+  </defs>
+  <rect width="1240" height="800" fill="#ffffff"/>
+  <text x="20" y="24" class="h">Attack progression ladder: what the player can watch change (one lane, foes from the top, the block at the bottom)</text>
+  <text x="20" y="40" class="cap">Rule: every stage adds exactly one visible thing (a count, a trail layer, or a secondary motion), the same way a pet adds one motif piece per stage. Nothing gets brighter; things get longer, more numerous, and better shaped.</text>
+
+  <!-- column headers -->
+  <g class="col" transform="translate(0,66)">
+    <text x="200" y="0">16 · stage 1</text>
+    <text x="430" y="0">64 · stage 2</text>
+    <text x="660" y="0">128 · stage 3</text>
+    <text x="890" y="0">256 · fusion (pet roams)</text>
+    <text x="1120" y="0">4096 · legendary</text>
+  </g>
+
+  <!-- ================= FIRE ================= -->
+  <text x="20" y="170" class="row">Fire</text><text x="20" y="184" class="cap">Ember Breath (cone)</text>
+  <g transform="translate(110,76)">
+    <use href="#lanecell" width="220" height="200"/>
+    <!-- 3 embers in a short cone -->
+    <use href="#ember" x="105" y="92" width="8" height="8"/><use href="#ember" x="98" y="78" width="8" height="8"/><use href="#ember" x="113" y="76" width="8" height="8"/>
+    <use href="#foe" x="100" y="58" width="20" height="16"/>
+    <text x="4" y="152" class="cap">3 embers, 1 cell of reach past the</text><text x="4" y="164" class="cap">foe (cone 2 cells). No trail.</text>
+    <text x="4" y="190" class="cap">pet: tiny hop on fire (anticipation 0)</text>
+  </g>
+  <g transform="translate(340,76)">
+    <use href="#lanecell" width="220" height="200"/>
+    <!-- flame tongue moving up the cone -->
+    <path d="M110,112 C96,96 100,70 110,50 C120,70 124,96 110,112 Z" class="fire"/>
+    <path d="M110,104 C104,92 106,76 110,64 C114,76 116,92 110,104 Z" class="fire2"/>
+    <use href="#ember" x="96" y="56" width="7" height="7"/><use href="#ember" x="118" y="48" width="7" height="7"/><use href="#ember" x="102" y="40" width="7" height="7"/><use href="#ember" x="116" y="36" width="7" height="7"/>
+    <ellipse cx="110" cy="112" rx="10" ry="3" fill="#8d8793" opacity="0.5"/>
+    <use href="#foe" x="100" y="30" width="20" height="16"/>
+    <text x="4" y="152" class="cap">A flame tongue sprite rolls up the</text><text x="4" y="164" class="cap">cone (1×0.7 units, moving: ≤0.7 u²</text><text x="4" y="176" class="cap">lit), 4 embers, a scorch mark fades.</text>
+    <text x="4" y="190" class="cap">pet: wind-up crouch, then breath</text>
+  </g>
+  <g transform="translate(570,76)">
+    <use href="#lanecell" width="220" height="200"/>
+    <path d="M110,112 C94,94 98,56 110,24 C122,56 126,94 110,112 Z" class="fire"/>
+    <path d="M110,104 C104,88 106,56 110,36 C114,56 116,88 110,104 Z" class="fire2"/>
+    <g>
+      <use href="#ember" x="94" y="60" width="6" height="6"/><use href="#ember" x="122" y="52" width="6" height="6"/><use href="#ember" x="98" y="40" width="6" height="6"/><use href="#ember" x="124" y="30" width="6" height="6"/><use href="#ember" x="104" y="18" width="6" height="6"/><use href="#ember" x="118" y="14" width="6" height="6"/>
+    </g>
+    <circle cx="96" cy="100" r="6" class="smoke"/><circle cx="124" cy="96" r="7" class="smoke"/><circle cx="92" cy="86" r="5" class="smoke"/>
+    <use href="#foe" x="100" y="14" width="20" height="16"/>
+    <text x="4" y="152" class="cap">Tongue reaches 3 cells, ember rain</text><text x="4" y="164" class="cap">falls back (count 6), smoke puffs</text><text x="4" y="176" class="cap">(normal blend, dark: no light cost).</text>
+    <text x="4" y="190" class="cap">pet: wind-up + follow-through recoil</text>
+  </g>
+  <g transform="translate(800,76)">
+    <use href="#lanecell" width="220" height="200"/>
+    <!-- pet beside the lane, tongue in fusion tint with partner shards -->
+    <ellipse cx="70" cy="112" rx="16" ry="12" class="pet"/>
+    <path d="M86,110 C100,84 128,56 150,28 C140,60 120,92 96,118 Z" class="ice"/>
+    <path d="M92,110 C104,88 124,64 142,40 C134,64 118,88 98,112 Z" class="ice2"/>
+    <use href="#shard" x="120" y="60" width="8" height="13"/><use href="#shard" x="136" y="40" width="8" height="13"/><use href="#shard" x="104" y="80" width="8" height="13"/>
+    <use href="#foe" x="138" y="14" width="20" height="16"/>
+    <text x="4" y="152" class="cap">Frostnova (fire+ice): the tongue takes</text><text x="4" y="164" class="cap">the fusion colour and the partner's</text><text x="4" y="176" class="cap">add-on (frost shards ride the edge).</text>
+    <text x="4" y="190" class="cap">pet: full-body pose; aims from where it stands</text>
+  </g>
+  <g transform="translate(1030,76)">
+    <use href="#lanecell" width="220" height="200"/>
+    <ellipse cx="70" cy="108" rx="16" ry="12" class="pet"/>
+    <circle cx="70" cy="90" r="20" class="halo"/>
+    <path d="M86,106 C100,80 128,52 150,24 C140,56 120,88 96,114 Z" class="ice"/>
+    <path d="M84,112 C96,96 118,80 136,70 C122,86 104,100 92,116 Z" class="ice" opacity="0.7"/>
+    <use href="#shard" x="120" y="56" width="8" height="13"/><use href="#shard" x="136" y="36" width="8" height="13"/>
+    <path d="M70,66 L70,58 M52,72 L46,66 M88,72 L94,66" stroke="#b59a4a" stroke-width="2" stroke-linecap="round"/>
+    <use href="#foe" x="138" y="10" width="20" height="16"/>
+    <text x="4" y="152" class="cap">Sun apex: the halo pulses with each</text><text x="4" y="164" class="cap">breath, a second lick, and the Sun</text><text x="4" y="176" class="cap">signature wash stays ≤ 0.04 alpha.</text>
+    <text x="4" y="190" class="cap">pet: no squash; halo turns, rays flare</text>
+  </g>
+
+  <!-- ================= ICE ================= -->
+  <text x="20" y="394" class="row">Ice</text><text x="20" y="408" class="cap">Echo Harpoon (ping + lance)</text>
+  <g transform="translate(110,300)">
+    <use href="#lanecell" width="220" height="200"/>
+    <circle cx="110" cy="40" r="12" class="ink" stroke-dasharray="3 2"/>
+    <use href="#foe" x="100" y="32" width="20" height="16"/>
+    <path d="M110,112 L110,62" stroke="#2b1d2e" stroke-width="0.8" stroke-dasharray="2 2"/>
+    <polygon points="110,52 114,64 110,70 106,64" class="ice" stroke="#2b1d2e" stroke-width="0.8"/>
+    <text x="4" y="152" class="cap">Ping: one ring contracts onto the</text><text x="4" y="164" class="cap">toughest foe (0.9 → 0.2 u). Harpoon</text><text x="4" y="176" class="cap">0.6×0.18 u on a thin tether line.</text>
+    <text x="4" y="190" class="cap">pet: ear-flick on ping, lunge on throw</text>
+  </g>
+  <g transform="translate(340,300)">
+    <use href="#lanecell" width="220" height="200"/>
+    <circle cx="110" cy="40" r="12" class="ink" stroke-dasharray="3 2"/>
+    <circle cx="70" cy="46" r="8" class="ink ghost" stroke-dasharray="3 2"/><circle cx="150" cy="46" r="8" class="ink ghost" stroke-dasharray="3 2"/>
+    <use href="#foe" x="100" y="32" width="20" height="16"/>
+    <path d="M110,112 L110,62" stroke="#2b1d2e" stroke-width="0.8" stroke-dasharray="2 2"/>
+    <polygon points="110,52 114,64 110,70 106,64" class="ice" stroke="#2b1d2e" stroke-width="0.8"/>
+    <polygon points="110,66 114,78 110,84 106,78" class="ice ghost"/><polygon points="110,80 114,92 110,98 106,92" class="ice ghost" opacity="0.18"/>
+    <text x="4" y="152" class="cap">Ping covers the neighbour lanes</text><text x="4" y="164" class="cap">(3 rings). Harpoon gains an afterimage</text><text x="4" y="176" class="cap">trail (2 ghosts, 60% / 30%).</text>
+    <text x="4" y="190" class="cap">pet: tail-slap before the throw</text>
+  </g>
+  <g transform="translate(570,300)">
+    <use href="#lanecell" width="220" height="200"/>
+    <circle cx="110" cy="40" r="12" class="ink" stroke-dasharray="3 2"/>
+    <use href="#foe" x="100" y="32" width="20" height="16"/>
+    <path d="M110,112 L110,62" stroke="#2b1d2e" stroke-width="0.8" stroke-dasharray="2 2"/>
+    <polygon points="110,52 114,64 110,70 106,64" class="ice" stroke="#2b1d2e" stroke-width="0.8"/>
+    <polygon points="110,66 114,78 110,84 106,78" class="ice ghost"/>
+    <use href="#shard" x="98" y="64" width="6" height="10"/><use href="#shard" x="116" y="64" width="6" height="10"/>
+    <rect x="98" y="26" width="24" height="22" rx="3" fill="#c7d6e6" opacity="0.6" stroke="#2b1d2e" stroke-width="0.8"/>
+    <text x="4" y="152" class="cap">Two shard escorts flank the harpoon</text><text x="4" y="164" class="cap">(count 1 → 3); every 3rd hit freezes:</text><text x="4" y="176" class="cap">the foe is boxed in an ice-block sprite.</text>
+    <text x="4" y="190" class="cap">pet: breach jump on the freezing throw</text>
+  </g>
+  <g transform="translate(800,300)">
+    <use href="#lanecell" width="220" height="200"/>
+    <ellipse cx="70" cy="112" rx="16" ry="12" class="pet"/>
+    <circle cx="110" cy="40" r="12" class="ink" stroke-dasharray="3 2"/>
+    <use href="#foe" x="100" y="32" width="20" height="16"/>
+    <path d="M84,106 L108,60" stroke="#2b1d2e" stroke-width="0.8" stroke-dasharray="2 2"/>
+    <polygon points="110,52 116,62 108,68 104,60" class="wind" stroke="#2b1d2e" stroke-width="0.8"/>
+    <polygon points="102,70 108,80 100,86 96,78" class="wind ghost"/>
+    <path d="M112,46 L118,38 L113,38 L119,30" stroke="#2b1d2e" stroke-width="1.4" fill="none"/>
+    <text x="4" y="152" class="cap">Cryo Arc (ice+lightning): harpoon in</text><text x="4" y="164" class="cap">the fusion colour with the partner's</text><text x="4" y="176" class="cap">add-on: a spark crackles off its tip.</text>
+    <text x="4" y="190" class="cap">pet: roams; throws from where it swims</text>
+  </g>
+  <g transform="translate(1030,300)">
+    <use href="#lanecell" width="220" height="200"/>
+    <ellipse cx="70" cy="108" rx="16" ry="12" class="pet"/>
+    <circle cx="70" cy="90" r="20" class="halo"/>
+    <path d="M70,72 L70,90 L80,96" stroke="#b59a4a" stroke-width="2" fill="none"/>
+    <use href="#foe" x="100" y="32" width="20" height="16"/>
+    <rect x="98" y="26" width="24" height="22" rx="3" fill="#c7d6e6" opacity="0.6" stroke="#2b1d2e" stroke-width="0.8"/>
+    <use href="#foe" x="100" y="68" width="20" height="16"/>
+    <rect x="98" y="62" width="24" height="22" rx="3" fill="#c7d6e6" opacity="0.6" stroke="#2b1d2e" stroke-width="0.8"/>
+    <polygon points="110,96 114,106 110,112 106,106" class="wind" stroke="#2b1d2e" stroke-width="0.8"/>
+    <text x="4" y="152" class="cap">Timestop apex: the clock halo ticks</text><text x="4" y="164" class="cap">to the next freeze; every foe boxes</text><text x="4" y="176" class="cap">at once; the wash stays ≤ 0.08 alpha.</text>
+    <text x="4" y="190" class="cap">pet: glides, no squash; halo = charge dial</text>
+  </g>
+
+  <!-- ================= WIND ================= -->
+  <text x="20" y="618" class="row">Wind</text><text x="20" y="632" class="cap">Wing Gust (lane ribbon)</text>
+  <g transform="translate(110,524)">
+    <use href="#lanecell" width="220" height="200"/>
+    <path d="M104,112 C116,96 100,80 112,64 C120,52 106,40 112,24" stroke="#8fae9f" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.8"/>
+    <use href="#feather" x="100" y="70" width="8" height="12"/>
+    <use href="#foe" x="100" y="20" width="20" height="16"/>
+    <text x="4" y="152" class="cap">One ribbon (MeshRope, 0.35 u wide)</text><text x="4" y="164" class="cap">races up the lane, 1 feather tumbles</text><text x="4" y="176" class="cap">in it; the foe tilts back as it is pushed.</text>
+    <text x="4" y="190" class="cap">pet: one wingbeat</text>
+  </g>
+  <g transform="translate(340,524)">
+    <use href="#lanecell" width="220" height="200"/>
+    <path d="M104,112 C116,96 100,80 112,64 C120,52 106,40 112,24" stroke="#8fae9f" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.8"/>
+    <use href="#feather" x="98" y="84" width="8" height="12"/><use href="#feather" x="114" y="58" width="8" height="12"/><use href="#feather" x="100" y="36" width="8" height="12"/>
+    <use href="#foe" x="100" y="20" width="20" height="16" transform="rotate(-12 110 28)"/>
+    <text x="4" y="152" class="cap">3 feathers; the push is longer</text><text x="4" y="164" class="cap">(0.5 → 1 cell): foes slide back with</text><text x="4" y="176" class="cap">a dust streak, not a flash.</text>
+    <text x="4" y="190" class="cap">pet: double wingbeat</text>
+  </g>
+  <g transform="translate(570,524)">
+    <use href="#lanecell" width="220" height="200"/>
+    <rect x="46" y="6" width="40" height="112" rx="4" class="lane" opacity="0.6"/><rect x="134" y="6" width="40" height="112" rx="4" class="lane" opacity="0.6"/>
+    <path d="M104,112 C116,96 100,80 112,64 C120,52 106,40 112,24" stroke="#8fae9f" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.85"/>
+    <path d="M62,112 C72,96 58,80 68,64 C74,52 62,40 66,24" stroke="#8fae9f" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.45"/>
+    <path d="M150,112 C160,96 146,80 156,64 C162,52 150,40 154,24" stroke="#8fae9f" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.45"/>
+    <use href="#feather" x="98" y="84" width="8" height="12"/><use href="#feather" x="114" y="58" width="8" height="12"/><use href="#feather" x="100" y="36" width="8" height="12"/><use href="#feather" x="60" y="60" width="7" height="11"/><use href="#feather" x="152" y="50" width="7" height="11"/>
+    <use href="#foe" x="100" y="20" width="20" height="16" transform="rotate(-12 110 28)"/>
+    <text x="4" y="152" class="cap">Three lanes: the centre ribbon full,</text><text x="4" y="164" class="cap">neighbours at 45% width (3 ribbons</text><text x="4" y="176" class="cap">≈ 0.3 u wide each fit the line budget).</text>
+    <text x="4" y="190" class="cap">pet: full wingspan pose</text>
+  </g>
+  <g transform="translate(800,524)">
+    <use href="#lanecell" width="220" height="200"/>
+    <ellipse cx="70" cy="112" rx="16" ry="12" class="pet"/>
+    <path d="M86,106 C104,88 100,72 118,56 C130,44 120,32 134,20" stroke="#8d8793" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.85"/>
+    <polygon points="112,66 124,60 118,72" fill="#c3beb3" stroke="#2b1d2e" stroke-width="0.8"/><polygon points="124,42 136,36 130,48" fill="#c3beb3" stroke="#2b1d2e" stroke-width="0.8"/>
+    <use href="#foe" x="124" y="12" width="20" height="16" transform="rotate(-12 134 20)"/>
+    <text x="4" y="152" class="cap">Bladewind (wind+metal): the ribbon in</text><text x="4" y="164" class="cap">the fusion colour carries the partner's</text><text x="4" y="176" class="cap">add-on: spinning blade glints.</text>
+    <text x="4" y="190" class="cap">pet: roams; gusts from where it flies</text>
+  </g>
+  <g transform="translate(1030,524)">
+    <use href="#lanecell" width="220" height="200"/>
+    <ellipse cx="70" cy="108" rx="16" ry="12" class="pet"/>
+    <circle cx="70" cy="90" r="20" class="halo"/>
+    <path d="M70,90 m-12,0 a12,12 0 1 1 24,0 a8,8 0 1 0 -16,0 a4,4 0 1 1 8,0" stroke="#b59a4a" stroke-width="1.5" fill="none"/>
+    <path d="M86,106 C104,88 100,72 118,56 C130,44 120,32 134,20" stroke="#8d8793" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.85"/>
+    <path d="M150,24 C140,40 160,52 150,66 C142,78 158,90 150,104" stroke="#8d8793" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.5"/>
+    <use href="#foe" x="124" y="12" width="20" height="16" transform="rotate(-12 134 20)"/>
+    <text x="4" y="152" class="cap">Vortex apex: the spiral halo winds up</text><text x="4" y="164" class="cap">over 8 s and every lane's ribbons</text><text x="4" y="176" class="cap">curl back toward the gates together.</text>
+    <text x="4" y="190" class="cap">pet: hovers; feathers orbit the halo</text>
+  </g>
+
+  <text x="20" y="770" class="cap">Light budget (src/ux/photosafe.js): moving bodies and ribbons are outside the budget; tongues, rings, pings, impacts and the ice box book their lit area (units² at ≥10% luminance change) and are drawn smaller or not at all when the cap of 10 u² is short. Nothing above uses an additive glow.</text>
+  <text x="20" y="784" class="cap">Fusion rule (unchanged from the README): the first element's shape in the fusion colour; new here: the second element contributes one add-on layer (shards, spark, blade, ember, leaf, pebble, drip, feather), so 28 fusions come from 8 shapes × 8 add-ons with no new sprites.</text>
+</svg>

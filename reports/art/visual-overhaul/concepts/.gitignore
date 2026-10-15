@@ -1,0 +1,12 @@
+# The raw 1024 px generations stay local: each has a keyed cut-out (*.keyed.png) here, and
+# manifest.json keeps every prompt, reference, model and price (the concept record).
+*.png
+!*.keyed.png
+!truth-composite.png
+!truth-composite-sized.png
+!figure-ground.png
+!refs/
+!refs/*.png
+!slices/
+!slices/**/
+!slices/**/*.png
