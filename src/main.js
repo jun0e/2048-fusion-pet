@@ -470,7 +470,7 @@ async function start() {
           haptics.play('merge');
           const p = client(e.x, e.y + 0.9);
           popup(p.x, p.y, `+${e.value.toLocaleString()}`, e.tier);
-          if (e.combo >= 2 && fx.flashAll(TEXT.comboPx / stage.view.U ** 2, TEXT.life)) hud.combo(e.combo);
+          if (e.combo >= 2 && fx.flashAll((TEXT.peak * TEXT.comboPx) / stage.view.U ** 2, TEXT.life)) hud.combo(e.combo);
           break;
         }
         case 'milestone':

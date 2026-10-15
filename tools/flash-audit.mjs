@@ -50,7 +50,7 @@ function pointEffects(e) {
   const text = (t, tier) => [textInk(t, popupFont(tier), PHONE_U), TEXT.life]; // a popup (main.js)
   switch (e.type) {
     case 'merge':
-      return fx({ rings: [[0.6, 1.6, 0.3]], bursts: [[10 + (e.tier ?? 1) * 2, 0.24, 0.45]], texts: [text(`+${e.value.toLocaleString()}`, e.tier), ...(e.combo >= 2 ? [[TEXT.comboPx / PHONE_U ** 2, TEXT.life]] : [])] });
+      return fx({ rings: [[0.6, 1.6, 0.3]], bursts: [[10 + (e.tier ?? 1) * 2, 0.24, 0.45]], texts: [text(`+${e.value.toLocaleString()}`, e.tier), ...(e.combo >= 2 ? [[(TEXT.peak * TEXT.comboPx) / PHONE_U ** 2, TEXT.life]] : [])] });
     case 'promote':
       return fx({ rings: [[0.6, 2.4, 0.5]], bursts: [[30, 0.3, 0.6]], texts: [text(`x${2 ** (e.by ?? 1)}`, e.tier)] });
     case 'override':

@@ -44,7 +44,7 @@ The rules live in `src/ux/photosafe.js`.
      - every other effect holds its first moment.
    - The budget keeps one slot for each frame (1/60 s) of the next 2 s. Each slot holds the most the booked effects light within it. A new effect fits if every slot it touches stays under the cap, so a check costs well under a microsecond however busy the screen is.
    - When the budget is short, the new effect is drawn smaller, thinner, with fewer particles or coins, or not at all. A text popup is drawn smaller, down to 60% of its font size, or not at all. An enemy's hit flash, a damage number, an ember and the combo pill are drawn whole or not at all.
-   - A text popup lights about 0.42 × its characters × its font size² (px², measured with its 5 px outline), converted at the stage's px per world unit.
+   - A text popup lights about 0.42 × its characters × its font size² (px², measured with its 5 px outline), converted at the stage's px per world unit. It books 1.25 × that, because its float-up pops to 1.1×.
    - An enemy under steady fire keeps its hit flash on; it is booked again every 0.12 s and goes out when the budget refuses.
    - A lightning arc keeps one jagged shape for its life (it no longer jitters every frame), and books 10% more than its points' length for the jag.
    - Caps by design:
@@ -53,11 +53,11 @@ The rules live in `src/ux/photosafe.js`.
      - thin line glows: a slash 0.3 wide, a beam 0.35, a sky bolt 1.1 × the arc's 0.34.
    - Measured shares of a texture lit to 10% or more: ring 19%, the brightest explosion frame (fire) 28%, soft dot 65%, spark 15%, the generated foes at hit-flash strength 5–22%.
    - The old flash dot at each impact is gone; the explosion carries the hit.
-   - Outside the budget: projectiles in flight (they move rather than flash), a legendary pet's rare single sparkle, and banners and announcement pills. A banner stays at least 1.8 s and a pill 2.1 s, so their on and off never fall in the same second.
+   - Outside the budget: projectiles in flight (they move rather than flash), a legendary pet's rare single sparkle, and banners and announcement pills. A banner stays at least 1.8 s and a pill 2.1 s, so each changes at most once in a second. When news is waiting, a banner gives way to the next with one quick dip, at most once every 1.8 s.
 5. **A block under attack holds its red.** The tint holds while hits keep coming (one within 0.4 s), then fades. Before, the block blinked with every hit. The shudder for each hit stays.
    - A turret's muzzle flash (alpha 0.12) and a heal's green tint (at most a 40% mix) stay below the flash threshold, so the whole board can glow at once without a flash. The muzzle spark takes from the light budget.
 6. **The lanes' warning glow breathes slowly** (once every 2 s) and gently, so it is no red flash.
-7. **Reduce motion (in-game setting) turns off** washes, the edge pulse, the skill cut-in and shakes.
+7. **Reduce motion (in-game setting) turns off** washes, the edge pulse, the skill cut-in and shakes. The rare milestone number still shows, fading in and out in place over 1.6 s.
 
 **For new effects:**
 
