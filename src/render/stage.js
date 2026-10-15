@@ -52,15 +52,17 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
   const sx = (x) => view.ox + x * view.U;
   const sy = (y) => view.oy - y * view.U;
 
-  // screen shake + full-screen wash (both off when the player reduces motion). A wash is
-  // photosafe (src/ux/photosafe.js): below the flash thresholds, faded in and out, and one at
-  // most per second of real time; the HUD's red edge pulse takes from the same budget.
+  // screen shake + full-screen wash (both off when the player reduces motion). Photosafe
+  // (src/ux/photosafe.js): a wash is below the flash thresholds, fades in and out and comes at
+  // most once a second of real time; large flashes (the HUD's red edge pulse, a pet's cut-in)
+  // ask takeFlash, their own one-a-second budget.
   let reduced = false;
   const shake = { amp: 0, t: 0 };
   const flashG = new Graphics();
   layers.overlay.addChild(flashG);
   const flash = { peak: 0, t: 0, color: 0xffffff };
-  const guard = createFlashGuard();
+  const washes = createFlashGuard();
+  const flashes = createFlashGuard();
   let clock = 0; // real seconds (frame time), whatever the game speed
 
   function update(dt) {
@@ -116,9 +118,9 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
     get reduced() {
       return reduced;
     },
-    /** May a large flash (the HUD's red edge pulse) start now? Takes the shared one-a-second budget. */
+    /** May a large flash (the red edge pulse, a pet's cut-in) start now? Takes its one-a-second budget; never under Reduce motion. */
     takeFlash() {
-      return !reduced && guard.take(clock);
+      return !reduced && flashes.take(clock);
     },
     /** The wash on screen now (0 = none), for checks. */
     get washLevel() {
@@ -138,9 +140,9 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
       if (reduced) return;
       shake.amp = Math.min(22, shake.amp + px);
     },
-    /** A soft full-screen wash: `alpha` is capped below the flash thresholds for its colour; dropped within a second of the last large flash. */
+    /** A soft full-screen wash: `alpha` is capped below the flash thresholds for its colour; dropped within a second of the last wash. */
     flash(color, alpha = 1) {
-      if (reduced || !guard.take(clock)) return;
+      if (reduced || !washes.take(clock)) return;
       flash.color = color;
       flash.peak = washAlpha(color, alpha);
       flash.t = 0;

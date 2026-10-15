@@ -1603,32 +1603,18 @@ body {
 #hud.choosing .kv-cutin {
   visibility: hidden;
 }
-/* src/kv/kv.css stops these only for the system setting; this is the in-game one */
+/* src/kv/kv.css stops these only for the system setting; this is the in-game one. The skill cut-in
+   does not play at all under it (namecards.js asks stage.takeFlash). */
 .reduce-motion .kv-card.ready,
 .reduce-motion .kv-card.ready .kv-shine,
 .reduce-motion .kv-card.nudge {
   animation: none;
-}
-.reduce-motion .kv-cutin.go {
-  animation: kv-cut-still 0.95s ease-out forwards; /* fades in place, no slide */
 }
 .reduce-motion .kv-card.lost {
   animation: kv-lost-still 1.4s ease-in forwards; /* fades, no fall */
 }
 @keyframes kv-lost-still {
   to {
-    opacity: 0;
-  }
-}
-@keyframes kv-cut-still {
-  0% {
-    opacity: 0;
-  }
-  14%,
-  78% {
-    opacity: 1;
-  }
-  100% {
     opacity: 0;
   }
 }

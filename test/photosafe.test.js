@@ -45,7 +45,7 @@ test('every full-screen wash stays below the flash thresholds, over the game\'s 
   }
 });
 
-test('large flashes share one budget: one a second of real time, however often they are asked for', () => {
+test('a budget gives one a second of real time, however often it is asked', () => {
   const guard = createFlashGuard();
   const granted = [];
   for (let frame = 0; frame < 600; frame++) {
@@ -73,12 +73,13 @@ test('a wash fades in and out (no on/off step) and is over before the next may s
   assert.ok(FLASH_DOT.maxSize < 3 && HIT_TINT.hold > 0);
 });
 
-test('the real event stream at x4: at most one large flash a second, washes below threshold, no blinking blocks', () => {
+test('the real event stream at x4: one flash and one wash a second at most, washes below threshold, no blinking blocks', () => {
   const rows = audit({ seeds: 2, minutes: 6, stressSeconds: 60, speeds: [4] });
   const before = rows.find((r) => r.policy === 'before');
   const safe = rows.find((r) => r.policy === 'photosafe');
   assert.ok(before.large.perSecond > 3, `the old effects flashed ${before.large.perSecond} times in a second`);
-  assert.ok(safe.large.perSecond <= 1, `photosafe: ${safe.large.perSecond} in a second`);
+  assert.ok(safe.above.flashPerSecond <= 1, `photosafe: ${safe.above.flashPerSecond} flashes above the thresholds in a second`);
+  assert.ok(safe.large.perSecond <= 2, `photosafe: ${safe.large.perSecond} washes and flashes in a second (the limit is 3)`);
   assert.ok(safe.wash <= FLASH.wash && safe.pulse <= HURT_PULSE.alpha);
   assert.ok(safe.hit.hitPerSecond <= 3, `a block blinked ${safe.hit.hitPerSecond} times in a second`);
 });

@@ -86,6 +86,11 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
   }
 
   function play(card) {
+    card.el.classList.add('fire');
+    setTimeout(() => card.el.classList.remove('fire'), 600);
+    // the cut-in is a large panel: it takes the photosafe flash budget (one a second, none under
+    // Reduce motion), so quick taps on several cards never make it blink
+    if (!stage.takeFlash()) return;
     cutin.innerHTML = `
       <div class="kv-cutin-card" style="--c:${fusionOf(card.cls).color}">
         <img alt="" src="${art.portrait(card.cls)}" />
@@ -94,8 +99,6 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     cutin.classList.remove('go');
     void cutin.offsetWidth;
     cutin.classList.add('go');
-    card.el.classList.add('fire');
-    setTimeout(() => card.el.classList.remove('fire'), 600);
   }
 
   function layout() {

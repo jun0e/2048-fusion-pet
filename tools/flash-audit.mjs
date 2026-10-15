@@ -2,10 +2,10 @@
 // soon as they are ready, a burst of taps when several are) and a stress board of
 // legendaries, then counts the large flashes the screen would show per second of real time
 // at x1, x2 and x4: the old effects against the rules in src/ux/photosafe.js.
-// A large flash: a full-screen wash, the red edge pulse when a block falls, or an impact's
-// flash dot at least 3 world units across (on a phone, about a quarter of the central 10° of
-// vision). WCAG 2.3.1 allows at most 3 in any second; a block's red hit tint is counted per
-// block.
+// A large flash: a full-screen wash, the red edge pulse when a block falls, a pet skill's
+// cut-in panel, or an impact's flash dot at least 3 world units across (on a phone, about a
+// quarter of the central 10° of vision). WCAG 2.3.1 allows at most 3 in any second; a block's
+// red hit tint is counted per block.
 //
 //   node tools/flash-audit.mjs [--seeds=12] [--minutes=15]
 import { pathToFileURL } from 'node:url';
@@ -79,20 +79,22 @@ function stressRun() {
 
 /** The large flashes (real time) and the per-block hit pulses of one event list at one speed. */
 function flashes(events, speed, safe) {
-  const guard = createFlashGuard();
-  const large = []; // { w, red, alpha }
+  const washes = createFlashGuard();
+  const flashes = createFlashGuard(); // the large flashes above the thresholds
+  const large = []; // { w, red, alpha, wash }
   const hits = new Map(); // block id → [real time of each new red pulse]
   const tint = new Map(); // block id → { w, level }
   let lastSim = null;
   let taps = 0;
-  // a full-screen wash (capped below the thresholds) or the red edge pulse (above them): both take the budget
+  // a full-screen wash (capped below the thresholds) takes the wash budget; the red edge pulse
+  // and a skill's cut-in panel (above them) take the flash budget
   const wash = (w, color, alpha) => {
-    if (safe && !guard.take(w)) return;
+    if (safe && !washes.take(w)) return;
     large.push({ w, red: isSaturatedRed(color), alpha: safe ? washAlpha(color, alpha) : alpha, wash: true });
   };
-  const pulse = (w) => {
-    if (safe && !guard.take(w)) return;
-    large.push({ w, red: true, alpha: safe ? HURT_PULSE.alpha : OLD.hurtAlpha });
+  const flash = (w, red, alpha) => {
+    if (safe && !flashes.take(w)) return;
+    large.push({ w, red, alpha });
   };
   for (const [simT, e] of events) {
     let w = simT / speed;
@@ -102,9 +104,11 @@ function flashes(events, speed, safe) {
       w += taps * TAP_GAP;
     }
     if (e.type === 'signature' && SIGNATURE_TINT[e.effect]) wash(w, SIGNATURE_TINT[e.effect], OLD.signatureAlpha);
-    else if (e.type === 'skill') wash(w, hex(e.colors.at(-1)), OLD.skillAlpha);
-    else if (e.type === 'remove' && e.reason === 'destroyed') {
-      pulse(w);
+    else if (e.type === 'skill') {
+      flash(w, isSaturatedRed(hex(e.colors.at(-1))), 1); // the cut-in panel (the tap plays it)
+      wash(w, hex(e.colors.at(-1)), OLD.skillAlpha);
+    } else if (e.type === 'remove' && e.reason === 'destroyed') {
+      flash(w, true, safe ? HURT_PULSE.alpha : OLD.hurtAlpha); // the red edge pulse
       const dot = safe ? Math.min(FLASH_DOT.maxSize, OLD.destroyedDot) : OLD.destroyedDot;
       if (dot >= LARGE_DOT) large.push({ w, red: isSaturatedRed(0xff6b6b), alpha: 1 });
     } else if (e.type === 'impact' && !e.area) {
@@ -133,6 +137,7 @@ function flashes(events, speed, safe) {
   return {
     total: merged.length,
     perSecond: peak(merged.map((f) => f.w)),
+    flashPerSecond: peak(merged.filter((f) => !(f.wash && safe)).map((f) => f.w)), // the old washes were above the thresholds too
     redPerSecond: peak(merged.filter((f) => f.red).map((f) => f.w)),
     washPeak: Math.max(0, ...large.filter((f) => f.wash).map((f) => f.alpha)),
     pulsePeak: Math.max(0, ...large.filter((f) => !f.wash && f.alpha < 1).map((f) => f.alpha)),
@@ -154,7 +159,7 @@ export function audit({ seeds = 12, minutes = 15, stressSeconds = 180, speeds = 
     for (const speed of speeds) {
       const r = scenarios.map((s) => ({ name: s.name, ...flashes(s.events, speed, safe) }));
       const worst = (k) => r.reduce((m, x) => (x[k] > m[k] ? x : m));
-      rows.push({ policy: safe ? 'photosafe' : 'before', speed, large: worst('perSecond'), red: worst('redPerSecond'), wash: Math.max(...r.map((x) => x.washPeak)), pulse: Math.max(...r.map((x) => x.pulsePeak)), hit: worst('hitPerSecond') });
+      rows.push({ policy: safe ? 'photosafe' : 'before', speed, large: worst('perSecond'), above: worst('flashPerSecond'), red: worst('redPerSecond'), wash: Math.max(...r.map((x) => x.washPeak)), pulse: Math.max(...r.map((x) => x.pulsePeak)), hit: worst('hitPerSecond') });
     }
   }
   return rows;
@@ -166,7 +171,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const minutes = arg('minutes', 15);
   const rows = audit({ seeds, minutes });
   console.log(`${seeds} bot games (up to ${minutes} min, pets roaming, namecards tapped when ready) + a stress board of 4 legendaries\n`);
-  console.log('| effects | speed | large flashes in any 1 s | of them red | wash peak alpha | edge pulse alpha | red pulses of one block in any 1 s |');
-  console.log('|---|---|---|---|---|---|---|');
-  for (const x of rows) console.log(`| ${x.policy} | x${x.speed} | ${x.large.perSecond} (${x.large.name}) | ${x.red.redPerSecond} | ${x.wash.toFixed(2)} | ${x.pulse.toFixed(2)} | ${x.hit.hitPerSecond} |`);
+  console.log('| effects | speed | large flashes in any 1 s | of them above the thresholds | of them red | wash peak alpha | edge pulse alpha | red pulses of one block in any 1 s |');
+  console.log('|---|---|---|---|---|---|---|---|');
+  for (const x of rows) console.log(`| ${x.policy} | x${x.speed} | ${x.large.perSecond} (${x.large.name}) | ${x.above.flashPerSecond} | ${x.red.redPerSecond} | ${x.wash.toFixed(2)} | ${x.pulse.toFixed(2)} | ${x.hit.hitPerSecond} |`);
 }
