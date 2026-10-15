@@ -133,7 +133,7 @@ export function createShots(stage, fx) {
     const kind = e.element ?? 'plain';
     const tierScale = 1 + Math.min(14, e.tier ?? 1) * 0.06;
     const size = (e.pattern === 'lob' ? 2.6 : e.pattern === 'lance' ? 2.2 : e.pattern === 'blade' ? 1.4 : e.kind === 'zap' ? 1.6 : 1.8) * tierScale * (e.miss ? 0.7 : 1);
-    fx.explode(e.x, e.y, kind, size, { flash: cols[0] });
+    fx.explode(e.x, e.y, kind, size);
     // fusions: a ring in the second element's colour
     if (cols.length > 1) fx.ring(e.x, e.y, main, 0.3, size * 0.9, 0.3);
     if (e.chain) fx.lightning(e.chain, cols.includes(0xffe14d) ? 0xffe14d : main, 0.22);

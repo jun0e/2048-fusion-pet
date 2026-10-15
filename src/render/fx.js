@@ -4,7 +4,7 @@
 import { BitmapFont, BitmapText, Container, Graphics, Sprite } from 'pixi.js';
 import { laneAt } from '../config.js';
 import { softDot, ringTex, sparkTex, projTex, coinTex, boomFrames } from './textures.js';
-import { FLASH_DOT } from '../ux/photosafe.js';
+import { createLightBudget, fitBoom, fitRing } from '../ux/photosafe.js';
 
 const MAX_PARTS = 900;
 const MAX_NUMS = 90;
@@ -32,6 +32,9 @@ export function createFx(stage) {
   const partLayer = new Container();
   layers.fx.addChild(partLayer);
   const parts = [];
+  // photosafe: rings and explosions share a light budget (src/ux/photosafe.js POINT), so what
+  // they light at the same moment never adds up to a large flash
+  let light = createLightBudget();
   const free = [];
 
   function particle(tex, x, y, { vx = 0, vy = 0, life = 0.5, size = 0.2, grow = 0, color = 0xffffff, alpha = 1, gravity = 0, drag = 0, spin = 0, add = true, rot = 0 } = {}) {
@@ -71,10 +74,11 @@ export function createFx(stage) {
     }
   }
 
-  function ring(x, y, color, r0, r1, life = 0.35, width = 1) {
-    const p = particle(ringTex(), x, y, { life, size: r0 * 2, grow: (r1 - r0) * 2, color, alpha: 0.9 });
-    if (p) p.width = width;
-    return p;
+  /** A ring growing from r0 to r1: at most POINT.ringMax, smaller (or none) when the light budget is short. */
+  function ring(x, y, color, r0, r1, life = 0.35) {
+    const r = fitRing(light, r0, r1, life);
+    if (!r) return null;
+    return particle(ringTex(), x, y, { life, size: r.r0 * 2, grow: (r.r1 - r.r0) * 2, color, alpha: 0.9 });
   }
 
   function trail(x, y, color, size = 0.22) {
@@ -163,15 +167,15 @@ export function createFx(stage) {
   layers.fx.addChild(boomLayer);
   const booms = [];
   /** `kind` = element (or 'plain'); `size` in world units. */
-  function explode(x, y, kind, size = 1.6, { dur = 0.36, flash = null } = {}) {
+  function explode(x, y, kind, size = 1.6, { dur = 0.36 } = {}) {
+    size = fitBoom(light, size, dur); // photosafe: at most POINT.boomMax, smaller (or none) when the light budget is short
+    if (!size) return;
     if (booms.length > 60) booms.shift().sp.destroy();
     const frames = boomFrames(kind);
     const sp = new Sprite(frames[0]);
     sp.anchor.set(0.5);
     boomLayer.addChild(sp);
     booms.push({ sp, frames, x, y, size, t: 0, dur });
-    // the flash dot stays small and soft (photosafe: many of them never add up to a large flash)
-    if (flash != null && !stage.reduced) particle(softDot(), x, y, { life: FLASH_DOT.life, size: Math.min(size * 1.3, FLASH_DOT.maxSize), grow: 0.6, color: flash, alpha: FLASH_DOT.alpha });
   }
 
   function updateBooms(dt) {
@@ -243,6 +247,7 @@ export function createFx(stage) {
   }
 
   function update(dt) {
+    light.tick(dt);
     updateCoins(dt);
     updateBooms(dt);
     const U = stage.view.U;
@@ -349,6 +354,7 @@ export function createFx(stage) {
   }
 
   function reset() {
+    light = createLightBudget();
     for (const c of coins) c.sp.destroy();
     coins.length = 0;
     for (const b of booms) b.sp.destroy();

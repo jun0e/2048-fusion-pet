@@ -186,6 +186,8 @@ async function start() {
   let lastLoss = null; // how the last run ended (for the retry hint)
   let selected = null; // tile id picked to show its range
   let clearBonus = 0;
+  // a wave with 3 blocks or fewer left: the red vignette shows, and so does a fallen block's edge pulse
+  const inDanger = () => run.blocks <= 3 && run.phase === 'wave';
 
   function newRun() {
     if (kv) return kv.preset(createRun({ seed: seedParam ?? 2048, empty: true, dice: KV_DICE, roaming: true })); // it draws its pets
@@ -559,12 +561,12 @@ async function start() {
         case 'remove':
           if (e.reason === 'destroyed') {
             // a block's hidden health ran out: it shatters and is gone for good
-            fx.explode(e.x, e.y, 'earth', 2.6, { flash: 0xff6b6b });
+            fx.explode(e.x, e.y, 'earth', 2.6);
             fx.burst(e.x, e.y, [0x2a1c22, 0xff6b6b, hex(ELEMENTS[e.cls?.element]?.color ?? '#d9d2c5')], 26, { speed: 6, size: 0.3, life: 0.6, gravity: -9 });
             stage.shake(10);
             sfx.hurt();
             haptics.play('lost');
-            hud.castleHit(stage.takeFlash()); // the red edge pulse shares the one-a-second flash budget
+            hud.castleHit(inDanger() && stage.takeFlash()); // the edge pulse shows only in danger; then it takes the one-a-second flash budget
             const p = client(e.x, e.y + 0.9);
             hud.popup(p.x, p.y, 'Block lost!', 4, '#ef6060');
           }
@@ -766,7 +768,7 @@ async function start() {
     tutorial.update(live ? dt : 0);
     hud.update(live && !run.pendingChoice ? dt : 0); // banners wait behind a die card, too
     if (live && !gameOverShown) auto.tick(run, dt, doSwipe);
-    hud.setDanger(run.blocks <= 3 && run.phase === 'wave' ? 0.5 : 0);
+    hud.setDanger(inDanger() ? 0.5 : 0);
 
     // a picked block shows its range (and its inspect card); a die card or a lost block puts it down
     const picked = selected != null && run.tiles.find((t) => t.id === selected);

@@ -1,17 +1,20 @@
 // Photosensitivity safety: no effect may flash the screen in a way known to trigger seizures.
 // The rules (WCAG 2.3.1 "Three flashes or below threshold"; ITU-R BT.1702, the Harding test):
 // a flash is a pair of opposing changes in relative luminance of 10% or more over a large
-// area (about a quarter of the central 10° of vision: on a phone, a palm-sized patch), and a
-// red flash is a change to or from a saturated red. Large flashes may come at most 3 times in
-// any second. So:
+// area, and a red flash is a change to or from a saturated red. Large means: the flashes going
+// on at the same moment cover a quarter of any 10° of vision. On a phone held at 25 cm that is
+// about 11 world units², and the whole lane field is about one 10° patch. Large flashes may come
+// at most 3 times in any second. So:
 // - a full-screen wash stays below both thresholds (its alpha is capped by its colour), and comes
 //   at most once a second of real time, at any game speed;
 // - large flashes above the thresholds (the red edge pulse when a block falls, a pet skill's
 //   cut-in panel) share their own budget, also one a second. Washes and flashes together: at
 //   most 2 in any second, so effects never stack into a flicker;
-// - an impact's flash dot stays small; a block under attack holds its red instead of blinking.
-// The in-game Reduce motion setting turns all of them off. tools/flash-audit.mjs measures
-// the real event stream against these rules.
+// - effects drawn at a point (rings, explosions) are capped and share a light budget: what they
+//   change by 10% or more at the same moment stays under POINT.cap, below a large flash;
+// - a block under attack holds its red instead of blinking.
+// The in-game Reduce motion setting turns washes and large flashes off. tools/flash-audit.mjs
+// measures the real event stream against these rules.
 
 export const FLASH = {
   gap: 1, // seconds of real time between two washes, and between two large flashes (the limit is 3 in a second)
@@ -21,8 +24,98 @@ export const FLASH = {
   fall: 0.5, // ... and out, never on and off
 };
 
-/** An impact's flash dot: small, softer and a little longer, so many of them never add up to a large flash. */
-export const FLASH_DOT = { maxSize: 2.4, alpha: 0.6, life: 0.24 };
+/**
+ * Effects drawn at a point. A ring grows to at most ringMax (radius) and an explosion is at most
+ * boomMax across. Together they may light at most `cap` world units² to 10% or more at any
+ * moment; a large flash is `large` (a quarter of 10° of vision on a phone held at 25 cm).
+ * Measured texture shares (pixels lit to 10% or more): the ring 0.19, the brightest explosion
+ * frame (fire) 0.28.
+ */
+export const POINT = { cap: 8, large: 11, ringMax: 2, boomMax: 3.2, minBoom: 1, minRing: 0.5, ringShare: 0.19, boomShare: 0.28 };
+
+/** What a ring growing from r0 to r1 (radii) at `alpha` lights to 10% or more, `s` (0–1) into its life. */
+export function ringLitAt(r0, r1, s, alpha = 0.9) {
+  if (alpha * Math.min(1, 1.6 * (1 - s)) < 0.1) return 0; // a particle keeps its alpha for 37.5% of its life, then fades
+  return POINT.ringShare * (2 * (r0 + (r1 - r0) * s)) ** 2;
+}
+
+/** When (0–1 of its life) a ring lights the most: the last moment it is still at 10%. */
+export const ringPeak = (alpha = 0.9) => Math.min(1, 1 - 0.0625 / alpha) - 1e-6;
+
+/** The most a ring lights to 10% or more. */
+export const ringLit = (r0, r1, alpha = 0.9) => (alpha < 0.1 ? 0 : ringLitAt(r0, r1, ringPeak(alpha), alpha));
+
+/** What an explosion `size` across lights to 10% or more (its brightest frame, for its whole life). */
+export const boomLit = (size) => POINT.boomShare * size * size;
+
+/**
+ * The light budget of effects drawn at a point, on a clock of real seconds (frame time). An
+ * effect books its light over its life as `lit(s)`, s from 0 to 1, lighting the most at `peak`.
+ * fit(lit, life, peak) gives the largest share (0–1) of an effect that keeps the total under
+ * the cap for all of its life. Rings grow until their peak and explosions hold, so the total
+ * is highest just before something ends or fades: it is checked at 20 moments of the effect, at
+ * its peak and end, and at the peaks and ends of the effects already on screen.
+ */
+export function createLightBudget({ cap = POINT.cap } = {}) {
+  let now = 0;
+  const live = []; // { start, life, lit, peak }
+  const at = (t) => {
+    let sum = 0;
+    for (const e of live) if (t >= e.start && t < e.start + e.life) sum += e.lit((t - e.start) / e.life);
+    return sum;
+  };
+  return {
+    tick(dt) {
+      now += dt;
+      for (let i = live.length - 1; i >= 0; i--) if (live[i].start + live[i].life <= now) live.splice(i, 1);
+    },
+    /** Lit now (world units²). */
+    get used() {
+      return at(now);
+    },
+    fit(lit, life, peak = 0) {
+      const end = 1 - 1e-6;
+      const moments = [peak, end];
+      for (let j = 0; j < 20; j++) moments.push(j / 20);
+      for (const e of live) {
+        for (const t of [e.start + e.life * e.peak, e.start + e.life * end]) {
+          const s = (t - now) / life;
+          if (s >= 0 && s < 1) moments.push(s);
+        }
+      }
+      let share = 1;
+      for (const s of moments) {
+        const want = lit(s);
+        if (want <= 0) continue;
+        share = Math.min(share, Math.max(0, cap - at(now + s * life)) / want);
+      }
+      return share;
+    },
+    take(lit, life, peak = 0) {
+      live.push({ start: now, life, lit, peak });
+    },
+  };
+}
+
+/** Book a ring in the budget: radius capped, shrunk to fit (null: none). → { r0, r1 } */
+export function fitRing(budget, r0, r1, life, alpha = 0.9) {
+  const R1 = Math.min(r1, POINT.ringMax);
+  const R0 = Math.min(r0, R1);
+  const peak = ringPeak(alpha);
+  const k = Math.sqrt(budget.fit((s) => ringLitAt(R0, R1, s, alpha), life, peak)); // light grows with the radius squared
+  if (R1 * k < POINT.minRing) return null;
+  budget.take((s) => ringLitAt(R0 * k, R1 * k, s, alpha), life, peak);
+  return { r0: R0 * k, r1: R1 * k };
+}
+
+/** Book an explosion in the budget: capped, shrunk to fit (0: none). → its size */
+export function fitBoom(budget, size, life) {
+  const S = Math.min(size, POINT.boomMax);
+  const k = Math.sqrt(budget.fit(() => boomLit(S), life));
+  if (S * k < POINT.minBoom) return 0;
+  budget.take(() => boomLit(S * k), life);
+  return S * k;
+}
 
 /** A block under attack: its red tint holds while hits keep coming (one within `hold` s), then fades over 1 / decay s. */
 export const HIT_TINT = { hold: 0.4, decay: 1.6 };

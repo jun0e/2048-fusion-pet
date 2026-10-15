@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ELEMENTS } from '../src/sim/classes.js';
-import { FLASH, FLASH_DOT, HIT_TINT, HURT_PULSE, SIGNATURE_TINT, createFlashGuard, isSaturatedRed, linear, luminance, washAlpha, washLevel } from '../src/ux/photosafe.js';
+import { FLASH, HIT_TINT, HURT_PULSE, POINT, SIGNATURE_TINT, createFlashGuard, createLightBudget, fitBoom, fitRing, isSaturatedRed, linear, luminance, ringLit, washAlpha, washLevel } from '../src/ux/photosafe.js';
+import { createRng } from '../src/sim/rng.js';
 import { audit } from '../tools/flash-audit.mjs';
 
 const hex = (c) => parseInt(String(c).replace('#', ''), 16);
@@ -70,7 +71,33 @@ test('a wash fades in and out (no on/off step) and is over before the next may s
   assert.equal(washLevel(peak, FLASH.rise + FLASH.fall), 0);
   assert.ok(FLASH.rise + FLASH.fall < FLASH.gap, 'no two washes overlap');
   assert.ok(HURT_PULSE.seconds <= FLASH.gap, 'a wash never starts on top of the red edge pulse');
-  assert.ok(FLASH_DOT.maxSize < 3 && HIT_TINT.hold > 0);
+  assert.ok(HIT_TINT.hold > 0);
+});
+
+test('rings and explosions share a light budget: hundreds in a second never light a large area at once', () => {
+  assert.ok(ringLit(0.4, 7.2) > POINT.large, "an old pet skill's ring alone was a large flash");
+  const budget = createLightBudget();
+  const rng = createRng(11);
+  let peak = 0;
+  let drawn = 0;
+  for (let ms = 0; ms < 3000; ms++) {
+    budget.tick(0.001);
+    if (ms % 16 === 0 && ms < 2000) {
+      for (let k = 0; k < 5; k++) {
+        // a frame of a busy fight at x4: big rings and explosions, all asking at once
+        const r = fitRing(budget, rng.next() * 0.8, 1 + rng.next() * 6, 0.2 + rng.next() * 0.4);
+        if (r) assert.ok(r.r1 <= POINT.ringMax + 1e-9);
+        const size = fitBoom(budget, 1 + rng.next() * 4, 0.36);
+        assert.ok(size <= POINT.boomMax + 1e-9);
+        drawn += (r ? 1 : 0) + (size ? 1 : 0);
+      }
+    }
+    peak = Math.max(peak, budget.used);
+  }
+  assert.ok(peak <= POINT.cap + 1e-3, `lit ${peak.toFixed(4)} at once (cap ${POINT.cap}; 0.001 for rounding)`);
+  assert.ok(POINT.cap < POINT.large);
+  assert.ok(drawn >= 20, `effects still drawn: ${drawn} of 1250 big asks`);
+  assert.equal(budget.used, 0, 'the light comes back when the effects are over');
 });
 
 test('the real event stream at x4: one flash and one wash a second at most, washes below threshold, no blinking blocks', () => {
@@ -80,6 +107,9 @@ test('the real event stream at x4: one flash and one wash a second at most, wash
   assert.ok(before.large.perSecond > 3, `the old effects flashed ${before.large.perSecond} times in a second`);
   assert.ok(safe.above.flashPerSecond <= 1, `photosafe: ${safe.above.flashPerSecond} flashes above the thresholds in a second`);
   assert.ok(safe.large.perSecond <= 2, `photosafe: ${safe.large.perSecond} washes and flashes in a second (the limit is 3)`);
-  assert.ok(safe.wash <= FLASH.wash && safe.pulse <= HURT_PULSE.alpha);
+  assert.ok(safe.wash <= FLASH.wash);
+  assert.ok(before.pointPeak > POINT.large, `the old rings and dots lit ${before.pointPeak.toFixed(0)} units² at once`);
+  assert.equal(safe.point.pointPerSecond, 0, 'no large flash from rings and explosions');
+  assert.ok(safe.pointPeak <= POINT.cap + 1e-3, `rings and explosions lit ${safe.pointPeak.toFixed(4)} units² at once`);
   assert.ok(safe.hit.hitPerSecond <= 3, `a block blinked ${safe.hit.hitPerSecond} times in a second`);
 });
