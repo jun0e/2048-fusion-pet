@@ -9,7 +9,8 @@
 // - a moment when the local effects on screen together light POINT.large or more to 10% or more
 //   (a quarter of 10° of vision on a phone; the lane field is about one 10° patch, so the whole
 //   screen counts as one). The local effects are rings, explosions, lines (lightning, wind
-//   slashes, beams), particle bursts, enemies' hit flashes, and the old flash dots.
+//   slashes, beams), particle bursts, enemies' hit flashes, damage numbers, coins, status
+//   embers, and the old flash dots.
 // WCAG 2.3.1 allows at most 3 in any second. A block's red hit tint is counted per block.
 //
 //   node tools/flash-audit.mjs [--seeds=12] [--minutes=15]
@@ -17,7 +18,7 @@ import { pathToFileURL } from 'node:url';
 import { createRun } from '../src/sim/run.js';
 import { bestDir } from '../src/autoplay.js';
 import { FIELD, PHYSICS } from '../src/config.js';
-import { BURST, FOE_FLASH, HIT_TINT, HURT_PULSE, LINE, POINT, SIGNATURE_TINT, boomLit, createFlashGuard, createLightBudget, fitBoom, fitRing, isSaturatedRed, ringLit, washAlpha } from '../src/ux/photosafe.js';
+import { BURST, COIN, DOT, FOE_FLASH, HIT_TINT, HURT_PULSE, LINE, NUMBER, POINT, SIGNATURE_TINT, boomLit, createFlashGuard, createLightBudget, fitBoom, fitRing, isSaturatedRed, ringLit, washAlpha } from '../src/ux/photosafe.js';
 
 const TAP_GAP = 0.2; // seconds of real time between taps on cards that are ready together
 const MERGE = 0.1; // large flashes closer than this (real time) read as one
@@ -106,6 +107,14 @@ function pointEffects(e) {
       return e.reason === 'destroyed' ? fx({ boom: 2.6, dot: 2.6 * OLD.dotScale, bursts: [[26, 0.3, 0.6]] }) : fx({ bursts: [[18, 0.24, 0.45]] });
     case 'foeFlash': // enemies hit this step (play() adds these): each flashes its sprite
       return fx({ foes: e.lits });
+    case 'hit':
+      return e.amount >= 0.5 ? fx({ numbers: [0.36] }) : null;
+    case 'coins':
+      if (e.reason === 'kill') return fx({ numbers: [0.3], coins: Math.min(6, 1 + Math.floor(e.amount / 12)) });
+      if (e.reason === 'combo') return fx({ coins: 3 });
+      return e.reason === 'clear' ? fx({ coins: 10 }) : null;
+    case 'embers': // status particles and DoT numbers (play() adds these, as foes.js emits them)
+      return fx({ embers: e.embers, numbers: e.numbers });
     default:
       return null;
   }
@@ -157,6 +166,12 @@ function pointLight(items, safe) {
         count('burst', m < n, m / n);
       }
       for (const lit of p.foes ?? []) count('enemy hit flash', !budget.bookAll(lit, FOE_FLASH.life));
+      for (const scale of p.numbers ?? []) count('number', !budget.bookAll(NUMBER.lit * (scale / NUMBER.scale) ** 2, NUMBER.life));
+      if (p.coins) {
+        const m = Math.round(p.coins * budget.book(p.coins * COIN.lit, COIN.life));
+        count('coin', m < p.coins, m / p.coins);
+      }
+      for (const [lit, life] of p.embers ?? []) count('ember', !budget.bookAll(lit, life));
       used = budget.used;
     } else {
       now = w;
@@ -175,6 +190,9 @@ function pointLight(items, safe) {
       for (const [lit, life] of p.lines) add(lit, life);
       for (const [n, size, life] of p.bursts) add(n * BURST.perSize2 * size * size, life * 1.2);
       for (const lit of p.foes ?? []) add(lit, FOE_FLASH.life);
+      for (const scale of p.numbers ?? []) add(NUMBER.lit * (scale / NUMBER.scale) ** 2, NUMBER.life);
+      if (p.coins) add(p.coins * COIN.lit, COIN.life);
+      for (const [lit, life] of p.embers ?? []) add(lit, life);
     }
     peak = Math.max(peak, used);
     if (used >= POINT.large && !over) large.push(w);
@@ -207,6 +225,7 @@ function play(run, { seconds, bot }) {
   const out = [];
   const cards = new Map();
   const flashing = new Set(); // enemies whose hit flash is on
+  const emit = new Map(); // enemy id → its status-particle and DoT-number timers
   let t = 0;
   let next = 0;
   for (let i = 0; i < seconds / PHYSICS.dt && !run.over; i++) {
@@ -222,6 +241,30 @@ function play(run, { seconds, bot }) {
       else flashing.delete(f.id);
     }
     if (lits.length) out.push([run.time, { type: 'foeFlash', lits }, danger]);
+    // foes.js: every 0.09 s a burning foe sheds an ember, a poisoned one a bubble (6 in 10), a
+    // chilled one frost (4 in 10, counted as that share of light); twice a second its DoT numbers
+    const embers = [];
+    const numbers = [];
+    for (const f of run.enemies) {
+      if (f.dead) continue;
+      const tm = emit.get(f.id) ?? { e: 0, d: 0 };
+      tm.e -= PHYSICS.dt;
+      tm.d += PHYSICS.dt;
+      if (tm.e <= 0) {
+        tm.e = 0.09;
+        const ember = 0.22 + f.burn.stacks * 0.03;
+        if (f.burn.stacks > 0) embers.push([DOT.share * ember * ember, 0.45]);
+        if (f.poison.stacks > 0) embers.push([0.6 * DOT.share * 0.22 * 0.22, 0.6]);
+        if (f.chillT > 0 && !(f.freezeT > 0)) embers.push([0.4 * DOT.share * 0.1 * 0.1, 0.5]);
+      }
+      if (tm.d >= 0.5) {
+        tm.d = 0;
+        if (f.burn.stacks > 0) numbers.push(0.3);
+        if (f.poison.stacks > 0) numbers.push(0.3);
+      }
+      emit.set(f.id, tm);
+    }
+    if (embers.length || numbers.length) out.push([run.time, { type: 'embers', embers, numbers }, danger]);
     tapCards(run, cards, PHYSICS.dt);
     if (bot && t >= next && run.coins >= run.swipeCost) {
       const d = bestDir(run);

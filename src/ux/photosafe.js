@@ -51,62 +51,65 @@ export const ringLit = (r0, r1, alpha = 0.9) => (alpha < 0.1 ? 0 : ringLitAt(r0,
 export const boomLit = (size) => POINT.boomShare * size * size;
 
 /**
- * The light budget of effects drawn at a point, on a clock of real seconds (frame time). An
- * effect books its light over its life as `lit(s)`, s from 0 to 1, lighting the most at `peak`.
- * fit(lit, life, peak) gives the largest share (0–1) of an effect that keeps the total under
- * the cap for all of its life. Rings grow until their peak and explosions hold, so the total
- * is highest just before something ends or fades: it is checked at 20 moments of the effect, at
- * its peak and end, and at the peaks and ends of the effects already on screen.
+ * The light budget of local effects, on a clock of real seconds (frame time). Time is cut into
+ * frame-long slots (1/60 s) for the next `horizon` seconds; each slot holds the most the booked
+ * effects light within it. An effect books its light over its life: a number for one that
+ * holds (most), or `lit(s)` (s from 0 to 1, the most at `peak`) for a ring that grows. fit gives
+ * the largest share (0–1) of a new effect that keeps every slot it touches under the cap, so
+ * the light on screen never passes the cap. A check costs one pass over the effect's slots,
+ * however many effects are on screen.
  */
-export function createLightBudget({ cap = POINT.cap } = {}) {
+export function createLightBudget({ cap = POINT.cap, fps = 60, horizon = 2 } = {}) {
+  const n = Math.ceil(horizon * fps) + 2;
+  const slots = new Float64Array(n); // a ring buffer: slot c lives at c % n
   let now = 0;
-  const live = []; // { start, life, lit, peak }
-  const at = (t) => {
-    let sum = 0;
-    for (const e of live) if (t >= e.start && t < e.start + e.life) sum += e.lit((t - e.start) / e.life);
-    return sum;
-  };
+  let base = 0; // the slot `now` is in
+  const at = (c) => c % n;
+  /** The most `lit` (a number, or a function of s) lights in slot c, for an effect starting now. */
+  function most(lit, life, peak, c) {
+    if (typeof lit === 'number') return lit;
+    const s0 = Math.max(0, (c / fps - now) / life);
+    const s1 = Math.min(1 - 1e-9, ((c + 1) / fps - now) / life);
+    let m = Math.max(lit(s0), lit(s1));
+    if (peak > s0 && peak < s1) m = Math.max(m, lit(peak));
+    return m;
+  }
+  /** The slots an effect of `life` seconds starting now touches. */
+  const last = (life) => Math.min(base + n - 2, Math.floor((now + life) * fps));
   return {
     tick(dt) {
       now += dt;
-      for (let i = live.length - 1; i >= 0; i--) if (live[i].start + live[i].life <= now) live.splice(i, 1);
+      const next = Math.floor(now * fps);
+      for (let c = base; c < next && c < base + n; c++) slots[at(c)] = 0; // passed slots are reused for the far future
+      base = next;
     },
-    /** Lit now (world units²). */
+    /** The most lit in the current slot (world units²). */
     get used() {
-      return at(now);
+      return slots[at(base)];
     },
     fit(lit, life, peak = 0) {
-      const end = 1 - 1e-6;
-      const moments = [peak, end];
-      for (let j = 0; j < 20; j++) moments.push(j / 20);
-      for (const e of live) {
-        for (const t of [e.start + e.life * e.peak, e.start + e.life * end]) {
-          const s = (t - now) / life;
-          if (s >= 0 && s < 1) moments.push(s);
-        }
-      }
       let share = 1;
-      for (const s of moments) {
-        const want = lit(s);
-        if (want <= 0) continue;
-        share = Math.min(share, Math.max(0, cap - at(now + s * life)) / want);
+      for (let c = base, end = last(life); c <= end; c++) {
+        const want = most(lit, life, peak, c);
+        if (want > 0) share = Math.min(share, Math.max(0, cap - slots[at(c)]) / want);
       }
       return share;
     },
+    /** Book an effect: `lit` a number (it holds) or a function of s (a ring). */
     take(lit, life, peak = 0) {
-      live.push({ start: now, life, lit, peak });
+      for (let c = base, end = last(life); c <= end; c++) slots[at(c)] += most(lit, life, peak, c);
     },
     /** Book an effect that lights `lit` for `life` seconds, as much of it as fits. → the share booked (0–1) */
     book(lit, life, minShare = 0) {
-      const share = this.fit(() => lit, life);
+      const share = this.fit(lit, life);
       if (share <= minShare || share <= 0) return 0;
-      this.take(() => lit * share, life);
+      this.take(lit * share, life);
       return share;
     },
     /** Book it whole, or not at all. → whether it fits */
     bookAll(lit, life) {
-      if (this.fit(() => lit, life) < 1) return false;
-      this.take(() => lit, life);
+      if (this.fit(lit, life) < 1) return false;
+      this.take(lit, life);
       return true;
     },
   };
@@ -126,9 +129,9 @@ export function fitRing(budget, r0, r1, life, alpha = 0.9) {
 /** Book an explosion in the budget: capped, shrunk to fit (0: none). → its size */
 export function fitBoom(budget, size, life) {
   const S = Math.min(size, POINT.boomMax);
-  const k = Math.sqrt(budget.fit(() => boomLit(S), life));
+  const k = Math.sqrt(budget.fit(boomLit(S), life));
   if (S * k < POINT.minBoom) return 0;
-  budget.take(() => boomLit(S * k), life);
+  budget.take(boomLit(S * k), life);
   return S * k;
 }
 
@@ -146,6 +149,15 @@ export const LINE = { minShare: 0.2, slash: 0.3, slashCore: 0.1, beam: 0.35, bea
  * 0.6–1.4×. A lone spark lights spark × size². Fewer particles when the budget is short.
  */
 export const BURST = { perSize2: 0.51, spark: 0.151 };
+
+/** A soft dot (an ember, a meteor trail) lights `share` of its square at alpha 1, and `trail` at the trail's 0.75 (measured). */
+export const DOT = { share: 0.647, trail: 0.6 };
+
+/** A damage number lights about `lit` as it pops in at its usual scale (0.36), for `life` seconds; skipped when the budget is short. */
+export const NUMBER = { lit: 0.12, scale: 0.36, life: 0.75 };
+
+/** A coin flying to the counter lights about `lit` for up to `life` seconds; fewer coins fly when the budget is short. */
+export const COIN = { lit: 0.15, life: 1 };
 
 /**
  * An enemy's hit flash, an additive copy of its sprite at `alpha`: it lights `share` of the

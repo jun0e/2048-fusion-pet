@@ -35,20 +35,23 @@ The rules live in `src/ux/photosafe.js`.
    - It shows only when 3 or fewer blocks are left in a wave. Only then does it take the flash budget, so a pulse nobody sees never holds back a cut-in.
    - Its alpha is 0.35 and it lasts 0.6 s, which is less than the 1 s gap.
 4. **Local effects share a light budget.**
-   - The local effects are rings, explosions, lines (lightning, wind slashes, beams, poison spread), particle bursts and enemies' hit flashes.
+   - The local effects are rings, explosions, lines (lightning, wind slashes, beams, poison spread), particle bursts, enemies' hit flashes, damage numbers, coins and status embers (fire, poison, frost).
    - Together they may light at most 10 units² to 10% or more at any moment. A large flash is about 11 at 25 cm and 16 at 30 cm, so 10 stays under both.
    - Each effect books its light over its life:
      - a ring grows until it fades;
      - an explosion holds its brightest frame;
-     - a line, a burst or a hit flash holds its first moment.
-   - A new effect is checked against the effects already on screen at every moment of its life where the total could peak. When the budget is short, the new effect is drawn smaller, thinner, with fewer particles, or not at all. An enemy's hit flash is drawn whole or not at all.
+     - every other effect holds its first moment.
+   - The budget keeps one slot for each frame (1/60 s) of the next 2 s. Each slot holds the most the booked effects light within it. A new effect fits if every slot it touches stays under the cap, so a check costs well under a microsecond however busy the screen is.
+   - When the budget is short, the new effect is drawn smaller, thinner, with fewer particles or coins, or not at all. An enemy's hit flash, a damage number and an ember are drawn whole or not at all.
+   - An enemy under steady fire keeps its hit flash on; it is booked again every 0.12 s and goes out when the budget refuses.
+   - A lightning arc keeps one jagged shape for its life (it no longer jitters every frame), and books 10% more than its points' length for the jag.
    - Caps by design:
      - a ring at most 2 world units (radius);
      - an explosion at most 3.2 across;
      - thin line glows: a slash 0.3 wide, a beam 0.35, a sky bolt 1.1 × the arc's 0.34.
    - Measured shares of a texture lit to 10% or more: ring 19%, the brightest explosion frame (fire) 28%, soft dot 65%, spark 15%, the generated foes at hit-flash strength 5–22%.
    - The old flash dot at each impact is gone; the explosion carries the hit.
-   - Tiny effects stay outside the budget: enemies' status embers and frost (under 0.03 units² each), damage numbers, coins.
+   - Outside the budget: projectiles in flight (they move rather than flash) and a legendary pet's rare single sparkle.
 5. **A block under attack holds its red.** The tint holds while hits keep coming (one within 0.4 s), then fades. Before, the block blinked with every hit. The shudder for each hit stays.
    - A turret's muzzle flash (alpha 0.12) and a heal's green tint (at most a 40% mix) stay below the flash threshold, so the whole board can glow at once without a flash. The muzzle spark takes from the light budget.
 6. **The lanes' warning glow breathes slowly** (once every 2 s) and gently, so it is no red flash.
@@ -56,7 +59,7 @@ The rules live in `src/ux/photosafe.js`.
 
 **For new effects:**
 
-- Draw rings, explosions, lines and bursts with `fx` (`ring`, `explode`, `lightning`, `bolt`, `slash`, `beam`, `spread`, `burst`, `trail`): they are booked in the light budget.
+- Draw rings, explosions, lines, bursts, numbers and coins with `fx` (`ring`, `explode`, `lightning`, `bolt`, `slash`, `beam`, `spread`, `burst`, `trail`, `number`, `coinDrop`): they are booked in the light budget.
 - For any other local flash, ask `fx.flashAll(lit, life)` first; that is how an enemy's hit flash does it.
 - Do not draw any other large glow or flash yourself.
 - Use `stage.flash(color)` for a full-screen wash.
@@ -68,9 +71,9 @@ The rules live in `src/ux/photosafe.js`.
 
 | Effects | Speed | Large flashes in any 1 s | Above the thresholds | From local effects | Red | Wash peak alpha | Most lit by local effects at once (units²) | Red pulses of one block in any 1 s |
 |---|---|---|---|---|---|---|---|---|
-| Before | x1 | 6 | 6 | 4 | 4 | 0.28 | 205 | 4 |
-| Before | x2 | 6 | 6 | 5 | 5 | 0.28 | 276 | 5 |
-| Before | x4 | 7 | 7 | 5 | 7 | 0.28 | 372 | 5 |
+| Before | x1 | 6 | 6 | 5 | 4 | 0.28 | 207 | 4 |
+| Before | x2 | 6 | 6 | 6 | 5 | 0.28 | 283 | 5 |
+| Before | x4 | 7 | 7 | 5 | 7 | 0.28 | 386 | 5 |
 | Photosafe | x1 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
 | Photosafe | x2 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
 | Photosafe | x4 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
@@ -84,12 +87,12 @@ What the "before" effects were:
 - **Sun:** washed it orange (a saturated red) every 2 s.
 - **Pet cut-in:** each quick tap on another ready card restarted the panel, so it blinked.
 
-**The cost.** In busy moments the light budget draws some local effects smaller, thinner or with fewer particles. Light kept on average in the bot games:
+**The cost.** In busy moments the light budget draws some local effects smaller, thinner, with fewer particles, or not at all. Light kept on average in the bot games:
 
-| Speed | Rings | Explosions | Bursts | Lines | Enemy hit flashes |
-|---|---|---|---|---|---|
-| x1 | 85% | 81% | 73% | 65% | 63% |
-| x4 | 55% | 41% | 42% | 39% | 30% |
+| Speed | Rings | Explosions | Bursts | Lines | Enemy hit flashes | Damage numbers | Coins | Embers |
+|---|---|---|---|---|---|---|---|---|
+| x1 | 82% | 76% | 68% | 58% | 56% | 81% | 73% | 84% |
+| x4 | 50% | 34% | 36% | 29% | 22% | 48% | 36% | 52% |
 
 I also checked the renderer in the browser:
 

@@ -4,7 +4,7 @@
 import { BitmapFont, BitmapText, Container, Graphics, Sprite } from 'pixi.js';
 import { laneAt } from '../config.js';
 import { softDot, ringTex, sparkTex, projTex, coinTex, boomFrames } from './textures.js';
-import { BURST, LINE, createLightBudget, fitBoom, fitRing } from '../ux/photosafe.js';
+import { BURST, COIN, DOT, LINE, NUMBER, createLightBudget, fitBoom, fitRing } from '../ux/photosafe.js';
 
 const MAX_PARTS = 900;
 const MAX_NUMS = 90;
@@ -85,7 +85,7 @@ export function createFx(stage) {
   }
 
   function trail(x, y, color, size = 0.22) {
-    if (!light.bookAll(BURST.perSize2 * size * size, 0.22)) return;
+    if (!light.bookAll(DOT.trail * size * size, 0.22)) return;
     particle(softDot(), x, y, { life: 0.22, size, grow: -size * 0.6, color, alpha: 0.75 });
   }
 
@@ -94,6 +94,8 @@ export function createFx(stage) {
   const freeNums = [];
   function number(x, y, amount, { color = 0xffffff, crit = false, small = false, prefix = '' } = {}) {
     if (amount < 0.5) return;
+    const scale = crit ? 0.52 : small ? 0.3 : 0.36;
+    if (!light.bookAll(NUMBER.lit * (scale / NUMBER.scale) ** 2, NUMBER.life)) return; // skipped when the light budget is short
     let n = freeNums.pop();
     if (!n) {
       if (nums.length >= MAX_NUMS) {
@@ -108,7 +110,7 @@ export function createFx(stage) {
     n.t.text = prefix + fmt(amount) + (crit ? '!' : '');
     n.t.tint = hex(color);
     n.t.visible = true;
-    Object.assign(n, { x: x + (Math.random() - 0.5) * 0.4, y: y + 0.4, vy: 2.6, life: 0.75, max: 0.75, scale: crit ? 0.52 : small ? 0.3 : 0.36 });
+    Object.assign(n, { x: x + (Math.random() - 0.5) * 0.4, y: y + 0.4, vy: 2.6, life: NUMBER.life, max: NUMBER.life, scale });
     nums.push(n);
   }
 
@@ -119,8 +121,8 @@ export function createFx(stage) {
 
   function lightning(points, color = 0xffe14d, life = 0.2, width = 1) {
     for (const p of points.slice(1)) burst(p.x, p.y, [color, 0xffffff], 5, { speed: 3, size: 0.14, life: 0.25, gravity: 0 });
-    // its glow is 0.34 × width wide: thinner (or none) when the light budget is short
-    const k = light.book(lengthOf(points) * 0.34 * width, life, LINE.minShare);
+    // its glow is 0.34 × width wide (the jag adds up to 11% length): thinner (or none) when the light budget is short
+    const k = light.book(lengthOf(points) * 1.1 * 0.34 * width, life, LINE.minShare);
     if (!k) return;
     width *= k;
     const g = new Graphics();
@@ -216,6 +218,10 @@ export function createFx(stage) {
   const coins = [];
   /** `target()` returns the counter's world position (it follows resizes). */
   function coinDrop(x, y, n, target, onArrive) {
+    // fewer coins fly when the light budget is short (the counter still pulses once)
+    const m = Math.round(n * light.book(n * COIN.lit, COIN.life));
+    if (!m && n > 0) onArrive?.();
+    n = m;
     for (let i = 0; i < n && coins.length < 80; i++) {
       const sp = new Sprite(coinTex());
       sp.anchor.set(0.5);
@@ -320,6 +326,11 @@ export function createFx(stage) {
       l.g.clear();
       if (l.kind === 'arc' || l.kind === 'spread') {
         const jag = l.kind === 'arc' ? 0.28 : 0;
+        // one jagged shape for the arc's whole life (from its seed): no frame-to-frame flicker
+        const wobble = (k) => {
+          const v = Math.sin(l.seed * 12.9898 + k * 78.233) * 43758.5453;
+          return v - Math.floor(v) - 0.5;
+        };
         const draw = (w, a, col) => {
           l.g.moveTo(sx(l.pts[0].x), sy(l.pts[0].y));
           for (let j = 1; j < l.pts.length; j++) {
@@ -327,8 +338,8 @@ export function createFx(stage) {
             const q = l.pts[j];
             for (let s = 1; s <= 3; s++) {
               const t = s / 3;
-              const jx = s < 3 ? (Math.random() - 0.5) * jag : 0;
-              const jy = s < 3 ? (Math.random() - 0.5) * jag : 0;
+              const jx = s < 3 ? wobble(j * 6 + s) * jag : 0;
+              const jy = s < 3 ? wobble(j * 6 + s + 3) * jag : 0;
               l.g.lineTo(sx(p.x + (q.x - p.x) * t + jx), sy(p.y + (q.y - p.y) * t + jy));
             }
           }

@@ -3,7 +3,7 @@
 // chill, freeze), status visuals (embers, bubbles, frost tint, ice block),
 // damage-over-time numbers, hit flash and a death pop.
 import { BitmapText, Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { FOE_FLASH } from '../ux/photosafe.js';
+import { DOT, FOE_FLASH } from '../ux/photosafe.js';
 import { enemyTex, shadowTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
 
 const STATUS_ORDER = ['freeze', 'burn', 'poison', 'chill', 'loot'];
@@ -88,9 +88,12 @@ export function createFoes(stage, fx) {
       v.flash.scale.copyFrom(v.body.scale);
       v.flash.position.copyFrom(v.body.position);
       v.flash.rotation = v.body.rotation;
-      // photosafe: a hit flash shows only when the light budget has room for this foe's whole sprite
-      if (e.flash > 0 && !v.flashing) v.flashing = fx.flashAll(FOE_FLASH.share * size * size, FOE_FLASH.life) ? 1 : -1;
-      else if (e.flash <= 0) v.flashing = 0;
+      // photosafe: a hit flash shows only while the light budget has room for this foe's whole
+      // sprite; a foe under steady fire keeps it on, booked again every FOE_FLASH.life
+      if (e.flash > 0 && (!v.flashing || time >= v.flashUntil)) {
+        v.flashing = fx.flashAll(FOE_FLASH.share * size * size, FOE_FLASH.life) ? 1 : -1;
+        v.flashUntil = time + FOE_FLASH.life;
+      } else if (e.flash <= 0) v.flashing = 0;
       v.flash.alpha = v.flashing === 1 ? FOE_FLASH.alpha : 0;
       // statuses read on the body: frozen, stunned (Lightning, Earth), rooted (Nature), chilled, poisoned
       v.body.tint = frozen ? 0xb9ecff : e.stunT > 0 ? 0xfff0a0 : e.rootT > 0 ? 0xc9f2b4 : e.chillT > 0 ? 0xa8d8ff : e.poison.stacks > 0 ? 0xe2c8ff : 0xffffff;
@@ -152,17 +155,19 @@ export function createFoes(stage, fx) {
       v.emitT -= dt;
       if (v.emitT <= 0) {
         v.emitT = 0.09;
-        if (e.burn.stacks > 0) {
+        // embers, bubbles and frost take from the light budget (a field of burning foes adds up)
+        const ember = 0.22 + e.burn.stacks * 0.03;
+        if (e.burn.stacks > 0 && fx.flashAll(DOT.share * ember * ember, 0.45)) {
           fx.particle(softDot(), e.x + (Math.random() - 0.5) * size * 0.4, e.y + size * 0.1, {
             vy: 1.6 + Math.random(),
             vx: (Math.random() - 0.5) * 0.6,
             life: 0.45,
-            size: 0.22 + e.burn.stacks * 0.03,
+            size: ember,
             grow: -0.15,
             color: Math.random() < 0.5 ? 0xff7a3d : 0xffd36b,
           });
         }
-        if (e.poison.stacks > 0 && Math.random() < 0.6) {
+        if (e.poison.stacks > 0 && Math.random() < 0.6 && fx.flashAll(DOT.share * 0.22 * 0.22, 0.6)) {
           fx.particle(softDot(), e.x + (Math.random() - 0.5) * size * 0.5, e.y - size * 0.1, {
             vy: 0.9,
             life: 0.6,
@@ -173,7 +178,7 @@ export function createFoes(stage, fx) {
             alpha: 0.85,
           });
         }
-        if (e.chillT > 0 && !frozen && Math.random() < 0.4) {
+        if (e.chillT > 0 && !frozen && Math.random() < 0.4 && fx.flashAll(DOT.share * 0.1 * 0.1, 0.5)) {
           fx.particle(softDot(), e.x + (Math.random() - 0.5) * size * 0.6, e.y + (Math.random() - 0.3) * size * 0.4, { vy: -0.3, life: 0.5, size: 0.1, color: 0xcff0ff });
         }
       }
