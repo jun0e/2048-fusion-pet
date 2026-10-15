@@ -11,7 +11,7 @@
 /** Also in index.html: New run on the failure screen removes this key itself (it must work without main.js). */
 export const RESUME_KEY = 'siege:run';
 /** Bump when a change makes old logs replay differently (renamed inputs, sim rules). */
-export const SAVE_VERSION = 2; // 2: the basic attacks and sell / break (art fork merge)
+export const SAVE_VERSION = 3; // 2: the basic attacks and sell / break (art fork merge); 3: roaming pets are sim state
 /** Run methods that change the sim from outside (debug helpers are not saved). */
 export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave', 'discard', 'castSkill'];
 

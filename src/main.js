@@ -123,7 +123,8 @@ async function start() {
   const scenery = createScenery(stage);
   const style = params.get('style') || 'sticker';
   const art = kvMode || style !== 'classic' ? createArt(style) : null;
-  // the game draws the pets: fusions' pets roam the field (sim state: createRun({ roaming }))
+  // the game draws the pets: fusions' pets roam the field (sim state: createRun({ roaming })).
+  // ?style=classic draws none, so its fusions stay on the board; the showcase's run always roams.
   const roaming = !kvMode && !!art;
   const blocks = createBlocks(stage, fx, { art });
   const foes = createFoes(stage, fx);
@@ -160,7 +161,9 @@ async function start() {
   let run = null;
   let resumed = false;
   // ?tutorial replays the opening from scratch: a fresh run, not a resumed one
-  const saved = canSave && !params.has('tutorial') && loadStore().guided ? loadSaved() : null;
+  const found = canSave && !params.has('tutorial') && loadStore().guided ? loadSaved() : null;
+  // a run whose pets roam resumes only where pets are drawn (not under ?style=classic), and back
+  const saved = found && !!found.log.roaming === roaming ? found : null;
   if (saved) {
     bootSay('Restoring your run…');
     // let the message paint first (a replay can take a moment on a slow phone); a hidden tab has no frames
@@ -184,7 +187,7 @@ async function start() {
   let clearBonus = 0;
 
   function newRun() {
-    if (kv) return kv.preset(createRun({ seed: seedParam ?? 2048, empty: true, dice: KV_DICE }));
+    if (kv) return kv.preset(createRun({ seed: seedParam ?? 2048, empty: true, dice: KV_DICE, roaming: true })); // it draws its pets
     const r = createRun({ seed: seedParam, empty: debugStart, roaming });
     if (debugStart) {
       // one block per class stage, built from the deck's colours

@@ -1636,6 +1636,14 @@ body {
 .reduce-motion .kv-cutin.go {
   animation: kv-cut-still 0.95s ease-out forwards; /* fades in place, no slide */
 }
+.reduce-motion .kv-card.lost {
+  animation: kv-lost-still 1.4s ease-in forwards; /* fades, no fall */
+}
+@keyframes kv-lost-still {
+  to {
+    opacity: 0;
+  }
+}
 @keyframes kv-cut-still {
   0% {
     opacity: 0;
