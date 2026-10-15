@@ -3,15 +3,17 @@
 // a flash is a pair of opposing changes in relative luminance of 10% or more over a large
 // area, and a red flash is a change to or from a saturated red. Large means: the flashes going
 // on at the same moment cover a quarter of any 10° of vision. On a phone held at 25 cm that is
-// about 11 world units², and the whole lane field is about one 10° patch. Large flashes may come
-// at most 3 times in any second. So:
+// about 11 world units² (16 at a typical 30 cm), and the whole lane field is about one 10° patch.
+// Large flashes may come at most 3 times in any second. So:
 // - a full-screen wash stays below both thresholds (its alpha is capped by its colour), and comes
 //   at most once a second of real time, at any game speed;
 // - large flashes above the thresholds (the red edge pulse when a block falls, a pet skill's
 //   cut-in panel) share their own budget, also one a second. Washes and flashes together: at
 //   most 2 in any second, so effects never stack into a flicker;
-// - effects drawn at a point (rings, explosions) are capped and share a light budget: what they
-//   change by 10% or more at the same moment stays under POINT.cap, below a large flash;
+// - local effects (rings, explosions, lines, particle bursts, enemies' hit flashes) share a light
+//   budget: what they change by 10% or more at the same moment stays under POINT.cap, below a
+//   large flash; when it is short, they are drawn smaller, thinner, fewer or not at all;
+// - frequent tile glows (a turret's muzzle flash, a heal's green) stay below the thresholds;
 // - a block under attack holds its red instead of blinking.
 // The in-game Reduce motion setting turns washes and large flashes off. tools/flash-audit.mjs
 // measures the real event stream against these rules.
@@ -25,13 +27,13 @@ export const FLASH = {
 };
 
 /**
- * Effects drawn at a point. A ring grows to at most ringMax (radius) and an explosion is at most
- * boomMax across. Together they may light at most `cap` world units² to 10% or more at any
- * moment; a large flash is `large` (a quarter of 10° of vision on a phone held at 25 cm).
- * Measured texture shares (pixels lit to 10% or more): the ring 0.19, the brightest explosion
- * frame (fire) 0.28.
+ * Local effects. A ring grows to at most ringMax (radius) and an explosion is at most boomMax
+ * across. Together with lines, bursts and enemies' hit flashes they may light at most `cap`
+ * world units² to 10% or more at any moment. A large flash is `large`: a quarter of 10° of
+ * vision on a phone held at 25 cm (at a typical 30 cm it is 16). Measured texture shares
+ * (pixels lit to 10% or more): the ring 0.19, the brightest explosion frame (fire) 0.28.
  */
-export const POINT = { cap: 8, large: 11, ringMax: 2, boomMax: 3.2, minBoom: 1, minRing: 0.5, ringShare: 0.19, boomShare: 0.28 };
+export const POINT = { cap: 10, large: 11, ringMax: 2, boomMax: 3.2, minBoom: 1, minRing: 0.5, ringShare: 0.19, boomShare: 0.28 };
 
 /** What a ring growing from r0 to r1 (radii) at `alpha` lights to 10% or more, `s` (0–1) into its life. */
 export function ringLitAt(r0, r1, s, alpha = 0.9) {
@@ -94,6 +96,19 @@ export function createLightBudget({ cap = POINT.cap } = {}) {
     take(lit, life, peak = 0) {
       live.push({ start: now, life, lit, peak });
     },
+    /** Book an effect that lights `lit` for `life` seconds, as much of it as fits. → the share booked (0–1) */
+    book(lit, life, minShare = 0) {
+      const share = this.fit(() => lit, life);
+      if (share <= minShare || share <= 0) return 0;
+      this.take(() => lit * share, life);
+      return share;
+    },
+    /** Book it whole, or not at all. → whether it fits */
+    bookAll(lit, life) {
+      if (this.fit(() => lit, life) < 1) return false;
+      this.take(() => lit, life);
+      return true;
+    },
   };
 }
 
@@ -116,6 +131,30 @@ export function fitBoom(budget, size, life) {
   budget.take(() => boomLit(S * k), life);
   return S * k;
 }
+
+/**
+ * Lines light their glow stroke, length × width (world units). Lines are lightning, wind slashes,
+ * beams and poison spread. The glows are thin by design: a slash 0.3 wide (a 3-lane gust
+ * fits the budget), a beam 0.35, a sky bolt 1.1 × the arc's 0.34. They are drawn thinner when
+ * the budget is short, and not at all below minShare.
+ */
+export const LINE = { minShare: 0.2, slash: 0.3, slashCore: 0.1, beam: 0.35, beamCore: 0.1, bolt: 1.1 };
+
+/**
+ * A particle burst: each particle lights about perSize2 × size². Two in three are soft dots
+ * (64.7% of the texture lit to 10% or more), one in three sparks (15.1%), and sizes spread
+ * 0.6–1.4×. A lone spark lights spark × size². Fewer particles when the budget is short.
+ */
+export const BURST = { perSize2: 0.51, spark: 0.151 };
+
+/**
+ * An enemy's hit flash, an additive copy of its sprite at `alpha`: it lights `share` of the
+ * square it is drawn in (measured on the generated foes: 5–22%). Whole or not at all.
+ */
+export const FOE_FLASH = { share: 0.25, alpha: 0.75, life: 0.12 };
+
+/** Glows on the board's tiles, below the thresholds: a turret's muzzle flash (additive) and a heal's green tint (its strongest mix). */
+export const TILE_GLOW = { muzzle: 0.12, heal: 0.4 };
 
 /** A block under attack: its red tint holds while hits keep coming (one within `hold` s), then fades over 1 / decay s. */
 export const HIT_TINT = { hold: 0.4, decay: 1.6 };

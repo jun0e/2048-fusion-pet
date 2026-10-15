@@ -3,6 +3,7 @@
 // chill, freeze), status visuals (embers, bubbles, frost tint, ice block),
 // damage-over-time numbers, hit flash and a death pop.
 import { BitmapText, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { FOE_FLASH } from '../ux/photosafe.js';
 import { enemyTex, shadowTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
 
 const STATUS_ORDER = ['freeze', 'burn', 'poison', 'chill', 'loot'];
@@ -87,7 +88,10 @@ export function createFoes(stage, fx) {
       v.flash.scale.copyFrom(v.body.scale);
       v.flash.position.copyFrom(v.body.position);
       v.flash.rotation = v.body.rotation;
-      v.flash.alpha = e.flash > 0 ? 0.75 : 0;
+      // photosafe: a hit flash shows only when the light budget has room for this foe's whole sprite
+      if (e.flash > 0 && !v.flashing) v.flashing = fx.flashAll(FOE_FLASH.share * size * size, FOE_FLASH.life) ? 1 : -1;
+      else if (e.flash <= 0) v.flashing = 0;
+      v.flash.alpha = v.flashing === 1 ? FOE_FLASH.alpha : 0;
       // statuses read on the body: frozen, stunned (Lightning, Earth), rooted (Nature), chilled, poisoned
       v.body.tint = frozen ? 0xb9ecff : e.stunT > 0 ? 0xfff0a0 : e.rootT > 0 ? 0xc9f2b4 : e.chillT > 0 ? 0xa8d8ff : e.poison.stacks > 0 ? 0xe2c8ff : 0xffffff;
       if (e.stunT > 0) v.body.rotation = Math.sin(time * 40 + v.seed) * 0.08; // dazed shake

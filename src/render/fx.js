@@ -4,7 +4,7 @@
 import { BitmapFont, BitmapText, Container, Graphics, Sprite } from 'pixi.js';
 import { laneAt } from '../config.js';
 import { softDot, ringTex, sparkTex, projTex, coinTex, boomFrames } from './textures.js';
-import { createLightBudget, fitBoom, fitRing } from '../ux/photosafe.js';
+import { BURST, LINE, createLightBudget, fitBoom, fitRing } from '../ux/photosafe.js';
 
 const MAX_PARTS = 900;
 const MAX_NUMS = 90;
@@ -32,9 +32,10 @@ export function createFx(stage) {
   const partLayer = new Container();
   layers.fx.addChild(partLayer);
   const parts = [];
-  // photosafe: rings and explosions share a light budget (src/ux/photosafe.js POINT), so what
-  // they light at the same moment never adds up to a large flash
+  // photosafe: rings, explosions, lines, bursts and enemies' hit flashes share a light budget
+  // (src/ux/photosafe.js POINT), so what they light at the same moment never adds up to a large flash
   let light = createLightBudget();
+  const lengthOf = (pts) => pts.slice(1).reduce((sum, q, i) => sum + Math.hypot(q.x - pts[i].x, q.y - pts[i].y), 0);
   const free = [];
 
   function particle(tex, x, y, { vx = 0, vy = 0, life = 0.5, size = 0.2, grow = 0, color = 0xffffff, alpha = 1, gravity = 0, drag = 0, spin = 0, add = true, rot = 0 } = {}) {
@@ -58,6 +59,8 @@ export function createFx(stage) {
 
   function burst(x, y, color, n = 12, { speed = 4, size = 0.18, life = 0.5, gravity = -6, spread = Math.PI * 2, dir = 0 } = {}) {
     const cols = Array.isArray(color) ? color : [color];
+    // fewer particles when the light budget is short (each lights about BURST.perSize2 × size²)
+    n = Math.round(n * light.book(n * BURST.perSize2 * size * size, life * 1.2));
     for (let i = 0; i < n; i++) {
       const a = dir + (Math.random() - 0.5) * spread;
       const sp = speed * (0.4 + Math.random() * 0.8);
@@ -82,6 +85,7 @@ export function createFx(stage) {
   }
 
   function trail(x, y, color, size = 0.22) {
+    if (!light.bookAll(BURST.perSize2 * size * size, 0.22)) return;
     particle(softDot(), x, y, { life: 0.22, size, grow: -size * 0.6, color, alpha: 0.75 });
   }
 
@@ -114,26 +118,36 @@ export function createFx(stage) {
   const lines = []; // { g, kind, pts, color, life, max, ... }
 
   function lightning(points, color = 0xffe14d, life = 0.2, width = 1) {
+    for (const p of points.slice(1)) burst(p.x, p.y, [color, 0xffffff], 5, { speed: 3, size: 0.14, life: 0.25, gravity: 0 });
+    // its glow is 0.34 × width wide: thinner (or none) when the light budget is short
+    const k = light.book(lengthOf(points) * 0.34 * width, life, LINE.minShare);
+    if (!k) return;
+    width *= k;
     const g = new Graphics();
     g.blendMode = 'add';
     lineLayer.addChild(g);
     lines.push({ g, kind: 'arc', pts: points, color: hex(color), life, max: life, width, seed: Math.random() * 100 });
-    for (const p of points.slice(1)) burst(p.x, p.y, [color, 0xffffff], 5, { speed: 3, size: 0.14, life: 0.25, gravity: 0 });
   }
 
   /** A glowing beam from a side die into the block it just classed. */
   function beam(x0, y0, x1, y1, color) {
+    const k = light.book(Math.hypot(x1 - x0, y1 - y0) * LINE.beam, 0.4, LINE.minShare); // its glow: LINE.beam wide at most
+    if (!k) return;
     const g = new Graphics();
     g.blendMode = 'add';
     lineLayer.addChild(g);
-    lines.push({ g, kind: 'beam', x0, y0, x1, y1, color: hex(color), life: 0.4, max: 0.4 });
+    lines.push({ g, kind: 'beam', x0, y0, x1, y1, color: hex(color), life: 0.4, max: 0.4, scale: k });
   }
 
   function slash(lane, s, len, color) {
+    const a = laneAt(lane, s - len);
+    const b = laneAt(lane, s + len * 0.3);
+    const k = light.book(Math.hypot(b.x - a.x, b.y - a.y) * LINE.slash, 0.28, LINE.minShare); // its glow: LINE.slash wide
+    if (!k) return;
     const g = new Graphics();
     g.blendMode = 'add';
     lineLayer.addChild(g);
-    lines.push({ g, kind: 'slash', lane, s, len, color: hex(color), life: 0.28, max: 0.28 });
+    lines.push({ g, kind: 'slash', lane, s, len, color: hex(color), life: 0.28, max: 0.28, scale: k });
   }
 
   function bolt(x, y, color = 0xffe14d) {
@@ -141,7 +155,7 @@ export function createFx(stage) {
     const pts = [top];
     for (let i = 1; i < 6; i++) pts.push({ x: top.x + (x - top.x) * (i / 6) + (Math.random() - 0.5) * 0.8, y: top.y + (y - top.y) * (i / 6) });
     pts.push({ x, y });
-    lightning(pts, color, 0.28, 1.6);
+    lightning(pts, color, 0.28, LINE.bolt);
     ring(x, y, color, 0.2, 1.2, 0.3);
   }
 
@@ -155,10 +169,12 @@ export function createFx(stage) {
   }
 
   function spread(from, to) {
+    const k = light.book(Math.hypot(to.x - from.x, to.y - from.y) * 0.34, 0.4, LINE.minShare); // its glow: 0.34 wide
+    if (!k) return;
     const g = new Graphics();
     g.blendMode = 'add';
     lineLayer.addChild(g);
-    lines.push({ g, kind: 'spread', pts: [from, to], color: 0xb46cff, life: 0.4, max: 0.4 });
+    lines.push({ g, kind: 'spread', pts: [from, to], color: 0xb46cff, life: 0.4, max: 0.4, width: k });
   }
 
   // --- update -------------------------------------------------------------------
@@ -324,13 +340,13 @@ export function createFx(stage) {
         const k = 1 - f; // the head races ahead, the tail follows
         const hx = l.x0 + (l.x1 - l.x0) * Math.min(1, k * 2.2);
         const hy = l.y0 + (l.y1 - l.y0) * Math.min(1, k * 2.2);
-        l.g.moveTo(sx(l.x0), sy(l.y0)).lineTo(sx(hx), sy(hy)).stroke({ width: 0.5 * U * f, color: l.color, alpha: 0.55 * f, cap: 'round' });
-        l.g.moveTo(sx(l.x0), sy(l.y0)).lineTo(sx(hx), sy(hy)).stroke({ width: 0.14 * U * f, color: 0xffffff, alpha: f, cap: 'round' });
+        l.g.moveTo(sx(l.x0), sy(l.y0)).lineTo(sx(hx), sy(hy)).stroke({ width: LINE.beam * U * f * l.scale, color: l.color, alpha: 0.55 * f, cap: 'round' });
+        l.g.moveTo(sx(l.x0), sy(l.y0)).lineTo(sx(hx), sy(hy)).stroke({ width: LINE.beamCore * U * f * l.scale, color: 0xffffff, alpha: f, cap: 'round' });
       } else if (l.kind === 'slash') {
         const a = laneAt(l.lane, l.s - l.len);
         const b = laneAt(l.lane, l.s + l.len * 0.3);
-        l.g.moveTo(sx(a.x), sy(a.y)).lineTo(sx(b.x), sy(b.y)).stroke({ width: 0.55 * U * f, color: l.color, alpha: 0.5 * f, cap: 'round' });
-        l.g.moveTo(sx(a.x), sy(a.y)).lineTo(sx(b.x), sy(b.y)).stroke({ width: 0.16 * U * f, color: 0xffffff, alpha: f, cap: 'round' });
+        l.g.moveTo(sx(a.x), sy(a.y)).lineTo(sx(b.x), sy(b.y)).stroke({ width: LINE.slash * U * f * l.scale, color: l.color, alpha: 0.5 * f, cap: 'round' });
+        l.g.moveTo(sx(a.x), sy(a.y)).lineTo(sx(b.x), sy(b.y)).stroke({ width: LINE.slashCore * U * f * l.scale, color: 0xffffff, alpha: f, cap: 'round' });
       }
     }
     for (let i = meteors.length - 1; i >= 0; i--) {
@@ -369,5 +385,27 @@ export function createFx(stage) {
     meteors.length = 0;
   }
 
-  return { particle, burst, ring, trail, number, lightning, slash, beam, bolt, meteor, spread, coinDrop, explode, update, reset };
+  return {
+    particle,
+    burst,
+    ring,
+    trail,
+    number,
+    lightning,
+    slash,
+    beam,
+    bolt,
+    meteor,
+    spread,
+    coinDrop,
+    explode,
+    update,
+    reset,
+    /** Book a flash that lights `lit` for `life` seconds into the light budget, whole or not at all (an enemy's hit flash). */
+    flashAll: (lit, life) => light.bookAll(lit, life),
+    /** What the local effects light now (world units², to 10% or more), for checks. */
+    get lit() {
+      return light.used;
+    },
+  };
 }

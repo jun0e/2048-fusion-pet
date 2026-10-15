@@ -74,7 +74,7 @@ test('a wash fades in and out (no on/off step) and is over before the next may s
   assert.ok(HIT_TINT.hold > 0);
 });
 
-test('rings and explosions share a light budget: hundreds in a second never light a large area at once', () => {
+test('local effects share a light budget: hundreds in a second never light a large area at once', () => {
   assert.ok(ringLit(0.4, 7.2) > POINT.large, "an old pet skill's ring alone was a large flash");
   const budget = createLightBudget();
   const rng = createRng(11);
@@ -89,14 +89,18 @@ test('rings and explosions share a light budget: hundreds in a second never ligh
         if (r) assert.ok(r.r1 <= POINT.ringMax + 1e-9);
         const size = fitBoom(budget, 1 + rng.next() * 4, 0.36);
         assert.ok(size <= POINT.boomMax + 1e-9);
-        drawn += (r ? 1 : 0) + (size ? 1 : 0);
+        // a lightning line, a particle burst and an enemy's hit flash, as fx.js books them
+        const line = budget.book((2 + rng.next() * 10) * 0.34, 0.28, 0.2);
+        const burst = budget.book(30 * 0.51 * 0.3 * 0.3, 0.6 * 1.2);
+        const hit = budget.bookAll(0.25 * 1.5 * 1.5, 0.12);
+        drawn += (r ? 1 : 0) + (size ? 1 : 0) + (line ? 1 : 0) + (burst ? 1 : 0) + (hit ? 1 : 0);
       }
     }
     peak = Math.max(peak, budget.used);
   }
   assert.ok(peak <= POINT.cap + 1e-3, `lit ${peak.toFixed(4)} at once (cap ${POINT.cap}; 0.001 for rounding)`);
   assert.ok(POINT.cap < POINT.large);
-  assert.ok(drawn >= 20, `effects still drawn: ${drawn} of 1250 big asks`);
+  assert.ok(drawn >= 20, `effects still drawn: ${drawn} of 3125 big asks`);
   assert.equal(budget.used, 0, 'the light comes back when the effects are over');
 });
 

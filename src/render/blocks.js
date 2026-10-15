@@ -5,7 +5,7 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { GRID, cellX, cellY } from '../config.js';
 import { ELEMENTS, fusionOf, milestonePieces } from '../sim/classes.js';
 import { blockTex, softDot, sparkTex, BLOCK_PX } from './textures.js';
-import { HIT_TINT } from '../ux/photosafe.js';
+import { BURST, HIT_TINT, TILE_GLOW } from '../ux/photosafe.js';
 
 const SLIDE = 0.11;
 const ease = (t) => 1 - (1 - t) ** 3;
@@ -138,7 +138,7 @@ export function createBlocks(stage, fx, { art = null } = {}) {
       v.shudder = Math.max(0, (v.shudder ?? 0) - dt * 4); // each hit: a short shudder
       v.healed = Math.max(0, (v.healed ?? 0) - dt * 3);
       if (v.shudder > 0) v.c.position.x += Math.sin(time * 90 + t.id) * 0.06 * U * v.shudder;
-      v.body.tint = v.hurt > 0.02 ? mixColor(0xffffff, 0xff6a6a, v.hurt) : v.healed > 0.02 ? mixColor(0xffffff, 0x8dff9d, v.healed) : 0xffffff;
+      v.body.tint = v.hurt > 0.02 ? mixColor(0xffffff, 0xff6a6a, v.hurt) : v.healed > 0.02 ? mixColor(0xffffff, 0x8dff9d, v.healed * TILE_GLOW.heal) : 0xffffff; // the heal's green stays below the flash threshold
 
       if (v.delay > 0) v.delay -= dt;
       else v.appear = Math.min(1, v.appear + dt / 0.12);
@@ -149,7 +149,7 @@ export function createBlocks(stage, fx, { art = null } = {}) {
       const s = scale0 * popS * (1 + v.punch * 0.07);
       v.body.scale.set(s, s * (1 - v.punch * 0.05));
       v.flash.scale.copyFrom(v.body.scale);
-      v.flash.alpha = v.punch * 0.2;
+      v.flash.alpha = v.punch * TILE_GLOW.muzzle; // the muzzle flash stays below the flash threshold
       if (v.overlay.visible) v.overlay.scale.copyFrom(v.body.scale);
       if (v.creature.visible) {
         // babies bob fast and squashy, bigger ones slower (motion by stage, style brief)
@@ -246,7 +246,8 @@ export function createBlocks(stage, fx, { art = null } = {}) {
         const dx = e.target.x - e.x;
         const dy = e.target.y - e.y;
         const d = Math.hypot(dx, dy) || 1;
-        fx.particle(sparkTex(), e.x + (dx / d) * 0.75, e.y + (dy / d) * 0.75, { life: 0.12, size: 0.6, grow: -0.3, color: e.colors.at(-1) });
+        // the muzzle spark takes from the light budget (many turrets fire at once)
+        if (fx.flashAll(BURST.spark * 0.36, 0.12)) fx.particle(sparkTex(), e.x + (dx / d) * 0.75, e.y + (dy / d) * 0.75, { life: 0.12, size: 0.6, grow: -0.3, color: e.colors.at(-1) });
       }
     } else if (e.type === 'remove') {
       // sold: the block shrinks away in a puff of gold; destroyed: it shrinks as it shatters (main.js adds the blast)
