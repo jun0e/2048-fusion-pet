@@ -27,16 +27,14 @@
 //                                              # index.html?kv&manifest=assets/_mock/manifest.json)
 //   node tools/pipeline.mjs --status
 import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
-import { execFileSync, execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
 import { plan, MODEL_FAST } from './pipeline-jobs.mjs';
 import { PRICES, costOf, checkBudget, loadLimits, loadLedger, appendLedger, weeklyUsage } from './gemini-budget.mjs';
 import { classify429 } from './gemini-errors.mjs';
+import { postJson } from './curl-post.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -67,7 +65,7 @@ const outOf = (id) => join(outDir, `${id}.png`);
 
 /** Last value of NAME in the environment or .env.local (later lines win, so a re-pasted key replaces the old one). */
 function envValue(name) {
-  if (process.env[name]) return process.env[name];
+  if (process.env[name]) return process.env[name].trim();
   for (const f of [join(root, '.env.local'), join(root, '..', 'merge-ball-td', '.env.local')]) {
     if (!existsSync(f)) continue;
     const all = [...readFileSync(f, 'utf8').matchAll(new RegExp(`^${name}=(.+)$`, 'gm'))];
@@ -122,41 +120,10 @@ function refFile(ref) {
 
 class Stop extends Error {}
 
-const execFileP = promisify(execFile);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let pauseUntil = 0; // a rate limit pauses every job, not just the one that hit it
 let lastProgress = Date.now(); // last finished image; a 429 that outlasts GIVE_UP_MS stops the run
 const GIVE_UP_MS = 15 * 60 * 1000;
-/**
- * POST JSON through curl (HTTP/2). Node's built-in fetch stalls on Vertex image calls (no
- * response headers for 5 minutes), while curl gets the same image back in ~45 s. The key
- * goes in a private headers file, not on the command line.
- */
-async function postJson(url, key, body) {
-  const dir = mkdtempSync(join(tmpdir(), 'mb-pipeline-'));
-  try {
-    const bodyFile = join(dir, 'body.json');
-    const outFile = join(dir, 'out.json');
-    const hdrFile = join(dir, 'headers.txt');
-    writeFileSync(bodyFile, JSON.stringify(body));
-    writeFileSync(hdrFile, `x-goog-api-key: ${key}\ncontent-type: application/json\n`, { mode: 0o600 });
-    let stdout;
-    try {
-      ({ stdout } = await execFileP('curl', ['-s', '--http2', '-m', '300', '-X', 'POST', url, '-H', `@${hdrFile}`, '--data-binary', `@${bodyFile}`, '-o', outFile, '-w', '%{http_code}']));
-    } catch (e) {
-      throw new Error(`network: curl exit ${e.code}${e.code === 28 ? ' (timed out after 300 s)' : ''}`);
-    }
-    let json = {};
-    try {
-      json = JSON.parse(readFileSync(outFile, 'utf8'));
-    } catch {
-      /* empty or non-JSON body */
-    }
-    return { status: Number(stdout.trim()) || 0, json };
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
 
 function mockRaw(job) {
   execFileSync('python3', [join(root, 'tools', 'mock_raw.py'), job.id, rawOf(job.id), '--bg', job.bg ?? 'none', '--aspect', job.aspect]);
