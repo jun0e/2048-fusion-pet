@@ -24,7 +24,7 @@ import { createHaptics } from './haptics.js';
 import { nextSpeed } from './ux/speed.js';
 import { createPause } from './ux/pause.js';
 import { recordRun, restoreRun, loadSaved, saveRun, clearSaved } from './ux/resume.js';
-import { SIGNATURE_TINT } from './ux/photosafe.js';
+import { SIGNATURE_TINT, TEXT, popupFont, textInk } from './ux/photosafe.js';
 import { loadStore } from './ux/coach.js';
 import { createArt } from './art/index.js';
 import { setupKv, KV_DICE } from './kv/index.js';
@@ -186,6 +186,17 @@ async function start() {
   let lastLoss = null; // how the last run ended (for the retry hint)
   let selected = null; // tile id picked to show its range
   let clearBonus = 0;
+  // Text over the canvas is photosafe too (src/ux/photosafe.js TEXT): a popup takes from the light
+  // budget and is skipped when the screen is already lit up; the big milestone number takes the
+  // one-a-second flash budget, and waits for it (a moment at most).
+  function popup(x, y, text, tier, color) {
+    const share = fx.flashShare(textInk(text, popupFont(tier), stage.view.U), TEXT.life, TEXT.minScale ** 2);
+    if (share) hud.popup(x, y, text, tier, color, Math.sqrt(share)); // ink grows with the font size squared
+  }
+  function milestone(tier, tries = 0) {
+    if (stage.reduced || stage.takeFlash()) hud.milestone(tier); // under Reduce motion it fades in place
+    else if (tries < 6) setTimeout(() => milestone(tier, tries + 1), 200);
+  }
   // a wave with 3 blocks or fewer left: the red vignette shows, and so does a fallen block's edge pulse
   const inDanger = () => run.blocks <= 3 && run.phase === 'wave';
 
@@ -458,12 +469,12 @@ async function start() {
           sfx.merge(e.tier, e.combo);
           haptics.play('merge');
           const p = client(e.x, e.y + 0.9);
-          hud.popup(p.x, p.y, `+${e.value.toLocaleString()}`, e.tier);
-          if (e.combo >= 2) hud.combo(e.combo);
+          popup(p.x, p.y, `+${e.value.toLocaleString()}`, e.tier);
+          if (e.combo >= 2 && fx.flashAll(TEXT.comboPx / stage.view.U ** 2, TEXT.life)) hud.combo(e.combo);
           break;
         }
         case 'milestone':
-          hud.milestone(e.tier);
+          milestone(e.tier);
           sfx.milestone();
           stage.shake(10);
           break;
@@ -473,7 +484,7 @@ async function start() {
             fx.coinDrop(e.x, e.y, Math.min(6, 1 + Math.floor(e.amount / 12)), coinTarget, coinPulse);
           } else if (e.reason === 'combo') {
             const p = client(e.x, e.y + 1.2);
-            hud.popup(p.x, p.y, 'Free swipe!', 6, '#ffd34a');
+            popup(p.x, p.y, 'Free swipe!', 6, '#ffd34a');
             fx.coinDrop(e.x, e.y, 3, coinTarget, coinPulse);
           } else if (e.reason === 'clear') {
             fx.coinDrop(0, 4, 10, coinTarget, coinPulse);
@@ -486,12 +497,12 @@ async function start() {
           if (e.kind === 'sell') {
             fx.burst(e.x, e.y, [0xffd34a, 0xffffff], 18, { speed: 4, size: 0.24, life: 0.5, gravity: -6 });
             fx.coinDrop(e.x, e.y, Math.min(6, 2 + Math.floor(e.amount / 5)), coinTarget, coinPulse);
-            hud.popup(p.x, p.y, `Sold +${e.amount}`, 4, '#ffd34a');
+            popup(p.x, p.y, `Sold +${e.amount}`, 4, '#ffd34a');
             sfx.coin();
           } else {
             fx.burst(e.x, e.y, [0xc9b08a, 0x8a7462, 0xffffff], 22, { speed: 5, size: 0.26, life: 0.5, gravity: -9 });
             stage.shake(4);
-            hud.popup(p.x, p.y, `Broken −${-e.amount}`, 3, '#ef6060');
+            popup(p.x, p.y, `Broken −${-e.amount}`, 3, '#ef6060');
             sfx.deny();
           }
           break;
@@ -501,7 +512,7 @@ async function start() {
           sfx.deny();
           haptics.play('deny');
           const c = hud.coinTarget();
-          hud.popup(c.x + 60, c.y - 28, `Need ${e.cost}`, 2, '#ef6060');
+          popup(c.x + 60, c.y - 28, `Need ${e.cost}`, 2, '#ef6060');
           break;
         }
         case 'promote': {
@@ -509,7 +520,7 @@ async function start() {
           fx.burst(e.x, e.y, [0xffe27a, 0xffffff], 30, { speed: 5, size: 0.3, life: 0.6, gravity: 0 });
           fx.ring(e.x, e.y, 0xffe27a, 0.6, 2.4, 0.5);
           const p = client(e.x, e.y + 1.2);
-          hud.popup(p.x, p.y, `x${2 ** (e.by ?? 1)}`, e.tier, '#ffe27a');
+          popup(p.x, p.y, `x${2 ** (e.by ?? 1)}`, e.tier, '#ffe27a');
           break;
         }
         case 'bossReward':
@@ -541,7 +552,7 @@ async function start() {
         case 'override': {
           // the sliding block's colour wins: show who took over
           const p = client(e.x, e.y + 1.6);
-          hud.popup(p.x, p.y, `${ELEMENTS[e.winner].name} over ${ELEMENTS[e.loser].name}`, 3, ELEMENTS[e.winner].color);
+          popup(p.x, p.y, `${ELEMENTS[e.winner].name} over ${ELEMENTS[e.loser].name}`, 3, ELEMENTS[e.winner].color);
           break;
         }
         case 'dieGained':
@@ -568,7 +579,7 @@ async function start() {
             haptics.play('lost');
             hud.castleHit(inDanger() && stage.takeFlash()); // the edge pulse shows only in danger; then it takes the one-a-second flash budget
             const p = client(e.x, e.y + 0.9);
-            hud.popup(p.x, p.y, 'Block lost!', 4, '#ef6060');
+            popup(p.x, p.y, 'Block lost!', 4, '#ef6060');
           }
           break;
         case 'tilesRestored':
@@ -684,7 +695,7 @@ async function start() {
           if (tint) stage.flash(tint); // photosafe: a soft wash, one a second at most (src/ux/photosafe.js)
           fx.ring(e.x, e.y, hex(e.colors.at(-1)), 0.8, 3.2, 0.5);
           const p = client(e.x, e.y + 1.3);
-          hud.popup(p.x, p.y, e.name, 12, e.colors.at(-1));
+          popup(p.x, p.y, e.name, 12, e.colors.at(-1));
           break;
         }
         case 'heal':

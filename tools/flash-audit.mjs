@@ -10,7 +10,8 @@
 //   (a quarter of 10° of vision on a phone; the lane field is about one 10° patch, so the whole
 //   screen counts as one). The local effects are rings, explosions, lines (lightning, wind
 //   slashes, beams), particle bursts, enemies' hit flashes, damage numbers, coins, status
-//   embers, and the old flash dots.
+//   embers, text popups and the combo pill (over the canvas), and the old flash dots.
+// - the big milestone number (it takes the flash budget).
 // WCAG 2.3.1 allows at most 3 in any second. A block's red hit tint is counted per block.
 //
 //   node tools/flash-audit.mjs [--seeds=12] [--minutes=15]
@@ -18,9 +19,11 @@ import { pathToFileURL } from 'node:url';
 import { createRun } from '../src/sim/run.js';
 import { bestDir } from '../src/autoplay.js';
 import { FIELD, PHYSICS } from '../src/config.js';
-import { BURST, COIN, DOT, FOE_FLASH, HIT_TINT, HURT_PULSE, LINE, NUMBER, POINT, SIGNATURE_TINT, boomLit, createFlashGuard, createLightBudget, fitBoom, fitRing, isSaturatedRed, ringLit, washAlpha } from '../src/ux/photosafe.js';
+import { BURST, COIN, DOT, FOE_FLASH, HIT_TINT, HURT_PULSE, LINE, NUMBER, POINT, SIGNATURE_TINT, TEXT, boomLit, createFlashGuard, createLightBudget, fitBoom, fitRing, isSaturatedRed, popupFont, ringLit, textInk, washAlpha } from '../src/ux/photosafe.js';
+import { ELEMENTS } from '../src/sim/classes.js';
 
 const TAP_GAP = 0.2; // seconds of real time between taps on cards that are ready together
+const PHONE_U = 32; // px per world unit on a small phone: text over the canvas is biggest there
 const MERGE = 0.1; // large flashes closer than this (real time) read as one
 const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 
@@ -44,11 +47,18 @@ const polyline = (pts) => pts.slice(1).reduce((sum, q, i) => sum + dist(pts[i], 
  */
 function pointEffects(e) {
   const fx = (p) => ({ rings: [], lines: [], bursts: [], ...p });
+  const text = (t, tier) => [textInk(t, popupFont(tier), PHONE_U), TEXT.life]; // a popup (main.js)
   switch (e.type) {
     case 'merge':
-      return fx({ rings: [[0.6, 1.6, 0.3]], bursts: [[10 + (e.tier ?? 1) * 2, 0.24, 0.45]] });
+      return fx({ rings: [[0.6, 1.6, 0.3]], bursts: [[10 + (e.tier ?? 1) * 2, 0.24, 0.45]], texts: [text(`+${e.value.toLocaleString()}`, e.tier), ...(e.combo >= 2 ? [[TEXT.comboPx / PHONE_U ** 2, TEXT.life]] : [])] });
     case 'promote':
-      return fx({ rings: [[0.6, 2.4, 0.5]], bursts: [[30, 0.3, 0.6]] });
+      return fx({ rings: [[0.6, 2.4, 0.5]], bursts: [[30, 0.3, 0.6]], texts: [text(`x${2 ** (e.by ?? 1)}`, e.tier)] });
+    case 'override':
+      return fx({ texts: [text(`${ELEMENTS[e.winner].name} over ${ELEMENTS[e.loser].name}`, 3)] });
+    case 'noCoins':
+      return fx({ texts: [text(`Need ${e.cost}`, 2)] });
+    case 'discard':
+      return fx({ texts: [text(e.kind === 'sell' ? `Sold +${e.amount}` : `Broken −${-e.amount}`, e.kind === 'sell' ? 4 : 3)] });
     case 'classed':
       return fx({ rings: [[0.8, 3, 0.6]], bursts: [[34, 0.3, 0.6]] });
     case 'breath':
@@ -85,7 +95,7 @@ function pointEffects(e) {
     case 'kill':
       return fx({ rings: [[0.3, e.boss ? 3.5 : 1.3, 0.35]], bursts: [[e.boss ? 70 : 16, e.boss ? 0.4 : 0.26, 0.6]] });
     case 'signature':
-      return fx({ rings: [[0.8, 3.2, 0.5]] });
+      return fx({ rings: [[0.8, 3.2, 0.5]], texts: [text(e.name, 12)] });
     case 'heal':
       return fx({ rings: [[0.3, e.radius * 2, 0.6]] });
     case 'tileHeal':
@@ -104,14 +114,14 @@ function pointEffects(e) {
       return fx({ rings, boom: size, dot: size * OLD.dotScale, ...chain });
     }
     case 'remove':
-      return e.reason === 'destroyed' ? fx({ boom: 2.6, dot: 2.6 * OLD.dotScale, bursts: [[26, 0.3, 0.6]] }) : fx({ bursts: [[18, 0.24, 0.45]] });
+      return e.reason === 'destroyed' ? fx({ boom: 2.6, dot: 2.6 * OLD.dotScale, bursts: [[26, 0.3, 0.6]], texts: [text('Block lost!', 4)] }) : fx({ bursts: [[18, 0.24, 0.45]] });
     case 'foeFlash': // enemies hit this step (play() adds these): each flashes its sprite
       return fx({ foes: e.lits });
     case 'hit':
       return e.amount >= 0.5 ? fx({ numbers: [0.36] }) : null;
     case 'coins':
       if (e.reason === 'kill') return fx({ numbers: [0.3], coins: Math.min(6, 1 + Math.floor(e.amount / 12)) });
-      if (e.reason === 'combo') return fx({ coins: 3 });
+      if (e.reason === 'combo') return fx({ coins: 3, texts: [text('Free swipe!', 6)] });
       return e.reason === 'clear' ? fx({ coins: 10 }) : null;
     case 'embers': // status particles and DoT numbers (play() adds these, as foes.js emits them)
       return fx({ embers: e.embers, numbers: e.numbers });
@@ -168,10 +178,14 @@ function pointLight(items, safe) {
       for (const lit of p.foes ?? []) count('enemy hit flash', !budget.bookAll(lit, FOE_FLASH.life));
       for (const scale of p.numbers ?? []) count('number', !budget.bookAll(NUMBER.lit * (scale / NUMBER.scale) ** 2, NUMBER.life));
       if (p.coins) {
-        const m = Math.round(p.coins * budget.book(p.coins * COIN.lit, COIN.life));
+        const m = Math.round(p.coins * budget.book(p.coins * COIN.lit, COIN.life(p.coins)));
         count('coin', m < p.coins, m / p.coins);
       }
       for (const [lit, life] of p.embers ?? []) count('ember', !budget.bookAll(lit, life));
+      for (const [lit, life] of p.texts ?? []) {
+        const k = budget.book(lit, life, TEXT.minScale ** 2); // drawn smaller (font × √k), or not at all
+        count('text', k < 1, k);
+      }
       used = budget.used;
     } else {
       now = w;
@@ -191,8 +205,9 @@ function pointLight(items, safe) {
       for (const [n, size, life] of p.bursts) add(n * BURST.perSize2 * size * size, life * 1.2);
       for (const lit of p.foes ?? []) add(lit, FOE_FLASH.life);
       for (const scale of p.numbers ?? []) add(NUMBER.lit * (scale / NUMBER.scale) ** 2, NUMBER.life);
-      if (p.coins) add(p.coins * COIN.lit, COIN.life);
+      if (p.coins) add(p.coins * COIN.lit, COIN.life(p.coins));
       for (const [lit, life] of p.embers ?? []) add(lit, life);
+      for (const [lit, life] of p.texts ?? []) add(lit, life);
     }
     peak = Math.max(peak, used);
     if (used >= POINT.large && !over) large.push(w);
@@ -318,6 +333,8 @@ function flashes(events, speed, safe) {
     else if (e.type === 'skill') {
       flash(w, isSaturatedRed(hex(e.colors.at(-1))), 1); // the cut-in panel (the tap plays it)
       wash(w, hex(e.colors.at(-1)), OLD.skillAlpha);
+    } else if (e.type === 'milestone') {
+      flash(w, false, 1); // the big milestone number (photosafe: it waits for the flash budget, a moment at most)
     } else if (e.type === 'remove' && e.reason === 'destroyed') {
       if (!safe || danger) flash(w, true, safe ? HURT_PULSE.alpha : OLD.hurtAlpha); // the red edge pulse (the old one also spent nothing)
     } else if (e.type === 'tileHit') {

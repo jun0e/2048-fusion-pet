@@ -26,7 +26,8 @@ The rules live in `src/ux/photosafe.js`.
    - Washes have one budget.
    - The large flashes above the thresholds have another:
      - the red edge pulse when a block falls;
-     - a pet skill's cut-in panel, about 6 × 3 cm on a phone.
+     - a pet skill's cut-in panel, about 6 × 3 cm on a phone;
+     - the big milestone number (a new top block), which waits for the budget, a second at most.
    - Together that is at most 2 in any second; the limit is 3.
    - Two budgets, not one: a Plague wash every second would otherwise block the cut-in of the skill the player just tapped.
    - The budgets run on frame time, so x2 and x4 speed give no extra flashes.
@@ -35,14 +36,15 @@ The rules live in `src/ux/photosafe.js`.
    - It shows only when 3 or fewer blocks are left in a wave. Only then does it take the flash budget, so a pulse nobody sees never holds back a cut-in.
    - Its alpha is 0.35 and it lasts 0.6 s, which is less than the 1 s gap.
 4. **Local effects share a light budget.**
-   - The local effects are rings, explosions, lines (lightning, wind slashes, beams, poison spread), particle bursts, enemies' hit flashes, damage numbers, coins and status embers (fire, poison, frost).
+   - The local effects are rings, explosions, lines (lightning, wind slashes, beams, poison spread), particle bursts, enemies' hit flashes, damage numbers, coins, status embers (fire, poison, frost), and the text popups and combo pill drawn over the canvas.
    - Together they may light at most 10 units² to 10% or more at any moment. A large flash is about 11 at 25 cm and 16 at 30 cm, so 10 stays under both.
    - Each effect books its light over its life:
      - a ring grows until it fades;
      - an explosion holds its brightest frame;
      - every other effect holds its first moment.
    - The budget keeps one slot for each frame (1/60 s) of the next 2 s. Each slot holds the most the booked effects light within it. A new effect fits if every slot it touches stays under the cap, so a check costs well under a microsecond however busy the screen is.
-   - When the budget is short, the new effect is drawn smaller, thinner, with fewer particles or coins, or not at all. An enemy's hit flash, a damage number and an ember are drawn whole or not at all.
+   - When the budget is short, the new effect is drawn smaller, thinner, with fewer particles or coins, or not at all. A text popup is drawn smaller, down to 60% of its font size, or not at all. An enemy's hit flash, a damage number, an ember and the combo pill are drawn whole or not at all.
+   - A text popup lights about 0.42 × its characters × its font size² (px², measured with its 5 px outline), converted at the stage's px per world unit.
    - An enemy under steady fire keeps its hit flash on; it is booked again every 0.12 s and goes out when the budget refuses.
    - A lightning arc keeps one jagged shape for its life (it no longer jitters every frame), and books 10% more than its points' length for the jag.
    - Caps by design:
@@ -51,7 +53,7 @@ The rules live in `src/ux/photosafe.js`.
      - thin line glows: a slash 0.3 wide, a beam 0.35, a sky bolt 1.1 × the arc's 0.34.
    - Measured shares of a texture lit to 10% or more: ring 19%, the brightest explosion frame (fire) 28%, soft dot 65%, spark 15%, the generated foes at hit-flash strength 5–22%.
    - The old flash dot at each impact is gone; the explosion carries the hit.
-   - Outside the budget: projectiles in flight (they move rather than flash) and a legendary pet's rare single sparkle.
+   - Outside the budget: projectiles in flight (they move rather than flash), a legendary pet's rare single sparkle, and banners and announcement pills. A banner stays at least 1.8 s and a pill 2.1 s, so their on and off never fall in the same second.
 5. **A block under attack holds its red.** The tint holds while hits keep coming (one within 0.4 s), then fades. Before, the block blinked with every hit. The shudder for each hit stays.
    - A turret's muzzle flash (alpha 0.12) and a heal's green tint (at most a 40% mix) stay below the flash threshold, so the whole board can glow at once without a flash. The muzzle spark takes from the light budget.
 6. **The lanes' warning glow breathes slowly** (once every 2 s) and gently, so it is no red flash.
@@ -59,7 +61,7 @@ The rules live in `src/ux/photosafe.js`.
 
 **For new effects:**
 
-- Draw rings, explosions, lines, bursts, numbers and coins with `fx` (`ring`, `explode`, `lightning`, `bolt`, `slash`, `beam`, `spread`, `burst`, `trail`, `number`, `coinDrop`): they are booked in the light budget.
+- Draw rings, explosions, lines, bursts, numbers and coins with `fx` (`ring`, `explode`, `lightning`, `bolt`, `slash`, `beam`, `spread`, `burst`, `trail`, `number`, `coinDrop`): they are booked in the light budget. Show a floating text with main.js's `popup`, not `hud.popup`.
 - For any other local flash, ask `fx.flashAll(lit, life)` first; that is how an enemy's hit flash does it.
 - Do not draw any other large glow or flash yourself.
 - Use `stage.flash(color)` for a full-screen wash.
@@ -71,9 +73,9 @@ The rules live in `src/ux/photosafe.js`.
 
 | Effects | Speed | Large flashes in any 1 s | Above the thresholds | From local effects | Red | Wash peak alpha | Most lit by local effects at once (units²) | Red pulses of one block in any 1 s |
 |---|---|---|---|---|---|---|---|---|
-| Before | x1 | 6 | 6 | 5 | 4 | 0.28 | 207 | 4 |
-| Before | x2 | 6 | 6 | 6 | 5 | 0.28 | 283 | 5 |
-| Before | x4 | 7 | 7 | 5 | 7 | 0.28 | 386 | 5 |
+| Before | x1 | 5 | 5 | 5 | 4 | 0.28 | 212 | 4 |
+| Before | x2 | 6 | 6 | 6 | 5 | 0.28 | 286 | 5 |
+| Before | x4 | 7 | 7 | 5 | 7 | 0.28 | 403 | 5 |
 | Photosafe | x1 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
 | Photosafe | x2 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
 | Photosafe | x4 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
@@ -89,10 +91,10 @@ What the "before" effects were:
 
 **The cost.** In busy moments the light budget draws some local effects smaller, thinner, with fewer particles, or not at all. Light kept on average in the bot games:
 
-| Speed | Rings | Explosions | Bursts | Lines | Enemy hit flashes | Damage numbers | Coins | Embers |
-|---|---|---|---|---|---|---|---|---|
-| x1 | 82% | 76% | 68% | 58% | 56% | 81% | 73% | 84% |
-| x4 | 50% | 34% | 36% | 29% | 22% | 48% | 36% | 52% |
+| Speed | Rings | Explosions | Bursts | Lines | Enemy hit flashes | Damage numbers | Text popups | Coins | Embers |
+|---|---|---|---|---|---|---|---|---|---|
+| x1 | 79% | 73% | 65% | 57% | 54% | 79% | 61% | 70% | 83% |
+| x4 | 48% | 34% | 34% | 29% | 21% | 48% | 29% | 35% | 51% |
 
 I also checked the renderer in the browser:
 

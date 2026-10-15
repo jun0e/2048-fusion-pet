@@ -156,8 +156,23 @@ export const DOT = { share: 0.647, trail: 0.6 };
 /** A damage number lights about `lit` as it pops in at its usual scale (0.36), for `life` seconds; skipped when the budget is short. */
 export const NUMBER = { lit: 0.12, scale: 0.36, life: 0.75 };
 
-/** A coin flying to the counter lights about `lit` for up to `life` seconds; fewer coins fly when the budget is short. */
-export const COIN = { lit: 0.15, life: 1 };
+/** A coin flying to the counter lights about `lit`; n coins fly for life(n) seconds (they leave 0.05 s apart). Fewer fly when the budget is short. */
+export const COIN = { lit: 0.15, life: (n) => 0.28 + 0.05 * Math.max(0, n - 1) + 0.45 };
+
+/**
+ * Text drawn over the canvas (src/ui/hud.js). A popup lights about `perChar` × its characters ×
+ * its font size² in px² (measured with its 5 px outline: 0.31–0.42) for `life` seconds, and books
+ * into the light budget: smaller (down to minScale of its font size) when the screen is already
+ * lit up, and skipped below that. The combo pill books its box. The big milestone number (rare)
+ * takes the flash budget instead.
+ */
+export const TEXT = { perChar: 0.42, life: 0.9, minScale: 0.6, comboPx: 2600, milestonePx: 72, milestoneLife: 1.6 };
+
+/** The font size (px) of a popup for `tier`. */
+export const popupFont = (tier) => Math.min(40, 18 + tier * 1.6);
+
+/** What `text` at `fontPx` lights, in world units² on a stage of `U` px per world unit. */
+export const textInk = (text, fontPx, U) => (TEXT.perChar * String(text).length * fontPx * fontPx) / (U * U);
 
 /**
  * An enemy's hit flash, an additive copy of its sprite at `alpha`: it lights `share` of the

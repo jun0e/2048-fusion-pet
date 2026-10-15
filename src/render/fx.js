@@ -219,7 +219,7 @@ export function createFx(stage) {
   /** `target()` returns the counter's world position (it follows resizes). */
   function coinDrop(x, y, n, target, onArrive) {
     // fewer coins fly when the light budget is short (the counter still pulses once)
-    const m = Math.round(n * light.book(n * COIN.lit, COIN.life));
+    const m = Math.round(n * light.book(n * COIN.lit, COIN.life(n)));
     if (!m && n > 0) onArrive?.();
     n = m;
     for (let i = 0; i < n && coins.length < 80; i++) {
@@ -414,6 +414,8 @@ export function createFx(stage) {
     reset,
     /** Book a flash that lights `lit` for `life` seconds into the light budget, whole or not at all (an enemy's hit flash). */
     flashAll: (lit, life) => light.bookAll(lit, life),
+    /** Book as much of it as fits (0 below minShare): → the share booked, to draw it at (a text popup's size). */
+    flashShare: (lit, life, minShare) => light.book(lit, life, minShare),
     /** What the local effects light now (world units², to 10% or more), for checks. */
     get lit() {
       return light.used;

@@ -6,6 +6,7 @@
 // numbers from config/sim data (no user input), so innerHTML is safe here.
 import { TIER_COLORS, tierValue } from '../config.js';
 import { createBannerQueue } from '../ux/banners.js';
+import { popupFont } from '../ux/photosafe.js';
 
 const ICON_SOUND =
   '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
@@ -313,14 +314,15 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       restartAnim(castleEl, 'shake');
       if (pulse) restartAnim(vignette, 'hurt');
     },
-    popup(x, y, text, tier, color) {
+    /** A floating text: its font is popupFont(tier) × scale (photosafe: smaller when the screen is lit up). */
+    popup(x, y, text, tier, color, scale = 1) {
       const el = document.createElement('div');
       el.className = 'popup';
       el.textContent = text;
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
       el.style.setProperty('--c', color ?? TIER_COLORS[tier]);
-      el.style.fontSize = `${Math.min(40, 18 + tier * 1.6)}px`;
+      el.style.fontSize = `${popupFont(tier) * scale}px`;
       root.appendChild(el);
       el.addEventListener('animationend', () => el.remove());
       setTimeout(() => el.remove(), 1500); // animations pause in hidden tabs; don't let popups pile up
