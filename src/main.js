@@ -1,4 +1,5 @@
 import './ui/hud.css';
+import { Assets } from 'pixi.js';
 import { createRun } from './sim/run.js';
 import { ENEMY_TYPES } from './sim/enemies.js';
 import { ELEMENTS, profileFor } from './sim/classes.js';
@@ -110,6 +111,11 @@ async function start() {
   await waitForFonts(); // block numbers and damage digits are drawn with Baloo 2
   // Gemini sprites, if tools/pipeline.mjs has produced them. A single-file pack carries them
   // inline (window.__GEN__); without that it has no manifest to fetch.
+  if (window.__GEN__) {
+    // the packed sprites are data: URLs: decode them as images (img-src), not with fetch, which a
+    // strict page policy refuses (the shared single-file build: no data: in connect-src)
+    Assets.setPreferences({ preferWorkers: false, preferCreateImageBitmap: false });
+  }
   if (window.__GEN__ || !window.__SINGLE_FILE__) await loadGeneratedAssets();
 
   const stage = await createStage(document.getElementById('app'));
