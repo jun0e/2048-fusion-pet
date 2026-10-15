@@ -1,3 +1,4 @@
+import { generatedTex } from '../render/textures.js';
 // One-colour element glyphs (the second channel beside colour, for colour-blind
 // players): flame, hex snowflake, bolt, droplet, square rock, swirl, gear, leaf.
 // Drawn into a 0..1 box; the caller sets fill/stroke.
@@ -73,22 +74,15 @@ export function glyphPath(el) {
       p.closePath();
       break;
     }
-    case 'metal': {
-      const teeth = 8;
-      for (let i = 0; i < teeth * 2; i++) {
-        const a = (i / (teeth * 2)) * TAU;
-        const r = i % 2 ? 0.34 : 0.46;
-        const a0 = a - TAU / (teeth * 4);
-        const a1 = a + TAU / (teeth * 4);
-        if (i === 0) p.moveTo(0.5 + Math.cos(a0) * r, 0.5 + Math.sin(a0) * r);
-        else p.lineTo(0.5 + Math.cos(a0) * r, 0.5 + Math.sin(a0) * r);
-        p.lineTo(0.5 + Math.cos(a1) * r, 0.5 + Math.sin(a1) * r);
-      }
+    case 'metal':
+      // a round coin with a diamond-shaped hole (like an old cash coin); evenodd cuts the hole
+      p.arc(0.5, 0.5, 0.45, 0, TAU);
+      p.moveTo(0.5, 0.29);
+      p.lineTo(0.71, 0.5);
+      p.lineTo(0.5, 0.71);
+      p.lineTo(0.29, 0.5);
       p.closePath();
-      p.moveTo(0.64, 0.5);
-      p.arc(0.5, 0.5, 0.14, 0, TAU, true);
       break;
-    }
     case 'nature':
       p.moveTo(0.16, 0.86);
       p.bezierCurveTo(0.1, 0.46, 0.4, 0.12, 0.88, 0.1);
@@ -101,8 +95,18 @@ export function glyphPath(el) {
   return p;
 }
 
-/** Draw a glyph badge: a coloured disc with an ink ring and a white glyph. */
+/**
+ * Draw an element badge: the generated dual-colour badge (badge.<el> from
+ * tools/pipeline.mjs) when it exists, else a coloured disc with an ink ring and a white glyph.
+ */
 export function drawBadge(g, el, cx, cy, r, color, ink) {
+  const img = generatedTex(`badge.${el}`)?.source?.resource;
+  if (img) {
+    const s = r * 2.35;
+    const k = s / Math.max(img.width, img.height);
+    g.drawImage(img, cx - (img.width * k) / 2, cy - (img.height * k) / 2, img.width * k, img.height * k);
+    return;
+  }
   g.save();
   g.beginPath();
   g.arc(cx, cy, r, 0, TAU);

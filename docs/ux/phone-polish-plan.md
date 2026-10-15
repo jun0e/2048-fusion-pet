@@ -57,7 +57,7 @@ Each phase ends with: `npm test` green, a browser check at phone sizes, and a co
 ### Phase 5: Play controls
 
 - 5.1 Speed button (x1, x2), at the top right next to the Top chip (a third icon on the left would wrap the top bar on a 360 px phone). x4 unlocks after the first boss kill. The speed goes back to x1 when a boss wave starts and for each new run. The sim stays deterministic, because speed only adds fixed steps to each frame.
-- 5.2 Inspect card: a tap on a block shows its range (now) and a small card with its element, attack, stage and fusion progress.
+- 5.2 Inspect card: a tap on a block shows its range (now) and a small card with its element, attack, stage and fusion progress. At the merge with the art fork, the art fork's richer card (`src/ui/inspect.js`: picture, stats, effects, next stage, sell / break) replaced it.
 
 ### Phase 6: Loading and resume
 
@@ -93,6 +93,16 @@ Screenshots in `reports/ux/shots/phone/` (390×844 unless named): first screen, 
 - At 360 and 375 px the three status pills overlapped ("First wave: when ready" is the longest text). On screens 380 px wide or less the status text is a step smaller, and the block count shows as the icon and the number.
 - `?tutorial` replays the opening; it now starts a fresh run instead of resuming a saved one.
 
+## Merge with the art fork (2026-10-15)
+
+The art fork's work (commit `192ea15` on main) was merged into this branch, and main was fast-forwarded to the result. Changes the merge needed:
+
+- **One inspect card.** Both forks had built one, with the same class names. The art fork's card stays (more information, and it sells or breaks a block); this branch's card, `src/ux/inspect.js` and its test are gone.
+- **The art card on a phone.** It opens below the top bars, so the pause button stays in reach. Its close button has a 44 px target, and the sell / break button is 44 px tall. It hides while the game is paused, so it never covers the menu, and the in-game Reduce motion setting stops its pop.
+- **Resume.** Sell / break (`run.discard`) is an input in the saved-run log; a refused one is not recorded. `SAVE_VERSION` is 2, because the art fork's basic attacks replay old logs differently.
+- **The single-file build.** It carries the art fork's sprites in `window.__GEN__`; main.js loads them (before, the single-file flag skipped all sprite loading). `npm run pack` caches each sprite's WebP by content, so a pack takes seconds instead of over half an hour.
+- **Haptics.** No vibration before the player's first tap: the browser refuses it and logs an error for each call.
+
 ## Out of scope (next)
 
 Codex, ranking, daily seed, missions, a home screen and other meta features (Part A of `meta-and-hud.md`). The plan leaves room for them: the pause menu and the settings sheet are where Codex and Home will go.
@@ -108,4 +118,4 @@ Codex, ranking, daily seed, missions, a home screen and other meta features (Par
 | 4 Dialogs on a phone | Done |
 | 5 Play controls | Done |
 | 6 Loading and resume | Done |
-| 7 Device check and delivery | Device check done; delivery after the final review |
+| 7 Device check and delivery | Done (private artifact; merged into main with the art fork's work) |

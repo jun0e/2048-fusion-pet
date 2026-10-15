@@ -117,6 +117,8 @@ export function buildAssetRows(price = 0.0336) {
   ]) add({ id, cat: 'Effect', layer: 'Map field', name, desc, style: 'Code', src: 'procedural', display: '-', method: 'Code-drawn', priority: 'P1', gens: 0 });
 
   // --- tiles, namecards, glyphs -------------------------------------------------------------------
+  for (const el of ELEMENT_KEYS)
+    add({ id: `badge.${el}`, cat: 'UI', layer: 'Map tile', name: `${ELEMENTS[el].name} badge`, desc: 'The element icon: a chunky squircle badge split into a dark and a light half of the element colour, with a bold symbol (the first Gemini icon set)', style: 'Sticker badge', src: '192×192', display: '0.2 cell badge, namecards, deck, tile card', method: 'Gemini generate', priority: 'P1', gens: 2 });
   for (const el of ELEMENT_KEYS) add({ id: `glyph.${el}`, cat: 'UI', layer: 'Map tile', name: `${ELEMENTS[el].name} glyph`, desc: 'One-colour shape signature (flame, hex snowflake, bolt, droplet, square rock, swirl, gear, leaf)', style: 'Flat glyph', src: 'vector', display: '0.2 cell badge', method: 'Hand SVG', priority: 'P0', gens: 0 });
   add({ id: 'plate.egg', cat: 'UI', layer: 'Map tile', name: 'Egg plate', desc: 'Warm sand plate, plum border, flat bevel', style: 'Sticker', src: '160×160', display: '1 cell', method: 'Code-composited from tokens', priority: 'P0', gens: 0 });
   for (const el of ELEMENT_KEYS) add({ id: `plate.${el}`, cat: 'UI', layer: 'Map tile', name: `${ELEMENTS[el].name} plate`, desc: `Tinted ${ELEMENTS[el].color}, plum border, flat two-tone bevel`, style: 'Sticker', src: '160×160', display: '1 cell', method: 'Code-composited from tokens', priority: 'P0', gens: 0 });

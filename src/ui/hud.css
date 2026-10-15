@@ -1615,66 +1615,6 @@ body {
   }
 }
 
-/* --- inspect card: a tapped block, in words (beside it, like a tutorial bubble) -------- */
-.inspect {
-  position: absolute;
-  z-index: 5;
-  padding: 10px 14px 12px;
-  border-radius: 16px;
-  border-left: 6px solid var(--c, #d9d2c5);
-  background: var(--cream);
-  box-shadow: var(--clay-drop), var(--clay-hi);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-.inspect.on {
-  opacity: 1;
-}
-
-.inspect-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.inspect-value {
-  font-family: var(--font-display);
-  font-size: 20px;
-}
-
-.inspect-kind {
-  color: var(--ink-soft);
-  font-weight: 800;
-  font-size: 13px;
-}
-
-.inspect-name {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 16px;
-}
-
-.inspect-text {
-  margin: 2px 0 0;
-  font-weight: 700;
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-.inspect-progress {
-  display: block;
-  margin-top: 4px;
-  color: var(--ink-soft);
-  font-weight: 800;
-  font-size: 12px;
-}
-
-.inspect-progress:empty {
-  display: none;
-}
-
 /* --- banners stop with the game: paused, or behind a die card ---------------------------- */
 #hud.paused .banner.show,
 #hud.choosing .banner.show {

@@ -1,6 +1,7 @@
-// assets.html: every asset in the production list with its current image (code-drawn
-// stand-ins, procedural effects, captures), filterable by category, priority and text.
-// Thumbnails render lazily as cards scroll into view.
+// assets.html: every asset in the production list with its current image (the Gemini
+// sprite from tools/pipeline.mjs when it exists, then code-drawn stand-ins, procedural
+// effects, captures), filterable by category, priority and text.
+// Thumbnails render lazily as cards scroll into view. ?manifest= shows another set.
 import { buildAssetRows } from './asset-catalog.js';
 import { renderCreature, renderPortrait, makeCanvas } from './creatures.js';
 import { composeTileCanvas, plateCanvas } from './index.js';
@@ -12,6 +13,13 @@ import { enemyTex, projTex, boomFrames, statusTex, iconTex, softDot, sparkTex, r
 
 await document.fonts.ready;
 const rows = buildAssetRows(0.0336);
+// generated sprites (public/assets/manifest.json, written by tools/pipeline.mjs)
+const manifestUrl = new URLSearchParams(location.search).get('manifest') || 'assets/manifest.json';
+const genFiles = await fetch(manifestUrl, { cache: 'no-store' })
+  .then((r) => (r.ok ? r.json() : {}))
+  .then((m) => m.files ?? {})
+  .catch(() => ({}));
+const genBase = manifestUrl.slice(0, manifestUrl.lastIndexOf('/') + 1);
 const PRI_COLOR = { P0: 'var(--p0)', P1: 'var(--p1)', P2: 'var(--p2)', P3: 'var(--p3)' };
 const PLAN = Object.fromEntries(BODY_PLANS.map((p) => [p.key, p]));
 const log2 = (n) => Math.round(Math.log2(n));
@@ -133,6 +141,7 @@ function thumbsFor(r, showPx) {
   const id = r.id;
   const out = [];
   const add = (el, label = '', px = false) => el && out.push({ el, label, px });
+  if (genFiles[id]) add(img(`/${genBase}${genFiles[id]}`), 'Gemini');
   const crt = (spec, label) => {
     add(renderCreature(spec, 'sticker').canvas, label);
     if (showPx) add(renderCreature(spec, 'pixel').canvas, 'pixel', true);
@@ -283,7 +292,7 @@ document.getElementById('stats').innerHTML = [
   `<span><b>${sum(gem, 'count')}</b> to generate with Gemini (~$${sum(gem, 'cost').toFixed(2)})</span>`,
   `<span>core P0+P1: <b>${sum(core, 'count')}</b> images, ~$${sum(core, 'cost').toFixed(2)}</span>`,
   `<span>P0 slice: <b>${sum(gem.filter((r) => r.priority === 'P0'), 'count')}</b> images</span>`,
-  `<span>art shown = code-drawn stand-ins</span>`,
+  `<span>generated: <b>${core.filter((r) => genFiles[r.id]).length}</b> / ${sum(core, 'count')} core images${Object.keys(genFiles).length ? '' : ' (art shown = code-drawn stand-ins)'}</span>`,
 ].join('');
 
 function chips(id, values, key) {

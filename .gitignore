@@ -5,3 +5,4 @@ dist
 tools/.cache
 dist-single
 .worktrees/
+public/assets/_mock

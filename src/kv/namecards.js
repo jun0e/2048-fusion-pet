@@ -7,6 +7,7 @@ import { ELEMENTS, fusionOf, APEX } from '../sim/classes.js';
 import { GRID, FIELD } from '../config.js';
 import { petName } from '../art/tokens.js';
 import { glyphPath } from '../art/glyphs.js';
+import { generatedUrl } from '../render/textures.js';
 
 const CHARGE = 9; // seconds of wave time per skill
 const CHARGE_LEGEND = 7;
@@ -34,7 +35,8 @@ function glyphSvg(el) {
   return c.toDataURL();
 }
 const glyphCache = new Map();
-const glyph = (el) => (glyphCache.has(el) ? glyphCache.get(el) : glyphCache.set(el, glyphSvg(el)).get(el));
+// the generated dual-colour badge when it exists, else the drawn glyph disc
+const glyph = (el) => generatedUrl(`badge.${el}`) ?? (glyphCache.has(el) ? glyphCache.get(el) : glyphCache.set(el, glyphSvg(el)).get(el));
 
 export function createNamecards(root, { art, stage, getRun, onCast }) {
   const strip = document.createElement('div');

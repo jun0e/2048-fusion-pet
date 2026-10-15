@@ -44,19 +44,46 @@ const lightenHex = (hex, amt) => {
 
 // --- generated asset loading ---------------------------------------------------
 
-/** Load public/assets/manifest.json (written by tools/gen-assets.mjs) if it exists. */
-export async function loadGeneratedAssets() {
+const generatedFiles = new Map(); // key → url, for every manifest entry (portraits stay DOM images)
+let manifestBase = 'assets/';
+
+/**
+ * Load public/assets/manifest.json (written by tools/pipeline.mjs and gen-assets.mjs)
+ * if it exists. `?manifest=path/to/manifest.json` loads another one (a test set);
+ * its files resolve next to it. Namecard portraits are listed but not loaded as
+ * textures: they are shown as <img> (see generatedUrl).
+ */
+export async function loadGeneratedAssets(url = new URLSearchParams(globalThis.location?.search ?? '').get('manifest') || 'assets/manifest.json') {
+  // the packed single-file game (tools/pack-html.mjs) carries its sprites inline as data URLs
+  const packed = globalThis.__GEN__?.files;
+  if (packed) {
+    await Promise.all(
+      Object.entries(packed).map(async ([key, src]) => {
+        generatedFiles.set(key, src);
+        if (key.startsWith('portrait.')) return;
+        try {
+          generated.set(key, await Assets.load({ src, loadParser: 'loadTextures' }));
+        } catch {
+          generatedFiles.delete(key);
+        }
+      }),
+    );
+    return generated.size;
+  }
   try {
-    const res = await fetch('assets/manifest.json', { cache: 'no-store' });
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return 0;
     const manifest = await res.json();
+    manifestBase = url.slice(0, url.lastIndexOf('/') + 1);
     const entries = Object.entries(manifest.files ?? {});
     await Promise.all(
       entries.map(async ([key, file]) => {
+        generatedFiles.set(key, manifestBase + file);
+        if (key.startsWith('portrait.')) return;
         try {
-          generated.set(key, await Assets.load(`assets/${file}`));
+          generated.set(key, await Assets.load(manifestBase + file));
         } catch {
-          /* missing file: keep the procedural version */
+          generatedFiles.delete(key); // missing file: keep the procedural version
         }
       }),
     );
@@ -66,6 +93,10 @@ export async function loadGeneratedAssets() {
   }
 }
 export const hasGenerated = (key) => generated.has(key);
+/** The generated texture for a catalog id (pet.fire.16, fusion.fire+ice, …), or null. */
+export const generatedTex = (key) => generated.get(key) ?? null;
+/** URL of a generated file (for DOM images such as namecard portraits), or null. */
+export const generatedUrl = (key) => generatedFiles.get(key) ?? null;
 
 // --- basics ----------------------------------------------------------------------
 

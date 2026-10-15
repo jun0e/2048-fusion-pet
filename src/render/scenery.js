@@ -6,7 +6,7 @@
 // column each lane runs into lights up, and a selected block shows its range.
 import { Container, FillGradient, Graphics, Sprite } from 'pixi.js';
 import { FIELD, GRID, cellX, cellY, laneX } from '../config.js';
-import { portalTex, softDot } from './textures.js';
+import { portalTex, softDot, generatedTex } from './textures.js';
 
 const LANE_W = 1.45; // world units
 const HALF = (GRID.size * GRID.cell) / 2;
@@ -26,7 +26,10 @@ function hash01(i, j = 0) {
 export function createScenery(stage) {
   const { layers } = stage;
   const bg = new Graphics();
-  layers.bg.addChild(bg);
+  const bgArt = new Sprite(); // the generated night-valley background, when tools/pipeline.mjs has made it
+  bgArt.anchor.set(0.5);
+  const bgDim = new Graphics(); // keeps the painted background quiet behind the board
+  layers.bg.addChild(bg, bgArt, bgDim);
   const fieldG = new Graphics();
   const dangerG = new Graphics(); // lane + column highlights, redrawn per frame
   dangerG.blendMode = 'add';
@@ -88,6 +91,14 @@ export function createScenery(stage) {
       bg.circle(hash01(i, 1) * w, hash01(i, 2) * h, 2 + hash01(i, 3) * 5).fill({ color: 0xffffff, alpha: 0.04 + hash01(i, 4) * 0.05 });
     }
     bg.ellipse(sx(0), sy(4), 7.5 * U, 7 * U).fill({ color: 0x6fa8ff, alpha: 0.08 });
+    const art = generatedTex('env.background');
+    bgArt.visible = bgDim.visible = !!art;
+    if (art) {
+      bgArt.texture = art;
+      bgArt.scale.set(Math.max(w / art.width, h / art.height)); // cover the screen
+      bgArt.position.set(w / 2, h / 2);
+      bgDim.clear().rect(0, 0, w, h).fill({ color: 0x141c3f, alpha: 0.28 });
+    }
 
     // field: a darker meadow panel holding the four lanes
     fieldG.clear();

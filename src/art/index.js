@@ -4,25 +4,41 @@
 //   halo(apex)   → the legendary's apex kit
 //   portrait(cls)→ data URL of the soft-vinyl namecard portrait (DOM)
 // Styles: 'sticker' (recommended), 'pixel' (comparison), 'classic' (the old blocks).
+// Sticker style uses the Gemini sprites from tools/pipeline.mjs wherever they exist
+// (egg.*, pet.<el>.<value>, fusion.<a+b>, halo.<el>, portrait.<a+b>), and the
+// code-drawn stand-ins for anything not generated yet.
 // Tile layout (style brief): plate, then the creature peeking over the bottom
 // sill, then the number up top (dark fill, cream stroke), then a glyph badge.
-import { Texture } from 'pixi.js';
+import { Rectangle, Texture } from 'pixi.js';
 import { tierValue } from '../config.js';
 import { ELEMENTS, fusionOf } from '../sim/classes.js';
 import { INK, CREAM, GOLD, tone } from './tokens.js';
 import { drawBadge, glyphPath } from './glyphs.js';
 import { makeCanvas, renderCreature, renderPortrait, quantize } from './creatures.js';
+import { generatedTex, generatedUrl } from '../render/textures.js';
+import { spriteId, portraitId } from './sprite-ids.js';
 
 const FONT = '"Baloo 2", "Nunito", system-ui, sans-serif';
 export const TILE_PX = 160; // sticker tile texture (same as the classic BLOCK_PX)
 export const PIXEL_TILE = 36; // pixel tile grid
 const BABY_CROP = 0.76; // a baby shows its top 76%: it peeks over the tile's bottom edge
+const GEN_BABY_CROP = 0.84; // generated babies are trimmed to the body: hide just the feet
+export const CREATURE_MAX_W = 0.9; // a creature never gets wider than 90% of its cell
+
 
 /** Display height of the creature, as a fraction of the cell: grows 16 → 128. */
-export const cropFor = (tier) => (tier < 4 ? 0.64 : [0.78, 0.84, 0.9, 0.96][Math.min(3, tier - 4)]); // head ≈ 39 → 48% of the tile
+// eggs (2 → 4 → 8) grow a little too, so the three read apart at a glance
+const EGG_CROP = [0.58, 0.64, 0.7];
+const GEN_EGG_CROP = [0.5, 0.55, 0.6];
+const eggIndex = (tier) => Math.max(0, Math.min(2, tier - 1));
+export const cropFor = (tier) => (tier < 4 ? EGG_CROP[eggIndex(tier)] : [0.78, 0.84, 0.9, 0.96][Math.min(3, tier - 4)]); // head ≈ 39 → 48% of the tile
+/** The same for generated sprites, which are trimmed to the body (no canvas padding): head ≈ 39 → 48%. */
+export const genCropFor = (tier) => (tier < 4 ? GEN_EGG_CROP[eggIndex(tier)] : [0.56, 0.6, 0.64, 0.68][Math.min(3, tier - 4)]);
 
+// egg plates warm a step per value, like classic 2048 (cream 2 → sand 4 → apricot 8)
+const EGG_PLATE = ['#f2dfc2', '#f2d3ad', '#f3c597'];
 const plateColor = (t) => {
-  if (t.tier < 4) return '#f2dfc2';
+  if (t.tier < 4) return EGG_PLATE[eggIndex(t.tier)];
   const fu = fusionOf(t.cls);
   if (fu) return tone(fu.color, 0.18);
   return tone(ELEMENTS[t.cls.element]?.color ?? '#d9d2c5', 0.42);
@@ -298,6 +314,13 @@ export function createArt(initial = 'sticker') {
     return { kind: 'baby', el: t.cls.element ?? 'earth', stage: Math.min(3, t.tier - 4) };
   }
 
+  /** The generated sprite for a spec, in sticker style only (pixel keeps its own art). */
+  function gen(spec) {
+    if (style !== 'sticker') return null;
+    const id = spriteId(spec);
+    return id ? generatedTex(id) : null;
+  }
+
   return {
     get style() {
       return style;
@@ -313,33 +336,61 @@ export function createArt(initial = 'sticker') {
       const overlay = texture(`over.${k}`, () => (px ? pixelOverlay(t) : stickerOverlay(t)), px);
       const spec = creatureSpec(t);
       let creature = null;
+      let maxW = Infinity; // code-drawn canvases carry side padding: their height rules
+      let crop = cropFor(t.tier);
       if (spec) {
-        const ck = `cr.${style}.${JSON.stringify(spec)}`;
-        creature = texture(
-          ck,
-          () => {
-            const r = renderCreature(spec, px ? 'pixel' : 'sticker');
-            return spec.kind === 'egg' ? r.canvas : cropCanvas(r.canvas, r.pad, BABY_CROP);
-          },
-          px,
-        );
+        const g = gen(spec);
+        if (g) {
+          maxW = CREATURE_MAX_W;
+          crop = genCropFor(t.tier);
+        }
+        const ck = `cr.${style}.${JSON.stringify(spec)}${g ? '.gen' : ''}`;
+        if (g) {
+          // a baby peeks over the sill: crop its feet off; eggs stay whole
+          if (!cache.has(ck)) cache.set(ck, spec.kind === 'egg' ? g : new Texture({ source: g.source, frame: new Rectangle(0, 0, g.width, Math.round(g.height * GEN_BABY_CROP)) }));
+          creature = cache.get(ck);
+        } else {
+          creature = texture(
+            ck,
+            () => {
+              const r = renderCreature(spec, px ? 'pixel' : 'sticker');
+              return spec.kind === 'egg' ? r.canvas : cropCanvas(r.canvas, r.pad, BABY_CROP);
+            },
+            px,
+          );
+        }
       }
-      return { plate, overlay, creature, crop: cropFor(t.tier), egg: t.tier < 4 };
+      return { plate, overlay, creature, crop, maxW, egg: t.tier < 4 };
     },
     roamer(cls) {
       const px = style === 'pixel';
       const spec = { kind: 'fusion', a: cls.element, b: cls.fusion, legendary: !!cls.ultimate };
-      return texture(`roam.${style}.${spec.a}.${spec.b}.${spec.legendary}`, () => renderCreature(spec, px ? 'pixel' : 'sticker').canvas, px);
+      return gen(spec) ?? texture(`roam.${style}.${spec.a}.${spec.b}.${spec.legendary}`, () => renderCreature(spec, px ? 'pixel' : 'sticker').canvas, px);
+    },
+    /**
+     * How to stand a roamer texture: `feet` = anchor y (share of its height), `height` =
+     * display height of the texture in cells, `maxW` = widest it may get, in cells.
+     * Code-drawn canvases carry padding; generated sprites are trimmed to the creature.
+     */
+    roamerFit(cls) {
+      const legend = !!cls.ultimate;
+      if (gen({ kind: 'fusion', a: cls.element, b: cls.fusion })) return { feet: 0.97, height: legend ? 1.32 : 1.18, maxW: 1.75 };
+      return { feet: 0.89, height: legend ? 1.62 : 1.42, maxW: Infinity };
     },
     halo(apex) {
       const px = style === 'pixel';
-      return texture(`halo.${style}.${apex}`, () => renderCreature({ kind: 'halo', apex }, px ? 'pixel' : 'sticker').canvas, px);
+      return gen({ kind: 'halo', apex }) ?? texture(`halo.${style}.${apex}`, () => renderCreature({ kind: 'halo', apex }, px ? 'pixel' : 'sticker').canvas, px);
     },
     portrait(cls) {
       const k = `${cls.element}.${cls.fusion}.${cls.ultimate ?? ''}`;
+      if (style === 'sticker') {
+        // the generated soft-vinyl bust (its ascended edit for legendaries, when made)
+        const id = portraitId(cls);
+        const url = (cls.ultimate && generatedUrl(`${id}.ascended`)) || generatedUrl(id);
+        if (url) return url;
+      }
       if (!urls.has(k)) urls.set(k, renderPortrait(cls.element, cls.fusion, { legendary: !!cls.ultimate, apex: cls.ultimate ?? null }).toDataURL('image/png'));
       return urls.get(k);
     },
   };
 }
-

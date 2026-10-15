@@ -3,9 +3,10 @@
 // chill, freeze), status visuals (embers, bubbles, frost tint, ice block),
 // damage-over-time numbers, hit flash and a death pop.
 import { BitmapText, Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { enemyTex, shadowTex, softDot, statusTex, ENEMY_PX } from './textures.js';
+import { enemyTex, shadowTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
 
 const STATUS_ORDER = ['freeze', 'burn', 'poison', 'chill', 'loot'];
+const GEN_FILL = 0.8; // a trimmed generated foe, at the size the procedural critter reads at
 
 export function createFoes(stage, fx) {
   const layer = stage.layers.enemies;
@@ -44,7 +45,7 @@ export function createFoes(stage, fx) {
     });
     c.addChild(shadow, body, flash, ice, barBg, barFg, hpText, badges);
     layer.addChild(c);
-    return { c, shadow, body, flash, ice, barBg, barFg, hpText, badges, badgeViews, seed: Math.random() * 10, dotT: 0, emitT: 0, seenBurn: e.dot.burn, seenPoison: e.dot.poison };
+    return { c, shadow, body, flash, ice, barBg, barFg, hpText, badges, badgeViews, gen: hasGenerated(`enemy.${e.type}`), seed: Math.random() * 10, dotT: 0, emitT: 0, seenBurn: e.dot.burn, seenPoison: e.dot.poison };
   }
 
   function sync(enemies, dt) {
@@ -70,7 +71,8 @@ export function createFoes(stage, fx) {
       v.shadow.height = size * U * 0.3;
       v.shadow.position.set(0, size * U * 0.32);
 
-      const px = (size * U) / ENEMY_PX;
+      // generated sprites are trimmed to the critter; procedural ones sit on a padded ENEMY_PX canvas
+      const px = v.gen ? (size * U * GEN_FILL) / Math.max(v.body.texture.width, v.body.texture.height, 1) : (size * U) / ENEMY_PX;
       const face = e.dirX < -0.1 ? -1 : 1;
       const squash = frozen ? 1 : 1 + Math.sin(time * 14 + v.seed) * 0.04;
       v.body.scale.set(px * face * (2 - squash), px * squash);
@@ -86,7 +88,9 @@ export function createFoes(stage, fx) {
       v.flash.position.copyFrom(v.body.position);
       v.flash.rotation = v.body.rotation;
       v.flash.alpha = e.flash > 0 ? 0.75 : 0;
-      v.body.tint = frozen ? 0xb9ecff : e.chillT > 0 ? 0xa8d8ff : e.poison.stacks > 0 ? 0xe2c8ff : 0xffffff;
+      // statuses read on the body: frozen, stunned (Lightning, Earth), rooted (Nature), chilled, poisoned
+      v.body.tint = frozen ? 0xb9ecff : e.stunT > 0 ? 0xfff0a0 : e.rootT > 0 ? 0xc9f2b4 : e.chillT > 0 ? 0xa8d8ff : e.poison.stacks > 0 ? 0xe2c8ff : 0xffffff;
+      if (e.stunT > 0) v.body.rotation = Math.sin(time * 40 + v.seed) * 0.08; // dazed shake
 
       // frozen: ice block overlay
       v.ice.clear();

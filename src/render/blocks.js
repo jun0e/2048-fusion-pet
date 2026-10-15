@@ -73,7 +73,7 @@ export function createBlocks(stage, fx, { art = null } = {}) {
     const sel = new Graphics();
     c.addChild(body, creature, overlay, flash, milestone, charge, sel);
     layer.addChild(c);
-    return { c, glow, body, creature, overlay, flash, milestone, msKey: '', charge, sel, key: '', pop: 0, punch: 0, appear: 1, delay: 0, crop: 0, egg: false };
+    return { c, glow, body, creature, overlay, flash, milestone, msKey: '', charge, sel, key: '', pop: 0, punch: 0, appear: 1, delay: 0, crop: 0, maxW: Infinity, egg: false };
   }
 
   const keyOf = (t) => `${t.tier}.${t.cls.element ?? ''}.${t.cls.fusion ?? ''}.${t.cls.ultimate ?? ''}`;
@@ -114,6 +114,7 @@ export function createBlocks(stage, fx, { art = null } = {}) {
           v.creature.texture = a.creature ?? Texture.EMPTY;
           v.creature.visible = !!a.creature;
           v.crop = a.crop;
+          v.maxW = a.maxW ?? Infinity;
           v.egg = a.egg;
         } else {
           v.body.texture = blockTex(t.tier, t.cls);
@@ -148,7 +149,8 @@ export function createBlocks(stage, fx, { art = null } = {}) {
       if (v.overlay.visible) v.overlay.scale.copyFrom(v.body.scale);
       if (v.creature.visible) {
         // babies bob fast and squashy, bigger ones slower (motion by stage, style brief)
-        const cs = ((GRID.cell * U * v.crop) / (v.creature.texture.height || 1)) * popS;
+        const ct = v.creature.texture;
+        const cs = Math.min((GRID.cell * U * v.crop) / (ct.height || 1), (GRID.cell * U * v.maxW) / (ct.width || 1)) * popS; // wide pets (orca, snake) are capped by width
         const stage = Math.max(0, t.tier - 4);
         const w = v.egg ? 3 : stage < 2 ? 8.4 : 6;
         const amp = v.egg ? 0 : stage < 2 ? 0.05 : 0.035;

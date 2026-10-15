@@ -4,8 +4,11 @@
 //
 // The Gemini API has no weekly quota of its own (limits are per minute/day and a
 // tier billing cap), so the weekly limit is ours, set in tools/gemini-budget.json:
-//   { "weeklyLimitUsd": 58.33, "weeklyLimitImages": null, "stopAt": 0.8 }
-// The default spreads the Tier 1 billing cap ($250) over a 30-day month: $58.33/week.
+//   { "weeklyLimitUsd": 58.33, "weeklyLimitImages": null, "monthlyLimitUsd": 10, "stopAt": 0.8 }
+// The weekly default spreads the Tier 1 billing cap ($250) over a 30-day month: $58.33/week.
+// monthlyLimitUsd (rolling 30 days, optional) matches the $10/month Google Cloud credit that
+// comes with Google AI Pro, so by default generation stops at $8 and never reaches the card.
+// Whichever limit is nearer its stop line wins.
 // Prices: ai.google.dev/gemini-api/docs/pricing (Oct 2026), standard tier, 1K images.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -20,7 +23,8 @@ export const PRICES = {
 };
 const FALLBACK_PRICE = 0.134; // unknown model: assume the most expensive
 export const WEEK_MS = 7 * 24 * 3600 * 1000;
-export const DEFAULT_LIMITS = { weeklyLimitUsd: 58.33, weeklyLimitImages: null, stopAt: 0.8 };
+export const MONTH_MS = 30 * 24 * 3600 * 1000;
+export const DEFAULT_LIMITS = { weeklyLimitUsd: 58.33, weeklyLimitImages: null, monthlyLimitUsd: null, stopAt: 0.8 };
 
 /** Estimated cost of one image (batch requests are half price). */
 export function costOf(model, { batch = false } = {}) {
@@ -28,12 +32,12 @@ export function costOf(model, { batch = false } = {}) {
   return batch ? p / 2 : p;
 }
 
-/** Spend and image count in the 7 days before `now`. */
-export function weeklyUsage(ledger, now = Date.now()) {
+/** Spend and image count in the 7 days (or `windowMs`) before `now`. */
+export function weeklyUsage(ledger, now = Date.now(), windowMs = WEEK_MS) {
   let usd = 0;
   let images = 0;
   for (const e of ledger) {
-    if (now - e.t > WEEK_MS || e.t > now) continue;
+    if (now - e.t > windowMs || e.t > now) continue;
     usd += e.usd;
     images += 1;
   }
@@ -48,14 +52,22 @@ export function weeklyUsage(ledger, now = Date.now()) {
 export function checkBudget(ledger, limits = DEFAULT_LIMITS, nextUsd = 0, now = Date.now()) {
   const L = { ...DEFAULT_LIMITS, ...limits };
   const usage = weeklyUsage(ledger, now);
+  const month = weeklyUsage(ledger, now, MONTH_MS);
   const pctUsd = L.weeklyLimitUsd ? (usage.usd + nextUsd) / L.weeklyLimitUsd : 0;
   const pctImg = L.weeklyLimitImages ? (usage.images + (nextUsd > 0 ? 1 : 0)) / L.weeklyLimitImages : 0;
-  const pct = Math.max(pctUsd, pctImg);
+  const pctMonth = L.monthlyLimitUsd ? (month.usd + nextUsd) / L.monthlyLimitUsd : 0;
+  const pct = Math.max(pctUsd, pctImg, pctMonth);
   if (pct >= L.stopAt) {
-    const what = pctUsd >= pctImg ? `$${(usage.usd + nextUsd).toFixed(2)} of $${L.weeklyLimitUsd}` : `${usage.images + 1} of ${L.weeklyLimitImages} images`;
-    return { ok: false, pct, usage, reason: `weekly Gemini budget at ${Math.round(pct * 100)}% (${what}); stop line is ${Math.round(L.stopAt * 100)}%` };
+    const what =
+      pct === pctMonth
+        ? `$${(month.usd + nextUsd).toFixed(2)} of the $${L.monthlyLimitUsd} monthly limit (30 days)`
+        : pctUsd >= pctImg
+          ? `$${(usage.usd + nextUsd).toFixed(2)} of $${L.weeklyLimitUsd}`
+          : `${usage.images + 1} of ${L.weeklyLimitImages} images`;
+    const span = pct === pctMonth ? 'monthly' : 'weekly';
+    return { ok: false, pct, usage, month, reason: `${span} Gemini budget at ${Math.round(pct * 100)}% (${what}); stop line is ${Math.round(L.stopAt * 100)}%` };
   }
-  return { ok: true, pct, usage, reason: '' };
+  return { ok: true, pct, usage, month, reason: '' };
 }
 
 export function loadLimits(file) {

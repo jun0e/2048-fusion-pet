@@ -6,7 +6,9 @@
 //
 //   npm run pack            # → 2048-siege.html and 2048-siege-kv.html (key-visual demo)
 import { build } from 'vite';
-import { readFileSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, rmSync, readdirSync, existsSync, mkdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,9 +45,55 @@ html = html.replace(/<link rel="stylesheet"[^>]*href="\.\/assets\/([^"]+)"[^>]*>
 // home-screen icons → data URLs; no manifest in a single file
 html = html.replace(/<link rel="manifest"[^>]*>\s*/g, '');
 html = html.replace(/href="\.\/icons\/([^"]+\.png)"/g, (_, file) => `href="data:image/png;base64,${readFileSync(join(root, 'public', 'icons', file)).toString('base64')}"`);
-// one file: no generated sprites to fetch (main.js skips the asset manifest)
+// one file: nothing to fetch (main.js skips the asset manifest; the sprites, if any, ride along below)
 html = html.replace('<script type="module">', '<script>window.__SINGLE_FILE__ = true;</script>\n    <script type="module">');
 if (/\.\/assets\//.test(html)) throw new Error(`unresolved asset reference left in the HTML (${files.join(', ')})`);
+// the generated sprites (public/assets/manifest.json) ride along as WebP data URLs, so the
+// file shows the Gemini art straight from disk; the game reads them from window.__GEN__
+const manifestFile = join(root, 'public', 'assets', 'manifest.json');
+if (existsSync(manifestFile)) {
+  const entries = Object.entries(JSON.parse(readFileSync(manifestFile, 'utf8')).files ?? {});
+  const src = entries.map(([, f]) => join(root, 'public', 'assets', f)).filter((f) => existsSync(f));
+  // encoding is slow (over half an hour for the full set), so each sprite's WebP is cached by
+  // its content and the settings: a pack re-encodes only new or changed sprites
+  const WEBP = 'quality=88, method=6';
+  const cacheDir = join(root, 'node_modules', '.cache', 'pack-webp');
+  mkdirSync(cacheDir, { recursive: true });
+  const cacheFile = (f) => join(cacheDir, `${createHash('sha1').update(WEBP).update(readFileSync(f)).digest('hex')}.b64`);
+  const data = {};
+  const todo = [];
+  for (const f of src) {
+    const c = cacheFile(f);
+    if (existsSync(c)) data[f] = readFileSync(c, 'utf8');
+    else todo.push(f);
+  }
+  if (todo.length) {
+    const webp = execFileSync(
+      'python3',
+      ['-c', `import sys, io, base64, json
+from PIL import Image
+out = {}
+for p in sys.argv[1:]:
+    im = Image.open(p)
+    b = io.BytesIO()
+    im.save(b, 'WEBP', ${WEBP})
+    out[p] = base64.b64encode(b.getvalue()).decode()
+print(json.dumps(out))`, ...todo],
+      { maxBuffer: 1 << 30 },
+    );
+    for (const [f, b64] of Object.entries(JSON.parse(webp))) {
+      data[f] = b64;
+      writeFileSync(cacheFile(f), b64);
+    }
+  }
+  const gen = {};
+  for (const [key, f] of entries) {
+    const p = join(root, 'public', 'assets', f);
+    if (data[p]) gen[key] = `data:image/webp;base64,${data[p]}`;
+  }
+  html = html.replace('<script type="module">', `<script>window.__GEN__ = ${JSON.stringify({ files: gen })};</script>\n    <script type="module">`);
+  console.log(`embedded ${Object.keys(gen).length} generated sprites (${(JSON.stringify(gen).length / 1048576).toFixed(1)} MB as WebP)`);
+}
 writeFileSync(target, html);
 // the key-visual demo: the same build, opening straight into ?kv mode
 const kvTarget = join(root, '2048-siege-kv.html');

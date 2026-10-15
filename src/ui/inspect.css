@@ -1,0 +1,246 @@
+/* Tile info popup (src/ui/inspect.js): a clay card in the HUD's own tokens, tinted by
+   the block's element colour (--c). */
+.inspect {
+  position: absolute;
+  top: calc(var(--field-top, 18%) + 6px); /* below the top bars: the pause button stays in reach */
+  z-index: 30; /* main.js hides the card while the game is paused, so it never covers the menu */
+  max-height: calc(100% - var(--sa-t) - var(--sa-b) - 24px);
+  overflow-y: auto;
+  padding: 12px 14px 12px;
+  border-radius: 18px;
+  background: var(--cream);
+  color: var(--ink);
+  box-shadow:
+    var(--clay-drop),
+    var(--clay-hi),
+    inset 0 0 0 3px color-mix(in srgb, var(--c) 55%, transparent);
+  pointer-events: auto;
+  font: 600 13px/1.4 var(--font-body);
+}
+.inspect.pop {
+  animation: inspect-pop 0.18s ease-out;
+}
+@keyframes inspect-pop {
+  from {
+    transform: translateY(-6px) scale(0.97);
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inspect.pop {
+    animation: none;
+  }
+}
+.reduce-motion .inspect.pop {
+  animation: none; /* the in-game Reduce motion setting */
+}
+.inspect-x {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--cream-2);
+  color: var(--ink);
+  font: 800 20px/1 var(--font-display);
+  cursor: pointer;
+}
+.inspect-x::before {
+  content: '';
+  position: absolute;
+  inset: -7px; /* a 44 px target around the 30 px circle */
+}
+.inspect-x:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.inspect-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-right: 30px;
+}
+.inspect-pic {
+  flex: 0 0 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c) 28%, var(--cream-2));
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.inspect-pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.inspect-pic b {
+  font: 800 22px var(--font-display);
+}
+.inspect-titles {
+  min-width: 0;
+}
+.inspect-titles h3 {
+  margin: 0;
+  font: 800 20px/1.1 var(--font-display);
+  text-wrap: balance;
+}
+.inspect-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  align-items: center;
+}
+.inspect-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 55%, white);
+  font: 800 11px/1.6 var(--font-display);
+  color: #2b1d2e;
+}
+.inspect-value {
+  font: 800 12px var(--font-display);
+  color: var(--ink-soft);
+  margin-left: 2px;
+}
+.inspect-pet {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.inspect-desc {
+  margin: 8px 0 7px;
+}
+.inspect-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0 0 8px;
+}
+.inspect-stats div {
+  grid-column: span 2; /* damage · attacks · DPS */
+  background: var(--cream-2);
+  border-radius: 10px;
+  padding: 4px 7px;
+  min-width: 0;
+}
+.inspect-stats div:nth-child(n + 4) {
+  grid-column: span 3; /* range · targets */
+}
+.inspect-stats dt {
+  font: 800 10px var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+.inspect-stats dd {
+  margin: 0;
+  font: 800 14px/1.25 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+.inspect-fx {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+.inspect-fx li {
+  position: relative;
+  padding-left: 14px;
+}
+.inspect-fx li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.5em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 0 1.5px #2b1d2e55;
+}
+.inspect-special {
+  margin: 0 0 8px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c) 22%, var(--cream));
+}
+.inspect-next {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.inspect-act {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px dashed var(--cream-2);
+}
+.inspect-sell {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 14px;
+  font: 800 15px var(--font-display);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 3px 0 #96785a55;
+}
+.inspect-sell b {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.inspect-sell.is-sell {
+  background: var(--butter);
+}
+.inspect-sell.is-break {
+  background: var(--peach);
+}
+.inspect-sell.armed {
+  background: #ef6060;
+  color: var(--cream);
+}
+.inspect-sell:disabled {
+  opacity: 0.5;
+  cursor: default;
+  box-shadow: none;
+}
+.inspect-sell:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.inspect-coin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe98a, #f2b51f 60%, #c98a0f);
+  box-shadow: 0 0 0 1.5px #8a5a0f;
+}
+.inspect-note {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.inspect-chip img {
+  width: 16px;
+  height: 16px;
+  margin-left: -4px;
+  object-fit: contain;
+}

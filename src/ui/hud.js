@@ -6,7 +6,6 @@
 // numbers from config/sim data (no user input), so innerHTML is safe here.
 import { TIER_COLORS, tierValue } from '../config.js';
 import { createBannerQueue } from '../ux/banners.js';
-import { bubbleWidth, placeBubble } from '../ux/placement.js';
 
 const ICON_SOUND =
   '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
@@ -61,12 +60,6 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     <div class="milestone"></div>
     <div class="banner"><b class="banner-title"></b><span class="banner-sub"></span></div>
     <div class="announce-stack" aria-live="polite"></div>
-    <div class="inspect" aria-live="polite">
-      <div class="inspect-head"><b class="inspect-value"></b><span class="inspect-kind"></span></div>
-      <b class="inspect-name"></b>
-      <p class="inspect-text"></p>
-      <small class="inspect-progress"></small>
-    </div>
     <div class="coinbar" aria-label="Coins">
       <span class="coin-ico"></span>
       <b class="coins">0</b>
@@ -448,28 +441,6 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       btn.textContent = `x${n}`;
       btn.classList.toggle('fast', n > 1);
       btn.setAttribute('aria-label', `Game speed x${n}`);
-    },
-    /**
-     * The inspect card beside a tapped block (placement rules: src/ux/placement.js).
-     * info: describeBlock(tile); rect / board: client boxes of the block and the board
-     */
-    showInspect(info, rect, board) {
-      const card = $('.inspect');
-      $('.inspect-value').textContent = info.value.toLocaleString();
-      $('.inspect-kind').textContent = info.kind;
-      $('.inspect-name').textContent = info.name;
-      $('.inspect-text').textContent = info.text;
-      $('.inspect-progress').textContent = info.progress ?? '';
-      card.style.setProperty('--c', info.colors[0] ?? '#d9d2c5');
-      card.classList.add('on');
-      card.style.width = `${bubbleWidth({ tile: 1 }, innerWidth)}px`; // first: the height depends on it
-      const floor = Math.min(...['.coinbar', '.fight'].map((s) => $(s).offsetTop));
-      const p = placeBubble({ target: { tile: 1 }, rect, board, floor, vw: innerWidth, vh: innerHeight, bh: card.offsetHeight || 110 });
-      card.style.left = `${p.left}px`;
-      card.style.top = `${p.top}px`;
-    },
-    hideInspect() {
-      $('.inspect').classList.remove('on');
     },
     /** Share feedback on the button ("Copied!"), then back to "Share". */
     shareDone(label) {

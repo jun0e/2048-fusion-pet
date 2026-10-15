@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createDefense } from '../src/sim/defense.js';
 import { generateWave, ENEMY_TYPES, isBossDay } from '../src/sim/enemies.js';
 import { createRng } from '../src/sim/rng.js';
+import { profileFor as profileOf } from '../src/sim/classes.js';
 import { DEFENSE, FIELD, LANE_LENGTH, SIEGE, cellY, laneX } from '../src/config.js';
 
 const DT = 1 / 60;
@@ -233,19 +234,19 @@ test('Metal marks foes so they drop bonus coins; Midas gilds the whole field', (
   assert.ok(foes.every((f) => f.lootT > 0), 'every lane gilded');
 });
 
-test('Nature repairs the most damaged block; Lifebloom repairs them all', () => {
+test('Bramble Shell regrows the block and its neighbours when its ring bites; Lifebloom repairs them all', () => {
   const d = createDefense({ rng: createRng(5) });
-  const e = d.spawn('hoodedFlier', { lane: 2, hpScale: 50000, s: at(5) });
+  const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 50000, s: sAtY(2) }); // inside the ring
   e.speed = 0;
-  const healer = sturdy(block(2, 4, { element: 'nature' }, 1));
-  const hurt = Object.assign(block(0, 4, {}, 2), { hp: 100, maxHp: 1000 });
-  const scratched = Object.assign(block(3, 4, {}, 3), { hp: 900, maxHp: 1000 });
-  run(d, [healer, hurt, scratched], 20);
-  const heals = d.drainEvents().filter((x) => x.type === 'tileHeal');
-  assert.ok(heals.length >= 1, 'roughly one volley in five repairs');
-  assert.ok(heals.every((h) => h.id === hurt.id || hurt.hp / hurt.maxHp > scratched.hp / scratched.maxHp), 'the worst-off block first');
-  assert.ok(hurt.hp > 100);
-  assert.ok(hurt.hp <= hurt.maxHp, 'never above max');
+  e.atk = 0; // a dummy: it stands in the ring without biting back
+  const healer = Object.assign(block(1, 4, { element: 'nature' }, 1), { hp: 500, maxHp: 1000 });
+  const next = Object.assign(block(2, 4, {}, 2), { hp: 500, maxHp: 1000 }); // its neighbour
+  const far = Object.assign(block(3, 4, {}, 3), { hp: 500, maxHp: 1000 }); // two cells away
+  run(d, [healer, next, far], 4.1);
+  assert.ok(healer.hp > 500 && next.hp > 500, 'the block and its neighbour regrow');
+  assert.equal(far.hp, 500, 'a block two cells away does not');
+  assert.ok(e.hp < e.maxHp, 'the ring hurt the foe in it');
+  assert.ok(next.hp <= next.maxHp);
 
   const bloom = createDefense({ rng: createRng(5) });
   const b = bloom.spawn('hoodedFlier', { lane: 0, hpScale: 50000, s: at(1) });
@@ -288,61 +289,136 @@ test('Poison and Lightning cover the neighbouring lanes; single-lane classes do 
   assert.equal(other.hp, other.maxHp);
 });
 
-test('Nature reaches a big circle around the block, so its row matters', () => {
-  const high = createDefense({ rng: createRng(1) });
-  const e = high.spawn('hoodedFlier', { lane: 2, hpScale: 5000, s: sAtY(12) });
-  e.speed = 0;
-  run(high, [block(0, 4, { element: 'nature' }, 1, 3)], 1.5);
-  assert.ok(e.hp < e.maxHp, 'a top-row Nature block reaches another lane up in the field');
-  const low = createDefense({ rng: createRng(1) });
-  const f = low.spawn('hoodedFlier', { lane: 2, hpScale: 5000, s: sAtY(12) });
-  f.speed = 0;
-  run(low, [block(0, 4, { element: 'nature' }, 1, 0)], 1.5);
-  assert.equal(f.hp, f.maxHp, 'from the bottom row the circle does not reach the field');
-});
-
-test('Fire fires a 3-shot burst; Nature spreads 3 seeds over different foes', () => {
+test('Bramble Shell only reaches one cell around the block, and roots what it hits', () => {
   const d = createDefense({ rng: createRng(1) });
-  const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: at(6) });
-  e.speed = 0;
-  d.step(DT, [block(1, 4, { element: 'fire' })]);
-  assert.equal(d.shots.length, 3);
-  assert.deepEqual(d.shots.map((s) => s.delay > 0), [false, true, true], 'staggered');
-
-  const n = createDefense({ rng: createRng(1) });
-  const foes = [0, 1, 2].map((lane) => n.spawn('hoodedFlier', { lane, hpScale: 5000, s: sAtY(3) }));
-  for (const f of foes) f.speed = 0;
-  n.step(DT, [block(1, 4, { element: 'nature' })]);
-  assert.equal(new Set(n.shots.map((s) => s.targetId)).size, 3);
+  const close = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(2.5) }); // 1.5 units away
+  const far = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(4.5) }); // 3.5 units away
+  close.speed = far.speed = 0;
+  d.step(DT, [block(1, 4, { element: 'nature' })]);
+  assert.ok(close.hp < close.maxHp && close.rootT > 0, 'hit and rooted');
+  assert.equal(far.hp, far.maxHp, 'outside the ring');
+  assert.equal(d.shots.length, 0, 'a pulse, not a projectile');
 });
 
-test('Ice targets the toughest foe, Metal the weakest', () => {
+test('Ember Breath hits every foe in its cone at once and burns them; nothing outside it', () => {
+  const d = createDefense({ rng: createRng(1) });
+  const near = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(2) });
+  const mid = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(4) });
+  const beyond = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(7) }); // 3 cells up: past the tip
+  const aside = d.spawn('hoodedFlier', { lane: 3, hpScale: 5000, s: sAtY(4) }); // two lanes over
+  for (const e of [near, mid, beyond, aside]) e.speed = 0;
+  d.step(DT, [block(1, 4, { element: 'fire' })]); // row 0, y = 1: the cone reaches y = 5
+  assert.equal(d.shots.length, 0, 'breath is instant');
+  assert.ok(near.hp < near.maxHp && mid.hp < mid.maxHp, 'both foes in the cone are hit');
+  assert.ok(near.burn.stacks > 0 && mid.burn.stacks > 0, 'and burning');
+  assert.equal(beyond.hp, beyond.maxHp);
+  assert.equal(aside.hp, aside.maxHp);
+  assert.ok(d.drainEvents().some((x) => x.type === 'breath' && x.dir === 1));
+});
+
+test('Wing Gust hits every foe in the lane and pushes them back up it', () => {
+  const d = createDefense({ rng: createRng(1) });
+  const e = d.spawn('hoodedFlier', { lane: 2, hpScale: 5000, s: sAtY(12) }); // up in the field
+  e.speed = 0;
+  const s0 = e.s;
+  d.step(DT, [block(2, 4, { element: 'wind' }, 1, 3)]); // top row: the gust covers the field
+  assert.ok(e.hp < e.maxHp);
+  assert.ok(e.s < s0 - 0.9, 'pushed back half a cell');
+});
+
+test('Horn Arc chains to 3 foes at 16 and 6 at 128, nearest first; Lightning may stun', () => {
+  const chainOf = (tier) => {
+    const d = createDefense({ rng: createRng(2) });
+    const foes = [2, 4, 6, 8, 10, 12, 14].map((y) => d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(y) }));
+    for (const f of foes) f.speed = 0;
+    d.step(DT, [block(1, tier, { element: 'lightning' })]);
+    return foes.filter((f) => f.hp < f.maxHp).length;
+  };
+  assert.equal(chainOf(4), 3);
+  assert.equal(chainOf(7), 6);
+  const s = createDefense({ rng: { next: () => 0 } }); // every roll succeeds
+  const f = s.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(3) });
+  f.speed = 0;
+  s.step(DT, [block(1, 4, { element: 'lightning' })]);
+  assert.ok(f.stunT > 0, 'stunned');
+});
+
+test('Venom Spit leaves a puddle: foes in it stack poison, and at full stacks they bite softer', () => {
+  const d = createDefense({ rng: createRng(1) });
+  const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 1e6, s: sAtY(3) });
+  e.speed = 0;
+  run(d, [block(1, 4, { element: 'poison' })], 1.2);
+  assert.ok(d.puddles.length >= 1, 'a puddle on the path');
+  run(d, [block(1, 4, { element: 'poison' })], 3);
+  assert.equal(e.poison.stacks, 6, 'stacks build up while it stands in the venom');
+  assert.ok(e.weakT > 0 && e.weakPct === 0.3, 'weakened at 6 stacks');
+
+  // a weakened foe bites a block for 30% less
+  const w = createDefense({ rng: createRng(1) });
+  const t = sturdy(block(1, 1, {}, 1, 3));
+  const biter = w.spawn('pixie', { lane: 1, hpScale: 1e6, s: sAtY(SIEGE.boardTop + 0.5) });
+  run(w, [t], 3);
+  biter.weakT = 99;
+  biter.weakPct = 0.3;
+  w.drainEvents();
+  run(w, [t], 2);
+  const bites = w.drainEvents().filter((x) => x.type === 'tileHit');
+  assert.ok(bites.length && bites.every((b) => Math.abs(b.amount - biter.atk * 0.7) < 1e-9));
+});
+
+test('Pride Pounce: a killing bite hits a wounded foe twice as hard', () => {
+  const pounce = (hpFrac, rng) => {
+    const d = createDefense({ rng });
+    const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(3) });
+    e.speed = 0;
+    e.hp = e.maxHp * hpFrac;
+    const before = e.hp;
+    const b = block(1, 4, { element: 'metal' });
+    d.step(DT, [b]);
+    return { lost: before - e.hp, dmg: profileOf(b).damage, bite: d.drainEvents().some((x) => x.type === 'bite') };
+  };
+  const always = { next: () => 0 };
+  const wounded = pounce(0.4, always);
+  assert.ok(wounded.bite && Math.abs(wounded.lost - wounded.dmg * 2) < 1e-6, 'double damage below half health');
+  const healthy = pounce(0.9, always);
+  assert.ok(!healthy.bite && Math.abs(healthy.lost - healthy.dmg) < 1e-6, 'a normal hit above half health');
+});
+
+test('Quake Stomp hits its lane and both neighbours, 1.5 cells deep, knocking back and stunning', () => {
+  const d = createDefense({ rng: createRng(1) });
+  const hitBy = [0, 1, 2].map((lane) => d.spawn('hoodedFlier', { lane, hpScale: 5000, s: sAtY(2.5) }));
+  const tooWide = d.spawn('hoodedFlier', { lane: 3, hpScale: 5000, s: sAtY(2.5) });
+  const tooDeep = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(5) });
+  for (const e of [...hitBy, tooWide, tooDeep]) e.speed = 0;
+  d.step(DT, [block(1, 4, { element: 'earth' })]);
+  assert.ok(hitBy.every((e) => e.hp < e.maxHp && e.stunT > 0), 'three lanes shaken and stunned');
+  assert.equal(tooWide.hp, tooWide.maxHp);
+  assert.equal(tooDeep.hp, tooDeep.maxHp);
+});
+
+test('Bramble thorns hurt a foe that bites the block', () => {
+  const d = createDefense({ rng: createRng(1) });
+  const t = sturdy(block(1, 4, { element: 'nature' }, 1, 3));
+  d.spawn('pixie', { lane: 1, hpScale: 1e6, s: sAtY(SIEGE.boardTop + 0.5) });
+  run(d, [t], 4);
+  assert.ok(d.drainEvents().some((x) => x.type === 'hit' && x.thorns));
+});
+
+test('Echo Harpoon targets the toughest foe, Pride Pounce the weakest', () => {
   const pick = (element) => {
     const d = createDefense({ rng: createRng(1) });
     const weak = d.spawn('pixie', { lane: 1, hpScale: 100, s: at(4) });
     const tough = d.spawn('hoodedFlier', { lane: 1, hpScale: 100, s: at(3) });
     weak.speed = tough.speed = 0;
     d.step(DT, [block(1, 4, { element })]);
-    return d.shots[0].targetId === weak.id ? 'weak' : 'tough';
+    if (d.shots.length) return d.shots[0].targetId === weak.id ? 'weak' : 'tough'; // the harpoon flies
+    return weak.hp < weak.maxHp ? 'weak' : 'tough'; // the pounce lands at once
   };
   assert.equal(pick('ice'), 'tough');
   assert.equal(pick('metal'), 'weak');
 });
 
-test('Earth lobs its boulder into the biggest crowd and splashes it', () => {
-  const d = createDefense({ rng: createRng(1) });
-  const lone = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: at(7) });
-  const crowd = [5, 5.3, 5.6].map((s) => d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: at(s) }));
-  for (const e of [lone, ...crowd]) e.speed = 0;
-  d.step(DT, [block(1, 4, { element: 'earth' })]);
-  const sh = d.shots[0];
-  assert.equal(sh.kind, 'lob');
-  assert.ok(crowd.some((e) => e.id === sh.targetId), 'aims at the crowd, not the front-most foe');
-  run(d, [], 1);
-  assert.ok(crowd.every((e) => e.hp < e.maxHp), 'everyone in the crowd takes splash');
-});
-
-test('Wind’s blade sweeps its lane from the block and hits every foe once', () => {
+test('Wing Gust hits every foe in its lane the same amount', () => {
   const d = createDefense({ rng: createRng(1) });
   const foes = [2.5, 5, 8].map((y) => d.spawn('hoodedFlier', { lane: 2, hpScale: 50000, s: sAtY(y) }));
   for (const e of foes) e.speed = 0;
@@ -353,16 +429,16 @@ test('Wind’s blade sweeps its lane from the block and hits every foe once', ()
   assert.ok(lost.every((x) => x === lost[0]), 'each exactly once');
 });
 
-test('Poison darts leave at an angle and curve into their target', () => {
+test('Venom Spit lobs its glob and poisons the foe it lands on', () => {
   const d = createDefense({ rng: createRng(1) });
   const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(4.5) });
   e.speed = 0;
   d.step(DT, [block(1, 4, { element: 'poison' })]);
   const sh = d.shots[0];
-  const toTarget = Math.atan2(e.y - sh.y, e.x - sh.x);
-  assert.ok(Math.abs(Math.atan2(sh.vy, sh.vx) - toTarget) > 0.5, 'not straight at it');
+  assert.equal(sh.kind, 'lob');
+  assert.ok(sh.spit, 'a venom glob');
   run(d, [], 2);
-  assert.ok(e.poison.stacks > 0, 'but it arrives');
+  assert.ok(e.poison.stacks > 0, 'it lands and poisons');
 });
 
 test('a roaming fusion (key-visual demo) shoots from where it stands, not from its den', () => {
@@ -393,4 +469,96 @@ test('a namecard skill hits every foe around the creature with its element effec
   const ev = d.drainEvents().find((x) => x.type === 'skill');
   assert.equal(ev.hits, 2);
   assert.equal(d.cast(block(0, 2, {}, 9), {}), 0, 'blocks below 16 have no skill');
+});
+
+test('fusions keep every effect whatever their first shape: bite on a cone, chain and regrow on a glob', () => {
+  const always = { next: () => 0 };
+  // Forge (fire + metal) breathes a cone; its metal half still gives the killing bite
+  const f = createDefense({ rng: always });
+  const prey = f.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(3) });
+  prey.speed = 0;
+  prey.hp = prey.maxHp * 0.3;
+  f.step(DT, [block(1, 8, { element: 'fire', fusion: 'metal' })]);
+  assert.ok(f.drainEvents().some((x) => x.type === 'bite'), 'Forge bites');
+
+  // Toxic Shock (poison + lightning) spits; the glob chains on landing
+  const p = createDefense({ rng: createRng(1) });
+  const foes = [3, 4.5, 6].map((y) => p.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(y) }));
+  for (const e of foes) e.speed = 0;
+  run(p, [block(1, 8, { element: 'poison', fusion: 'lightning' })], 1);
+  assert.ok(p.drainEvents().some((x) => x.type === 'impact' && x.chain), 'the glob arcs on');
+
+  // Nightshade (poison + nature) regrows its den when the glob lands on a foe
+  const n = createDefense({ rng: createRng(1) });
+  const e = n.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(3) });
+  e.speed = 0;
+  e.atk = 0;
+  const den = Object.assign(block(1, 8, { element: 'poison', fusion: 'nature' }, 1), { hp: 500, maxHp: 1000 });
+  run(n, [den], 1.5);
+  assert.ok(den.hp > 500, 'regrown');
+});
+
+test('overlapping venom puddles still add one stack per half second', () => {
+  const d = createDefense({ rng: createRng(1) });
+  const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 1e6, s: sAtY(3) });
+  e.speed = 0;
+  const prof = { damage: 10, poison: { dpsPct: 0.34, dur: 3, max: 6, weaken: 0.3 }, colors: ['#b46cff'] };
+  for (let i = 0; i < 3; i++) d.puddles.push({ id: i, x: e.x, y: e.y, r: 2, t: 5, max: 5, every: 0.5, prof, tier: 4 });
+  run(d, [], 0.51);
+  assert.equal(e.poison.stacks, 1, 'three puddles, one stack');
+});
+
+test('a foe stunned while biting resumes its bite timer instead of restarting it', () => {
+  const d = createDefense({ rng: createRng(1) });
+  const t = sturdy(block(1, 1, {}, 1, 3));
+  const e = d.spawn('pixie', { lane: 1, hpScale: 1e6, s: sAtY(SIEGE.boardTop + 0.5) });
+  let time = 0;
+  const bites = [];
+  for (let i = 0; i < 60 * 8; i++) {
+    if (Math.abs(time - 3.05) < DT / 2) e.stunT = 0.3; // right after a bite, mid-cycle
+    d.step(DT, [t]);
+    time += DT;
+    for (const x of d.drainEvents()) if (x.type === 'tileHit') bites.push(time);
+  }
+  const gaps = bites.slice(1).map((b, i) => b - bites[i]);
+  assert.ok(gaps.every((g) => g >= SIEGE.biteEvery - 1e-6), `no bite comes early (${gaps.map((g) => g.toFixed(2)).join(', ')})`);
+});
+
+test('a venom glob never releases damage a harpoon reserved', () => {
+  const d = createDefense({ rng: createRng(1) });
+  const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 1e6, s: sAtY(9) });
+  e.speed = 0;
+  e.incoming = 25; // a harpoon in flight
+  d.shots.push({ id: 99, kind: 'lob', spit: true, x: 0, y: 0, ox: e.x, oy: e.y - 4, x1: e.x, y1: e.y, t: 0, T: 0.01, targetId: e.id, prof: { damage: 5, kinds: ['poison'], colors: ['#b46cff'], puddle: { radius: 2, dur: 3, every: 0.5 }, poison: { dpsPct: 0.3, dur: 3, max: 6 } }, damage: 5, tier: 4, delay: 0, age: 0 });
+  run(d, [], 0.1);
+  assert.equal(e.incoming, 25);
+});
+
+test('knockback and holds brace: a foe pushed or held again soon slides and stays held less', () => {
+  const d = createDefense({ rng: createRng(1) });
+  const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 1e6, s: sAtY(12) });
+  e.speed = 0;
+  const s0 = e.s;
+  const b = block(1, 4, { element: 'wind' }, 1, 3);
+  d.step(DT, [b]);
+  const first = s0 - e.s;
+  run(d, [b], 1.3); // the next gust lands inside the 1.5 s brace
+  const second = s0 - first - e.s;
+  assert.ok(Math.abs(first - 1) < 1e-6 && Math.abs(second - 0.4) < 1e-6, `pushed 1 then 0.4 (${first}, ${second})`);
+  const boss = d.spawn('elfRuler', { lane: 2, hpScale: 1e6, s: sAtY(12) });
+  boss.speed = 0;
+  const bs = boss.s;
+  d.step(DT, [block(2, 4, { element: 'wind' }, 2, 3)]);
+  assert.ok(Math.abs(bs - boss.s - 0.5) < 1e-6, 'a boss slides half as far');
+
+  // a fast Nature fusion can no longer hold a walking foe still
+  const h = createDefense({ rng: createRng(1) });
+  const walker = h.spawn('hoodedFlier', { lane: 1, hpScale: 1e9, s: sAtY(4.5) });
+  walker.atk = 0;
+  let held = 0;
+  for (let i = 0; i < 600; i++) {
+    h.step(DT, [block(1, 8, { element: 'fire', fusion: 'nature' }, 1, 1)]);
+    if (walker.rootT > 0 || walker.stunT > 0) held += DT;
+  }
+  assert.ok(held / 10 < 0.6, `held ${(held * 10).toFixed(0)}% of the time`);
 });

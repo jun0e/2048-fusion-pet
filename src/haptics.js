@@ -14,6 +14,8 @@ export function createHaptics() {
   return {
     play(kind) {
       if (!on || !can) return;
+      // before the first tap the browser refuses a vibration (and logs an error for each)
+      if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
       if (kind === 'merge') {
         const now = performance.now();
         if (now - lastMerge < 80) return;

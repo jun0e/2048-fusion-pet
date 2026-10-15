@@ -15,7 +15,11 @@
     "pack": "node tools/pack-html.mjs",
     "gemini:status": "node tools/gen-assets.mjs --status",
     "gemini:probe": "node tools/gen-assets.mjs --probe",
-    "kv:gen": "node tools/gen-kv.mjs"
+    "kv:gen": "node tools/gen-kv.mjs",
+    "pipeline": "node tools/pipeline.mjs",
+    "pipeline:dry": "node tools/pipeline.mjs --dry",
+    "pipeline:status": "node tools/pipeline.mjs --status",
+    "pipeline:repost": "node tools/pipeline.mjs --repost"
   },
   "dependencies": {
     "pixi-filters": "^6.1.5",

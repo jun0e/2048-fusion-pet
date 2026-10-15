@@ -76,6 +76,26 @@ test('inputs that change nothing are not recorded; saves round-trip', () => {
   assert.equal(loadSaved(storage), null, 'a broken save is ignored');
 });
 
+test('selling and breaking blocks replay exactly; a refused one is not recorded', () => {
+  const { run, log } = play(7, 60);
+  const discards = () => log.inputs.filter((x) => x[1] === 'discard').length;
+  assert.equal(run.discard(-1).ok, false, 'no such block');
+  assert.equal(discards(), 0, 'a refused sell is not recorded');
+  const turret = run.tiles.find((t) => run.discardPrice(t.id).kind === 'sell');
+  const dormant = run.tiles.find((t) => run.discardPrice(t.id).kind === 'break');
+  assert.ok(turret && dormant, 'the board has a turret and a dormant block');
+  assert.equal(run.discard(turret.id).ok, true);
+  const broke = run.discard(dormant.id).ok; // it needs the coins; either way the replay must match
+  assert.equal(discards(), broke ? 2 : 1);
+  for (let i = 0; i < 300 && !run.over; i++) {
+    if (i % 30 === 0) run.move(i % 60 ? 'left' : 'up');
+    run.step();
+    run.drainEvents();
+  }
+  const copy = replayRun(createRun, JSON.parse(JSON.stringify(log)));
+  assert.deepEqual(state(copy), state(run));
+});
+
 /** A storage stand-in. */
 function memory() {
   const store = new Map();

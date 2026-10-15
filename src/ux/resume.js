@@ -11,9 +11,9 @@
 /** Also in index.html: New run on the failure screen removes this key itself (it must work without main.js). */
 export const RESUME_KEY = 'siege:run';
 /** Bump when a change makes old logs replay differently (renamed inputs, sim rules). */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2; // 2: the basic attacks and sell / break (art fork merge)
 /** Run methods that change the sim from outside (debug helpers are not saved). */
-export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave'];
+export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave', 'discard'];
 
 /** localStorage, or null where reading it throws. */
 function local() {
@@ -26,7 +26,7 @@ function local() {
 
 /**
  * Record a run's inputs: wraps its step and its input methods (an input that
- * changes nothing, e.g. a swipe that moves no block, is not recorded).
+ * changes nothing, e.g. a swipe that moves no block or a refused sell, is not recorded).
  * `log` continues an earlier log after a resume.
  */
 export function recordRun(run, log = { seed: run.seed, steps: 0, inputs: [] }) {
@@ -39,7 +39,7 @@ export function recordRun(run, log = { seed: run.seed, steps: 0, inputs: [] }) {
     const call = run[name];
     run[name] = (...args) => {
       const res = call(...args);
-      if (res !== false) log.inputs.push([log.steps, name, ...args]);
+      if (res !== false && res?.ok !== false) log.inputs.push([log.steps, name, ...args]);
       return res;
     };
   }
