@@ -34,8 +34,9 @@ export function createInspect(root, { stage, art, onClose, onDiscard }) {
   let armed = 0; // seconds left to confirm the sell / break tap
   let ctx = {};
 
-  el.addEventListener('pointerdown', (e) => {
-    e.stopPropagation(); // reading the card never swipes the board
+  el.addEventListener('pointerdown', (e) => e.stopPropagation()); // reading the card never swipes the board
+  // click, not pointerdown: Enter and Space on a focused button work too
+  el.addEventListener('click', (e) => {
     if (e.target.closest('.inspect-x')) onClose?.();
     const btn = e.target.closest('.inspect-sell');
     if (btn && !btn.disabled) {

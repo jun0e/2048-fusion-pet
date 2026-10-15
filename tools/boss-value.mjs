@@ -9,7 +9,7 @@ import { PHYSICS } from '../src/config.js';
 const seeds = Number(process.argv.find((a) => a.startsWith('--seeds='))?.split('=')[1] ?? 40);
 const rows = [];
 for (let seed = 1; seed <= seeds; seed++) {
-  const r = createRun({ seed, autoChoose: true });
+  const r = createRun({ seed, autoChoose: true, roaming: true }); // the game's rules: fusions' pets roam
   let t = 0;
   let next = 0;
   for (let i = 0; i < 1200 / PHYSICS.dt && !r.over; i++) {

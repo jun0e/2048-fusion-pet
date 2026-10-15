@@ -1,5 +1,5 @@
-// Run resume. A run is its seed plus the inputs that changed it, each with the
-// sim step it came at. The sim is deterministic, so replaying the inputs rebuilds
+// Run resume. A run is its seed (and whether its pets roam) plus the inputs that changed
+// it, each with the sim step it came at. The sim is deterministic, so replaying the inputs rebuilds
 // the run exactly. The game saves this log; after a reload it replays the log and
 // shows the pause menu, so the player continues or restarts.
 // A save carries a version and a fingerprint of the run. A save from another
@@ -13,7 +13,7 @@ export const RESUME_KEY = 'siege:run';
 /** Bump when a change makes old logs replay differently (renamed inputs, sim rules). */
 export const SAVE_VERSION = 2; // 2: the basic attacks and sell / break (art fork merge)
 /** Run methods that change the sim from outside (debug helpers are not saved). */
-export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave', 'discard'];
+export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave', 'discard', 'castSkill'];
 
 /** localStorage, or null where reading it throws. */
 function local() {
@@ -29,7 +29,7 @@ function local() {
  * changes nothing, e.g. a swipe that moves no block or a refused sell, is not recorded).
  * `log` continues an earlier log after a resume.
  */
-export function recordRun(run, log = { seed: run.seed, steps: 0, inputs: [] }) {
+export function recordRun(run, log = { seed: run.seed, roaming: !!run.roaming, steps: 0, inputs: [] }) {
   const step = run.step;
   run.step = () => {
     step();
@@ -48,7 +48,7 @@ export function recordRun(run, log = { seed: run.seed, steps: 0, inputs: [] }) {
 
 /** Rebuild a run from its log. `onEvents` gets the events the replay makes (for counters). */
 export function replayRun(createRun, log, { onEvents = () => {} } = {}) {
-  const run = createRun({ seed: log.seed });
+  const run = createRun({ seed: log.seed, roaming: !!log.roaming });
   let i = 0;
   for (let s = 0; s <= log.steps; s++) {
     while (i < log.inputs.length && log.inputs[i][0] === s) {
@@ -61,7 +61,7 @@ export function replayRun(createRun, log, { onEvents = () => {} } = {}) {
   return run;
 }
 
-/** What must match after a replay: the board (with classes and health), the economy, the deck. */
+/** What must match after a replay: the board (with classes, health and roaming pets), the economy, the deck. */
 export const fingerprint = (run) =>
   [
     run.waveNo,
@@ -71,7 +71,7 @@ export const fingerprint = (run) =>
     run.swipeCost,
     run.kills,
     run.owned.join('+'),
-    run.tiles.map((t) => `${t.id}:${t.tier}:${t.cls.element ?? ''}${t.cls.fusion ?? ''}${t.cls.ultimate ?? ''}:${Math.round(t.hp)}`).join(','),
+    run.tiles.map((t) => `${t.id}:${t.tier}:${t.cls.element ?? ''}${t.cls.fusion ?? ''}${t.cls.ultimate ?? ''}:${Math.round(t.hp)}${t.roam ? `@${t.roam.x.toFixed(2)},${t.roam.y.toFixed(2)}` : ''}`).join(','),
   ].join('|');
 
 /**
@@ -91,6 +91,7 @@ export function restoreRun(createRun, saved, { onEvents } = {}) {
 /** A log this build can replay: known inputs, at integer steps in order, within its length. */
 function validLog(log) {
   if (!log || !Number.isInteger(log.seed) || !Number.isInteger(log.steps) || log.steps < 0 || log.steps > 4e6 || !Array.isArray(log.inputs)) return false;
+  if (log.roaming !== undefined && typeof log.roaming !== 'boolean') return false;
   let last = 0;
   for (const input of log.inputs) {
     if (!Array.isArray(input) || !RESUME_INPUTS.includes(input[1])) return false;

@@ -102,6 +102,11 @@ The art fork's work (commit `192ea15` on main) was merged into this branch, and 
 - **Resume.** Sell / break (`run.discard`) is an input in the saved-run log; a refused one is not recorded. `SAVE_VERSION` is 2, because the art fork's basic attacks replay old logs differently.
 - **The single-file build.** It carries the art fork's sprites in `window.__GEN__`; main.js loads them (before, the single-file flag skipped all sprite loading). `npm run pack` caches each sprite's WebP by content, so a pack takes seconds instead of over half an hour.
 - **Haptics.** No vibration before the player's first tap: the browser refuses it and logs an error for each call.
+- **Roaming pets are sim state.** The art fork's pets layer moved the fusions' pets on frame time and its own random numbers, and the sim aimed from where they stood. So the sim depended on the screen, and a resumed run with a fusion did not match its save and was dropped. The walking now runs inside the sim step (`src/sim/roam.js`: fixed step, the run's own random stream), and `src/kv/roam.js` only draws it. A run has it only when made with `{ roaming: true }`; the game sets it when it draws the pets, and the save records it. A skill cast from a namecard (`castSkill`) is a saved input.
+- **Namecards.** Skills charge on sim time (not while paused; faster at x2 and x4, as the wave is), and the strip hides during a die pick, so no cast happens in the pick.
+- **The card and the coach.** No card during the guided opening (its Break could remove one of the 8s the first lesson merges), and a new tip closes an open card. The card's buttons act on click, so Enter and Space work.
+- **Reduce motion** (the in-game setting) also stops the namecards' shine, bob and nudge, and the skill cut-in fades in place.
+- **Economy model.** On the merged game, a boss's x2s add 0.68 of the top block (`tools/boss-value.mjs`, which now plays with roaming pets); `tools/economy.mjs` uses that.
 
 ## Out of scope (next)
 

@@ -28,9 +28,10 @@ export function setupPets({ stage, fx, art, hudEl, getRun }) {
 
   return {
     roam,
-    update(run, dt) {
+    /** `simDt`: the sim time this frame (0 while paused or picking a die), which charges the skills. */
+    update(run, dt, simDt = dt) {
       roam.sync(run, dt);
-      cards.sync(run, dt);
+      cards.sync(run, dt, simDt);
     },
     onEvent(e) {
       roam.onEvent(e);

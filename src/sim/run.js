@@ -21,6 +21,7 @@ import { createGrid } from './grid.js';
 import { createDefense } from './defense.js';
 import { generateWave } from './enemies.js';
 import { createRng } from './rng.js';
+import { createRoam } from './roam.js';
 import { planBossReward } from './boss-reward.js';
 import { ELEMENT_KEYS, describeStage, dieOffers, elementsOf, mergeClass, stageFor } from './classes.js';
 import { DEFENSE, DICE, ECONOMY, GRID, GUIDED_WAVE, PHYSICS, SIEGE } from '../config.js';
@@ -47,10 +48,11 @@ export const killCoinsFor = (wave, boss) => Math.round((ECONOMY.killBase + wave 
 export const breakSecondsFor = (wave) => Math.min(ECONOMY.breakMax, ECONOMY.breakBase + ECONOMY.breakPerWave * wave);
 export const waveBonusFor = (wave) => Math.round(ECONOMY.waveClearBase + wave * ECONOMY.waveClearPerWave);
 
-export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose = false, empty = false, dice = null, brokeBreak = ECONOMY.brokeBreak } = {}) {
+export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose = false, empty = false, dice = null, brokeBreak = ECONOMY.brokeBreak, roaming = false } = {}) {
   const diceRng = createRng((seed ^ 0xa5a5a5a5) >>> 0);
   const rollRng = createRng((seed ^ 0x3c6ef372) >>> 0);
   const bossRng = createRng((seed ^ 0x27d4eb2f) >>> 0); // where boss x2s go (its own stream: other rolls stay the same)
+  const roam = roaming ? createRoam(createRng((seed ^ 0x6d2b79f5) >>> 0)) : null; // fusions' pets roam the field (src/sim/roam.js)
   const events = [];
   const choices = []; // die unlocks: { kind: 'die', tier, offers }
   const notes = []; // merge results (class gained, colour overridden), emitted after the grid's events
@@ -294,6 +296,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       }
     }
 
+    roam?.step(grid.tiles, defense.enemies, dt);
     defense.step(dt, grid.tiles);
     for (const e of defense.drainEvents()) {
       events.push(e);
@@ -393,6 +396,10 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     },
     get enemies() {
       return defense.enemies;
+    },
+    /** Fusions' pets roam the field (createRun({ roaming })). */
+    get roaming() {
+      return roaming;
     },
     get shots() {
       return defense.shots;

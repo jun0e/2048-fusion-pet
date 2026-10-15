@@ -11,7 +11,7 @@ import { FIELD, GRID_TOP, laneX } from '../config.js';
 import { createCoach, loadStore, saveStore, HELP } from '../ux/coach.js';
 import { bubbleWidth, placeBubble } from '../ux/placement.js';
 
-export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }) {
+export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, onShow }) {
   const store = loadStore({ reset: new URLSearchParams(location.search).has('tutorial') });
   const coach = createCoach({ getRun, store, save: saveStore, onLog });
 
@@ -145,8 +145,10 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog }
     const key = v ? v.key : null;
     if (key !== shown) {
       shown = key;
-      if (v) show(v);
-      else hide();
+      if (v) {
+        show(v);
+        onShow?.(v);
+      } else hide();
     } else if (v) {
       if (v.target !== current) aim(v.target); // its block merged or broke: follow it
       place();

@@ -109,7 +109,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     strip.style.width = `${w}px`;
   }
 
-  function sync(run, dt) {
+  function sync(run, dt, simDt = dt) {
     // the HUD rebuilds its DOM after the demo starts: re-attach if needed
     if (!strip.isConnected) root.appendChild(strip);
     if (!cutin.isConnected) root.appendChild(cutin);
@@ -127,7 +127,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
         card = null;
       }
       if (!card) cards.set(t.id, (card = make(t)));
-      if (run.phase === 'wave' && !run.over) card.charge = Math.min(card.max, card.charge + dt);
+      if (run.phase === 'wave' && !run.over) card.charge = Math.min(card.max, card.charge + simDt); // wave time: not while paused, x2 charges x2
       const f = card.charge / card.max;
       card.el.style.setProperty('--f', f.toFixed(3));
       card.el.classList.toggle('ready', f >= 1);

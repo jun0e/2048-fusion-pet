@@ -88,7 +88,7 @@ function boardDps(value) {
 
 const breakFor = (w) => (w === 1 ? ECONOMY.prepSeconds : Math.min(ECONOMY.breakMax, ECONOMY.breakBase + ECONOMY.breakPerWave * w));
 const rows = [];
-const BOSS_X2_VALUE = 0.87; // board value a boss's x2s add, as a share of the top block (measured, see above)
+const BOSS_X2_VALUE = 0.68; // board value a boss's x2s add, as a share of the top block (tools/boss-value.mjs: median of 138 boss kills in 40 games, with the art fork's attacks and roaming pets)
 let promoted = 0; // board value added by boss x2s
 const boardValue = () => 4.4 + 2.2 * swipes + promoted;
 const topOf = (v) => 2 ** Math.floor(Math.log2(v * 0.55));

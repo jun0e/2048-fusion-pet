@@ -123,6 +123,8 @@ async function start() {
   const scenery = createScenery(stage);
   const style = params.get('style') || 'sticker';
   const art = kvMode || style !== 'classic' ? createArt(style) : null;
+  // the game draws the pets: fusions' pets roam the field (sim state: createRun({ roaming }))
+  const roaming = !kvMode && !!art;
   const blocks = createBlocks(stage, fx, { art });
   const foes = createFoes(stage, fx);
   const shots = createShots(stage, fx);
@@ -132,7 +134,6 @@ async function start() {
   // a game, not a page: no long-press menu or image callout
   addEventListener('contextmenu', (e) => e.preventDefault());
   const kv = kvMode ? setupKv({ stage, fx, blocks, art, hudEl: document.getElementById('hud'), getRun: () => run, params }) : null;
-  const pets = !kvMode && art ? setupPets({ stage, fx, art, hudEl: document.getElementById('hud'), getRun: () => run }) : null;
 
   let best = loadBest();
   let bestWave = loadBestWave();
@@ -184,7 +185,7 @@ async function start() {
 
   function newRun() {
     if (kv) return kv.preset(createRun({ seed: seedParam ?? 2048, empty: true, dice: KV_DICE }));
-    const r = createRun({ seed: seedParam, empty: debugStart });
+    const r = createRun({ seed: seedParam, empty: debugStart, roaming });
     if (debugStart) {
       // one block per class stage, built from the deck's colours
       const [a, b, c] = r.owned;
@@ -281,6 +282,9 @@ async function start() {
     }
   }
 
+  // the pets layer (after the HUD, whose markup would drop its namecard strip)
+  const pets = roaming ? setupPets({ stage, fx, art, hudEl: document.getElementById('hud'), getRun: () => run }) : null;
+
   // tap a block: a card says what it does (attack, numbers, effects, what it becomes next)
   const inspect = createInspect(document.getElementById('hud'), {
     stage,
@@ -369,6 +373,7 @@ async function start() {
     },
     onReplay: () => restart(),
     onLog: (kind, data) => journey.onCoach(kind, data),
+    onShow: () => select(null), // a new tip closes an open block card, which would cover it
   });
 
   // Pause (src/ux/pause.js): the menu and its pages, and a phone held sideways.
@@ -729,6 +734,7 @@ async function start() {
   function update(dt, force = false) {
     const live = force || !paused; // paused: the menu, How to play, a sideways phone
     acc = live ? acc + dt * speed : 0;
+    const t0 = run.time;
     let n = 0;
     while (acc >= PHYSICS.dt && n < 8 * speed) {
       run.step();
@@ -762,13 +768,14 @@ async function start() {
     const picked = selected != null && run.tiles.find((t) => t.id === selected);
     if (selected != null && (!picked || run.pendingChoice)) select(null);
     scenery.showRange(picked ? { x: picked.x, y: picked.y, shoot: profileFor(picked).shoot } : null);
-    inspect.show(picked && !run.pendingChoice && !gameOverShown && !pause.paused ? picked : null, picked ? { price: run.discardPrice(picked.id), coins: run.coins, last: run.tiles.length <= 1 } : {}, dt);
+    // no card in the guided opening (its Break would undo the first lesson's 8s)
+    inspect.show(picked && !run.pendingChoice && !gameOverShown && !pause.paused && !tutorial.active ? picked : null, picked ? { price: run.discardPrice(picked.id), coins: run.coins, last: run.tiles.length <= 1 } : {}, dt);
 
     const perLane = [0, 0, 0, 0];
     for (const e of run.enemies) if (!e.dead && !e.gone) perLane[e.lane] += 1;
     scenery.update(dt, { lanes: run.wave.lanes, bossLane: run.wave.bossLane, phase: run.phase, perLane });
     kv?.update(run, dt);
-    pets?.update(run, dt);
+    pets?.update(run, dt, Math.max(0, run.time - t0)); // skills charge on sim time
     blocks.sync(run, dt);
     deck.sync(run, dt);
     foes.sync(run.enemies, dt);

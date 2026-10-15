@@ -1,22 +1,20 @@
-// Roaming fusions (key-visual demo): at 256 a fusion hops out of its tile, which
-// stays on the board as its den (number, split plate, both glyphs), and roams the
-// field. It walks to the lane under the most pressure, idles, and shoots from where
-// it stands (defense.js reads tile.roam). Legendaries glide instead of stepping,
-// hover over a detached shadow and carry their apex halo. Motion by stage follows
-// the style brief: fusions ≤5% squash with a weighty step, legendaries none.
+// Roaming fusions: at 256 a fusion hops out of its tile, which stays on the board as
+// its den (number, split plate, both glyphs), and roams the field. It walks to the lane
+// under the most pressure, idles, and shoots from where it stands. Where it goes is sim
+// state (src/sim/roam.js, tile.roam), so a replay plays out the same; this layer only
+// draws it. Legendaries glide instead of stepping, hover over a detached shadow and carry
+// their apex halo. Motion by stage follows the style brief: fusions ≤5% squash with a
+// weighty step, legendaries none.
 import { Container, Graphics, Sprite } from 'pixi.js';
-import { GRID, GRID_TOP, FIELD, cellX } from '../config.js';
+import { GRID } from '../config.js';
 import { fusionOf } from '../sim/classes.js';
 import { shadowTex, softDot } from '../render/textures.js';
 import { createRng } from '../sim/rng.js';
 
 const hex = (c) => parseInt(c.replace('#', ''), 16);
-const Y_MIN = GRID_TOP + 1.1;
-const Y_MAX = FIELD.spawnY - 2.4;
-const X_MAX = GRID.cell * 1.8;
 
 export function createRoamers(stage, fx, art, { seed = 4096 } = {}) {
-  // seeded, so the sticker and pixel maps on the compare page play out the same
+  // looks only (breathing phase, sparkles): the walking is the sim's
   const rng = createRng(seed);
   const rand = () => rng.next();
   const layer = new Container();
@@ -25,8 +23,6 @@ export function createRoamers(stage, fx, art, { seed = 4096 } = {}) {
   enemies.parent.addChildAt(layer, enemies.parent.getChildIndex(enemies) + 1);
   const views = new Map();
   let time = 0;
-
-  const isFusion = (t) => t.tier >= 8 && !!t.cls.fusion;
 
   function make(t) {
     const c = new Container();
@@ -50,56 +46,18 @@ export function createRoamers(stage, fx, art, { seed = 4096 } = {}) {
       halo,
       body,
       id: t.id,
-      x: t.x,
-      y: t.y,
-      tx: t.x,
-      ty: Y_MIN + 1,
-      hatch: 0, // 0 → 1: the hop out of the den
-      x0: t.x,
-      y0: t.y,
-      idle: 0,
-      think: 0,
-      facing: -1,
+      x: t.roam.x,
+      y: t.roam.y,
+      facing: t.roam.facing,
+      walkFacing: t.roam.facing, // the sim's facing as last seen: a turn there overrides a punch's
       punch: 0,
+      still: 0, // seconds since the sim last moved it
       phase: rand() * 6,
       key: '',
-      home: views.size % 4,
     };
-    pickSpot(v, null);
     fx.burst(t.x, t.y, [hex(fusionOf(t.cls).color), 0xffffff, 0xffe27a], 26, { speed: 5, size: 0.3, life: 0.6, gravity: 0 });
     fx.ring(t.x, t.y, 0xffffff, 0.4, 2.2, 0.4);
     return v;
-  }
-
-  /** Where to go next: under the most pressed lane, a little above the leading foe. */
-  function pickSpot(v, run) {
-    let lane = null;
-    let lead = null;
-    if (run) {
-      const press = [0, 0, 0, 0];
-      for (const e of run.enemies) {
-        if (e.dead || e.gone) continue;
-        const k = 1 / Math.max(1, e.y - GRID_TOP);
-        press[e.lane] += k;
-        if (!lead || e.y < lead.y) lead = e;
-      }
-      // spread out: a lane another pet already covers counts for less
-      const taken = [0, 0, 0, 0];
-      for (const o of views.values()) if (o !== v) taken[Math.max(0, Math.min(3, Math.round((o.tx - cellX(0)) / GRID.cell)))] += 1;
-      const score = press.map((p, i) => p - taken[i] * 1.5 + (i === v.home ? 0.08 : 0));
-      const best = score.indexOf(Math.max(...score));
-      if (press.some((p) => p > 0)) lane = best;
-    }
-    if (lane != null) {
-      const ahead = run.enemies.filter((e) => !e.dead && e.lane === lane).reduce((m, e) => (!m || e.y < m.y ? e : m), null);
-      v.tx = cellX(lane) + (rand() - 0.5) * 1.1;
-      v.ty = Math.max(Y_MIN, Math.min(Y_MAX, (ahead?.y ?? Y_MIN + 3) - 2.6 - rand() * 1.2));
-    } else {
-      // nothing to fight: amble around its home lane
-      v.tx = Math.max(-X_MAX, Math.min(X_MAX, cellX(v.home ?? 0) + (rand() - 0.5) * 1.6));
-      v.ty = Y_MIN + rand() * 3.2;
-    }
-    v.think = 2.6 + rand() * 1.8;
   }
 
   function sync(run, dt) {
@@ -108,10 +66,7 @@ export function createRoamers(stage, fx, art, { seed = 4096 } = {}) {
     const live = new Set();
     const list = [];
     for (const t of run.tiles) {
-      if (!isFusion(t)) {
-        if (t.roam) delete t.roam;
-        continue;
-      }
+      if (!t.roam) continue; // the sim adds it to a fusion (createRun({ roaming: true }))
       live.add(t.id);
       let v = views.get(t.id);
       if (!v) {
@@ -137,44 +92,13 @@ export function createRoamers(stage, fx, art, { seed = 4096 } = {}) {
         v.glow.tint = hex(legend ? '#ffe9a8' : fu.color);
       }
       v.punch = Math.max(0, v.punch - dt * 7);
-      let moving = false;
-      if (v.hatch < 1) {
-        // the hop out of the den: an arc up to its first spot
-        v.hatch = Math.min(1, v.hatch + dt / 0.7);
-        const k = v.hatch;
-        v.x = v.x0 + (v.tx - v.x0) * k;
-        v.y = v.y0 + (v.ty - v.y0) * k + Math.sin(k * Math.PI) * 2.2;
-      } else {
-        v.think -= dt;
-        const dx = v.tx - v.x;
-        const dy = v.ty - v.y;
-        const d = Math.hypot(dx, dy);
-        if (v.idle > 0) v.idle -= dt;
-        else if (d > 0.08) {
-          const sp = (legend ? 1.15 : 1.7) * dt;
-          v.x += (dx / d) * Math.min(sp, d);
-          v.y += (dy / d) * Math.min(sp, d);
-          moving = true;
-          if (Math.abs(dx) > 0.05) v.facing = dx > 0 ? 1 : -1;
-        } else {
-          v.idle = 0.8 + rand() * 1.4;
-        }
-        if (v.think <= 0 && v.idle <= 0) pickSpot(v, run);
-        // keep a little room between pets
-        for (const [, o] of list) {
-          if (o === v) continue;
-          const ox = v.x - o.x;
-          const oy = v.y - o.y;
-          const od = Math.hypot(ox, oy);
-          if (od > 0 && od < 2.3) {
-            v.x += (ox / od) * (2.3 - od) * dt * 2.5;
-            v.y += (oy / od) * (2.3 - od) * dt * 2.5;
-          }
-        }
-        v.x = Math.max(-X_MAX, Math.min(X_MAX, v.x));
-        v.y = Math.max(Y_MIN, Math.min(Y_MAX, v.y));
-      }
-      t.roam = { x: v.x, y: v.y };
+      // where the sim has it; a paused game holds it still (no walking in place)
+      const r = t.roam;
+      v.still = r.x === v.x && r.y === v.y ? v.still + dt : 0;
+      const moving = r.moving && r.hatch >= 1 && v.still < 0.1;
+      v.x = r.x;
+      v.y = r.y;
+      if (r.facing !== v.walkFacing) v.facing = v.walkFacing = r.facing;
 
       // view
       const px = art.style === 'pixel';

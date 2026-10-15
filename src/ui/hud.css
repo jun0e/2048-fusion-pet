@@ -1620,3 +1620,31 @@ body {
 #hud.choosing .banner.show {
   animation-play-state: paused;
 }
+
+/* --- the pets' namecards (src/kv): none during a die pick, and Reduce motion reaches them -- */
+/* a die card is a pause: no casting during the pick (the strip would sit above its scrim) */
+#hud.choosing .kv-cards,
+#hud.choosing .kv-cutin {
+  visibility: hidden;
+}
+/* src/kv/kv.css stops these only for the system setting; this is the in-game one */
+.reduce-motion .kv-card.ready,
+.reduce-motion .kv-card.ready .kv-shine,
+.reduce-motion .kv-card.nudge {
+  animation: none;
+}
+.reduce-motion .kv-cutin.go {
+  animation: kv-cut-still 0.95s ease-out forwards; /* fades in place, no slide */
+}
+@keyframes kv-cut-still {
+  0% {
+    opacity: 0;
+  }
+  14%,
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
