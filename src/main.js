@@ -635,6 +635,13 @@ async function start() {
           popup(p.x, p.y, `${ELEMENTS[e.winner].name} over ${ELEMENTS[e.loser].name}`, 3, ELEMENTS[e.winner].color);
           break;
         }
+        case 'resist': {
+          // a boss got used to pushback (DEFENSE.bossPushResist, steps I–III): say so over its head
+          const p = client(e.x, e.y + 1.6);
+          popup(p.x, p.y, `${e.name} resists pushback`, 3, '#4f6b86');
+          fx.ring(e.x, e.y + 0.4, 0xdfe8f2, 0.35, 1.6, 0.35);
+          break;
+        }
         case 'levelUp': {
           // the spawn level rose (src/sim/levels.js): the disc pops; the ribbon says the new odds
           badges.levelUp();

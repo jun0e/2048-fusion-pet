@@ -1,7 +1,7 @@
 // What a block does, in words and numbers, for the tile info popup (src/ui/inspect.js).
 // Built from the same data the simulation uses (classes.js + profileFor), so the popup
 // always shows the attack the block really has. Pure data; no rendering.
-import { GRID, tierValue } from '../config.js';
+import { DEFENSE, GRID, tierValue } from '../config.js';
 import { ELEMENTS, FUSIONS, APEX, TAGS, fusionKey, fusionOffers, materialOf, profileFor, stageFor, turretDamage } from './classes.js';
 
 const TARGET = {
@@ -52,7 +52,10 @@ export function effectLines(p) {
   if (p.chain) out.push(`Chain: arcs to ${p.chain.jumps} more foes within ${cells(p.chain.range)}, ${pct(1 - p.chain.falloff)} less per jump`);
   if (p.splash) out.push(`Splash: ${pct(p.splash.pct)} damage to foes within ${cells(p.splash.radius)}`);
   if (p.pierce) out.push('Pierce: hits every foe it passes through');
-  if (p.knockback) out.push(`Knockback: pushes foes ${cells(p.knockback)} back`);
+  if (p.knockback) {
+    const steps = DEFENSE.bossPushResist.map((r) => r.after);
+    out.push(`Knockback: pushes foes ${cells(p.knockback)} back; bosses resist it more after ${steps.slice(0, -1).join(', ')} and ${steps.at(-1)} pushes`);
+  }
   if (p.stun) out.push(p.stun.chance >= 1 ? `Stun: ${secs(p.stun.dur)} on every hit` : `Stun: ${pct(p.stun.chance)} chance to stun for ${secs(p.stun.dur)}`);
   if (p.root) out.push(`Root: holds foes in place for ${secs(p.root.dur)}`);
   if (p.thorns) out.push(`Thorns: a foe that bites the block takes ${pct(p.thorns.pct)} of a hit`);

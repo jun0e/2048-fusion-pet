@@ -73,6 +73,7 @@ export function createDefense({ rng }) {
       freezeT: 0,
       iceHits: 0,
       braceT: 0, // just knocked back: the next push slides it less
+      pushes: 0, // pushes taken: a boss resists more of each push as they add up (DEFENSE.bossPushResist)
       holdBraceT: 0, // just stunned or rooted: the next hold is shorter
       stunT: 0, // stunned: no moving, no biting
       rootT: 0, // rooted: no moving (it can still bite)
@@ -178,12 +179,19 @@ export function createDefense({ rng }) {
   }
 
   /** `src` ({ by, tier, colors }: who pushed) only goes into the `pushed` event, for the renderer. */
+  /** How many of DEFENSE.bossPushResist's steps a boss has reached after `pushes` pushes (0–3). */
+  const resistLevel = (pushes) => DEFENSE.bossPushResist.filter((r) => pushes >= r.after).length;
+
   function knock(e, amount, src = null) {
     const from = { x: e.x, y: e.y };
-    // bosses half as far; a foe pushed in the last 1.5 s is braced and slides only 40% as far,
-    // so a gust stalls a lane without holding it forever
-    const a = amount * (e.boss ? 0.5 : 1) * (e.braceT > 0 ? 0.4 : 1);
+    // bosses half as far, and less again as their pushes add up (resistLevel); a foe pushed in the
+    // last 1.5 s is braced and slides only 40% as far, so a gust stalls a lane without holding it forever
+    const level = e.boss ? resistLevel(e.pushes) : 0;
+    const boss = e.boss ? 0.5 * (1 - (DEFENSE.bossPushResist[level - 1]?.resist ?? 0)) : 1;
+    const a = amount * boss * (e.braceT > 0 ? 0.4 : 1);
     e.braceT = 1.5;
+    e.pushes += 1;
+    if (e.boss && resistLevel(e.pushes) > level) events.push({ type: 'resist', id: e.id, level: level + 1, name: e.def.name, x: e.x, y: e.y });
     if (e.mode === 'lane') {
       e.s = Math.max(0, e.s - a);
       place(e);
