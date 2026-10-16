@@ -62,6 +62,36 @@ export function labelDrop({ U, boss = false, barY, barH, cy, top }) {
   return Math.max(0, top + 2 - (cy + lab.y - Math.max(lab.bs / 2, lab.badgePx * NUMBER_HALF)));
 }
 
+/** Foes on one spot fan out sideways, drawing only: crowds within `spot` world units spread across ± `spread`, easing at `rate` per second. */
+export const FAN = { spot: 0.35, spread: 0.35, rate: 8 };
+
+/**
+ * How far sideways (world units) each foe is drawn from its sim position: foes chained within FAN.spot
+ * of each other are one crowd, spread evenly across ± FAN.spread in id order (the same every frame); a
+ * foe on its own stays put. Knockback pins foes on the gate, a block gathers its biters: drawn on one
+ * spot, "8 left" showed about 4. → Map(id → offset)
+ */
+export function fanOffsets(foes) {
+  const parent = foes.map((_, i) => i);
+  const root = (i) => (parent[i] === i ? i : (parent[i] = root(parent[i])));
+  for (let i = 0; i < foes.length; i++)
+    for (let j = i + 1; j < foes.length; j++)
+      if (Math.abs(foes[i].x - foes[j].x) < FAN.spot && Math.abs(foes[i].y - foes[j].y) < FAN.spot) parent[root(i)] = root(j);
+  const crowds = new Map();
+  foes.forEach((f, i) => {
+    const r = root(i);
+    if (!crowds.has(r)) crowds.set(r, []);
+    crowds.get(r).push(f);
+  });
+  const out = new Map();
+  for (const crowd of crowds.values()) {
+    crowd.sort((a, b) => a.id - b.id);
+    const k = crowd.length;
+    crowd.forEach((f, i) => out.set(f.id, k > 1 ? -FAN.spread + (2 * FAN.spread * i) / (k - 1) : 0));
+  }
+  return out;
+}
+
 const whites = new WeakMap(); // texture → its white silhouette (or null when it cannot be read back)
 const WHITE_PX = 256; // a silhouette's longest side: a flash is drawn at most ~340 device px wide, for 0.12 s
 /**
@@ -151,6 +181,7 @@ export function createFoes(stage, fx) {
       flashKx: white ? body.texture.width / Math.max(1, white.width) : 1,
       flashKy: white ? body.texture.height / Math.max(1, white.height) : 1,
       motion: null, // 0–1: how much of its motion the foe shows (eases to 0 while frozen, back to 1 after)
+      fan: 0, // drawn this far sideways of its sim position (world units, fanOffsets)
       seed: Math.random() * 10, dotT: 0, emitT: 0, seenBurn: e.dot.burn, seenPoison: e.dot.poison,
     };
   }
@@ -159,6 +190,7 @@ export function createFoes(stage, fx) {
     time += dt;
     const U = stage.view.U;
     const live = new Set();
+    const fan = fanOffsets(enemies); // foes on one spot fan out sideways, so each one can be counted
     for (const e of enemies) {
       live.add(e.id);
       let v = views.get(e.id);
@@ -170,7 +202,8 @@ export function createFoes(stage, fx) {
       const def = e.def;
       const size = foeDrawSize(def); // world units across (src/art/foe-roster.js: what the flash audit books too)
       const frozen = e.freezeT > 0;
-      const sx = stage.sx(e.x);
+      v.fan += ((fan.get(e.id) ?? 0) - v.fan) * (1 - Math.exp(-FAN.rate * dt));
+      const sx = stage.sx(e.x + v.fan);
       const sy = stage.sy(e.y);
       v.c.position.set(sx, sy);
 
