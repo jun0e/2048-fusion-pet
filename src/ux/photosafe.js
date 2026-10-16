@@ -165,8 +165,50 @@ export const BURST = { perSize2: 0.51, spark: 0.151 };
 /** A soft dot (a status ember or bubble) lights `share` of its square at alpha 1 (measured). */
 export const DOT = { share: 0.647 };
 
-/** A damage number lights about `lit` as it pops in at its usual scale (0.36), for `life` seconds; skipped when the budget is short. */
-export const NUMBER = { lit: 0.12, scale: 0.36, life: 0.75 };
+/**
+ * A damage number, as src/render/fx.js draws it: `scale` world units tall at its usual size (0.36),
+ * for `life` seconds; it pops in at `pop`× and settles back over the first `popShare` of its life;
+ * skipped when the budget is short. Each kind has a size in world units (`scales`) and a floor in
+ * CSS px (`minPx`): a hit, a damage-over-time or coin tick (`small`), a crit (unused: every hit is
+ * drawn with crit off).
+ * `glyphLit`: what each glyph lights at the pop (world units² at scale 0.36, the pixels at alpha
+ * 10% or more), measured 2026-10-16 on the bitmap font as fx.js installs it (Baloo 2 800 at 44 px,
+ * a 0.2 em round ink stroke, then the fill; tabular digits). Every digit books the widest digit's
+ * ("0", "8": 0.143; "1" lights 0.095), so a number books the same whatever its digits. A number
+ * books the sum of its glyphs: more than the glyphs light together (they overlap at their strokes:
+ * 92–100% measured on 20 numbers from "1" to "+8.8k"), never less. A glyph not in the table books
+ * `glyphMax`.
+ */
+export const NUMBER = {
+  scale: 0.36,
+  life: 0.75,
+  pop: 1.45,
+  popShare: 0.15,
+  scales: { hit: 0.36, small: 0.3, crit: 0.52 },
+  minPx: { hit: 15, small: 14, crit: 21 },
+  glyphLit: { digit: 0.143, '.': 0.037, k: 0.14, M: 0.184, '+': 0.094, '-': 0.045, '!': 0.086, '×': 0.102, ',': 0.049, ' ': 0 },
+  glyphMax: 0.184,
+};
+
+/** A damage number's size in world units on a stage of `U` px per unit: its own scale, never under its px floor (a phone's U alone would draw it at 7–13 px). */
+export const numberScale = (kind, U) => Math.max(NUMBER.scales[kind], NUMBER.minPx[kind] / U);
+
+/** A damage number's text: "7", "1.2k", "12k", "1.2M", with a prefix ("+" for coins) and "!" on a crit. */
+export function numberText(amount, { prefix = '', crit = false } = {}) {
+  const n = amount;
+  const body = n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${Math.max(1, Math.round(n))}`;
+  return prefix + body + (crit ? '!' : '');
+}
+
+/** What `text` drawn at `scale` world units lights at its pop (world units²): the sum of its glyphs. */
+export const numberLit = (scale, text) => [...String(text)].reduce((sum, ch) => sum + ((ch >= '0' && ch <= '9' ? NUMBER.glyphLit.digit : NUMBER.glyphLit[ch]) ?? NUMBER.glyphMax), 0) * (scale / NUMBER.scale) ** 2;
+
+/** Its light over its life, for the budget (s = 0–1 of its life): the pop's peak while it pops in, then its settled size (1 / pop²). */
+export function numberLight(scale, text) {
+  const peak = numberLit(scale, text);
+  const settled = peak / NUMBER.pop ** 2;
+  return (s) => (s < NUMBER.popShare ? peak : settled);
+}
 
 /** A coin flying to the counter lights about `lit`; n coins fly for life(n) seconds (they leave 0.05 s apart). Fewer fly when the budget is short. */
 export const COIN = { lit: 0.15, life: (n) => 0.28 + 0.05 * Math.max(0, n - 1) + 0.45 };
@@ -199,9 +241,10 @@ export const DECAL = { rise: 0.25, hold: 1.1, fall: 0.9, alpha: 0.85 };
  * into the light budget: smaller (down to minScale of its font size) when the screen is already
  * lit up, and skipped below that. They book `peak` × their ink: the float-up pops to 1.1× (the
  * combo pill to 1.12×). The combo pill books its box. The big milestone number (rare) takes the
- * flash budget instead.
+ * flash budget instead. A popup is never drawn under `minPx` (src/ui/hud.js): it books at least the
+ * share that keeps it there, or nothing.
  */
-export const TEXT = { perChar: 0.42, life: 0.9, peak: 1.25, minScale: 0.6, comboPx: 2600, milestonePx: 72, milestoneLife: 1.6 };
+export const TEXT = { perChar: 0.42, life: 0.9, peak: 1.25, minScale: 0.6, minPx: 14, comboPx: 2600, milestonePx: 72, milestoneLife: 1.6 };
 
 /** The font size (px) of a popup for `tier`. */
 export const popupFont = (tier) => Math.min(40, 18 + tier * 1.6);

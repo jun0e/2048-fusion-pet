@@ -90,7 +90,7 @@ export const FRAME_GEOM = {
   pit: 0.9,
   // the deck row: dice `die` wide, `gap` apart; the next die's slot is `slot` wide (room for "at 512"
   // at 12 px on a 360 px phone); `end` is the timber rail past the dice and the slot
-  deck: { y: -1.05, die: 0.72, gap: 0.2, slot: 2, end: 0.25 },
+  deck: { y: -1.05, die: 0.72, gap: 0.2, slot: 2.1, end: 0.25 }, // slot: "at 512" at 14 px on a 360 px phone
   // the namecard rail hangs on the right tower, from the gate wall's top to the parapet
   rail: { top: 18.05, bottom: GRID_TOP + 0.8 },
 };
@@ -131,6 +131,69 @@ export function laneTones(skin) {
     cobbleLight: tone(skin.cobble, 0.16),
     cobbleLine: mix(skin.cobble, FRAME_INK, 0.45),
   };
+}
+
+/**
+ * A hedge's tones: the dark ground foes read on, and the one lit scallop along its left edge (the
+ * key light is upper left), a calm cel tone a few L* lighter.
+ */
+export const hedgeTones = (skin) => ({ base: skin.hedge, scallop: tone(skin.hedge, 0.06) });
+
+/**
+ * The far layers have no part in the fight, so they keep only their largest shapes and their
+ * colour mood. The painted backdrop is drawn once per chapter at 1/`shrink` of its size (the linear
+ * filter draws it back up soft), blurred once, desaturated by `desat`, pulled toward the chapter's
+ * sky gradient by `flatten` and dimmed by `dim` (softenBackdrop). The ridge strip is one flat tone,
+ * `ridge` of the way from the ridge's tone to the sky's middle (ridgeFlat), its silhouette also
+ * drawn from 1/`shrink` of its size.
+ */
+export const FAR = { shrink: 8, desat: 0.6, flatten: 0.5, dim: 0.3, ridge: 0.5 };
+
+const rgbOf = (hex) => {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+
+/** The sky gradient's colour at t (0 at the top, 1 at the bottom), as [r, g, b]. */
+export function skyAt(skin, t) {
+  const stops = skin.sky;
+  const f = Math.max(0, Math.min(1, t)) * (stops.length - 1);
+  const i = Math.min(stops.length - 2, Math.floor(f));
+  const [a, b] = [rgbOf(stops[i]), rgbOf(stops[i + 1])];
+  return a.map((v, c) => v + (b[c] - v) * (f - i));
+}
+
+/** The ridge strip's one flat tone. */
+export const ridgeFlat = (skin) => mix(skin.ridgeTone, skin.sky[1], FAR.ridge);
+
+/**
+ * The far layer from a painting's pixels (RGBA, w × h, already shrunk; changed in place and
+ * returned): blurred once ([1 2 1] across, then down), desaturated, pulled toward the sky gradient
+ * and dimmed, by `far`. In any row it keeps at most (1 − flatten)(1 − dim) of the painting's contrast.
+ */
+export function softenBackdrop(px, w, h, skin, far = FAR) {
+  const at = (x, y) => (Math.min(h - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))) * 4;
+  const across = new Float32Array(px.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      for (let c = 0; c < 3; c++) across[at(x, y) + c] = (px[at(x - 1, y) + c] + 2 * px[at(x, y) + c] + px[at(x + 1, y) + c]) / 4;
+    }
+  }
+  const v = [0, 0, 0];
+  for (let y = 0; y < h; y++) {
+    const sky = skyAt(skin, h > 1 ? y / (h - 1) : 0);
+    for (let x = 0; x < w; x++) {
+      const i = at(x, y);
+      for (let c = 0; c < 3; c++) v[c] = (across[at(x, y - 1) + c] + 2 * across[i + c] + across[at(x, y + 1) + c]) / 4;
+      const l = 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+      for (let c = 0; c < 3; c++) {
+        const grey = v[c] + (l - v[c]) * far.desat;
+        px[i + c] = (grey + (sky[c] - grey) * far.flatten) * (1 - far.dim);
+      }
+      px[i + 3] = 255;
+    }
+  }
+  return px;
 }
 
 /** The chapter skin for a key ('forest' | 'fareast' | 'peaks'); unknown keys get the forest. */
@@ -274,24 +337,27 @@ export function hash01(i, j = 0) {
 }
 
 /**
- * Chapter decor on the hedges, placed by hash: per hedge strip (0..4, left to right) a few spots.
+ * Chapter decor is a whisper of the chapter, never a rival to a foe: one prop on each outer hedge
+ * (beside a tower, never between two lanes), `size` across so it stays inside its hedge, drawn at
+ * `alpha` and tinted `tint` of the way from the hedge to cream.
+ */
+export const DECOR = { size: 0.3, alpha: 0.5, tint: 0.55 };
+
+/**
+ * Chapter decor on the outer hedges, placed by hash: one spot on each.
  * → [{ id, strip, x, y, s }] (world units; s = size)
  */
 export function decorSpots(chapterKey) {
-  const skin = skinFor(chapterKey);
-  const ids = skin.decor ?? [];
+  const ids = skinFor(chapterKey).decor ?? [];
   if (!ids.length) return [];
   const seed = { forest: 11, fareast: 23, peaks: 37 }[chapterKey] ?? 5;
-  const strips = hedgeStrips();
+  const { parapet, gate } = FRAME_GEOM;
   const out = [];
-  strips.forEach((st, k) => {
-    const n = st.outer ? 2 : 3;
-    for (let i = 0; i < n; i++) {
-      const t = (i + 0.2 + hash01(seed + k, i) * 0.6) / n;
-      const y = FRAME_GEOM.parapet.wall + 0.55 + t * (FRAME_GEOM.gate.sill - FRAME_GEOM.parapet.wall - 1.1);
-      const id = ids[Math.floor(hash01(seed + 7 * k, 31 + i) * ids.length)];
-      out.push({ id, strip: k, x: (st.x0 + st.x1) / 2, y, s: 0.46 + hash01(seed, 50 + k * 5 + i) * 0.1 });
-    }
+  hedgeStrips().forEach((st, k) => {
+    if (!st.outer) return;
+    const t = 0.15 + 0.7 * hash01(seed + k, 0);
+    const id = ids[Math.floor(hash01(seed + 7 * k, 31) * ids.length)];
+    out.push({ id, strip: k, x: (st.x0 + st.x1) / 2, y: parapet.wall + 0.55 + t * (gate.sill - parapet.wall - 1.1), s: DECOR.size });
   });
   return out;
 }

@@ -1,29 +1,37 @@
 // The siege frame (proposal 4.2), in the sticker style: plum ink outline, flat fills, one cel tone,
 // colours only from the chapter skin (src/art/frame-kit.js). Three depth layers:
-//   far        the chapter's painted backdrop (env.<ch>.backdrop, else env.background, else a gradient)
-//   mid        the ridge strip along the top of the field (env.<ch>.ridge, else a drawn silhouette)
+//   far        the chapter's painted backdrop (env.<ch>.backdrop, else env.background, else a gradient),
+//              softened once per chapter to its largest shapes and colour mood (FAR)
+//   mid        the ridge strip along the top of the field (env.<ch>.ridge, else drawn), in one flat tone
 //   foreground the frame: towers, the gate wall with four arches, lanes and hedges, the parapet with
 //              its braziers, the keep with its flagstone pits, the deck rail
+// What has no part in the fight is quiet: the far layers are soft and dim, the stonework is a few
+// large stones with faint joints, the hedges are flat with one calm scalloped edge, the cobble bands
+// are low in contrast, and the chapter decor is one faint prop on each outer hedge. What the fight
+// reads stays crisp: the lanes and their ticks, the gates, the braziers, the keep and its pits.
 // The static parts are Graphics built once per resize or chapter, one step per part (drawSky …
 // publishFrame). Per frame only the gates (iris, portcullis), the braziers (flame, smoke) and the
 // parallax offset change, by transform and alpha. Nothing is additive. The generated env.* sprites
 // and their drawn stand-ins are in src/render/frame-art.js.
 import { Container, FillGradient, Graphics, Sprite, Text } from 'pixi.js';
 import { FIELD, GRID, cellX, cellY, laneX } from '../config.js';
-import { FRAME_GEOM as G, FRAME_INK, FRAME_CREAM, brazierState, deckRow, decorSpots, hash01, hedgeStrips, holdBrazier, laneTicks, laneTones, skinFor } from '../art/frame-kit.js';
-import { tone } from '../art/tokens.js';
-import { enemyTex, generatedTex, portalTex } from './textures.js';
-import { frameTex } from './frame-art.js';
+import { DECOR, FRAME_GEOM as G, FRAME_INK, FRAME_CREAM, brazierState, deckRow, decorSpots, hash01, hedgeStrips, hedgeTones, holdBrazier, laneTicks, laneTones, skinFor } from '../art/frame-kit.js';
+import { mix, tone } from '../art/tokens.js';
+import { PLAQUE } from '../art/plaque.js';
+import { enemyTex, portalTex } from './textures.js';
+import { farTex, frameTex, ridgeTex } from './frame-art.js';
 
 const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 const INK = hex(FRAME_INK);
 const CREAM = hex(FRAME_CREAM);
 const HALF = G.laneW / 2;
 const FONT = '"Baloo 2", "Nunito", system-ui, sans-serif';
-/** No text in the canvas is smaller than this (CSS px), as in the DOM HUD. */
-const MIN_TEXT = 12;
+/** No text in the canvas is smaller than this (CSS px): the HUD's label floor (docs/ux/phone-readability.md). */
+const MIN_TEXT = 14;
 /** What a brazier's flame lights as it comes on (world units², booked with fx each time it lights). */
 const FLAME_LIT = 0.15;
+/** The stonework has no part in the fight: courses and stones this long (world units), joints this faint. */
+const STONE = { course: 1, length: 1.6, joint: 0.22 };
 
 // --- the static frame, one part per step ------------------------------------------------------------
 // Each step draws from a pen: this build's world→screen helpers, the outline widths and the skin.
@@ -45,20 +53,18 @@ function skyGradient(skin) {
   });
 }
 
-/** Far and mid: the painting (or the gradient and a few stars), and the ridge strip, its foot hidden behind the gate wall. */
-function drawSky(p, { bgG, bgArt, bgDim, ridge }, grad) {
-  const { w, h, L, Y, skin, chapter } = p;
+/** Far and mid: the softened painting (or the gradient), and the flat ridge strip, its foot hidden behind the gate wall. */
+function drawSky(p, { bgG, bgArt, ridge }, grad) {
+  const { w, h, L, Y, chapter } = p;
   bgG.clear().rect(0, 0, w, h).fill(grad);
-  for (let i = 0; i < 60; i++) bgG.circle(hash01(i, 1) * w, hash01(i, 2) * h * 0.7, 1 + hash01(i, 3) * 1.6).fill({ color: CREAM, alpha: 0.05 + hash01(i, 4) * 0.05 });
-  const art = generatedTex(skin.backdrop) ?? generatedTex('env.background');
-  bgArt.visible = bgDim.visible = !!art;
+  const art = farTex(chapter);
+  bgArt.visible = !!art;
   if (art) {
     bgArt.texture = art;
-    bgArt.scale.set(Math.max(w / art.width, h / art.height)); // cover the screen
+    bgArt.scale.set(Math.max(w / art.width, h / art.height)); // cover the screen; the linear filter draws it up soft
     bgArt.position.set(w / 2, h / 2);
-    bgDim.clear().rect(0, 0, w, h).fill({ color: hex(skin.sky[2]), alpha: 0.3 });
   }
-  const rt = frameTex(skin.ridge, chapter);
+  const rt = ridgeTex(chapter);
   ridge.texture = rt;
   const rw = w + 24;
   ridge.width = rw;
@@ -66,27 +72,22 @@ function drawSky(p, { bgG, bgArt, bgDim, ridge }, grad) {
   ridge.position.set(w / 2, Y(G.gate.wallTop - 0.25));
 }
 
-/** The ground: hedges between the lanes, the lanes (a calm centre, cobbled bands) and a tick per cell. */
+/** The ground: hedges between the lanes, the lanes (a calm centre, quiet cobble bands) and a tick per cell. */
 function drawGround(p, g) {
-  const { X, Y, L, ow, thin, skin } = p;
+  const { X, Y, L, ow, skin } = p;
   const tones = laneTones(skin);
+  const hedge = hedgeTones(skin);
   const top = Y(G.gate.sill + 0.12); // tucked under the gate wall
   const bottom = Y(G.parapet.wall - 0.12); // and under the parapet
-  const hedge = hex(skin.hedge);
-  const hedgeDark = hex(tone(skin.hedge, -0.22));
-  const hedgeLight = hex(tone(skin.hedge, 0.14));
-  for (const [k, st] of hedgeStrips().entries()) {
+  // the hedges: a flat dark ground for the foes, with one calm scalloped edge lit from the upper
+  // left (the lane drawn next, or the tower, covers each scallop's outer half)
+  const bumps = Math.max(3, Math.round((bottom - top) / L(0.4)));
+  for (const st of hedgeStrips()) {
     const x0 = X(st.x0);
     const x1 = X(st.x1);
-    g.rect(x0, top, x1 - x0, bottom - top).fill(hedge);
-    // leaf clumps (dark) and a lit scallop edge on each side (one cel tone each way)
-    const n = Math.max(3, Math.round((bottom - top) / L(0.42)));
-    for (let i = 0; i < n; i++) {
-      const cy = top + ((i + 0.5) / n) * (bottom - top);
-      const r = (x1 - x0) * (0.22 + 0.12 * hash01(k, i));
-      g.circle(x0 + (x1 - x0) * (0.3 + 0.4 * hash01(k + 9, i)), cy, r).fill(hedgeDark);
-      g.circle(x0 + (x1 - x0) * 0.18, cy + L(0.12), (x1 - x0) * 0.16).fill(hedgeLight);
-    }
+    g.rect(x0, top, x1 - x0, bottom - top).fill(hex(hedge.base));
+    for (let i = 0; i < bumps; i++) g.ellipse(x0, top + ((i + 0.5) / bumps) * (bottom - top), L(0.11), (bottom - top) / bumps / 2);
+    g.fill(hex(hedge.scallop));
     g.rect(x0, top, x1 - x0, bottom - top).stroke({ width: ow, color: INK });
   }
   const calmW = G.laneW * G.calm;
@@ -102,20 +103,17 @@ function drawGround(p, g) {
       const px = X(cx + (hash01(lane, 80 + i) - 0.5) * calmW * 0.6);
       g.ellipse(px, py, L(calmW * (0.28 + 0.12 * hash01(lane, 90 + i))), L(0.32 + 0.3 * hash01(lane, 95 + i))).fill(hex(i % 2 ? tones.patchLight : tones.patchDark));
     }
-    // the cobble bands: outlined stones only in the outer 20% each side
+    // the cobble bands, in the outer 20% each side: large setts a few L* darker than their grout,
+    // with no outline, so the cell ticks stay the strongest marks on the lane
     for (const side of [-1, 1]) {
       const bx = side < 0 ? X(cx - HALF) : X(cx + HALF - bandW);
-      g.rect(bx, top, L(bandW), bottom - top).fill(hex(tones.grout));
-      const rows = Math.round((bottom - top) / L(0.34));
+      const bw = L(bandW);
+      g.rect(bx, top, bw, bottom - top).fill(hex(tones.grout));
+      const rows = Math.max(3, Math.round((bottom - top) / L(0.62)));
       const rowH = (bottom - top) / rows;
-      for (let i = 0; i < rows; i++) {
-        const jitter = hash01(lane * 2 + (side > 0 ? 1 : 0), i);
-        const sw = L(bandW) * (0.72 + 0.16 * jitter);
-        const sx0 = bx + (L(bandW) - sw) / 2 + side * L(0.02) * (jitter - 0.5);
-        g.roundRect(sx0, top + i * rowH + rowH * 0.1, sw, rowH * 0.8, Math.min(sw, rowH) * 0.32)
-          .fill(hex(i % 3 === 1 ? tones.cobbleLight : tones.cobble))
-          .stroke({ width: thin, color: hex(tones.cobbleLine) });
-      }
+      const sw = bw * 0.7;
+      for (let i = 0; i < rows; i++) g.roundRect(bx + (bw - sw) / 2, top + i * rowH + rowH * 0.12, sw, rowH * 0.76, sw * 0.45);
+      g.fill(hex(tones.cobble));
     }
     // a tick per cell at both edges (reach is counted in cells)
     for (const ty of laneTicks()) {
@@ -131,10 +129,11 @@ function drawGround(p, g) {
   }
 }
 
-/** Chapter props on the hedges, placed by hash. */
+/** Chapter props on the outer hedges, placed by hash: small and faint, in the hedge's tint (DECOR). */
 function drawDecor(p, decor) {
-  const { X, Y, L, chapter } = p;
+  const { X, Y, L, chapter, skin } = p;
   decor.removeChildren().forEach((c) => c.destroy());
+  const tint = hex(mix(skin.hedge, FRAME_CREAM, DECOR.tint));
   for (const spot of decorSpots(chapter)) {
     const sp = new Sprite(frameTex(spot.id, chapter));
     const t = sp.texture;
@@ -144,16 +143,14 @@ function drawDecor(p, decor) {
     sp.scale.set(Math.min(box / Math.max(1, t.width), (box * (hang ? 1.5 : 1)) / Math.max(1, t.height)));
     sp.position.set(X(spot.x), Y(spot.y + (hang ? 0.2 : 0)));
     if (spot.id === 'env.ember') sp.rotation = (hash01(spot.strip, Math.round(spot.y * 10)) - 0.5) * 1.6 + Math.PI / 2;
+    sp.tint = tint;
+    sp.alpha = DECOR.alpha;
     decor.addChild(sp);
   }
 }
 
-/** A laid stone: a flat face, one cel tone along its foot, a thin ink line. */
-function stoneBlock(p, wg, x, y, bw, bh, { fill = p.stone, cel = true } = {}) {
-  wg.rect(x, y, bw, bh).fill(fill);
-  if (cel) wg.rect(x, y + bh * 0.74, bw, bh * 0.26).fill(p.shade);
-  wg.rect(x, y, bw, bh).stroke({ width: p.thin, color: INK, alpha: 0.85 });
-}
+/** The joints drawn since the last fill or stroke: faint and thin, one stroke for the whole set. */
+const joints = (p, wg) => wg.stroke({ width: p.thin, color: INK, alpha: STONE.joint });
 
 /** The keep: a dark floor, the flagstone pits (sunken, a 1 px ink groove), and its stone ring. */
 function drawKeep(p, wg) {
@@ -164,7 +161,7 @@ function drawKeep(p, wg) {
   const kh = L(GRID.size * GRID.cell + G.keep.pad * 2);
   wg.rect(kx0, ky0, kw, kh).fill(hex(skin.floor));
   const pit = L(GRID.cell * G.pit);
-  const pitR = L(0.14);
+  const pitR = L(GRID.cell * PLAQUE.pitR); // the plaque's corner and its groove: it seats without a dark triangle (src/art/plaque.js)
   const lip = Math.max(1.5, L(0.07));
   for (let r = 0; r < GRID.size; r++) {
     for (let c = 0; c < GRID.size; c++) {
@@ -177,21 +174,26 @@ function drawKeep(p, wg) {
       wg.roundRect(px, py, pit, pit, pitR).stroke({ width: 1, color: INK });
     }
   }
-  // the ring: side walls and the bottom wall
+  // the ring: side walls and the bottom wall, a few large stones with faint joints
   const wallW = L(G.keep.wall);
   const ringY0 = Y(G.parapet.base);
   const ringY1 = Y(-G.keep.pad - G.keep.wall);
   for (const side of [-1, 1]) {
     const x = side < 0 ? X(-GRID.size - G.keep.pad - G.keep.wall) : X(GRID.size + G.keep.pad);
-    const n = Math.max(4, Math.round((ringY1 - ringY0) / L(0.62)));
-    for (let i = 0; i < n; i++) stoneBlock(p, wg, x, ringY0 + ((ringY1 - ringY0) * i) / n, wallW, (ringY1 - ringY0) / n, { cel: false });
+    wg.rect(x, ringY0, wallW, ringY1 - ringY0).fill(p.stone);
+    const n = Math.max(2, Math.round((ringY1 - ringY0) / L(STONE.length)));
+    for (let i = 1; i < n; i++) wg.moveTo(x, ringY0 + ((ringY1 - ringY0) * i) / n).lineTo(x + wallW, ringY0 + ((ringY1 - ringY0) * i) / n);
+    joints(p, wg);
     wg.rect(x, ringY0, wallW, ringY1 - ringY0).stroke({ width: ow, color: INK });
   }
   const x0 = X(-GRID.size - G.keep.pad - G.keep.wall);
   const x1 = X(GRID.size + G.keep.pad + G.keep.wall);
   const y = Y(-G.keep.pad);
-  const n = Math.round((x1 - x0) / L(0.7));
-  for (let i = 0; i < n; i++) stoneBlock(p, wg, x0 + ((x1 - x0) * i) / n, y, (x1 - x0) / n, wallW);
+  wg.rect(x0, y, x1 - x0, wallW).fill(p.stone);
+  wg.rect(x0, y + wallW * 0.74, x1 - x0, wallW * 0.26).fill(p.shade); // one cel along its foot
+  const n = Math.max(2, Math.round((x1 - x0) / L(STONE.length)));
+  for (let i = 1; i < n; i++) wg.moveTo(x0 + ((x1 - x0) * i) / n, y).lineTo(x0 + ((x1 - x0) * i) / n, y + wallW);
+  joints(p, wg);
   wg.rect(x0, y, x1 - x0, wallW).stroke({ width: ow, color: INK });
   wg.rect(kx0, ky0, kw, kh).stroke({ width: ow, color: INK });
 }
@@ -199,7 +201,8 @@ function drawKeep(p, wg) {
 /** The field towers, left and right, from the parapet up past the gate wall; the rail hangs on the right one. */
 function drawTowers(p, wg) {
   const { w, X, Y, L, ow, thin, stone, shade, light, skin } = p;
-  const course = L(0.5);
+  const course = L(STONE.course);
+  const step = L(STONE.length);
   for (const side of [-1, 1]) {
     const xin = X(side * G.towerIn);
     // to the screen's edge on a phone; a towerW-wide tower on a wider screen, the valley beyond it
@@ -210,25 +213,14 @@ function drawTowers(p, wg) {
     const shaftTop = Y(G.towerTop - 0.6);
     const base = Y(G.parapet.base - 0.32);
     wg.rect(x0, shaftTop, x1 - x0, base - shaftTop).fill(stone);
+    // a few large stones: a faint joint along each course, and between its stones, offset course by course
     let row = 0;
     for (let y = base; y > shaftTop + 1; y -= course, row++) {
       const yt = Math.max(shaftTop, y - course);
-      wg.rect(x0, y - (y - yt) * 0.24, x1 - x0, (y - yt) * 0.24).fill(shade);
-      wg.moveTo(x0, yt).lineTo(x1, yt).stroke({ width: thin, color: INK, alpha: 0.5 });
-      const step = L(0.74);
-      const k0 = (row % 2) * 0.5 + 0.5;
-      // a few stones a shade lighter, by hash: the wall reads as laid stone, not a grid
-      for (let k = k0 - 1, i = 0; k * step < x1 - x0; k += 1, i++) {
-        if (hash01(row * 7 + (side > 0 ? 3 : 0), i) > 0.16) continue;
-        const xa = xin + side * Math.max(0, k * step);
-        const xb = xin + side * Math.min(x1 - x0, (k + 1) * step);
-        wg.rect(Math.min(xa, xb), yt, Math.abs(xb - xa), (y - yt) * 0.76).fill(light);
-      }
-      for (let k = k0; k * step < x1 - x0; k += 1) {
-        const xj = xin + side * k * step;
-        wg.moveTo(xj, yt).lineTo(xj, y).stroke({ width: thin, color: INK, alpha: 0.5 });
-      }
+      if (yt > shaftTop) wg.moveTo(x0, yt).lineTo(x1, yt);
+      for (let k = (row % 2) * 0.5 + 0.5; k * step < x1 - x0; k += 1) wg.moveTo(xin + side * k * step, yt).lineTo(xin + side * k * step, y);
     }
+    joints(p, wg);
     // one cel tone on the inner face: the right tower faces the light, the left one turns from it
     const faceW = L(0.13);
     wg.rect(side < 0 ? xin - faceW : xin, shaftTop, faceW, base - shaftTop).fill(side < 0 ? shade : light);
@@ -270,12 +262,10 @@ function drawGateWall(p, wg) {
     wg.moveTo(cx - ro, wb).lineTo(cx - ro, cy).arc(cx, cy, ro, Math.PI, 0).lineTo(cx + ro, wb).closePath().fill(stone);
   }
   wg.rect(x0, wt, x1 - x0, wb - wt).fill(stone);
-  const courses = 3;
-  for (let i = 1; i <= courses; i++) {
-    const y = wt + ((wb - wt) * i) / (courses + 0.001);
-    wg.rect(x0, y - ((wb - wt) / courses) * 0.22, x1 - x0, ((wb - wt) / courses) * 0.22).fill(shade);
-    if (i < courses) wg.moveTo(x0, y).lineTo(x1, y).stroke({ width: thin, color: INK, alpha: 0.5 });
-  }
+  // one faint course joint and a cel along the wall's foot: the arches carry the detail
+  wg.moveTo(x0, (wt + wb) / 2).lineTo(x1, (wt + wb) / 2);
+  joints(p, wg);
+  wg.rect(x0, wb - (wb - wt) * 0.12, x1 - x0, (wb - wt) * 0.12).fill(shade);
   wg.rect(x0, wt, x1 - x0, L(0.08)).fill(light); // the coping
   for (let lane = 0; lane < FIELD.lanes; lane++) {
     const cx = X(laneX(lane));
@@ -302,8 +292,11 @@ function drawParapet(p, wg) {
   const x1 = X(GRID.size + G.keep.pad + G.keep.wall);
   const y0 = Y(G.parapet.wall);
   const y1 = Y(G.parapet.base);
-  const n = Math.round((x1 - x0) / L(0.66));
-  for (let i = 0; i < n; i++) stoneBlock(p, wg, x0 + ((x1 - x0) * i) / n, y0, (x1 - x0) / n, y1 - y0);
+  wg.rect(x0, y0, x1 - x0, y1 - y0).fill(stone);
+  wg.rect(x0, y1 - (y1 - y0) * 0.26, x1 - x0, (y1 - y0) * 0.26).fill(shade); // one cel along its foot
+  // a few large stones: a faint joint between each pair of columns, under the gaps between merlons
+  for (let c = 1; c < GRID.size; c++) wg.moveTo(X(cellX(c) - GRID.cell / 2), y0).lineTo(X(cellX(c) - GRID.cell / 2), y1);
+  joints(p, wg);
   wg.rect(x0, y0, x1 - x0, L(0.07)).fill(light);
   wg.rect(x0, y0, x1 - x0, y1 - y0).stroke({ width: ow, color: INK });
   for (let c = 0; c < GRID.size; c++) {
@@ -447,7 +440,7 @@ function drawDeck(p, g, text, deck) {
   text.text = `at ${deck.nextAt.toLocaleString()}`;
   text.style.fontSize = fontPx;
   text.style.stroke = { color: INK, width: Math.max(3, fontPx * 0.24), join: 'round' };
-  // the slot is wide enough for "at 512" at 12 px on a 360 px phone; only a smaller window squeezes it
+  // the slot is wide enough for "at 512" at 14 px on a 360 px phone; only a smaller window squeezes it
   text.scale.set(Math.min(1, (sw - 4) / Math.max(1, text.width / text.scale.x)));
   text.position.set(sx0 + sw / 2, sy0 + sh / 2);
   text.visible = true;
@@ -477,10 +470,10 @@ export function createFrame(stage, { fx = null } = {}) {
   let skin = skinFor(chapter);
 
   // far + mid (bg layer)
-  const sky = { bgG: new Graphics(), bgArt: new Sprite(), bgDim: new Graphics(), ridge: new Sprite() };
+  const sky = { bgG: new Graphics(), bgArt: new Sprite(), ridge: new Sprite() };
   sky.bgArt.anchor.set(0.5);
   sky.ridge.anchor.set(0.5, 1);
-  layers.bg.addChild(sky.bgG, sky.bgArt, sky.bgDim, sky.ridge);
+  layers.bg.addChild(sky.bgG, sky.bgArt, sky.ridge);
   let grad = null; // the sky's gradient: one per chapter (it is local to the shape, so a resize keeps it)
   let gradFor = '';
 

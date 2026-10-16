@@ -2,31 +2,70 @@
 // expanding rings, explosions, damage numbers (bitmap font), beams and coin drops, all in normal
 // blend (nothing on the field is additive). The attacks' own shapes are src/render/attacks.js.
 // Every local effect books its light here (src/ux/photosafe.js).
-import { BitmapFont, BitmapText, Container, Graphics, Sprite } from 'pixi.js';
+import { BitmapFontManager, BitmapText, Container, Graphics, Sprite } from 'pixi.js';
 import { softDot, ringTex, sparkTex, coinTex, boomFrames } from './textures.js';
-import { BURST, COIN, LINE, NUMBER, createLightBudget, fitBoom, fitRing } from '../ux/photosafe.js';
+import { BURST, COIN, LINE, NUMBER, createLightBudget, fitBoom, fitRing, numberLight, numberScale, numberText } from '../ux/photosafe.js';
 
 const MAX_PARTS = 900;
 const MAX_NUMS = 90;
+const DIGITS = '0123456789';
+const SEPARATORS = ',.'; // between digits in "1,225" and "1.2k": no kerning against them either
 
-const fmt = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${Math.max(1, Math.round(n))}`);
-const hex = (c) => (typeof c === 'number' ? c : parseInt(String(c).replace('#', ''), 16));
+/**
+ * Tabular figures for a bitmap font: every digit takes the advance of "0", its glyph centred in it,
+ * with no kerning between digits or against a separator, so a counting number (the boss's health,
+ * "1,225") keeps its width. The canvas the font is drawn from has no tabular figures of its own.
+ * Install the separators with the font, before this runs: a glyph added later brings new kerning.
+ */
+export function tabularDigits(font) {
+  const zero = font?.chars?.['0'];
+  if (!zero) throw new Error('tabularDigits: the font has no "0" (install it with BitmapFontManager.install, which returns the font)');
+  for (const d of DIGITS) {
+    const c = font.chars[d];
+    if (!c) continue;
+    const delta = zero.xAdvance - c.xAdvance;
+    c.xAdvance = zero.xAdvance;
+    c.xOffset += delta / 2;
+    for (const p of DIGITS + SEPARATORS) delete c.kerning?.[p];
+  }
+  for (const sep of SEPARATORS) for (const d of DIGITS) delete font.chars[sep]?.kerning?.[d];
+  return font;
+}
+
+/**
+ * A number's tint. The tint colours the whole glyph, its ink stroke too, so a dark colour would
+ * lose its outline: a colour (not white) is lifted toward white, as the popups' are (hud.css), and
+ * reads 5:1 or more against its own stroke.
+ */
+export const numberTint = (color) => {
+  const c = hex(color);
+  if (c === 0xffffff) return c;
+  const lift = (v) => Math.round(v * 0.65 + 255 * 0.35);
+  return (lift((c >> 16) & 255) << 16) | (lift((c >> 8) & 255) << 8) | lift(c & 255);
+};
+
+function hex(c) {
+  return typeof c === 'number' ? c : parseInt(String(c).replace('#', ''), 16);
+}
 
 export function createFx(stage) {
   const { layers } = stage;
-  BitmapFont.install({
+  // BitmapFontManager.install returns the font (BitmapFont.install does not), to make its digits tabular
+  const dmg = BitmapFontManager.install({
     name: 'Dmg',
-    chars: [['0', '9'], '.', 'k', 'M', '+', '-', '!', '×', ' '],
+    chars: [['0', '9'], '.', ',', 'k', 'M', '+', '-', '!', '×', ' '], // "," for the boss's health ("1,225")
     resolution: 2,
-    padding: 6,
+    padding: 7,
     style: {
       fontFamily: 'Baloo 2, Nunito, system-ui, sans-serif',
       fontWeight: '800',
       fontSize: 44,
       fill: 0xffffff,
-      stroke: { color: 0x2b1d2a, width: 7, join: 'round' },
+      // the ink outline: 0.2 em, so a 14 px number keeps 1.4 px of ink round its glyphs on any ground
+      stroke: { color: 0x2b1d2a, width: 9, join: 'round' },
     },
   });
+  tabularDigits(dmg);
 
   // --- particles -------------------------------------------------------------
   const partLayer = new Container();
@@ -91,8 +130,11 @@ export function createFx(stage) {
   const freeNums = [];
   function number(x, y, amount, { color = 0xffffff, crit = false, small = false, prefix = '' } = {}) {
     if (amount < 0.5) return;
-    const scale = crit ? 0.52 : small ? 0.3 : 0.36;
-    if (!light.bookAll(NUMBER.lit * (scale / NUMBER.scale) ** 2, NUMBER.life)) return; // skipped when the light budget is short
+    // world units, never under its CSS px floor; it books what it draws: its text's glyphs at that
+    // size, popping in then settled (photosafe.js numberLight); skipped when the light budget is short
+    const scale = numberScale(crit ? 'crit' : small ? 'small' : 'hit', stage.view.U);
+    const text = numberText(amount, { prefix, crit });
+    if (!light.bookAll(numberLight(scale, text), NUMBER.life)) return;
     let n = freeNums.pop();
     if (!n) {
       if (nums.length >= MAX_NUMS) {
@@ -104,8 +146,8 @@ export function createFx(stage) {
         n = { t };
       }
     }
-    n.t.text = prefix + fmt(amount) + (crit ? '!' : '');
-    n.t.tint = hex(color);
+    n.t.text = text;
+    n.t.tint = numberTint(color);
     n.t.visible = true;
     Object.assign(n, { x: x + (Math.random() - 0.5) * 0.4, y: y + 0.4, vy: 2.6, life: NUMBER.life, max: NUMBER.life, scale });
     nums.push(n);
@@ -266,7 +308,8 @@ export function createFx(stage) {
       n.vy *= Math.exp(-dt * 4);
       n.y += n.vy * dt;
       const f = n.life / n.max;
-      const pop = f > 0.85 ? 1 + (f - 0.85) * 3 : 1;
+      const s = 1 - f; // how far through its life: it pops in at NUMBER.pop× and settles over its first popShare
+      const pop = s < NUMBER.popShare ? 1 + ((NUMBER.pop - 1) * (NUMBER.popShare - s)) / NUMBER.popShare : 1;
       n.t.position.set(sx(n.x), sy(n.y));
       n.t.scale.set((n.scale * pop * U) / 44);
       n.t.alpha = Math.min(1, f * 2.2);

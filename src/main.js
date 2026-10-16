@@ -30,6 +30,7 @@ import { recordRun, restoreRun, loadSaved, saveRun, clearSaved } from './ux/resu
 import { SIGNATURE_TINT, TEXT, popupFont, textInk } from './ux/photosafe.js';
 import { loadStore } from './ux/coach.js';
 import { createArt } from './art/index.js';
+import { boardRefused } from './art/plaque.js';
 import { setupKv, KV_DICE } from './kv/index.js';
 import { setupPets } from './kv/pets.js';
 
@@ -198,7 +199,7 @@ async function start() {
   // budget and is skipped when the screen is already lit up; the big milestone number takes the
   // one-a-second flash budget, and waits for it (a moment at most).
   function popup(x, y, text, tier, color) {
-    const share = fx.flashShare(textInk(text, popupFont(tier), stage.view.U), TEXT.life, TEXT.minScale ** 2);
+    const share = fx.flashShare(textInk(text, popupFont(tier), stage.view.U), TEXT.life, Math.max(TEXT.minScale, TEXT.minPx / popupFont(tier)) ** 2); // a popup hud.js would not draw (under TEXT.minPx) books nothing
     if (share) hud.popup(x, y, text, tier, color, Math.sqrt(share)); // ink grows with the font size squared
   }
   function milestone(tier, tries = 0) {
@@ -314,6 +315,7 @@ async function start() {
     art,
     onClose: () => select(null),
     onDiscard: (id) => run.discard(id).ok && select(null), // sell a turret / break a dormant block
+    onArm: (id, on) => blocks.arm(id, on), // the tile's brackets turn red and dashed while the tap is armed
   });
 
   function restart() {
@@ -345,6 +347,7 @@ async function start() {
   function select(id) {
     selected = id;
     blocks.select(id);
+    (pets ?? kv)?.roam.highlight(id); // a den's pet out on the field wears the pick's brackets too
   }
 
   // where dropped coins fly to: the HUD coin icon, in world space
@@ -379,7 +382,11 @@ async function start() {
   /** A swipe from the player or the autoplay bot. */
   function doSwipe(dir) {
     select(null);
-    if (paused || !run.move(dir)) return false;
+    if (paused) return false;
+    if (!run.move(dir)) {
+      if (boardRefused(run)) blocks.nudge(dir); // the board refused it: every plaque bumps that way and back
+      return false;
+    }
     journey.onSwipe(); // before the tutorial: the next bubble's words come after the swipe
     tutorial.onSwipe();
     sfx.drop(2);

@@ -3,9 +3,12 @@
 // ridge strips, in the sticker style (plum ink outline, flat fills, one cel tone), coloured only from
 // the chapter skin. The pipeline's sprite replaces its stand-in when it exists (generatedTex), so the
 // frame looks finished without them. src/render/frame.js places them.
+// The far layers are made here once per chapter (FAR): the painted backdrop softened to its largest
+// shapes and colour mood (farTex), and the ridge strip in one flat tone (ridgeTex). Both are small
+// canvases drawn up with linear filtering: no filter runs on the stage.
 import { Texture } from 'pixi.js';
-import { FRAME_INK, FRAME_CREAM, hash01, skinFor } from '../art/frame-kit.js';
-import { tone, mix } from '../art/tokens.js';
+import { FAR, FRAME_INK, FRAME_CREAM, hash01, ridgeFlat, skinFor, softenBackdrop } from '../art/frame-kit.js';
+import { tone } from '../art/tokens.js';
 import { generatedTex } from './textures.js';
 
 const texCache = new Map();
@@ -32,6 +35,82 @@ export function frameTex(id, chapter = 'forest') {
   if (!draw) return Texture.EMPTY;
   const [w, h] = draw.size;
   return canvasTex(`${id}:${chapter}`, w, h, (g) => draw(g, skin, w, h, chapter));
+}
+
+/** A texture drawn into a canvas 1/n of its size, halving at most each step (a box filter in any browser). */
+function shrunk(tex, n) {
+  const res = tex.source.resolution ?? 1;
+  const f = tex.frame;
+  let [from, sx, sy, sw, sh] = [tex.source.resource, f.x * res, f.y * res, f.width * res, f.height * res];
+  const tw = Math.max(1, Math.round(sw / n));
+  const th = Math.max(1, Math.round(sh / n));
+  let c;
+  do {
+    const w = Math.max(tw, Math.round(sw / 2));
+    const h = Math.max(th, Math.round(sh / 2));
+    c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(from, sx, sy, sw, sh, 0, 0, w, h);
+    [from, sx, sy, sw, sh] = [c, 0, 0, w, h];
+  } while (sw > tw || sh > th);
+  return c;
+}
+
+const farMade = new Map(); // chapter → { art, tex }
+
+/**
+ * The far layer: the chapter's painted backdrop (else env.background) with only its largest shapes
+ * and its colour mood (FAR, softenBackdrop), made once per chapter. null without a painting, or when
+ * the canvas cannot read it: the sky's gradient stands in.
+ */
+export function farTex(chapter = 'forest') {
+  const skin = skinFor(chapter);
+  const art = generatedTex(skin.backdrop) ?? generatedTex('env.background');
+  if (!art) return null;
+  const made = farMade.get(chapter);
+  if (made?.art === art) return made.tex;
+  let tex = null;
+  try {
+    const c = shrunk(art, FAR.shrink);
+    const g = c.getContext('2d');
+    const img = g.getImageData(0, 0, c.width, c.height);
+    softenBackdrop(img.data, c.width, c.height, skin);
+    g.putImageData(img, 0, 0);
+    tex = Texture.from(c);
+  } catch {
+    tex = null;
+  }
+  farMade.set(chapter, { art, tex });
+  return tex;
+}
+
+const ridgeMade = new Map(); // chapter → { src, tex }
+
+/**
+ * The mid layer: the chapter's ridge silhouette (generated, else drawn) from 1/FAR.shrink of its
+ * size, in one flat tone (ridgeFlat), made once per chapter.
+ */
+export function ridgeTex(chapter = 'forest') {
+  const skin = skinFor(chapter);
+  const src = frameTex(skin.ridge, chapter);
+  const made = ridgeMade.get(chapter);
+  if (made?.src === src) return made.tex;
+  let tex = src;
+  try {
+    const c = shrunk(src, FAR.shrink);
+    const g = c.getContext('2d');
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = ridgeFlat(skin);
+    g.fillRect(0, 0, c.width, c.height);
+    tex = Texture.from(c);
+  } catch {
+    tex = src; // as drawn
+  }
+  ridgeMade.set(chapter, { src, tex });
+  return tex;
 }
 
 const ink = (g, w) => {
@@ -315,82 +394,63 @@ const FALLBACK = {
     },
     { size: [96, 64] },
   ),
-  // the far treeline / village / peaks: flat silhouettes, no outline (it is far away)
+  // the far treeline / village / peaks: one flat silhouette, no outline (it is far away; ridgeTex
+  // draws it in one tone)
   ridge: Object.assign(
     (g, s, W, H, chapter) => {
-      const far = mix(s.ridgeTone, s.sky[1], 0.45);
-      const near = s.ridgeTone;
-      const row = (color, base, amp, seed, kind) => {
-        g.fillStyle = color;
-        g.beginPath();
-        g.moveTo(0, H);
-        let x = -10;
-        let i = 0;
-        while (x < W + 20) {
-          const r = hash01(seed, i++);
-          if (kind === 'pine') {
-            const w = 26 + r * 22;
-            const h = amp * (0.55 + 0.45 * hash01(seed, i + 99));
-            g.lineTo(x, H * base);
-            for (let k = 0; k < 3; k++) {
-              const yk = H * base - h * (k + 1) / 3;
-              g.lineTo(x + w * (0.12 + 0.12 * k), yk + h * 0.12);
-              g.lineTo(x + w * 0.5, yk);
-              g.lineTo(x + w * (0.88 - 0.12 * k), yk + h * 0.12);
-            }
-            g.lineTo(x + w, H * base);
-            x += w * 0.8;
-          } else if (kind === 'peak') {
-            const w = 60 + r * 70;
-            const h = amp * (0.45 + 0.55 * hash01(seed, i + 7));
-            g.lineTo(x + w * 0.35, H * base - h * 0.7);
-            g.lineTo(x + w * 0.5, H * base - h);
-            g.lineTo(x + w * 0.62, H * base - h * 0.78);
-            g.lineTo(x + w, H * base - h * 0.2);
-            x += w * 0.85;
-          } else {
-            // fareast: rolling hills with pagoda roofs and round trees
-            const w = 48 + r * 40;
-            if (r < 0.35) {
-              const h = amp * 0.9;
-              g.lineTo(x + w * 0.2, H * base);
-              g.lineTo(x + w * 0.2, H * base - h * 0.45);
-              g.quadraticCurveTo(x + w * 0.05, H * base - h * 0.5, x, H * base - h * 0.62);
-              g.quadraticCurveTo(x + w * 0.3, H * base - h * 0.62, x + w * 0.5, H * base - h);
-              g.quadraticCurveTo(x + w * 0.7, H * base - h * 0.62, x + w, H * base - h * 0.62);
-              g.quadraticCurveTo(x + w * 0.95, H * base - h * 0.5, x + w * 0.8, H * base - h * 0.45);
-              g.lineTo(x + w * 0.8, H * base);
-            } else {
-              const rr = w * 0.3;
-              g.lineTo(x + w * 0.2, H * base - amp * 0.2);
-              g.arc(x + w * 0.5, H * base - amp * 0.2 - rr * 0.6, rr, Math.PI, 0);
-              g.lineTo(x + w, H * base - amp * 0.15);
-            }
-            x += w;
-          }
-        }
-        g.lineTo(W + 20, H);
-        g.closePath();
-        g.fill();
-      };
       const kind = chapter === 'peaks' ? 'peak' : chapter === 'fareast' ? 'roof' : 'pine';
-      row(far, 0.72, H * 0.62, 3, kind);
-      row(near, 1.0, H * 0.72, 9, kind);
-      if (chapter === 'peaks') {
-        // a few thin lava lines on the near peaks (an accent; flat, not glowing)
-        g.strokeStyle = s.accent;
-        g.globalAlpha = 0.55;
-        g.lineWidth = 2;
-        for (let i = 0; i < 6; i++) {
-          const x = W * hash01(77, i);
-          g.beginPath();
-          g.moveTo(x, H * 0.62);
-          g.lineTo(x + 8, H * 0.78);
-          g.lineTo(x + 2, H * 0.95);
-          g.stroke();
+      const amp = H * 0.72;
+      g.fillStyle = s.ridgeTone;
+      g.beginPath();
+      g.moveTo(0, H);
+      let x = -10;
+      let i = 0;
+      while (x < W + 20) {
+        const r = hash01(9, i++);
+        if (kind === 'pine') {
+          const w = 26 + r * 22;
+          const h = amp * (0.55 + 0.45 * hash01(9, i + 99));
+          g.lineTo(x, H);
+          for (let k = 0; k < 3; k++) {
+            const yk = H - (h * (k + 1)) / 3;
+            g.lineTo(x + w * (0.12 + 0.12 * k), yk + h * 0.12);
+            g.lineTo(x + w * 0.5, yk);
+            g.lineTo(x + w * (0.88 - 0.12 * k), yk + h * 0.12);
+          }
+          g.lineTo(x + w, H);
+          x += w * 0.8;
+        } else if (kind === 'peak') {
+          const w = 60 + r * 70;
+          const h = amp * (0.45 + 0.55 * hash01(9, i + 7));
+          g.lineTo(x + w * 0.35, H - h * 0.7);
+          g.lineTo(x + w * 0.5, H - h);
+          g.lineTo(x + w * 0.62, H - h * 0.78);
+          g.lineTo(x + w, H - h * 0.2);
+          x += w * 0.85;
+        } else {
+          // fareast: rolling hills with pagoda roofs and round trees
+          const w = 48 + r * 40;
+          if (r < 0.35) {
+            const h = amp * 0.9;
+            g.lineTo(x + w * 0.2, H);
+            g.lineTo(x + w * 0.2, H - h * 0.45);
+            g.quadraticCurveTo(x + w * 0.05, H - h * 0.5, x, H - h * 0.62);
+            g.quadraticCurveTo(x + w * 0.3, H - h * 0.62, x + w * 0.5, H - h);
+            g.quadraticCurveTo(x + w * 0.7, H - h * 0.62, x + w, H - h * 0.62);
+            g.quadraticCurveTo(x + w * 0.95, H - h * 0.5, x + w * 0.8, H - h * 0.45);
+            g.lineTo(x + w * 0.8, H);
+          } else {
+            const rr = w * 0.3;
+            g.lineTo(x + w * 0.2, H - amp * 0.2);
+            g.arc(x + w * 0.5, H - amp * 0.2 - rr * 0.6, rr, Math.PI, 0);
+            g.lineTo(x + w, H - amp * 0.15);
+          }
+          x += w;
         }
-        g.globalAlpha = 1;
       }
+      g.lineTo(W + 20, H);
+      g.closePath();
+      g.fill();
     },
     { size: [1024, 128] },
   ),

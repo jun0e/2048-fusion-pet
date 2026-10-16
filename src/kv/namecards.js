@@ -17,8 +17,8 @@ const MAX_CARDS = 4;
 const RAIL = { gap: 6, bar: 14, margin: RAIL_PX.margin };
 const MIN = RAIL_PX.card; // a card is never narrower (the touch-target floor)
 
-/** The card width a screen `vw` px wide would like: 44 on a 360 px phone, 48–52 on wider ones (proposal 4.1). */
-export const cardWidth = (vw) => (vw <= 370 ? 44 : vw <= 400 ? 48 : 52);
+/** The card width a screen `vw` px wide would like: 48 on a phone up to 400 px wide (the touch-target size), 52 on wider ones (proposal 4.1). */
+export const cardWidth = (vw) => (vw <= 400 ? 48 : 52);
 
 /**
  * Where the rail goes, in client px: on the right tower from the gate wall's top down to the parapet,
@@ -45,7 +45,9 @@ export function railLayout({ vw, towerX, towerOut = Infinity, keepX, top, parape
     const wk = Math.min(want, roomKeep, Math.max(MIN, Math.floor((floor - top - (MAX_CARDS - 1) * RAIL.gap) / MAX_CARDS - RAIL.bar)));
     return place(keepX, wk);
   }
-  return place(towerX, Math.max(Math.min(MIN, roomTower), tight));
+  // no room beside the keep either: the rail stays on the tower and runs on past the parapet, its
+  // cards as wide as the tower allows up to the width wanted (w: never under the 44 px floor)
+  return place(towerX, w);
 }
 
 function glyphSvg(el) {
