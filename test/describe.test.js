@@ -75,5 +75,5 @@ test('attack speeds show their exact design value: Horn Arc 0.85 / s, not 0.8', 
 
 test('the Knockback line says bosses resist after many pushes', () => {
   const line = describeTile(tile(4, { element: 'wind' })).effects.find((l) => l.startsWith('Knockback'));
-  assert.equal(line, 'Knockback: pushes foes 0.5 cells back; bosses resist it more after 50, 100 and 200 pushes');
+  assert.equal(line, 'Knockback: pushes foes 0.5 cells back; bosses resist it more after 20, 50 and 100 pushes');
 });

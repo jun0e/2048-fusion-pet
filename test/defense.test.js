@@ -564,7 +564,7 @@ test('knockback and holds brace: a foe pushed or held again soon slides and stay
 });
 
 test('bosses resist pushback after many pushes (DEFENSE.bossPushResist), normal foes never do', () => {
-  const steps = DEFENSE.bossPushResist; // after 50 / 100 / 200 pushes: 25 / 50 / 75% shorter
+  const steps = DEFENSE.bossPushResist; // after 20 / 50 / 100 pushes: 25 / 50 / 75% shorter
   const d = createDefense({ rng: createRng(1) });
   const boss = d.spawn('elfRuler', { lane: 2, hpScale: 1e12, s: sAtY(12) });
   const grunt = d.spawn('hoodedFlier', { lane: 2, hpScale: 1e12, s: sAtY(12.2) });

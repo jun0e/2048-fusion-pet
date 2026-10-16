@@ -136,14 +136,14 @@ export const DEFENSE = {
   enemyBaseHp: 36,
   enemyHpGrowth: 1.125, // per wave
   enemyBaseSpeed: 1.6, // units per second (≈11 s from the portal, through the board, to the wall)
-  // a boss gets used to pushback: after 50 / 100 / 200 pushes each push is 25 / 50 / 75% shorter (on top
-  // of its half push and the brace), so Wind and Earth stall a boss but cannot hold it at the gate for good.
-  // tools/boss-push-probe.mjs (Wind + Earth deck, 384 games): the slowest boss kills drop from 176 to 135 s
-  // into the wave, and boss waves are cleared 2–4 points less often; steps at 20 / 50 / 100 cost 7–9 points.
+  // a boss gets used to pushback (the user's steps): after 20 / 50 / 100 pushes each push is 25 / 50 / 75%
+  // shorter (on top of its half push and the brace), so Wind and Earth stall a boss but cannot hold it for good.
+  // tools/boss-push-probe.mjs, Wind + Earth deck: boss waves 10 / 15 / 20 cleared 79 / 73 / 90% (86 / 82 / 99%
+  // without it); steps at 50 / 100 / 200 would cost only 2–4 points. The user picks.
   bossPushResist: [
-    { after: 50, resist: 0.25 },
-    { after: 100, resist: 0.5 },
-    { after: 200, resist: 0.75 },
+    { after: 20, resist: 0.25 },
+    { after: 50, resist: 0.5 },
+    { after: 100, resist: 0.75 },
   ],
 };
 
