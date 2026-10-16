@@ -540,14 +540,14 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
         shownBest = best;
       }
     },
-    /** The top-block chip: the biggest block's value on a clay disc, ringed in its tier colour. */
+    /** The top-block chip: the biggest block's value on a clay disc, ringed in its tier colour, captioned "Top" (T22). */
     setNext(tier) {
       if (tier === shownNext) return;
       shownNext = tier;
       const v = tierValue(tier);
       const digits = String(v).length;
       // three digits and more do not fit the disc's inner ring at a readable size: the disc stretches into a pill
-      nextSlot.innerHTML = `<div class="top-chip pop${digits >= 3 ? ' wide' : ''}" style="--c:${TIER_COLORS[tier] ?? '#c39bff'}"><b>${v}</b></div>`;
+      nextSlot.innerHTML = `<div class="top-chip pop${digits >= 3 ? ' wide' : ''}" style="--c:${TIER_COLORS[tier] ?? '#c39bff'}"><b>${v}</b><small aria-hidden="true">Top</small></div>`;
       nextSlot.parentElement.setAttribute('aria-label', `Top block ${v}`);
     },
     /**

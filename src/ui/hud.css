@@ -226,6 +226,18 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* what the number is (T22): the score card's "Best" style, under the number, inside the ring */
+.top-chip {
+  align-content: center;
+}
+
+.top-chip small {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink-soft);
+}
+
 /* three digits and more (128 and up) do not fit the disc's inner ring at a readable size: the disc
    stretches into a pill, and the number reads at 18 px */
 .top-chip.wide {

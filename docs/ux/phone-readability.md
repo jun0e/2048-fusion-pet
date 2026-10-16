@@ -88,6 +88,7 @@ Buttons:
 - 48 px tall. Pause and Speed are 48 px discs; the pause icon is 24 px and "x1" 20 px.
 - The score is 24 px; "Best" is 13 px.
 - The top-block chip is a 48 px disc for one or two digits (20 px). From three digits it stretches into a pill, at 18 px; it was a disc up to four digits at 12.6 px.
+- The chip is captioned "Top" under its number, at 13 px (T22). It fits the top bar on a 320 px phone even at 65536.
 
 **The lintel**
 

@@ -120,7 +120,8 @@ Every fusion gets a card (T18), but the rail has four slots. From a fifth fusion
 
 - Wave now leaves the tab order while it is hidden (during a wave).
 - The Speed button's gold "x2" is a lighter gold than its ring (`--gold-text`), at 4.6:1 or more on every chapter's stone.
-- The top-block chip is a disc up to two digits (20 px); from three digits it stretches into a pill (18 px), so the number fits inside its ring.
+- The top-block chip is a disc up to two digits (20 px). From three digits it stretches into a pill (18 px), so the number fits inside its ring.
+- Under the number, the chip says what it is: "Top", at 13 px (T22), as the score plate says "Best". Its spoken name stays "Top block 4096". The block counter beside it needs no word: its icon is a 4 × 4 map of the board.
 
 ## Checked
 
