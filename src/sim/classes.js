@@ -203,9 +203,10 @@ export const FUSIONS = {
 };
 
 // Each fusion is its own element with a colour of its own, picked to stand apart
-// from the 8 base elements and from each other.
+// from the 8 base elements (CIEDE2000 ≥ 5 from every element but its parents) and
+// from each other (≥ 8), and one of its pet's six colours (src/art/fusion-roster.js).
 const FUSION_COLORS = {
-  'fire+ice': '#5b8cff', // Frostnova: cobalt
+  'fire+ice': '#456ac2', // Frostnova: deep cobalt, its red panda's shade (#5b8cff was 3.4 from Lightning)
   'fire+lightning': '#ff4fb8', // Plasma: hot pink
   'fire+poison': '#d6452f', // Brimstone: crimson
   'fire+earth': '#ff9f1c', // Magma: lava
@@ -230,7 +231,7 @@ const FUSION_COLORS = {
   'earth+wind': '#e6c88a', // Sandstorm: sand
   'earth+metal': '#8d6e63', // Ironstone: rust brown
   'earth+nature': '#2e8b57', // Overgrowth: sea green
-  'wind+metal': '#b0e0e6', // Bladewind: powder blue
+  'wind+metal': '#86aaaf', // Bladewind: steel teal, its weasel's shade (#b0e0e6 was 4.8 from Ice)
   'wind+nature': '#fff59d', // Pollenstorm: pollen
   'metal+nature': '#f4a261', // Harvest: amber
 };

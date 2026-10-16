@@ -107,8 +107,9 @@ const HEAD = `// The fusion roster (the fusion silhouette pass, reports/art/fusi
 //   bg      the key colour: green unless one of its six colours is a green (hue 70–170), then magenta
 //   prop    the part of its silhouette that is not the creature (the mole's molehill): drawn, not a ground
 //   from    each parent's feature, in words
-//   pal     six colours: the dominant (the FUSIONS colour), its shade and light (tokens.js
-//           fusionPalette), accent A and B (from the parents' element palettes), one extra
+//   pal     six colours: the dominant (the sprite's body colour), its shade and light, accent A
+//           and B (from the parents' element palettes), one extra; the fusion's game colour
+//           (src/sim/classes.js FUSIONS) is one of the six
 //   cel     the cel-shade tone the prompt names: the shade, or, where the dominant does not read on
 //           the sand (reports/art/fusion-matrix/palette-check.json), the palette colour that steps
 //           furthest from it, drawn as large markings

@@ -148,7 +148,7 @@ Baloo 2 ExtraBold (800) for the numeral; sizes and stroke as in 2.3; `textBaseli
 |---|---|---|
 | Ink numeral on the 8 element plates | 8.34 (Poison) – 14.36 (Wind) | unchanged |
 | Ink numeral on the 3 egg plates | 10.05 – 12.22 | unchanged |
-| Ink numeral on the 28 den plates | 3.54 (Nightshade) – 14.60 (Blizzard); 1 of 28 under 4.5 | 4.59 – 14.60; the floor changes only Nightshade (`#9262b8` → `#a279c2`) |
+| Ink numeral on the 28 den plates | 3.54 (Nightshade) – 14.60 (Blizzard); 1 of 28 under 4.5 | 4.57 – 14.60; the floor changes only Nightshade (`#9262b8` → `#a279c2`) and, since its deep cobalt (T34, 2026-10-16), Frostnova (`#6685cd` → `#6a88ce`, 4.57 : 1) |
 | Cream stroke on the plate | 1.05 – 4.34 | the stroke is the separator between ink and a dark plate or a dark outline, not the carrier: at ≥ 4.6 : 1 for the ink it is never load-bearing |
 | Plate on the keep floor `#3E3C58` | 2.34 (Nightshade) – 9.66 | ≥ 3.04 on every plate (figure-ground ≥ 3 : 1 for all 39) |
 | Plate on the pit `#35334E` | | ≥ 3.5 |

@@ -61,7 +61,7 @@ function drawn(w, h, fn) {
 function cardMock(state) {
   const port = renderPortrait('fire', 'ice', { size: 256 });
   return drawn(200, 230, (g) => {
-    g.fillStyle = '#5b8cff';
+    g.fillStyle = FUSIONS['fire+ice'].color; // the Frostnova card
     g.beginPath();
     g.roundRect(20, 10, 160, 160, 18);
     g.fill();

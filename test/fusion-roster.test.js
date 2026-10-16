@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { FUSIONS, ELEMENT_KEYS } from '../src/sim/classes.js';
+import { FUSIONS, ELEMENTS, ELEMENT_KEYS } from '../src/sim/classes.js';
 import { FUSION_ROSTER } from '../src/art/fusion-roster.js';
 import { FOE_ROSTER } from '../src/art/foe-roster.js';
 import { petName } from '../src/art/tokens.js';
@@ -63,7 +63,7 @@ test('entries are complete: a flippable view, a move, a contract, both parents i
     assert.ok(r.desc.length > 40 && r.pose.length > 30, `${k}: a description and a pose in words`);
     assert.equal(r.pal.length, 6, `${k}: six colours`);
     for (const h of r.pal) assert.match(h, /^#[0-9a-fA-F]{6}$/, `${k}: ${h}`);
-    assert.equal(r.pal[0].toLowerCase(), FUSIONS[k].color.toLowerCase(), `${k}: the dominant is the fusion's colour`);
+    assert.ok(r.pal.map((h) => h.toLowerCase()).includes(FUSIONS[k].color.toLowerCase()), `${k}: the fusion's game colour is one of its pet's colours`);
     assert.ok(r.pal.includes(r.cel), `${k}: the cel tone is a palette colour`);
     if (r.lift) assert.ok(r.pal.includes(r.lift), `${k}: the light zone is a palette colour`);
     // the prompt says no ground: a prop its contract includes (a molehill, a branch) is named, and only then
@@ -147,4 +147,56 @@ print(json.dumps(out))`;
 
 test('every element appears in seven fusions, as A or B', () => {
   for (const el of ELEMENT_KEYS) assert.equal(Object.keys(FUSION_ROSTER).filter((k) => k.split('+').includes(el)).length, 7, el);
+});
+
+/** CIEDE2000 colour difference of two #rrggbb colours. */
+function deltaE(c1, c2) {
+  const lab = (h) => {
+    const lin = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    const [r, g, b] = [1, 3, 5].map((i) => lin(parseInt(h.slice(i, i + 2), 16) / 255));
+    const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+    const [x, y, z] = [(0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, 0.2126 * r + 0.7152 * g + 0.0722 * b, (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883].map(f);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+  };
+  const [L1, a1, b1] = lab(c1);
+  const [L2, a2, b2] = lab(c2);
+  const rad = Math.PI / 180;
+  const Cb = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2;
+  const G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)));
+  const [a1p, a2p] = [(1 + G) * a1, (1 + G) * a2];
+  const [C1, C2] = [Math.hypot(a1p, b1), Math.hypot(a2p, b2)];
+  const hue = (b, a) => ((Math.atan2(b, a) / rad) % 360 + 360) % 360;
+  const [h1, h2] = [hue(b1, a1p), hue(b2, a2p)];
+  let dh = h2 - h1;
+  if (C1 * C2 === 0) dh = 0;
+  else if (dh > 180) dh -= 360;
+  else if (dh < -180) dh += 360;
+  const dH = 2 * Math.sqrt(C1 * C2) * Math.sin((dh / 2) * rad);
+  const Lb = (L1 + L2) / 2;
+  const Cbp = (C1 + C2) / 2;
+  const hb = C1 * C2 === 0 ? h1 + h2 : Math.abs(h1 - h2) > 180 ? (h1 + h2 + 360) / 2 : (h1 + h2) / 2;
+  const T = 1 - 0.17 * Math.cos((hb - 30) * rad) + 0.24 * Math.cos(2 * hb * rad) + 0.32 * Math.cos((3 * hb + 6) * rad) - 0.2 * Math.cos((4 * hb - 63) * rad);
+  const dth = 30 * Math.exp(-(((hb - 275) / 25) ** 2));
+  const RC = 2 * Math.sqrt(Cbp ** 7 / (Cbp ** 7 + 25 ** 7));
+  const SL = 1 + (0.015 * (Lb - 50) ** 2) / Math.sqrt(20 + (Lb - 50) ** 2);
+  const SC = 1 + 0.045 * Cbp;
+  const SH = 1 + 0.015 * Cbp * T;
+  const RT = -Math.sin(2 * dth * rad) * RC;
+  return Math.sqrt(((L2 - L1) / SL) ** 2 + ((C2 - C1) / SC) ** 2 + (dH / SH) ** 2 + RT * ((C2 - C1) / SC) * (dH / SH));
+}
+
+test('every fusion colour stands apart: from the elements but its parents (ΔE2000 ≥ 5) and from each other (≥ 8)', () => {
+  assert.ok(Math.abs(deltaE('#5b8cff', '#3d8bff') - 3.4) < 0.1, 'the formula matches the measured Frostnova clash');
+  const keys = Object.keys(FUSIONS);
+  for (const k of keys) {
+    const parts = k.split('+');
+    for (const el of ELEMENT_KEYS) {
+      const d = deltaE(FUSIONS[k].color, ELEMENTS[el].color);
+      if (parts.includes(el)) assert.ok(d >= 4.5, `${k} vs its parent ${el}: ${d.toFixed(1)}`);
+      else assert.ok(d >= 5, `${k} vs ${el}: ${d.toFixed(1)}`);
+    }
+    for (const o of keys) if (o > k) assert.ok(deltaE(FUSIONS[k].color, FUSIONS[o].color) >= 8, `${k} vs ${o}`);
+  }
+  assert.equal(FUSIONS['fire+ice'].color, '#456ac2', 'Frostnova: its red panda’s deep cobalt');
+  assert.equal(FUSIONS['wind+metal'].color, '#86aaaf', 'Bladewind: its weasel’s steel teal');
 });

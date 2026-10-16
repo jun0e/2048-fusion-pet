@@ -55,7 +55,7 @@ const den = (tier, element = 'fire', fusion = 'ice', ultimate = null) => ({ tier
 
 // --- the plaque's rules ----------------------------------------------------------------------------
 
-test('den plates: the luminance floor lifts only Nightshade, and the ink numeral reads ≥ 4.5 : 1 on all 28', () => {
+test('den plates: the luminance floor lifts only the two darkest fusions (Frostnova, Nightshade), and the ink numeral reads ≥ 4.5 : 1 on all 28', () => {
   const fusions = Object.entries(FUSIONS);
   assert.equal(fusions.length, 28);
   const lifted = [];
@@ -67,7 +67,7 @@ test('den plates: the luminance floor lifts only Nightshade, and the ink numeral
     const [a, b] = key.split('+');
     assert.equal(plateColor({ tier: 9, cls: { element: b, fusion: a } }), c, `${key}: either parent order`);
   }
-  assert.deepEqual(lifted, [['poison+nature', '#a279c2']], 'the floor touches no other fusion');
+  assert.deepEqual(lifted, [['fire+ice', '#6a88ce'], ['poison+nature', '#a279c2']], 'the floor touches no other fusion (Frostnova since its deep cobalt, T34)');
 });
 
 test('the growth meter: 0–3 of 4 gold toward the fusion from 16 to 128, rose toward the legend from 256 to 2048; none on eggs and legends', () => {
