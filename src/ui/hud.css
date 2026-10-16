@@ -1944,6 +1944,35 @@ body {
   gap: 10px;
 }
 
+/* Share's last resort (src/ux/share.js): the browser refused every copy, so the line shows, selected */
+.share-box {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  text-align: left;
+  color: var(--ink-soft);
+  font: 700 14px/1.3 var(--font-body);
+}
+
+.share-box[hidden] {
+  display: none;
+}
+
+.share-line {
+  width: 100%;
+  padding: 8px 10px;
+  border: 2px solid var(--cream-2);
+  border-radius: 12px;
+  background: var(--cream-2);
+  color: var(--ink);
+  font: 700 14px/1.35 var(--font-body);
+  resize: none;
+  /* the page turns selection and the long-press menu off (a game, not a page); this line is for copying */
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 /* --- settings page of the pause card ------------------------------------------------- */
 .pause-settings {
   display: none;

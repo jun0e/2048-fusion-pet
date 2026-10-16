@@ -270,6 +270,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
           <button class="primary" data-act="again">Play again</button>
           <button class="soft" data-act="share">Share</button>
         </div>
+        <label class="share-box" hidden>Copy this to share:<textarea class="share-line" readonly rows="3"></textarea></label>
       </div>
     </div>`;
 
@@ -348,6 +349,8 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     $(`[data-act="${target}"]`).focus({ preventScroll: true });
   }
   const shareBtn = $('[data-act="share"]');
+  const shareBox = $('.share-box');
+  const shareText = $('.share-line');
   const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
   // --- the news ribbon: one line in the sky; a banner that does not fit turns its pages ---
@@ -757,6 +760,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       const badge = isBestWave ? 'New best wave!' : isBest ? 'New best score!' : '';
       $('.badge-slot').innerHTML = badge ? `<div class="new-best">${badge}</div>` : '';
       shareBtn.textContent = 'Share';
+      shareBox.hidden = true;
       overScrim.inert = false;
       overScrim.classList.add('open');
       // keyboard players can restart with Space/Enter; the click handler blurs it after
@@ -779,6 +783,15 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     shareDone(label) {
       shareBtn.textContent = label;
       setTimeout(() => (shareBtn.textContent = 'Share'), 1800);
+    },
+    /** The browser refused every copy: show the line, selected and in view, to copy by hand. */
+    shareShow(line) {
+      shareText.value = line;
+      shareBox.hidden = false;
+      shareBtn.textContent = 'Copy it below';
+      shareText.focus({ preventScroll: true });
+      shareText.setSelectionRange(0, line.length); // iOS: select() alone selects nothing
+      shareBox.scrollIntoView({ block: 'nearest' }); // a short card scrolls; focusing a textarea does not scroll it
     },
     /** Switch states in the settings page. */
     setSettings({ sound, haptics, hapticsSupported, motion }) {

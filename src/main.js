@@ -31,6 +31,7 @@ import { createSfx } from './sfx.js';
 import { createHaptics } from './haptics.js';
 import { nextSpeed } from './ux/speed.js';
 import { createPause } from './ux/pause.js';
+import { inFrame, shareLine, shareRun } from './ux/share.js';
 import { recordRun, restoreRun, loadSaved, saveRun, clearSaved } from './ux/resume.js';
 import { SIGNATURE_TINT, TEXT, popupFont, textInk } from './ux/photosafe.js';
 import { loadStore } from './ux/coach.js';
@@ -147,8 +148,8 @@ async function start() {
   const deck = createDeck(stage);
   const sfx = createSfx();
   const haptics = createHaptics();
-  // a game, not a page: no long-press menu or image callout
-  addEventListener('contextmenu', (e) => e.preventDefault());
+  // a game, not a page: no long-press menu or image callout (but the share line, shown to copy by hand)
+  addEventListener('contextmenu', (e) => e.target.closest?.('.share-line') || e.preventDefault());
   const kv = kvMode ? setupKv({ stage, fx, blocks, art, hudEl: document.getElementById('hud'), getRun: () => run, params }) : null;
 
   let best = loadBest();
@@ -298,37 +299,17 @@ async function start() {
   }
   syncSettings();
 
-  /** Share the run: the system share sheet, else copy the line. */
+  /**
+   * Share the run: the system share sheet, else copy the line, else show it (src/ux/share.js).
+   * Nothing may be awaited before shareRun: a browser lets a page write the clipboard only inside the tap.
+   */
   async function share() {
     if (!lastSummary) return;
-    const text = `I held the siege to wave ${lastSummary.wave} in 2048 Siege (${lastSummary.score.toLocaleString()} points). Can you beat it?`;
-    const url = /^https?:$/.test(location.protocol) ? `${location.origin}${location.pathname}` : '';
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: '2048 Siege', text, ...(url && { url }) });
-        return;
-      } catch (err) {
-        if (err?.name === 'AbortError') return; // the player closed the sheet
-      }
-    }
-    const line = url ? `${text} ${url}` : text;
-    try {
-      await navigator.clipboard.writeText(line);
-      hud.shareDone('Copied!');
-    } catch {
-      // no Clipboard API (a plain-http address): the old copy command
-      const area = Object.assign(document.createElement('textarea'), { value: line, readOnly: true });
-      area.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
-      document.body.appendChild(area);
-      area.select();
-      area.setSelectionRange(0, area.value.length); // iOS Safari: select() alone selects nothing
-      let copied = false;
-      try {
-        copied = document.execCommand('copy');
-      } catch {}
-      area.remove();
-      hud.shareDone(copied ? 'Copied!' : 'Cannot share here');
-    }
+    const framed = inFrame();
+    const s = shareLine(lastSummary, { origin: location.origin, pathname: location.pathname, protocol: location.protocol, framed });
+    const how = await shareRun(s, { framed });
+    if (how === 'copied') hud.shareDone('Copied!');
+    else if (how === 'shown') hud.shareShow(s.line); // the browser refused every copy: the player copies it
   }
 
   // the pets layer (after the HUD, whose markup would drop its namecard strip)
