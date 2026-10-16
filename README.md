@@ -22,7 +22,7 @@ Everything else is the same game: real-time 2048 swiping that costs coins, dice 
 | Shooting | Only blocks of 16 or more shoot. Smaller blocks are plain (no element) and just soak up hits |
 | Elements | A block reaching 16 rolls a random element from your deck. When two elemental blocks merge, the one that slides in keeps its element |
 | Milestone border | Blocks of 16+ wear a 4-piece border: one piece lights per merge (32, 64, 128), full at 256 = fusion; it then counts again to 4096 = ultimate |
-| Fusion | Always at 256: the stayer's element (or a rolled one if they match) joins in, and the pair becomes a unique element with its own name and colour and both effects (Fire + Ice = Frostnova: burn and slow) |
+| Fusion | Always at 256: the pair becomes a unique element with its own name, colour, pet and both effects (Fire + Ice = Frostnova: burn and slow). **You pick it:** a block remembers its material, the elements of every elemental block merged into it, and at 256 a card offers each fusion that material can make (up to 4, the merge rule's own pick first). One possible pair fuses at once; a block of one element fuses with a rolled die, as before. A boss x2 that lifts a block to 256 offers the pick too. Tap a block to see its options |
 | Dice | You start with 2 (the main game starts with 4); the first 64, 256 and 512 each add one |
 | Opening | Every run starts with two 8s side by side: the first sideways swipe makes a turret. 100 starting coins |
 | Income | 3 coins per second during a wave, so destroyed blocks can always be swiped back in |
@@ -33,18 +33,54 @@ Balance (the autoplay bot, 8 seeds): fast play ends around wave 20 on average (1
 
 ### Tutorial
 
-- **Guided opening** (first run): the opening countdown waits while a finger shows the swipe, then pointers explain swipe cost, that your blocks are your only defense, and starting the wave. Skippable.
-- **One-time tips** the first time each thing happens, pointing at it: first merge, the lanes, a block attacked, a block lost, kill coins, out of coins, the break, colour override, awakening (upgrade), new die (unlock), fusion, ultimate, boss, 2048.
+- **Guided opening** (first run): the opening countdown waits while a finger shows the swipe, then pointers explain swipe cost, that your blocks are your only defense, the keepsake you bring (Iron Fist, pointing at its disc), and starting the wave. Skippable.
+- **One-time tips** the first time each thing happens, pointing at it: first merge, the lanes, a block attacked, a block lost, kill coins, out of coins, the break, colour override, awakening (upgrade), new die (unlock), fusion, ultimate, boss, 2048, the first level up, and with Iron Fist the first bite (the slow-motion punch tip, then "Punch!" after the first punch).
 - **"?" How to play** sheet (pauses the game) with **Replay tutorial**. Progress lives in localStorage; `?tutorial` in the URL resets it.
 
 Run it next to the main game: `npm run dev -- --port 5176`.
+
+### Spawn level (the Lv disc)
+
+Like a player's level in Teamfight Tactics, which changes the shop's odds, the spawn level changes the odds of the block each swipe adds (`src/sim/levels.js`). The **Lv** disc sits above the coin plate, with an XP ring. Tap it for the odds at this level and the next, and for **Buy XP**.
+
+| Level | 2 | 4 | 8 | 16 |
+|---|---|---|---|---|
+| 1 | 90% | 10% | | |
+| 3 | 86% | 13% | 1% | |
+| 5 | 72% | 22% | 5% | 1% |
+| 7 | 50% | 34% | 12% | 4% |
+| 9 | 26% | 40% | 24% | 10% |
+
+- **XP:** +2 for each cleared wave (TFT: +2 a round). Buy XP gives +4 for the price of 2 swipes. Merges give none.
+- **XP costs:** 2, 12, 20, 28, 40, 52, 64, 72 to reach levels 2–9.
+- **Level cap:** your top block in this run caps the level at its tier − 3 (16 → 1, 64 → 3, 512 → 6, 4096 → 9). At the cap the bar fills and waits, and Buy XP is off.
+- **After the run's first 512, no more 2s:** the other values share the 2s' weight.
+- **A spawned 16** hatches like a merged one: it rolls an element from the deck.
+
+### Keepsakes (the disc above Wave now)
+
+You bring one keepsake into each run (`src/sim/keepsakes.js`). The biggest block you have ever made unlocks the next ones; the record is `siege:meta` in localStorage (`src/ux/meta.js`). Once the opening tutorial is done, every run after the first opens with a picker (never in `?kv`). The last keepsake is preselected, so Start run is one tap. Tap the disc in a run to read what yours does.
+
+| Keepsake | Unlocked by | Effect |
+|---|---|---|
+| Iron Fist | (the starter) | A block that moves in a swipe punches every monster in its way, as hard as its base hit (once per monster per swipe, from the biggest block) |
+| Coin Purse | a 128 | +60 coins at the start; kills pay 20% more |
+| Spiked Collar | a 256 | Blocks have 30% more health |
+| Lucky Clover | a 512 | New blocks use the odds of 2 levels above yours, up to level 9 (so Buy XP is off from level 7) |
+| Phoenix Feather | a 1024 | Once a run, your last block rises as the biggest block you lost this run, at full health; the monsters on the board are thrown back to the gates; +4 swipes of coins |
+| Quake Boots | a 2048 | A swipe with 2+ merges stomps: every monster on the board takes your top block's base hit and is stunned for 1.5 s (bosses half as long) |
+
+**First run:** Iron Fist is equipped with no picker. The opening names it ("Your keepsake: Iron Fist. Blocks punch monsters."). The first time a monster bites a block, the game slows to quarter speed and the coach shows the swipe that punches it ("Iron Fist: swipe up to punch the monster!"), with the finger on the block that would land it. The punch ends the tip (it waits 8 s at most).
+
+**Balance** (`node tools/level-probe.mjs --seeds=192`, 192 bot games each; mean wave reached): 20.9 before levels; 25.1 with levels (26.2 for a bot that buys XP), about 2 of that from the no-2 rule. With a keepsake: Iron Fist 28.6 (the bot doesn't aim punches), Coin Purse 29.0, Spiked Collar 30.3, Lucky Clover 32.8, Phoenix Feather 26.3, Quake Boots 28.0.
+
 
 ## Run
 
 ```bash
 npm install
 npm run dev        # then open the printed URL
-npm test           # 271 headless tests: 2048 rules, dice and classes, lane combat, economy, wave loop, photosafety, art gates
+npm test           # 307 headless tests: 2048 rules, dice and classes, lane combat, economy, wave loop, spawn levels and keepsakes, photosafety, art gates
 npm run build      # production bundle in dist/
 ```
 
@@ -236,17 +272,26 @@ The script reads `GEMINI_API_KEY` from the environment or `.env.local` (git-igno
 | `src/sim/classes.js` | Dice (elements), fusions, ultimates, the merge rule (mover overrides, stage slots fill from the stayer), new-die offers, attack profiles |
 | `src/sim/enemies.js` | Enemy roster, chapters, deterministic waves with their lanes |
 | `src/sim/defense.js` | Lane movement, statuses, per-lane targeting, projectiles, chain/splash/pierce, signatures, castle |
-| `src/sim/run.js` | Real-time loop (prep, waves, breaks) tying board and defense; coins, swipe price; the deck (spawn colours) and unlocks; boss rewards; lock warning |
+| `src/sim/run.js` | Real-time loop (prep, waves, breaks) tying board and defense; coins, swipe price; the deck (spawn colours) and unlocks; boss rewards; lock warning; spawn XP and levels; the keepsake's rules |
+| `src/sim/levels.js` | The spawn level: odds per level, XP costs, the level cap, the no-2 rule |
+| `src/sim/keepsakes.js`, `src/sim/punch.js` | The six keepsakes and their numbers; Iron Fist's slide paths and punch targets |
+| `src/ux/meta.js` | The record across runs (`siege:meta`): biggest block ever, keepsake to bring, run count |
 | `src/render/*` | PixiJS: stage/layout, scenery (lanes, portals, wall, tray), the deck row (`deck.js`), blocks, monsters (`foes.js`), projectiles (`shots.js`), effects incl. flying coins (`fx.js`), procedural art and generated-sprite loading (`textures.js`) |
-| `src/ui/*` | DOM HUD: score, top block, wave/countdown/castle, coin bar with swipe price, Wave now button, new-die cards, class announcements, banners, game over |
+| `src/ui/*` | DOM HUD: score, top block, wave/countdown/castle, coin bar with swipe price, Wave now button, new-die cards, class announcements, banners, game over; the Lv and keepsake discs with their cards (`run-badges.js`) and the keepsake picker (`keepsake-picker.js`) |
 | `src/main.js` | Wiring, fixed-step loop, event-driven effects, tap a block to see its range; `window.__mb` exposes `run`, `restart()`, `advance(s)`, `spawn(tier, col, row)`, `coins(n)` |
-| `tools/*` | Gemini sprite pipeline; `economy.mjs` economy projection (`npm run economy`) |
+| `tools/*` | Gemini sprite pipeline; `economy.mjs` economy projection (`npm run economy`); `level-probe.mjs` bot balance for spawn levels and keepsakes |
 | `test/*` | Headless tests for every sim module |
 | `legacy/*` | Earlier prototypes: the physics ball crate and the three.js 3D renderer (`npm run test:legacy`) |
 
 Everything in `src/sim` is pure and deterministic: a seed plus the same inputs replays the same run.
 
 ## Prototype defaults to revisit
+
+- **Spawn level odds are gentler than TFT's.** This game is very sensitive to spawn value: TFT-sized steps made bot runs about 50% longer, and free XP from merges doubled them. So XP comes from cleared waves and coins only, the top block caps the level, and the early levels change little. Steeper odds are one table away (`LEVELS.odds`).
+- **Buy XP is in the level card,** not a button on the bar: two taps (disc, then Buy). It costs 2 swipes, so it competes with swiping.
+- **Five of the six keepsakes are mine;** only Iron Fist came from the brief. Unlocks follow the bot's top-block rates (128 in 90% of games, 2048 in 10%), so a new player gets a second keepsake in the first run or two.
+- **Iron Fist's punch** reaches 1.25 past the block's new cell (a biting monster stands 1.15 from the block) and 0.9 to each side (the next column is safe); it uses the block's base hit (`turretDamage`), and physical resistance applies.
+- **Keepsakes can't be swapped mid-run** (Hades allows it between regions with an upgrade).
 
 - **Lane cover:** Fire, Ice, Earth, Wind, Metal and plain blocks hit only their own column's lane; Lightning and Poison also reach the neighbouring lanes; Nature reaches a circle around the block (radius 6.5); ultimates reach everything.
 - **Short reach** (Fire 4, Earth 4.5) only fires at foes near the block: put it in the top row to meet them early, or the bottom row to guard the wall.

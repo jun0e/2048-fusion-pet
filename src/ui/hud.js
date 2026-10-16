@@ -13,6 +13,9 @@ import { createBannerQueue, bannerTimes } from '../ux/banners.js';
 import { TEXT, popupFont } from '../ux/photosafe.js';
 import { chapterKeyFor, skinFor } from '../art/frame-kit.js';
 import { generatedUrl } from '../render/textures.js';
+import { ELEMENTS } from '../sim/classes.js';
+import { portraitId } from '../art/sprite-ids.js';
+import { petName } from '../art/tokens.js';
 
 const STAGE_LABEL = { 1: 'Awakened', 2: 'Fusion', 3: 'Ultimate' };
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -477,6 +480,38 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     el.classList.add(cls);
   }
 
+  /**
+   * A block reached 256: the player picks its fusion from the pairs its material can make
+   * (src/sim/classes.js fusionOffers). Each card shows the fusion's pet (its generated portrait,
+   * else the two element badges), its name, the two elements and what it does.
+   */
+  function showFusionPick(choice) {
+    choiceScrim.setAttribute('aria-label', 'Choose a fusion');
+    $('.choice-chip').innerHTML = chipHtml(choice.tier);
+    $('.choice-title').textContent = 'Choose your fusion';
+    $('.choice-sub').textContent = `Your ${tierValue(choice.tier).toLocaleString()} fuses two of the elements that went into it.`;
+    $('.options').innerHTML = choice.offers
+      .map((o, i) => {
+        const a = ELEMENTS[o.element];
+        const b = ELEMENTS[o.fusion];
+        const pic = generatedUrl(portraitId({ element: o.element, fusion: o.fusion }));
+        const art = pic ? `<i class="pet" style="--c:${o.color}"><img alt="" src="${esc(pic)}" /></i>` : `<i style="--c:${a.color}">${badgeImg(o.element)}</i><i style="--c:${b.color}">${badgeImg(o.fusion)}</i>`;
+        return `
+        <button class="option fusion-option" data-act="pick" data-i="${i}">
+          <span class="swatches">${art}</span>
+          <span class="opt-text">
+            <b>${esc(o.name)}</b>
+            <em>${esc(a.name)} + ${esc(b.name)} · ${esc(petName(o.element, o.fusion))}</em>
+            <small>${esc(o.tags)}, both stronger. Attacks like ${esc(a.name)}: ${esc(a.attack)}.</small>
+          </span>
+          <kbd>${i + 1}</kbd>
+        </button>`;
+      })
+      .join('');
+    choiceScrim.inert = false;
+    choiceScrim.classList.add('open');
+  }
+
   /** The chapter's skin: the lintel's crest and the stone of the HUD (CSS custom properties). */
   function setChapter(name) {
     const key = chapterKeyFor(name);
@@ -656,9 +691,9 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     setDanger(level) {
       vignette.style.opacity = String(level * 0.9);
     },
-    /** Show (or keep showing) the pending new-die pick; null hides it. */
+    /** Show (or keep showing) the pending pick: a new die, or a new fusion; null hides it. */
     setChoice(choice) {
-      const key = choice ? `die:${choice.tier}` : null;
+      const key = choice ? `${choice.kind}:${choice.tier}:${choice.tileId ?? ''}` : null;
       if (key === choiceKey) return;
       choiceKey = key;
       root.classList.toggle('choosing', !!choice);
@@ -667,6 +702,11 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
         choiceScrim.inert = true;
         return;
       }
+      if (choice.kind === 'fusion') {
+        showFusionPick(choice);
+        return;
+      }
+      choiceScrim.setAttribute('aria-label', 'Choose a new die');
       $('.choice-chip').innerHTML = chipHtml(choice.tier);
       $('.choice-title').textContent = 'New die unlocked!';
       $('.choice-sub').textContent = `Your first ${tierValue(choice.tier).toLocaleString()}. Pick a die for your deck: blocks reaching 16 can roll it.`;
@@ -696,7 +736,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     },
     /**
      * The end of a run: the cause, the records broken, and a summary.
-     * stats: { kills, bosses, time (s), lost, combo, fusions }
+     * stats: { kills, bosses, time (s), lost, combo, fusions, punches, keepsakes: [names unlocked] }
      */
     showGameOver({ score, wave, maxTier, isBest, isBestWave = false, cause = null, stats = {} }) {
       $('.over-sub').textContent = cause ?? `Your last block fell on wave ${wave}.`;
@@ -707,9 +747,11 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       $('.go-bosses').textContent = String(stats.bosses ?? 0);
       $('.go-time').textContent = mmss(stats.time ?? 0);
       const extra = [];
+      if (stats.keepsakes?.length) extra.push(`New keepsake: ${stats.keepsakes.join(', ')}!`);
       if (stats.combo >= 2) extra.push(`Best combo ×${stats.combo}`);
       if (stats.fusions) extra.push(`${stats.fusions} fusion${stats.fusions === 1 ? '' : 's'}`);
       if (stats.lost) extra.push(`${stats.lost} block${stats.lost === 1 ? '' : 's'} lost`);
+      if (stats.punches) extra.push(`${stats.punches} punch${stats.punches === 1 ? '' : 'es'}`);
       $('.go-extra').textContent = extra.join(' · ');
       // the best wave is the main record; a best score alone gets its own badge
       const badge = isBestWave ? 'New best wave!' : isBest ? 'New best score!' : '';

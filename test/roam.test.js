@@ -8,9 +8,10 @@ import { recordRun, replayRun, fingerprint, loadSaved, SAVE_VERSION, RESUME_KEY 
 
 /**
  * A recorded bot run until a fusion's pet roams, then `after` more seconds; 3 s after the
- * pet hops out, the bot casts its skill (a namecard tap). Seed 2 has its first fusion at wave 6.
+ * pet hops out, the bot casts its skill (a namecard tap). Seed 7 has its first fusion at wave 7
+ * (with the spawn levels; seed 2 had it at wave 6 before them).
  */
-function playToRoam({ seed = 2, roaming = true, after = 30 } = {}) {
+function playToRoam({ seed = 7, roaming = true, after = 30 } = {}) {
   const run = createRun({ seed, roaming });
   const log = recordRun(run);
   let t = 0;

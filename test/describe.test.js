@@ -62,3 +62,13 @@ test('effect lines cover every component a profile can carry', () => {
   assert.equal(lines.length, 6);
   assert.match(lines.find((l) => l.startsWith('Chain')), /2 more foes within 1.3 cells, 20% less per jump/, 'distances in cells');
 });
+
+test('attack speeds show their exact design value: Horn Arc 0.85 / s, not 0.8', () => {
+  const attacks = (cls, tier = 4) => describeTile(tile(tier, cls)).stats.find((s) => s.label === 'Attacks').value;
+  assert.equal(attacks({ element: 'lightning' }), '0.85 / s');
+  assert.equal(attacks({ element: 'earth' }), '0.45 / s', 'Quake Stomp, not 0.5');
+  assert.equal(attacks({ element: 'ice' }), '0.6 / s');
+  assert.equal(attacks({ element: 'fire' }), '1 / s');
+  assert.equal(attacks({ element: 'lightning', fusion: 'earth' }, 8), '0.85 / s', 'a fusion keeps its first element’s rhythm');
+  for (const k of Object.keys(ELEMENTS)) assert.equal(attacks({ element: k }), `${ELEMENTS[k].rate} / s`, k);
+});
