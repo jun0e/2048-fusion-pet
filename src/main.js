@@ -1,4 +1,5 @@
 import './ui/hud.css';
+import './ui/keepsakes.css'; // the level and keepsake discs, their cards and the keepsake picker
 import { Assets } from 'pixi.js';
 import { createRun } from './sim/run.js';
 import { ENEMY_TYPES } from './sim/enemies.js';
@@ -20,6 +21,10 @@ import { createTutorial } from './ui/tutorial.js';
 import { createJourney } from './ux/journey.js';
 import { GAME_OVER_DELAY, causeLine, lossHint, returnGoal } from './ux/journey-tuning.js';
 import { createInspect } from './ui/inspect.js';
+import { createRunBadges } from './ui/run-badges.js';
+import { createKeepsakePicker } from './ui/keepsake-picker.js';
+import { loadMeta, saveMeta, recordBest, isFirstRun, unseenKeepsakes } from './ux/meta.js';
+import { STARTER_KEEPSAKE } from './sim/keepsakes.js';
 import { createAutoplay } from './autoplay.js';
 import { createInput } from './input.js';
 import { createSfx } from './sfx.js';
@@ -147,14 +152,23 @@ async function start() {
 
   let best = loadBest();
   let bestWave = loadBestWave();
+  // keepsakes (src/sim/keepsakes.js): the record across runs and the keepsake to bring (src/ux/meta.js).
+  // The first run brings Iron Fist with no picker; the tutorial teaches it.
+  const meta = loadMeta();
+  const firstRun = isFirstRun(meta);
+  /** The picker comes once the opening is over (a player still in the tutorial keeps Iron Fist). */
+  const pickerDue = () => meta.runs >= 1 && tutorial.openingDone;
+  let runUnlocks = []; // keepsakes this run unlocked (the game-over card lists them)
+  let badges = null; // the spawn level and keepsake discs (created with the HUD)
   // what this run did, for the summary on the game-over card
-  const freshStats = () => ({ bosses: 0, lost: 0, combo: 0, fusions: 0 });
+  const freshStats = () => ({ bosses: 0, lost: 0, combo: 0, fusions: 0, punches: 0 });
   let stats = freshStats();
   function tally(e) {
     if (e.type === 'merge') stats.combo = Math.max(stats.combo, e.combo ?? 1);
     else if (e.type === 'bossReward') stats.bosses += 1;
     else if (e.type === 'classed' && e.stage === 2) stats.fusions += 1;
     else if (e.type === 'remove' && e.reason === 'destroyed') stats.lost += 1;
+    else if (e.type === 'punch') stats.punches += 1;
   }
   let lastSummary = null; // { wave, score }: the line to share
   let overTimer = null; // the game-over card waits GAME_OVER_DELAY after the last block falls
@@ -187,7 +201,8 @@ async function start() {
       stats = freshStats();
     }
   }
-  if (!run) run = newRun();
+  // ?tutorial replays the opening as a first run: with Iron Fist (the player's pick stays for later)
+  if (!run) run = params.has('tutorial') && !kv ? newRun(STARTER_KEEPSAKE, { remember: false }) : newRun();
   journey.onRunStart();
   let gameOverShown = false;
   let lastDownBy = null; // the enemy that broke the latest block
@@ -208,9 +223,19 @@ async function start() {
   // a wave with 3 blocks or fewer left: the red vignette shows, and so does a fallen block's edge pulse
   const inDanger = () => run.blocks <= 3 && run.phase === 'wave';
 
-  function newRun() {
-    if (kv) return kv.preset(createRun({ seed: seedParam ?? 2048, empty: true, dice: KV_DICE, roaming: true })); // it draws its pets
-    const r = createRun({ seed: seedParam, empty: debugStart, roaming });
+  /**
+   * A new run that brings `keepsake` (the showcase brings none and keeps the classic spawns).
+   * `remember`: it becomes the keepsake picked first next time; `count`: it counts as a run started.
+   */
+  function newRun(keepsake = meta.keepsake, { remember = true, count = true } = {}) {
+    if (kv) return kv.preset(createRun({ seed: seedParam ?? 2048, empty: true, dice: KV_DICE, roaming: true, levels: false })); // it draws its pets
+    const r = createRun({ seed: seedParam, empty: debugStart, roaming, keepsake });
+    runUnlocks = [];
+    if (canSave) {
+      if (remember) meta.keepsake = keepsake;
+      if (count) meta.runs += 1;
+      saveMeta(meta);
+    }
     if (debugStart) {
       // one block per class stage, built from the deck's colours
       const [a, b, c] = r.owned;
@@ -224,7 +249,7 @@ async function start() {
   }
 
   const hud = createHud(document.getElementById('hud'), {
-    onRestart: restart,
+    onRestart: () => restart(),
     onMenu: (page) => (page === 'main' && pause.menu === 'closed' ? openMenu() : pause.show(page)),
     onSetting: (name) => {
       if (name === 'sound') sfx.toggle();
@@ -308,6 +333,40 @@ async function start() {
   // the pets layer (after the HUD, whose markup would drop its namecard strip)
   const pets = roaming ? setupPets({ stage, fx, art, hudEl: document.getElementById('hud'), getRun: () => run }) : null;
 
+  // the spawn level (above the coins: XP is bought with them) and the keepsake (above Wave now)
+  badges = createRunBadges(document.getElementById('hud'), {
+    stage,
+    onBuyXp: () => !paused && run.buyXp(),
+    onOpen: () => select(null, { keepCard: true }), // one card at a time
+  });
+
+  // before every run but the first: pick the keepsake to bring (the game waits)
+  let pickerFor = null; // 'boot' (the run already exists) | 'restart'
+  const picker = kv
+    ? null
+    : createKeepsakePicker(document.getElementById('hud'), {
+        onStart: (pick) => {
+          pause.hold('picker', false);
+          if (pickerFor !== 'boot') return startRun(pick);
+          if (pick === run.keepsake) return; // the run already brings it
+          // the untouched boot run, again with this keepsake: the same run count, and the goal again
+          startRun(pick, { count: false });
+          tutorial.note(returnGoal(bestWave));
+        },
+      });
+  function openPicker(why) {
+    pickerFor = why;
+    pause.show('closed');
+    if (why === 'restart') hud.hideGameOver();
+    const fresh = unseenKeepsakes(meta).map((k) => k.id);
+    picker.open({ bestTier: meta.bestTier, pick: meta.keepsake, fresh });
+    pause.hold('picker', true);
+    if (fresh.length) {
+      meta.seen = [...meta.seen, ...fresh];
+      saveMeta(meta);
+    }
+  }
+
   // tap a block: a card says what it does (attack, numbers, effects, what it becomes next)
   const inspect = createInspect(document.getElementById('hud'), {
     stage,
@@ -316,7 +375,13 @@ async function start() {
     onDiscard: (id) => run.discard(id).ok && select(null), // sell a turret / break a dormant block
   });
 
+  /** New run: the keepsake picker first (every run after the first), then the run. */
   function restart() {
+    if (picker && pickerDue()) return openPicker('restart');
+    startRun(meta.keepsake);
+  }
+
+  function startRun(keepsake = meta.keepsake, opts = {}) {
     pause.show('closed');
     clearTimeout(overTimer); // a card still on its way from the last run must not cover this one
     clearSaved(); // the old run is over; this one saves itself from its first input
@@ -324,7 +389,7 @@ async function start() {
     stats = freshStats();
     resetSpeed();
     hud.clearBanners();
-    run = newRun();
+    run = newRun(keepsake, opts);
     journey.onRunStart();
     blocks.reset();
     foes.reset();
@@ -342,9 +407,11 @@ async function start() {
     lastLoss = null;
   }
 
-  function select(id) {
+  /** Pick a block (null: none); `keepCard` keeps the level / keepsake card open (one card at a time). */
+  function select(id, { keepCard = false } = {}) {
     selected = id;
     blocks.select(id);
+    if (!keepCard) badges?.close();
   }
 
   // where dropped coins fly to: the HUD coin icon, in world space
@@ -395,7 +462,7 @@ async function start() {
     onPause: (open) => {
       if (!open && pause.menu === 'help') pause.show('main'); // its Back button returns to the menu
     },
-    onReplay: () => restart(),
+    onReplay: () => startRun(STARTER_KEEPSAKE, { remember: false }), // the tutorial teaches Iron Fist; the player's pick stays
     onLog: (kind, data) => journey.onCoach(kind, data),
     onShow: () => select(null), // a new tip closes an open block card, which would cover it
   });
@@ -420,7 +487,7 @@ async function start() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) return;
     saveNow();
-    if (!run.over && pause.menu === 'closed') openMenu();
+    if (!run.over && pause.menu === 'closed' && !picker?.isOpen) openMenu(); // the keepsake picker already holds the game
   });
   addEventListener('pagehide', () => saveNow());
   // portrait only: a phone turned sideways shows "Turn your phone upright" (hud.css) and the game waits
@@ -429,7 +496,7 @@ async function start() {
   sideways.addEventListener('change', (e) => {
     pause.hold('rotate', e.matches);
     // upright again: the game waits for Resume, not the turn; an open menu stays on its page
-    if (!e.matches && !run.over && pause.menu === 'closed') openMenu();
+    if (!e.matches && !run.over && pause.menu === 'closed' && !picker?.isOpen) openMenu();
   });
   if (!kv) tutorial.start(run);
   else tutorial.setMuted(true); // the showcase has no tips
@@ -437,7 +504,13 @@ async function start() {
   if (resumed) {
     pauseTitle = 'Welcome back';
     openMenu();
-  } else if (!kv && !tutorial.active) tutorial.note(returnGoal(bestWave));
+  } else if (!kv && !tutorial.active) {
+    // a player who learned the game before keepsakes existed: name the one they bring
+    if (firstRun) tutorial.note('New: keepsakes! You bring the Iron Fist.', 'keepsake');
+    tutorial.note(returnGoal(bestWave));
+  }
+  // a returning player picks a keepsake before the first swipe (the run waits)
+  if (!resumed && picker && !firstRun && pickerDue()) openPicker('boot');
 
   createInput(stage.app.canvas, {
     swipe: (dir) => doSwipe(dir),
@@ -451,9 +524,9 @@ async function start() {
       if (!tile) return select(null);
       select(tile.id === selected ? null : tile.id);
     },
-    choose: (i) => !paused && run.pendingChoice && run.choose(i),
+    choose: (i) => !paused && i < (run.pendingChoice?.offers.length ?? 0) && run.choose(i), // a key beyond the cards does nothing
     nextWave: () => !paused && run.nextWave(),
-    pause: () => (pause.menu === 'closed' ? openMenu() : pause.back()), // Escape / P: one step back
+    pause: () => (picker?.isOpen ? null : pause.menu === 'closed' ? openMenu() : pause.back()), // Escape / P: one step back (the keepsake picker already holds the game)
   });
   // swipes on the HUD area outside buttons should also work
   document.getElementById('hud').style.pointerEvents = 'none';
@@ -562,6 +635,50 @@ async function start() {
           popup(p.x, p.y, `${ELEMENTS[e.winner].name} over ${ELEMENTS[e.loser].name}`, 3, ELEMENTS[e.winner].color);
           break;
         }
+        case 'levelUp': {
+          // the spawn level rose (src/sim/levels.js): the disc pops; the ribbon says the new odds
+          badges.levelUp();
+          sfx.choose(1);
+          hud.banner(`Level ${e.level}!`, `New blocks: ${e.odds.map((o) => `${o.value} ${o.pct}%`).join(' · ')}`, 'good');
+          break;
+        }
+        case 'no2':
+          hud.banner('No more 2s!', 'Your first 512: new blocks start at 4.', 'good');
+          break;
+        case 'buyXp': {
+          sfx.coin();
+          const c = badges.center('level');
+          popup(c.x + 26, c.y - 26, `+${e.xp} XP`, 3, '#ffcf4a');
+          break;
+        }
+        case 'punch': {
+          // Iron Fist: the block that slid in lands a punch (sparks thrown the way it moved)
+          const toward = { up: Math.PI / 2, down: -Math.PI / 2, left: Math.PI, right: 0 }[e.dir] ?? 0;
+          fx.burst(e.x, e.y + 0.3, [0xffffff, 0xc9d3e6, 0xffd34a], 12, { speed: 6, size: 0.26, life: 0.35, gravity: 0, spread: 1.6, dir: toward });
+          fx.ring(e.x, e.y + 0.3, 0xffffff, 0.3, 1.2, 0.25);
+          fx.number(e.x, e.y + 0.6, Math.round(e.amount), { color: 0xffd34a, crit: true });
+          stage.shake(2 + Math.min(4, e.tier * 0.4));
+          sfx.land(Math.min(1, 0.4 + e.tier * 0.06));
+          haptics.play('merge');
+          badges.pulseKeepsake();
+          break;
+        }
+        case 'stomp':
+          // Quake Boots: the board shakes and every monster on it is stunned
+          fx.ring(0, GRID_TOP / 2, 0xc9a582, 1, 6, 0.45);
+          stage.shake(6);
+          sfx.land(1);
+          badges.pulseKeepsake();
+          break;
+        case 'phoenix':
+          // Phoenix Feather: the last block rises and blasts the board clear
+          fx.ring(e.x, e.y, 0xff8a3d, 0.6, 7, 0.6);
+          fx.burst(e.x, e.y, [0xff8a3d, 0xffd36b, 0xffffff], 40, { speed: 7, size: 0.32, life: 0.7, gravity: 0 });
+          stage.shake(10);
+          sfx.milestone();
+          hud.banner('Phoenix Feather!', 'Your last block rose again and blasted the monsters away.', 'good');
+          badges.pulseKeepsake();
+          break;
         case 'dieGained':
           hud.banner(`New die: ${e.offer.name}`, 'Added to your deck: blocks reaching 16 can now roll it.', 'good');
           sfx.milestone();
@@ -680,7 +797,7 @@ async function start() {
           if (isBestWave) saveBestWave((bestWave = e.wave));
           lastSummary = { wave: e.wave, score: e.score };
           clearSaved(); // nothing to resume
-          const summary = { kills: e.kills, time: run.time, ...stats };
+          const summary = { kills: e.kills, time: run.time, ...stats, keepsakes: runUnlocks.map((k) => k.name) };
           lastLoss = { wave: e.wave, maxTier: e.maxTier };
           sfx.gameover();
           haptics.play('over');
@@ -698,6 +815,7 @@ async function start() {
   function saveNow() {
     // none after a failure: a broken frame can leave the run half-stepped, and the save on the way out would undo New run (index.html)
     if (!runLog || run.over || failed) return;
+    if (picker?.isOpen && pickerFor === 'boot') return; // an untouched run waiting for its keepsake: a reload picks again
     saveRun(run, runLog);
     savedInputs = runLog.inputs.length;
     saveWait = 1;
@@ -707,7 +825,7 @@ async function start() {
   /** One frame. `force` steps even while paused (the __mb.advance dev helper). */
   function update(dt, force = false) {
     const live = force || !paused; // paused: the menu, How to play, a sideways phone
-    acc = live ? acc + dt * speed : 0;
+    acc = live ? acc + dt * speed * tutorial.slowmo : 0; // the first punch is taught in slow motion
     const t0 = run.time;
     let n = 0;
     while (acc >= PHYSICS.dt && n < 8 * speed) {
@@ -717,6 +835,15 @@ async function start() {
     }
     handleEvents();
     if (runLog && runLog.inputs.length !== savedInputs && (saveWait -= dt) <= 0) saveNow();
+    // a new biggest block ever: the record rises, and may unlock a keepsake (for the next run)
+    if (canSave && run.maxTier > meta.bestTier) {
+      for (const k of recordBest(meta, run.maxTier)) {
+        runUnlocks.push(k);
+        hud.banner(`Keepsake unlocked: ${k.name}!`, `${k.short} Pick it before your next run.`, 'good');
+        sfx.milestone();
+      }
+      saveMeta(meta);
+    }
 
     hud.setScore(run.score, Math.max(best, run.score));
     hud.setNext(Math.max(1, run.maxTier));
@@ -735,7 +862,24 @@ async function start() {
     });
     hud.setEconomy(run.coins, run.swipeCost, run.swipes); // the swipes count drives the price step tick
     hud.setChoice(gameOverShown ? null : run.pendingChoice);
-    tutorial.update(live ? dt : 0);
+    badges.update({
+      level: run.level,
+      xp: run.xp,
+      need: run.xpNeed,
+      cap: run.levelCap,
+      spawnLevel: run.spawnLevel,
+      maxTier: run.maxTier,
+      no2: run.no2,
+      keepsake: run.keepsake,
+      phoenixReady: run.phoenixReady,
+      coins: run.coins,
+      price: run.buyXpPrice,
+      bestTier: meta.bestTier,
+      levelsOn: run.levelsOn,
+      hidden: !!kv,
+      blocked: paused || !!run.pendingChoice || gameOverShown,
+    });
+    if (!picker?.isOpen) tutorial.update(live ? dt : 0); // no tip opens behind the keepsake picker
     hud.update(live && !run.pendingChoice ? dt : 0); // banners wait behind a die card, too
     if (live && !gameOverShown) auto.tick(run, dt, doSwipe);
     hud.setDanger(inDanger() ? 0.5 : 0);
@@ -797,6 +941,13 @@ async function start() {
       }
     },
     spawn: (tier, col, row) => run.spawnDebug(tier, col, row),
+    /** The keepsake record (src/ux/meta.js) and the run-start picker. */
+    meta,
+    /** The game's speed under a slow-motion tip (1 = normal): the first Iron Fist punch. */
+    get slowmo() {
+      return tutorial.slowmo;
+    },
+    openPicker: () => picker && openPicker('restart'),
     coins: (n) => run.addCoins(n),
     /** The full-screen wash on screen now (0 = none): photosafe checks. */
     get wash() {

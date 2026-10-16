@@ -317,6 +317,38 @@ export function mergeClass(child, mover, stayer, roll = null) {
   return after > before ? after : 0;
 }
 
+/** Elements in any of `lists`, once each, in element order (deterministic). */
+export const mergeMaterial = (...lists) => ELEMENT_KEYS.filter((e) => lists.some((l) => l.includes(e)));
+
+/**
+ * A block's material: the elements of every elemental block that went into it, in element order,
+ * and always its own elements (blocks given a class directly, as the showcase's presets and
+ * ?debug do, count those).
+ */
+export const materialOf = (t) => mergeMaterial(t.mats ?? [], elementsOf(t.cls ?? {}));
+
+/**
+ * The fusions a block may become at 256, made only from its material: every pair of its
+ * elements, the merge rule's own pick first (the element that slid in, with the one it slid
+ * into), then the other pairs with the sliding block's element, then the rest; at most `max`.
+ * → [{ element (it attacks like this one), fusion, key, name, color, tags }]
+ */
+export function fusionOffers(cls, material, max = 4) {
+  const out = [];
+  const seen = new Set();
+  const add = (a, b) => {
+    if (!a || !b || a === b || !material.includes(a) || !material.includes(b)) return;
+    const key = fusionKey(a, b);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ element: a, fusion: b, key, name: FUSIONS[key].name, color: FUSIONS[key].color, tags: `${TAGS[a]} · ${TAGS[b]}` });
+  };
+  add(cls.element, cls.fusion);
+  const order = [cls.element, ...material.filter((e) => e !== cls.element)];
+  for (const a of order) for (const b of order) add(a, b);
+  return out.slice(0, max);
+}
+
 /** What a block just became, for the announcement: the parts that combined and the result. */
 export function describeStage(cls, stage, tier) {
   const el = (k) => ({ key: k, name: ELEMENTS[k].name, color: ELEMENTS[k].color });
