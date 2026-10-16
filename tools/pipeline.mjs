@@ -26,17 +26,29 @@
 //                                              # public/assets/_mock/ (free end-to-end test; view with
 //                                              # index.html?kv&manifest=assets/_mock/manifest.json)
 //   node tools/pipeline.mjs --status
-import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
-import { execFileSync, execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+// --only takes ids or globs (--only=enemy.*,vfx.fire.*).
+//
+// Gated jobs (the foes, job.pick): n candidates are made, post-processed and scored by
+// tools/silhouette-check.py, and tools/pick.mjs keeps the best inside the gates; one strict round
+// follows only when none is inside them. Each job's candidate raws, their prompt hash and their
+// scores are kept in a sidecar (cache/cand/<id>.gate.json), so a resumed run reuses what it paid
+// for. A foe that ships outside its gates is stored with pass: false and its margins, warned
+// about, marked on the contact sheet, and the run exits with code 2 (1: a job failed, 3: stopped).
+// A --repost of a gated job scores what now ships again, with today's gates.
+//
+// Several pipeline processes may run at once: every manifest write re-reads the file, changes
+// only its own job's entries and replaces the file atomically (commitManifest).
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, copyFileSync, readdirSync, renameSync, rmSync, statSync, realpathSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
 import { plan, MODEL_FAST } from './pipeline-jobs.mjs';
 import { PRICES, costOf, checkBudget, loadLimits, loadLedger, appendLedger, weeklyUsage } from './gemini-budget.mjs';
 import { classify429 } from './gemini-errors.mjs';
+import { postJson } from './curl-post.mjs';
+import { failingGates, gateBrief, imagesFor, insideTolerance, needsStrict, rankCandidates, strictText, acceptedMiss } from './pick.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -45,6 +57,7 @@ const cache = join(root, 'tools', '.cache', 'pipeline');
 const rawDir = join(cache, mock ? 'mock-raw' : 'raw');
 const assetsDir = join(root, 'public', 'assets', ...(mock ? ['_mock'] : []));
 const outDir = join(assetsDir, 'gen');
+const candDir = join(cache, mock ? 'mock-cand' : 'cand'); // candidates of gated jobs (foes)
 const manifestFile = join(assetsDir, 'manifest.json');
 const ledgerFile = join(root, 'tools', '.cache', 'gemini-usage.json');
 const limitsFile = join(root, 'tools', 'gemini-budget.json');
@@ -61,13 +74,19 @@ const priorities = arg('priority', 'P0,P1').split(',');
 const only = arg('only').split(',').filter(Boolean);
 const CONCURRENCY = Number(arg('concurrency', '2')) || 2;
 
+/** A test for --only: each entry an id or a glob (`*` matches any run of characters). */
+export function onlyMatcher(list) {
+  const res = list.map((p) => new RegExp(`^${p.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`));
+  return (id) => res.some((re) => re.test(id));
+}
+
 const log = (o) => appendFileSync(logFile, JSON.stringify({ t: new Date().toISOString(), ...o }) + '\n');
 const rawOf = (id) => join(rawDir, `${id}.png`);
 const outOf = (id) => join(outDir, `${id}.png`);
 
 /** Last value of NAME in the environment or .env.local (later lines win, so a re-pasted key replaces the old one). */
 function envValue(name) {
-  if (process.env[name]) return process.env[name];
+  if (process.env[name]) return process.env[name].trim();
   for (const f of [join(root, '.env.local'), join(root, '..', 'merge-ball-td', '.env.local')]) {
     if (!existsSync(f)) continue;
     const all = [...readFileSync(f, 'utf8').matchAll(new RegExp(`^${name}=(.+)$`, 'gm'))];
@@ -80,7 +99,7 @@ const BACKENDS = {
   vertex: {
     keyName: 'VERTEX_API_KEY',
     label: 'Vertex AI express mode',
-    models: { fast: 'gemini-3.1-flash-image' },
+    models: { fast: 'gemini-3.1-flash-image', best: 'gemini-3-pro-image' }, // no budget caps: the best surfaces get Pro
     url: (model) => `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`,
   },
   gemini: {
@@ -97,7 +116,7 @@ function pickBackend() {
   const b = BACKENDS[name];
   if (!b) throw new Error(`unknown --backend=${name} (vertex or gemini)`);
   const fast = process.env.GEMINI_IMAGE_MODEL ?? b.models.fast;
-  return { name, ...b, models: { fast, best: process.env.GEMINI_BEST_MODEL ?? fast } };
+  return { name, ...b, models: { fast, best: process.env.GEMINI_BEST_MODEL ?? b.models.best ?? fast } };
 }
 
 function apiKey(backend) {
@@ -106,11 +125,111 @@ function apiKey(backend) {
   return k;
 }
 
-function loadManifest() {
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+/** Write JSON to a temp file beside `file`, then rename it over `file`: a reader sees the old file or the new one, never half. */
+function writeJsonAtomic(file, obj, indent = 2) {
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmp, JSON.stringify(obj, null, indent));
+  renameSync(tmp, file);
+}
+
+/**
+ * The manifest on disk as { files, meta, … }; a missing file is an empty one. A file caught half
+ * written (an older pipeline wrote it in place) is read again, up to `tries` times 50 ms apart; one
+ * that never parses stops the run rather than being replaced.
+ */
+export function readManifest(file, { tries: most = 40 } = {}) {
+  for (let tries = 1; ; tries++) {
+    let text;
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch (e) {
+      if (e.code === 'ENOENT') return { files: {}, meta: {} };
+      throw e;
+    }
+    try {
+      const m = JSON.parse(text);
+      m.files ??= {};
+      m.meta ??= {};
+      return m;
+    } catch (e) {
+      if (tries >= most) throw new Error(`${file} does not parse (${e.message}); left as it is`);
+      pause(50);
+    }
+  }
+}
+
+/**
+ * Merge entries into the manifest on disk: re-read it (another pipeline process may have written
+ * since), change only these ids' files[id] and meta[id] and generatedAt, and write it atomically.
+ * entries: { id: { file, meta } }. → the merged manifest
+ */
+export function commitManifest(file, entries, at = new Date().toISOString()) {
+  return withLock(`${file}.lock`, () => {
+    const m = readManifest(file);
+    for (const [id, { file: path, meta }] of Object.entries(entries)) {
+      if (path) m.files[id] = path;
+      if (meta) m.meta[id] = meta;
+    }
+    m.generatedAt = at;
+    writeJsonAtomic(file, m);
+    return m;
+  });
+}
+
+/**
+ * Run fn holding an exclusive lock (a directory: mkdir is atomic), so two pipeline processes never
+ * read-merge-write the manifest at once. Waits up to 10 s; a lock older than 30 s is a crashed
+ * process's and is taken over.
+ */
+export function withLock(lock, fn) {
+  for (let waited = 0; ; waited += 50) {
+    try {
+      mkdirSync(lock);
+      break;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      let st;
+      try {
+        st = statSync(lock);
+      } catch {
+        continue; // released between the two calls
+      }
+      if (Date.now() - st.mtimeMs > 30000) {
+        // move the stale lock aside, then check it is the one judged stale (same inode): a waiter that
+        // lost the race to another's takeover puts that fresh lock back instead of deleting it
+        const stale = `${lock}.stale.${process.pid}.${Date.now()}`;
+        try {
+          renameSync(lock, stale);
+          if (statSync(stale).ino === st.ino) rmSync(stale, { recursive: true, force: true });
+          else renameSync(stale, lock);
+        } catch {
+          /* another process took it over first */
+        }
+      }
+      else if (waited >= 10000) throw new Error(`${lock} is held by another process`);
+      else pause(50);
+    }
+  }
   try {
-    return JSON.parse(readFileSync(manifestFile, 'utf8'));
-  } catch {
-    return { files: {} };
+    return fn();
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+/** Remove temp manifests a crashed writer left behind (writeJsonAtomic's, older than a minute). */
+function sweepTemps(file) {
+  const dir = dirname(file);
+  const base = file.slice(dir.length + 1);
+  for (const f of existsSync(dir) ? readdirSync(dir) : []) {
+    if (!f.startsWith(`${base}.`) || !f.endsWith('.tmp')) continue;
+    try {
+      if (Date.now() - statSync(join(dir, f)).mtimeMs > 60000) rmSync(join(dir, f), { force: true });
+    } catch {
+      /* gone already */
+    }
   }
 }
 
@@ -122,41 +241,10 @@ function refFile(ref) {
 
 class Stop extends Error {}
 
-const execFileP = promisify(execFile);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let pauseUntil = 0; // a rate limit pauses every job, not just the one that hit it
 let lastProgress = Date.now(); // last finished image; a 429 that outlasts GIVE_UP_MS stops the run
 const GIVE_UP_MS = 15 * 60 * 1000;
-/**
- * POST JSON through curl (HTTP/2). Node's built-in fetch stalls on Vertex image calls (no
- * response headers for 5 minutes), while curl gets the same image back in ~45 s. The key
- * goes in a private headers file, not on the command line.
- */
-async function postJson(url, key, body) {
-  const dir = mkdtempSync(join(tmpdir(), 'mb-pipeline-'));
-  try {
-    const bodyFile = join(dir, 'body.json');
-    const outFile = join(dir, 'out.json');
-    const hdrFile = join(dir, 'headers.txt');
-    writeFileSync(bodyFile, JSON.stringify(body));
-    writeFileSync(hdrFile, `x-goog-api-key: ${key}\ncontent-type: application/json\n`, { mode: 0o600 });
-    let stdout;
-    try {
-      ({ stdout } = await execFileP('curl', ['-s', '--http2', '-m', '300', '-X', 'POST', url, '-H', `@${hdrFile}`, '--data-binary', `@${bodyFile}`, '-o', outFile, '-w', '%{http_code}']));
-    } catch (e) {
-      throw new Error(`network: curl exit ${e.code}${e.code === 28 ? ' (timed out after 300 s)' : ''}`);
-    }
-    let json = {};
-    try {
-      json = JSON.parse(readFileSync(outFile, 'utf8'));
-    } catch {
-      /* empty or non-JSON body */
-    }
-    return { status: Number(stdout.trim()) || 0, json };
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
 
 function mockRaw(job) {
   execFileSync('python3', [join(root, 'tools', 'mock_raw.py'), job.id, rawOf(job.id), '--bg', job.bg ?? 'none', '--aspect', job.aspect]);
@@ -225,42 +313,234 @@ async function callGemini(job, key, backend) {
     appendLedger(ledgerFile, { t: Date.now(), model: job.model, usd: costOf(job.model), key: job.id, backend: backend.name });
     const v = checkBudget(loadLedger(ledgerFile), loadLimits(limitsFile));
     if (v.pct >= 0.6) console.warn(`   budget: ${Math.round(v.pct * 100)}% of the nearest limit used (weekly or 30-day; stops at 80%)`);
+    lastProgress = Date.now(); // a finished image, even a candidate that loses, is progress
     return Buffer.from(part.inlineData.data, 'base64');
   }
   throw new Error('gave up after retries');
 }
 
-function postProcess(job) {
+function postProcess(job, src = rawOf(job.id), dst = outOf(job.id)) {
   const p = job.post;
-  const a = [join(root, 'tools', 'post.py'), rawOf(job.id), outOf(job.id), '--bg', job.bg ?? 'none', '--size', String(p.size), '--fit', p.fit];
+  const a = [join(root, 'tools', 'post.py'), src, dst, '--bg', job.bg ?? 'none', '--size', String(p.size), '--fit', p.fit];
   if (p.palette) a.push('--palette', p.palette.join(','));
   if (p.snap) a.push('--snap');
+  if (p.stripRim) a.push('--strip-rim');
   const outStr = execFileSync('python3', a, { encoding: 'utf8' });
   return JSON.parse(outStr.trim().split('\n').pop());
 }
 
+/** A gated job's spec for tools/silhouette-check.py: a foe already made under its contract stands in for its sketch. */
+function gateSpec(job, manifest, candidates) {
+  const p = job.pick;
+  const made = (id) => manifest.meta?.[id]?.gate && existsSync(outOf(id));
+  return {
+    contract: join(root, p.contract),
+    view: p.view,
+    chapter: p.chapter,
+    chapters: p.chapters ?? [p.chapter],
+    grounds: p.grounds,
+    others: p.others.map((o) => ({
+      id: o.id,
+      chapter: o.chapter,
+      chapters: o.chapters ?? [o.chapter],
+      ...(made(o.id) ? { path: outOf(o.id), mask: 'alpha' } : { path: join(root, o.sil), mask: 'dark' }),
+    })),
+    allies: readdirSync(outDir).filter((f) => f.startsWith(p.allies) && f.endsWith('.png')).map((f) => join(outDir, f)),
+    candidates,
+  };
+}
+
+/**
+ * Score files with tools/silhouette-check.py: one result per file, in order (a file it could not
+ * score has `error`). Scored together; if the script itself fails, each file is scored on its own,
+ * so one bad candidate never costs the others their scores.
+ */
+function runGate(job, manifest, files) {
+  const call = (list) => JSON.parse(execFileSync('python3', [join(root, 'tools', 'silhouette-check.py')], { input: JSON.stringify(gateSpec(job, manifest, list)), encoding: 'utf8' })).results;
+  try {
+    return call(files);
+  } catch (e) {
+    if (files.length < 2) return [{ path: files[0], error: e.message.split('\n')[0] }];
+    return files.map((f) => {
+      try {
+        return call([f])[0];
+      } catch (e1) {
+        return { path: f, error: e1.message.split('\n')[0] };
+      }
+    });
+  }
+}
+
+/** Where a gated job's candidates are recorded: each one's prompt hash, QA and scores, and the pick. */
+const sidecarOf = (id) => join(candDir, `${id}.gate.json`);
+function readSidecar(id) {
+  try {
+    const s = JSON.parse(readFileSync(sidecarOf(id), 'utf8'));
+    return { ...s, candidates: s.candidates ?? {} };
+  } catch {
+    return { id, candidates: {} };
+  }
+}
+
+/** What a candidate was asked: the model, aspect, key colour, prompt and the references' bytes. A stored candidate is reused only for the same ask. */
+function askHash(ask) {
+  const h = createHash('sha256').update(JSON.stringify({ model: ask.model, aspect: ask.aspect, bg: ask.bg ?? 'none', prompt: ask.prompt, refs: ask.refs }));
+  for (const r of ask.refs) {
+    const f = refFile(r);
+    if (existsSync(f)) h.update(readFileSync(f));
+  }
+  return h.digest('hex').slice(0, 20);
+}
+
+const firstLine = (e) => String(e?.message ?? e).split('\n')[0];
+
+/**
+ * Make `pick.n` candidates of a gated job, post-process and score each (contract, twin, ally,
+ * figure-ground), and put the best raw in place (tools/pick.mjs: inside the gates first, then by
+ * score); one strict round, built from the gates the first round missed, follows only when none is
+ * inside them. A side view drawn facing right is mirrored, so the renderer's flip stays right.
+ * Every paid raw is recorded in the job's sidecar with its prompt hash as soon as it lands, and a
+ * resumed run (not --force, not a retry) reuses the ones made for the same ask. A candidate whose
+ * post-processing or scoring fails is logged and skipped; the others still count.
+ * → the winner's scores (tools/pick.mjs gateBrief)
+ */
+async function pickCandidate(job, key, backend, manifest, { fresh = false } = {}) {
+  const { pick } = job;
+  mkdirSync(candDir, { recursive: true });
+  const side = readSidecar(job.id);
+  const save = () => writeJsonAtomic(sidecarOf(job.id), { ...side, id: job.id, updated: new Date().toISOString() }, 1);
+  const scored = [];
+  let strict = '';
+  for (let round = 0; round < 2; round++) {
+    const ask = round ? { ...job, prompt: strict + job.prompt } : job;
+    const hash = askHash(ask);
+    const made = [];
+    for (let k = 1; k <= pick.n; k++) {
+      const n = round * pick.n + k;
+      const raw = join(candDir, `${job.id}~${n}.raw.png`);
+      const out = join(candDir, `${job.id}~${n}.png`);
+      const before = side.candidates[n];
+      if (!fresh && !force && before?.hash === hash && before.made && existsSync(raw)) {
+        console.log(`  ${job.id} #${n}: reusing the candidate made ${before.made}`);
+        side.candidates[n] = { hash, round, made: before.made }; // scored again below: no results from an earlier run
+      } else {
+        try {
+          writeFileSync(raw, await callGemini(ask, key, backend));
+        } catch (e) {
+          if (e instanceof Stop) throw e;
+          log({ id: job.id, candidate: n, error: e.message });
+          console.log(`  ${job.id} #${n}: ${e.message}`);
+          continue;
+        }
+        side.candidates[n] = { hash, round, made: new Date().toISOString() };
+        save(); // the paid raw is on record before anything else can fail
+      }
+      try {
+        const qa = postProcess(job, raw, out);
+        side.candidates[n] = { ...side.candidates[n], qa };
+        if (qa.ok) made.push({ n, raw, out });
+        else log({ id: job.id, candidate: n, qa });
+      } catch (e) {
+        side.candidates[n] = { ...side.candidates[n], postError: firstLine(e) };
+        log({ id: job.id, candidate: n, postError: e.message });
+        console.log(`  ${job.id} #${n}: post-processing failed (${firstLine(e)}); its raw is kept`);
+      }
+    }
+    if (made.length) {
+      const res = runGate(job, manifest, made.map((c) => c.out));
+      made.forEach((c, i) => {
+        const r = res[i] ?? { error: 'no result' };
+        if (r.error) {
+          side.candidates[c.n] = { ...side.candidates[c.n], gateError: r.error };
+          log({ id: job.id, candidate: c.n, gateError: r.error });
+          console.log(`  ${job.id} #${c.n}: the gate could not score it (${r.error})`);
+          return;
+        }
+        const one = { ...c, ...r };
+        scored.push(one);
+        side.candidates[c.n] = { ...side.candidates[c.n], gate: gateBrief(one) };
+      });
+    }
+    save();
+    if (!needsStrict(scored)) break;
+    if (round === 0) {
+      strict = strictText(scored, pick);
+      const b = rankCandidates(scored)[0];
+      const missed = [...new Set(scored.flatMap((c) => failingGates(c.margins)))];
+      console.log(`  ${job.id}: no candidate inside the gates${b ? ` (the best misses by ${(-b.worst).toFixed(2)})` : ''}; one strict round${missed.length ? ` for ${missed.join(', ')}` : ''}`);
+    }
+  }
+  const b = rankCandidates(scored)[0];
+  if (!b) throw new Error('no usable candidate');
+  if (b.mirror) execFileSync('python3', ['-c', 'import sys; from PIL import Image; Image.open(sys.argv[1]).transpose(Image.FLIP_LEFT_RIGHT).save(sys.argv[2])', b.raw, rawOf(job.id)]);
+  else copyFileSync(b.raw, rawOf(job.id));
+  side.picked = b.n;
+  save();
+  log({ id: job.id, picked: b.n, candidates: scored.map(gateBrief) });
+  return gateBrief(b);
+}
+
+/**
+ * Score what a gated job ships now (a reused raw, a repost) with today's gates. Keeps the number
+ * of the candidate it was picked as; if it cannot be scored, the old scores stay.
+ */
+function rescore(job, manifest) {
+  const prev = manifest.meta?.[job.id]?.gate ?? null;
+  const [r] = runGate(job, manifest, [outOf(job.id)]);
+  if (!r || r.error) {
+    log({ id: job.id, gateError: r?.error ?? 'no result' });
+    console.log(`  ${job.id}: the gate could not score it (${r?.error ?? 'no result'}); its old scores are kept`);
+    return prev;
+  }
+  if (r.mirror) console.warn(`⚠️  ${job.id} faces right: its raw should be mirrored (the renderer flips profiles assuming they face left)`);
+  return { ...gateBrief({ ...r, n: prev?.n ?? null }), rescored: new Date().toISOString() };
+}
+
+/** A gate's verdict in words: its failing margins, worst first. */
+const gateMisses = (g) => (g?.margins ? failingGates(g.margins).map((k) => `${k} ${g.margins[k]}`).join(', ') : `worst ${g?.worst}`);
+
 function writeSheet(jobs, manifest) {
+  const red = jobs.filter((j) => j.pick && manifest.meta?.[j.id]?.gate && !insideTolerance(manifest.meta[j.id].gate));
   const cards = jobs
     .map((j) => {
       const done = existsSync(outOf(j.id));
       const qa = manifest.meta?.[j.id]?.qa;
-      return `<figure class="${done ? '' : 'miss'}">${done ? `<img src="../../public/assets/${mock ? '_mock/' : ''}gen/${j.id}.png" onerror="this.onerror=null;this.src='/assets/${mock ? '_mock/' : ''}gen/${j.id}.png'" loading="lazy">` : '<div class="todo">not yet</div>'}<figcaption><b>${j.id}</b><span>${qa ? `cov ${qa.coverage}${qa.in_palette != null ? ` · palette ${Math.round(qa.in_palette * 100)}%` : ''}${qa.ok ? '' : ' · CHECK'}` : ''}</span></figcaption></figure>`;
+      const gate = j.pick ? manifest.meta?.[j.id]?.gate : null;
+      const out = gate && !insideTolerance(gate);
+      const verdict = !gate ? '' : out ? `<em>GATES ✗ ${gateMisses(gate)}</em>` : gate.pass ? ' · gates ✓' : ' · gates ✓ (within 0.03)';
+      return `<figure class="${[done ? '' : 'miss', out ? 'gate' : ''].join(' ').trim()}">${done ? `<img src="../../public/assets/${mock ? '_mock/' : ''}gen/${j.id}.png" onerror="this.onerror=null;this.src='/assets/${mock ? '_mock/' : ''}gen/${j.id}.png'" loading="lazy">` : '<div class="todo">not yet</div>'}<figcaption><b>${j.id}</b><span>${qa ? `cov ${qa.coverage}${qa.in_palette != null ? ` · palette ${Math.round(qa.in_palette * 100)}%` : ''}${qa.ok ? '' : ' · CHECK'}` : ''}${verdict}</span></figcaption></figure>`;
     })
     .join('');
   writeFileSync(
     sheetFile,
-    `<!doctype html><meta charset="utf-8"><title>Pipeline sheet</title><style>body{margin:0;background:#17203f;color:#fffaf2;font:600 13px Nunito,system-ui,sans-serif;padding:18px}h1{font:800 24px 'Baloo 2',sans-serif}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}figure{margin:0;background:#1f2a55;border-radius:12px;padding:8px;background-image:repeating-conic-gradient(#2a3566 0% 25%,#253060 0% 50%);background-size:14px 14px}figure img{width:100%;height:130px;object-fit:contain}figcaption b{display:block;font-size:11px}figcaption span{color:#c9d3ff;font-size:11px}.miss{opacity:.45}.todo{height:130px;display:grid;place-items:center;color:#93a0d6}</style><h1>Asset pipeline: ${jobs.filter((j) => existsSync(outOf(j.id))).length} / ${jobs.length} done</h1><div class="g">${cards}</div>`,
+    `<!doctype html><meta charset="utf-8"><title>Pipeline sheet</title><style>body{margin:0;background:#17203f;color:#fffaf2;font:600 13px Nunito,system-ui,sans-serif;padding:18px}h1{font:800 24px 'Baloo 2',sans-serif}h1 small{font-size:15px;color:#ff9a9a}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}figure{margin:0;background:#1f2a55;border-radius:12px;padding:8px;background-image:repeating-conic-gradient(#2a3566 0% 25%,#253060 0% 50%);background-size:14px 14px}figure img{width:100%;height:130px;object-fit:contain}figcaption b{display:block;font-size:11px}figcaption span{color:#c9d3ff;font-size:11px}figcaption em{display:block;font-style:normal;color:#ff9a9a}.gate{outline:3px solid #ef5a5a;outline-offset:-3px}.miss{opacity:.45}.todo{height:130px;display:grid;place-items:center;color:#93a0d6}</style><h1>Asset pipeline: ${jobs.filter((j) => existsSync(outOf(j.id))).length} / ${jobs.length} done${red.length ? ` <small>· ${red.length} outside the foe gates (red)</small>` : ''}</h1><div class="g">${cards}</div>`,
   );
+}
+
+/** The foes shipped outside their gates in this run, for the warning and the exit code. */
+const outside = new Set();
+/** Warn when a gated job ships outside its gates (tools/pick.mjs tolerance): the coordinator decides re-picks. */
+function warnGate(job, gate) {
+  if (!gate || insideTolerance(gate)) return;
+  if (acceptedMiss(gate, job.pick.accepted)) {
+    // the reviewed miss (src/art/foe-roster.js gateAccepted): still reported, not a failed run
+    console.warn(`⚠️  ${job.id} ships outside its gates (${gateMisses(gate)}, worst ${gate.worst}); accepted: ${job.pick.accepted.why}`);
+    return;
+  }
+  outside.add(job.id);
+  console.warn(`⚠️  ${job.id} ships OUTSIDE its gates: ${gateMisses(gate)} (worst ${gate.worst}); stored with pass: false, marked on the sheet`);
 }
 
 async function main() {
   const backend = pickBackend();
   const rows = buildAssetRows(PRICES[backend.models.fast] ?? PRICES[MODEL_FAST]);
   const { jobs: planned, skipped } = plan(rows, root, priorities, backend.models);
-  let jobs = only.length ? planned.filter((j) => only.includes(j.id)) : planned;
-  const manifest = loadManifest();
-  manifest.files ??= {};
-  manifest.meta ??= {};
+  const wanted = onlyMatcher(only);
+  let jobs = only.length ? planned.filter((j) => wanted(j.id)) : planned;
+  sweepTemps(manifestFile);
+  const manifest = readManifest(manifestFile);
+  /** Take the merged manifest a commit returns, so this run also sees what other processes wrote. */
+  const adopt = (m) => Object.assign(manifest, m);
 
   if (args.includes('--status')) {
     const done = jobs.filter((j) => existsSync(outOf(j.id))).length;
@@ -272,10 +552,19 @@ async function main() {
   const todo = jobs.filter((j) => force || !existsSync(outOf(j.id)));
   const jobIds = new Set(planned.map((j) => j.id));
   const byCode = rows.filter((r) => priorities.includes(r.priority) && !r.method.startsWith('Gemini') && !jobIds.has(r.id)).reduce((n, r) => n + r.count, 0);
-  const cost = todo.reduce((s, j) => s + costOf(j.model), 0);
-  const byModel = todo.reduce((m, j) => ((m[j.model] = (m[j.model] ?? 0) + 1), m), {});
+  // a gated job makes n candidates, and up to n more if it needs its strict round (tools/pick.mjs imagesFor)
+  const images = todo.reduce((n, j) => n + imagesFor(j).first, 0);
+  const most = todo.reduce((n, j) => n + imagesFor(j).most, 0);
+  const cost = todo.reduce((s, j) => s + costOf(j.model) * imagesFor(j).first, 0);
+  const costMost = todo.reduce((s, j) => s + costOf(j.model) * imagesFor(j).most, 0);
+  const byModel = todo.reduce((m, j) => ((m[j.model] = (m[j.model] ?? 0) + imagesFor(j).first), m), {});
+  const gated = todo.filter((j) => j.pick).length;
   if (!mock) console.log(`backend: ${backend.label}${envValue(backend.keyName) ? '' : ` (no ${backend.keyName} yet)`}`);
-  console.log(`plan: ${jobs.length} assets (${priorities.join('+')}), ${todo.length} to make, ~$${cost.toFixed(2)} for one pass (${Object.entries(byModel).map(([k, v]) => `${v} × ${k}`).join(', ')}); plus ${byCode} assets drawn in code (glyphs, plates, effects, UI)${skipped.length ? `; no job yet for ${skipped.join(', ')}` : ''}`);
+  console.log(
+    `plan: ${jobs.length} assets (${priorities.join('+')}), ${todo.length} to make: ${images} images, ~$${cost.toFixed(2)} for one pass (${Object.entries(byModel).map(([k, v]) => `${v} × ${k}`).join(', ')})` +
+      `${gated ? `, counting the candidates of ${gated} gated jobs; up to ${most} images, ~$${costMost.toFixed(2)}, if every gated job needs its strict round` : ''}` +
+      `; plus ${byCode} assets drawn in code (glyphs, plates, effects, UI)${skipped.length ? `; no job yet for ${skipped.join(', ')}` : ''}`,
+  );
   if (dry) {
     writeFileSync(join(cache, 'plan.json'), JSON.stringify(todo, null, 1));
     const order = [];
@@ -293,22 +582,47 @@ async function main() {
     }
     order.forEach((wave, i) => console.log(`wave ${i + 1}: ${wave.length} → ${wave.slice(0, 6).join(', ')}${wave.length > 6 ? ', …' : ''}`));
     console.log(`prompts written to ${join(cache, 'plan.json')}`);
-    writeSheet(jobs, manifest);
+    writeSheet(planned, manifest); // the sheet shows every planned asset, whatever --only picked
     return;
   }
 
   if (repost) {
-    let n = 0;
+    // post-process every cached raw first, then score the gated ones on what now ships (the other
+    // foes are their twins, so all of them are re-made before any is scored); each job's entry is
+    // merged into the manifest on disk on its own
+    const qas = new Map();
+    let broken = 0;
+    let rejected = 0;
     for (const j of jobs.filter((j) => existsSync(rawOf(j.id)))) {
-      const qa = postProcess(j);
-      manifest.files[j.id] = `gen/${j.id}.png`;
-      manifest.meta[j.id] = { ...manifest.meta[j.id], qa };
-      n += 1;
-      if (!qa.ok) console.log(`  ${j.id}: QA flagged ${JSON.stringify(qa)}`);
+      try {
+        // a failed QA keeps the shipped file: the new output goes beside it and moves in only when it passes
+        const next = `${outOf(j.id)}.repost.png`;
+        const qa = postProcess(j, rawOf(j.id), next);
+        if (qa.ok) renameSync(next, outOf(j.id));
+        else {
+          rmSync(next, { force: true });
+          rejected += 1;
+          console.log(`  ${j.id}: QA failed on repost (${JSON.stringify(qa)}); the shipped file is kept`);
+          continue;
+        }
+        qas.set(j.id, qa);
+      } catch (e) {
+        broken += 1;
+        log({ id: j.id, repost: true, postError: e.message });
+        console.log(`  ${j.id}: post-processing failed (${firstLine(e)})`);
+      }
     }
-    writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
-    writeSheet(jobs, manifest);
-    console.log(`re-post-processed ${n} cached raws`);
+    for (const j of jobs.filter((j) => qas.has(j.id))) {
+      const qa = qas.get(j.id);
+      const gate = j.pick ? rescore(j, manifest) : manifest.meta[j.id]?.gate;
+      adopt(commitManifest(manifestFile, { [j.id]: { file: `gen/${j.id}.png`, meta: { ...manifest.meta[j.id], qa, ...(gate ? { gate } : {}) } } }));
+      if (!qa.ok) console.log(`  ${j.id}: QA flagged ${JSON.stringify(qa)}`);
+      if (j.pick) warnGate(j, gate);
+    }
+    writeSheet(planned, manifest); // the sheet shows every planned asset, whatever --only picked
+    console.log(`re-post-processed ${qas.size} cached raws${broken ? `, ${broken} failed` : ''}${outside.size ? `; ${outside.size} gated jobs ship outside their gates: ${[...outside].join(', ')}` : ''}`);
+    if (rejected) console.warn(`⚠️  ${rejected} reposts failed QA and kept their shipped file`);
+    process.exitCode = broken || rejected ? 1 : outside.size ? 2 : 0;
     return;
   }
 
@@ -318,15 +632,15 @@ async function main() {
   let made = 0;
   let failed = 0;
 
-  function accept(job, qa, t) {
+  function accept(job, qa, t, picked) {
     lastProgress = Date.now();
-    manifest.files[job.id] = `gen/${job.id}.png`;
-    manifest.meta[job.id] = { qa, model: job.model, at: new Date().toISOString() };
-    manifest.generatedAt = new Date().toISOString();
-    writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+    const gate = picked ?? manifest.meta[job.id]?.gate;
+    const meta = { qa, model: job.model, at: new Date().toISOString(), ...(gate ? { gate } : {}) };
+    adopt(commitManifest(manifestFile, { [job.id]: { file: `gen/${job.id}.png`, meta } }));
     state.set(job.id, 'done');
     made += 1;
     console.log(`✓ ${job.id} (${((Date.now() - t) / 1000).toFixed(0)} s${qa.in_palette != null ? `, palette ${Math.round(qa.in_palette * 100)}% before snap` : ''}${qa.ok ? '' : ', QA flagged'})`);
+    if (job.pick) warnGate(job, gate);
   }
 
   async function runJob(job) {
@@ -334,8 +648,10 @@ async function main() {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const t = Date.now();
       const reuse = attempt === 1 && !force && existsSync(rawOf(job.id)); // paid for already: post-process only
+      let picked = null;
       try {
-        if (!reuse) writeFileSync(rawOf(job.id), await callGemini(job, key, backend));
+        if (!reuse && job.pick) picked = await pickCandidate(job, key, backend, manifest, { fresh: attempt > 1 });
+        else if (!reuse) writeFileSync(rawOf(job.id), await callGemini(job, key, backend));
       } catch (e) {
         if (e instanceof Stop) {
           stopped = e.message;
@@ -359,7 +675,8 @@ async function main() {
         console.log(`  ${job.id}: QA failed (coverage ${qa.coverage}, fringe ${qa.fringe}), ${reuse ? 'generating fresh' : 'retrying'}`);
         continue;
       }
-      accept(job, qa, t);
+      if (job.pick && !picked) picked = rescore(job, manifest); // a reused raw: scored as it ships, with today's gates
+      accept(job, qa, t, picked);
       return;
     }
     state.set(job.id, 'failed');
@@ -382,16 +699,28 @@ async function main() {
     await Promise.race(running);
   }
   await Promise.all(running);
-  writeSheet(jobs, manifest);
+  adopt(readManifest(manifestFile)); // the sheet shows what every process made
+  writeSheet(planned, manifest); // the sheet shows every planned asset, whatever --only picked
   const left = jobs.filter((j) => state.get(j.id) !== 'done').map((j) => j.id);
   const u = weeklyUsage(loadLedger(ledgerFile));
   console.log(`\n${made} made, ${failed} failed, ${left.length} not done; weekly spend $${u.usd.toFixed(2)}; sheet: ${sheetFile}`);
+  if (outside.size) console.warn(`⚠️  ${outside.size} gated jobs shipped OUTSIDE their gates: ${[...outside].join(', ')} (exit code 2)`);
   if (stopped) {
     writeFileSync(alertFile, `${new Date().toISOString()}\n${stopped}\n`);
     console.log(`\n⚠️  GEMINI IMAGE GENERATION STOPPED: ${stopped}\n   Finished assets are kept; run the same command again to resume.`);
     process.exitCode = 3;
   } else if (failed) process.exitCode = 1;
+  else if (outside.size) process.exitCode = 2;
 }
 
-main();
+// run as a script; imported (tests), it only offers its helpers
+// (real paths: a symlinked path to this script still runs it; an argv[1] that is no file is not this script)
+function isMain() {
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
+  } catch {
+    return false;
+  }
+}
+if (process.argv[1] && isMain()) main();
 

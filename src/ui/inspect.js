@@ -5,7 +5,8 @@
 // The card also sells a turret (+1 swipe's price) or breaks a dormant block (−3 swipes);
 // the button asks for a second tap before it acts.
 import './inspect.css';
-import { GRID, GRID_TOP, cellX } from '../config.js';
+import { GRID_TOP } from '../config.js';
+import { FRAME_GEOM } from '../art/frame-kit.js';
 import { ELEMENTS } from '../sim/classes.js';
 import { describeTile } from '../sim/describe.js';
 import { petName } from '../art/tokens.js';
@@ -75,14 +76,23 @@ export function createInspect(root, { stage, art, onClose, onDiscard }) {
       <span class="inspect-note">${esc(note)}</span>`;
   }
 
+  let placed = ''; // the layout the card was last placed for (it is shown, so offsetTop is real)
   function place() {
-    const left = stage.toClient(cellX(0) - GRID.cell / 2, 0).x;
-    const right = stage.toClient(cellX(3) + GRID.cell / 2, 0).x;
-    const w = Math.min(360, Math.max(260, right - left + 24));
-    el.style.width = `${w}px`;
-    el.style.left = `${(left + right) / 2 - w / 2}px`;
+    // between the field's towers, and never over the namecard rail on the right one: the card's right
+    // edge 4 px inside the right tower, as wide as the field allows (240–360 px); on a narrow field
+    // it reaches over the left tower instead
+    const root0 = root.getBoundingClientRect().left;
+    const towerL = stage.toClient(-FRAME_GEOM.towerIn, 0).x - root0;
+    const towerR = stage.toClient(FRAME_GEOM.towerIn, 0).x - root0;
+    const w = Math.max(240, Math.min(360, towerR - towerL - 8));
+    const left = Math.round(towerR - 4 - w);
     // never cover the board (the tapped block may sit in its top row): scroll inside instead
     const boardTop = stage.toClient(0, GRID_TOP).y;
+    const k = `${w}|${left}|${boardTop}`;
+    if (k === placed) return; // per frame while open: write only when the layout moved
+    placed = k;
+    el.style.width = `${w}px`;
+    el.style.left = `${left}px`;
     el.style.maxHeight = `${Math.max(180, boardTop - el.offsetTop - 6)}px`;
   }
 
@@ -125,8 +135,9 @@ export function createInspect(root, { stage, art, onClose, onDiscard }) {
      */
     show(tile, context = {}, dt = 0) {
       if (!tile) {
-        el.hidden = true;
+        if (!el.hidden) el.hidden = true; // no write per frame while nothing is picked
         key = '';
+        placed = '';
         armed = 0;
         return;
       }
@@ -144,8 +155,8 @@ export function createInspect(root, { stage, art, onClose, onDiscard }) {
       }
       renderAct();
       if (!el.isConnected) root.appendChild(el); // the HUD can rebuild its DOM
-      place();
       el.hidden = false;
+      place();
     },
   };
 }

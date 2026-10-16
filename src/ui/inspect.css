@@ -1,5 +1,8 @@
 /* Tile info popup (src/ui/inspect.js): a clay card in the HUD's own tokens, tinted by
-   the block's element colour (--c). */
+   the block's element colour (--c). inspect.js places it between the field's towers, never over
+   the namecard rail on the right one (it reaches over the left tower on a narrow field). It is the
+   one DOM card allowed over the lanes: it shows only while the player reads a block, and closes
+   with a tap anywhere. */
 .inspect {
   position: absolute;
   top: calc(var(--field-top, 18%) + 6px); /* below the top bars: the pause button stays in reach */
@@ -7,7 +10,8 @@
   max-height: calc(100% - var(--sa-t) - var(--sa-b) - 24px);
   overflow-y: auto;
   padding: 12px 14px 12px;
-  border-radius: 18px;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-plate, 18px);
   background: var(--cream);
   color: var(--ink);
   box-shadow:
@@ -44,8 +48,7 @@
   border-radius: 50%;
   background: var(--cream-2);
   color: var(--ink);
-  font: 800 20px/1 var(--font-display);
-  cursor: pointer;
+  cursor: pointer; /* its font is the card's (as it has always rendered) */
 }
 .inspect-x::before {
   content: '';
@@ -195,8 +198,7 @@
   padding: 6px 14px;
   border: 0;
   border-radius: 14px;
-  font: 800 15px var(--font-display);
-  color: var(--ink);
+  color: var(--ink); /* its font is the card's (as it has always rendered) */
   cursor: pointer;
   box-shadow: 0 3px 0 #96785a55;
 }
@@ -213,8 +215,7 @@
   background: var(--peach);
 }
 .inspect-sell.armed {
-  background: #ef6060;
-  color: var(--cream);
+  background: #ef6060; /* ink on it, 5.3:1 */
 }
 .inspect-sell:disabled {
   opacity: 0.5;

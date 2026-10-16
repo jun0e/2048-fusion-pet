@@ -1,0 +1,39 @@
+plan: 19 concepts, 19 to make; list price if all on gemini-3-pro-image: $2.55 (on gemini-3.1-flash-image: $1.27)
+✓ foe-moth-b (gemini-3-pro-image, 20 s)
+✓ foe-moth-a (gemini-3-pro-image, 21 s)
+✓ foe-fox-a (gemini-3-pro-image, 19 s)
+✓ foe-fox-b (gemini-3-pro-image, 20 s)
+✓ foe-pangolin-a (gemini-3-pro-image, 20 s)
+  foe-macaque-a: 429, waiting 20 s
+✓ foe-pangolin-b (gemini-3-pro-image, 20 s)
+  foe-macaque-b: 429, waiting 20 s
+  foe-macaque-b: 429, waiting 60 s
+✓ foe-macaque-a (gemini-3-pro-image, 43 s)
+  foe-hivequeen-a: 429, waiting 20 s
+  foe-hivequeen-a: 429, waiting 60 s
+✓ foe-macaque-b (gemini-3-pro-image, 104 s)
+  foe-hivequeen-b: 429, waiting 20 s
+  foe-hivequeen-a: 429, waiting 120 s
+  foe-hivequeen-b: 429, waiting 60 s
+✓ foe-hivequeen-b (gemini-3-pro-image, 100 s)
+✓ vfx-fire-sheet (gemini-3-pro-image, 18 s)
+  ladder-fire: 429, waiting 20 s
+✓ vfx-ice-sheet (gemini-3-pro-image, 22 s)
+  ladder-ice: 429, waiting 20 s
+✓ ladder-fire (gemini-3-pro-image, 42 s)
+✓ ladder-ice (gemini-3-pro-image, 42 s)
+  frame-kit-sheet: 429, waiting 20 s
+  frame-road-tile: 429, waiting 20 s
+  frame-kit-sheet: 429, waiting 60 s
+  frame-road-tile: 429, waiting 60 s
+  frame-road-tile: 429, waiting 120 s
+✓ frame-kit-sheet (gemini-3-pro-image, 99 s)
+✓ pose-fire-windup (gemini-3-pro-image, 19 s)
+  pose-ice-tailslap: 429, waiting 20 s
+  pose-ice-tailslap: 429, waiting 60 s
+  fusion-smogpup-coil: 429, waiting 20 s
+✓ pose-ice-tailslap (gemini-3-pro-image, 100 s)
+✓ fusion-smogpup-coil (gemini-3-pro-image, 45 s)
+
+17 made, 2 failed or skipped; concepts in /Users/lap14657/merge-ball-td-siege/.worktrees/ux-journey/reports/art/visual-overhaul/concepts; list-price total of all concepts so far $2.28
+exit 1

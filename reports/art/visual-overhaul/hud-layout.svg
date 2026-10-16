@@ -1,0 +1,269 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 900" width="1000" height="900" font-family="Helvetica, Arial, sans-serif">
+  <title>2048 Siege: proposed HUD, frame and layout zones (phone portrait 390x844)</title>
+  <desc>Wireframe of the overhauled run screen. Left: the phone at 1:1 CSS px. Right: numbered notes. Theme-neutral greys; the ink is #2b1d2e.</desc>
+  <style>
+    .ink { fill: #2b1d2e; }
+    .t   { font-size: 11px; fill: #2b1d2e; }
+    .tb  { font-size: 11px; fill: #2b1d2e; font-weight: 700; }
+    .ts  { font-size: 9px; fill: #5c5560; }
+    .tx  { font-size: 10.5px; fill: #2b1d2e; }
+    .h   { font-size: 15px; fill: #2b1d2e; font-weight: 700; }
+    .num { font-size: 9px; fill: #ffffff; font-weight: 700; }
+    .zone { fill: none; stroke: #c8102e; stroke-width: 1; stroke-dasharray: 4 3; }
+    .stone { fill: #d9d5cc; stroke: #2b1d2e; stroke-width: 1.5; }
+    .stone2 { fill: #c3beb3; stroke: #2b1d2e; stroke-width: 1.5; }
+    .cream { fill: #fffaf2; stroke: #2b1d2e; stroke-width: 1.5; }
+    .lane { fill: #ece6d8; stroke: #9a9387; stroke-width: 1; }
+    .tray { fill: #5f6680; stroke: #2b1d2e; stroke-width: 1.5; }
+    .keep { fill: #4c4a6a; stroke: #2b1d2e; stroke-width: 2; }
+    .slot { fill: #3e3c58; stroke: #6a6788; stroke-width: 1; }
+    .sky  { fill: #8b93b8; }
+    .hatch { fill: url(#hatch); }
+    .lead { stroke: #c8102e; stroke-width: 1; fill: none; }
+  </style>
+  <defs>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#b9b3a8" stroke-width="1"/>
+    </pattern>
+    <symbol id="callout" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#c8102e"/></symbol>
+  </defs>
+  <rect width="1000" height="900" fill="#ffffff"/>
+  <text x="30" y="20" class="h">2048 Siege · run screen wireframe (390×844, safe areas 47 / 34)</text>
+
+  <!-- ===================== PHONE ===================== -->
+  <g transform="translate(30,28)">
+    <rect x="-6" y="-6" width="402" height="856" rx="30" fill="#2b1d2e"/>
+    <rect x="0" y="0" width="390" height="844" rx="24" class="sky"/>
+    <!-- painted night valley hint -->
+    <rect x="0" y="0" width="390" height="844" rx="24" fill="#6f779c" opacity="0.5"/>
+    <path d="M0,520 C60,470 110,500 170,470 C240,440 300,480 390,450 L390,844 L0,844 Z" fill="#5a6288" opacity="0.9"/>
+
+    <!-- A safe area top -->
+    <rect x="0" y="0" width="390" height="47" class="hatch" opacity="0.6"/>
+    <text x="195" y="30" text-anchor="middle" class="ts">A · safe area (status bar) 47 px</text>
+
+    <!-- B top bar -->
+    <rect x="8" y="52" width="374" height="44" class="zone"/>
+    <circle cx="34" cy="74" r="22" class="stone"/><text x="34" y="78" text-anchor="middle" class="tb">II</text>
+    <circle cx="84" cy="74" r="22" class="stone"/><text x="84" y="78" text-anchor="middle" class="tb">x1</text>
+    <rect x="118" y="52" width="156" height="44" rx="14" class="cream"/>
+    <text x="196" y="74" text-anchor="middle" class="tb" font-size="20">1,416</text>
+    <text x="196" y="89" text-anchor="middle" class="ts">best 1,416</text>
+    <circle cx="356" cy="74" r="22" class="cream"/><text x="356" y="78" text-anchor="middle" class="tb">128</text>
+
+    <!-- C chapter lintel -->
+    <rect x="8" y="102" width="374" height="30" rx="6" class="stone2"/>
+    <rect x="8" y="102" width="374" height="30" class="zone"/>
+    <circle cx="26" cy="117" r="9" class="cream"/>
+    <text x="40" y="121" class="tb">Wave 6</text>
+    <text x="84" y="121" class="ts">Eternal Forest</text>
+    <!-- foes meter -->
+    <rect x="156" y="111" width="96" height="12" rx="6" fill="#fffaf2" stroke="#2b1d2e" stroke-width="1"/>
+    <rect x="156" y="111" width="38" height="12" rx="6" fill="#2b1d2e"/>
+    <text x="258" y="121" class="ts" fill="#2b1d2e">5 left</text>
+    <!-- keep grid: 4x4 cells = blocks alive -->
+    <g transform="translate(330,105)">
+      <rect x="0" y="0" width="24" height="24" rx="3" class="cream"/>
+      <g fill="#2b1d2e">
+        <rect x="3" y="9" width="4" height="4"/><rect x="9" y="9" width="4" height="4"/>
+        <rect x="3" y="15" width="4" height="4"/><rect x="9" y="15" width="4" height="4"/><rect x="15" y="15" width="4" height="4"/><rect x="21" y="15" width="1" height="4"/>
+        <rect x="3" y="20" width="4" height="2"/><rect x="9" y="20" width="4" height="2"/><rect x="15" y="20" width="4" height="2"/>
+      </g>
+      <text x="36" y="17" class="tb">10</text>
+    </g>
+
+    <!-- D news slot -->
+    <rect x="40" y="136" width="310" height="28" rx="14" class="zone"/>
+    <text x="195" y="154" text-anchor="middle" class="ts">D · news ribbon (one line, 28 px, in the sky above the gates)</text>
+
+    <!-- E field: towers, gates, lanes, parapet -->
+    <rect x="0" y="166" width="390" height="302" class="zone"/>
+    <!-- lane tray -->
+    <rect x="40" y="170" width="300" height="300" rx="10" class="tray"/>
+    <!-- towers -->
+    <rect x="12" y="166" width="26" height="304" rx="4" class="stone2"/>
+    <rect x="352" y="166" width="26" height="304" rx="4" class="stone2"/>
+    <rect x="8" y="160" width="34" height="12" rx="2" class="stone"/>
+    <rect x="348" y="160" width="34" height="12" rx="2" class="stone"/>
+    <!-- gates (arches) at the 4 column centres: 90,160,230,300 -->
+    <g class="stone">
+      <path d="M72,196 L72,180 A18,18 0 0 1 108,180 L108,196 Z"/>
+      <path d="M142,196 L142,180 A18,18 0 0 1 178,180 L178,196 Z"/>
+      <path d="M212,196 L212,180 A18,18 0 0 1 248,180 L248,196 Z"/>
+      <path d="M282,196 L282,180 A18,18 0 0 1 318,180 L318,196 Z"/>
+    </g>
+    <g fill="#2b1d2e">
+      <path d="M78,196 L78,184 A12,12 0 0 1 102,184 L102,196 Z"/>
+      <path d="M148,196 L148,184 A12,12 0 0 1 172,184 L172,196 Z"/>
+      <path d="M218,196 L218,184 A12,12 0 0 1 242,184 L242,196 Z"/>
+      <path d="M288,196 L288,184 A12,12 0 0 1 312,184 L312,196 Z"/>
+    </g>
+    <!-- next-wave preview chips inside two open gates -->
+    <circle cx="160" cy="188" r="5" fill="#fffaf2"/><circle cx="230" cy="188" r="5" fill="#fffaf2"/><text x="230" y="191" text-anchor="middle" class="ts" font-size="7">×3</text>
+    <!-- lanes -->
+    <g class="lane">
+      <rect x="65" y="196" width="50" height="262"/>
+      <rect x="135" y="196" width="50" height="262"/>
+      <rect x="205" y="196" width="50" height="262"/>
+      <rect x="275" y="196" width="50" height="262"/>
+    </g>
+    <!-- hedges between lanes -->
+    <g fill="#4a5a52">
+      <rect x="117" y="200" width="16" height="254" rx="6"/><rect x="187" y="200" width="16" height="254" rx="6"/><rect x="257" y="200" width="16" height="254" rx="6"/>
+    </g>
+    <!-- distance ticks (one per cell) -->
+    <g stroke="#9a9387" stroke-width="1">
+      <path d="M68,266 L112,266 M68,336 L112,336 M68,406 L112,406"/>
+      <path d="M138,266 L182,266 M138,336 L182,336 M138,406 L182,406"/>
+      <path d="M208,266 L252,266 M208,336 L252,336 M208,406 L252,406"/>
+      <path d="M278,266 L322,266 M278,336 L322,336 M278,406 L322,406"/>
+    </g>
+    <!-- a foe, a pet, a projectile -->
+    <ellipse cx="160" cy="250" rx="11" ry="9" class="ink"/><rect x="146" y="234" width="28" height="4" fill="#2b1d2e"/><rect x="147" y="235" width="18" height="2" fill="#fffaf2"/>
+    <ellipse cx="230" cy="300" rx="14" ry="12" class="ink"/>
+    <ellipse cx="230" cy="316" rx="14" ry="3" fill="#2b1d2e" opacity="0.35"/>
+    <path d="M160,380 L160,330" stroke="#2b1d2e" stroke-width="3" stroke-linecap="round"/>
+    <path d="M160,380 L160,420" stroke="#2b1d2e" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+    <!-- parapet with merlons and braziers -->
+    <rect x="40" y="456" width="300" height="14" class="stone2"/>
+    <g class="stone">
+      <rect x="76" y="446" width="28" height="12"/><rect x="146" y="446" width="28" height="12"/><rect x="216" y="446" width="28" height="12"/><rect x="286" y="446" width="28" height="12"/>
+    </g>
+    <circle cx="160" cy="444" r="5" fill="#2b1d2e"/><circle cx="230" cy="444" r="5" fill="#2b1d2e"/>
+    <!-- namecard rail on the right tower -->
+    <g>
+      <rect x="336" y="200" width="52" height="268" class="zone"/>
+      <g class="cream">
+        <rect x="338" y="202" width="48" height="58" rx="8"/>
+        <rect x="338" y="268" width="48" height="58" rx="8"/>
+        <rect x="338" y="334" width="48" height="58" rx="8"/>
+        <rect x="338" y="400" width="48" height="58" rx="8"/>
+      </g>
+      <rect x="338" y="246" width="48" height="14" rx="4" fill="#2b1d2e"/><text x="362" y="256" text-anchor="middle" class="num">READY</text>
+      <rect x="338" y="312" width="48" height="14" rx="4" fill="#9a9387"/><rect x="338" y="312" width="22" height="14" rx="4" fill="#2b1d2e"/>
+      <rect x="338" y="378" width="48" height="14" rx="4" fill="#9a9387"/><rect x="338" y="378" width="36" height="14" rx="4" fill="#2b1d2e"/>
+      <rect x="338" y="444" width="48" height="14" rx="4" fill="#9a9387"/><rect x="338" y="444" width="10" height="14" rx="4" fill="#2b1d2e"/>
+    </g>
+
+    <!-- F board keep -->
+    <rect x="50" y="470" width="290" height="284" class="zone"/>
+    <rect x="55" y="474" width="280" height="276" rx="10" class="keep"/>
+    <g class="stone">
+      <rect x="47" y="468" width="22" height="26" rx="3"/><rect x="321" y="468" width="22" height="26" rx="3"/>
+      <rect x="47" y="730" width="22" height="26" rx="3"/><rect x="321" y="730" width="22" height="26" rx="3"/>
+    </g>
+    <g class="slot">
+      <rect x="61" y="480" width="64" height="64" rx="8"/><rect x="131" y="480" width="64" height="64" rx="8"/><rect x="201" y="480" width="64" height="64" rx="8"/><rect x="271" y="480" width="64" height="64" rx="8"/>
+      <rect x="61" y="550" width="64" height="64" rx="8"/><rect x="131" y="550" width="64" height="64" rx="8"/><rect x="201" y="550" width="64" height="64" rx="8"/><rect x="271" y="550" width="64" height="64" rx="8"/>
+      <rect x="61" y="620" width="64" height="64" rx="8"/><rect x="131" y="620" width="64" height="64" rx="8"/><rect x="201" y="620" width="64" height="64" rx="8"/><rect x="271" y="620" width="64" height="64" rx="8"/>
+      <rect x="61" y="690" width="64" height="64" rx="8"/><rect x="131" y="690" width="64" height="64" rx="8"/><rect x="201" y="690" width="64" height="64" rx="8"/><rect x="271" y="690" width="64" height="64" rx="8"/>
+    </g>
+    <!-- example tiles -->
+    <g>
+      <rect x="131" y="620" width="64" height="64" rx="8" class="cream"/>
+      <text x="163" y="645" text-anchor="middle" class="tb" font-size="18">128</text>
+      <ellipse cx="163" cy="676" rx="20" ry="14" class="ink"/>
+      <circle cx="184" cy="674" r="6" fill="#fffaf2" stroke="#2b1d2e" stroke-width="1.5"/>
+      <rect x="201" y="690" width="64" height="64" rx="8" class="cream"/>
+      <text x="233" y="727" text-anchor="middle" class="tb" font-size="18">256</text>
+      <circle cx="212" cy="744" r="6" fill="#fffaf2" stroke="#2b1d2e" stroke-width="1.5"/><circle cx="254" cy="744" r="6" fill="#fffaf2" stroke="#2b1d2e" stroke-width="1.5"/>
+      <rect x="61" y="690" width="64" height="64" rx="8" class="cream"/>
+      <text x="93" y="717" text-anchor="middle" class="tb" font-size="20">8</text>
+      <ellipse cx="93" cy="740" rx="14" ry="16" class="ink"/>
+    </g>
+
+    <!-- G deck row -->
+    <rect x="90" y="758" width="210" height="30" class="zone"/>
+    <text x="104" y="777" class="ts">DECK</text>
+    <g class="cream">
+      <rect x="140" y="760" width="26" height="26" rx="7"/><rect x="172" y="760" width="26" height="26" rx="7"/><rect x="204" y="760" width="26" height="26" rx="7"/>
+    </g>
+    <rect x="244" y="760" width="48" height="26" rx="7" fill="none" stroke="#2b1d2e" stroke-dasharray="3 2"/>
+    <text x="268" y="777" text-anchor="middle" class="ts">at 256</text>
+
+    <!-- H bottom bar -->
+    <rect x="8" y="792" width="374" height="44" class="zone"/>
+    <rect x="12" y="794" width="150" height="40" rx="20" class="cream"/>
+    <circle cx="32" cy="814" r="11" fill="#2b1d2e"/>
+    <text x="50" y="820" class="tb" font-size="16">978</text>
+    <rect x="98" y="804" width="56" height="20" rx="10" fill="#e9e4d8" stroke="#2b1d2e" stroke-width="1"/>
+    <text x="126" y="818" text-anchor="middle" class="ts">Swipe 5 ▏</text>
+    <rect x="240" y="794" width="138" height="40" rx="12" class="stone"/>
+    <text x="309" y="819" text-anchor="middle" class="tb">Wave 7 now ▶ 12</text>
+    <rect x="0" y="836" width="390" height="8" class="hatch" opacity="0.6"/>
+  </g>
+
+  <!-- ===================== NOTES ===================== -->
+  <g transform="translate(450,60)">
+    <text class="h" y="0">Zones</text>
+    <g transform="translate(0,16)">
+      <use href="#callout" width="16" height="16"/><text x="22" y="12" class="tb">B · Top bar (52–96)</text>
+      <text x="22" y="26" class="tx">Pause and Speed: 44 px stone discs. Score plate: tabular numerals,</text>
+      <text x="22" y="39" class="tx">fixed width, best beneath. Top-block chip right. Nothing else.</text>
+    </g>
+    <g transform="translate(0,66)">
+      <use href="#callout" width="16" height="16"/><text x="22" y="12" class="tb">C · Chapter lintel (102–132)</text>
+      <text x="22" y="26" class="tx">A stone bar: chapter crest + "Wave 6" · foes-left meter (fills down)</text>
+      <text x="22" y="39" class="tx">· keep grid = blocks alive as a 4×4 glyph. On a boss wave the meter</text>
+      <text x="22" y="52" class="tx">becomes the boss HP bar with its portrait chip.</text>
+    </g>
+    <g transform="translate(0,128)">
+      <use href="#callout" width="16" height="16"/><text x="22" y="12" class="tb">D · News ribbon (136–164)</text>
+      <text x="22" y="26" class="tx">One line in the sky above the gates; wave-cleared and boss banners</text>
+      <text x="22" y="39" class="tx">live here and never below it. Queue as today (1.8 s minimum).</text>
+    </g>
+    <g transform="translate(0,178)">
+      <use href="#callout" width="16" height="16"/><text x="22" y="12" class="tb">E · Field frame (166–470)</text>
+      <text x="22" y="26" class="tx">Stone towers left/right; four gate arches (the portals): an open gate shows</text>
+      <text x="22" y="39" class="tx">next-wave enemy chips (silhouette + count). Lanes are cobbled roads with</text>
+      <text x="22" y="52" class="tx">a tick per cell; hedges between lanes give foes a dark edge to pop against.</text>
+      <text x="22" y="65" class="tx">Attacked-lane warning: braziers on the parapet, not a red additive wash.</text>
+    </g>
+    <g transform="translate(0,254)">
+      <use href="#callout" width="16" height="16"/><text x="22" y="12" class="tb">Namecard rail (x 336–388)</text>
+      <text x="22" y="26" class="tx">Cards hang on the right tower, 48–52 px wide, never over lane 4 (ends at</text>
+      <text x="22" y="39" class="tx">x 325). Charge = a fill bar under the portrait; READY = inverted pill + rim.</text>
+      <text x="22" y="52" class="tx">360 px phones: cards 44 px, the tower absorbs the difference.</text>
+    </g>
+    <g transform="translate(0,316)">
+      <use href="#callout" width="16" height="16"/><text x="22" y="12" class="tb">Parapet (446–470)</text>
+      <text x="22" y="26" class="tx">Crenellated wall where lanes meet the keep: one merlon per column, a lit</text>
+      <text x="22" y="39" class="tx">brazier marks a lane under pressure (steady, small: photosafe by design).</text>
+    </g>
+    <g transform="translate(0,366)">
+      <use href="#callout" width="16" height="16"/><text x="22" y="12" class="tb">F · The keep (470–754)</text>
+      <text x="22" y="26" class="tx">Stone frame with corner towers; slots are flagstone pits. Tile layout stays</text>
+      <text x="22" y="39" class="tx">the proportion guide's: number up top, creature over the sill, glyph badge;</text>
+      <text x="22" y="52" class="tx">dens keep both badges and the number centred.</text>
+    </g>
+    <g transform="translate(0,428)">
+      <use href="#callout" width="16" height="16"/><text x="22" y="12" class="tb">G · Deck (758–788)</text>
+      <text x="22" y="26" class="tx">Dice badges plus a dashed "next die at 256" slot (the unlock rule, visible).</text>
+    </g>
+    <g transform="translate(0,466)">
+      <use href="#callout" width="16" height="16"/><text x="22" y="12" class="tb">H · Bottom bar (792–836)</text>
+      <text x="22" y="26" class="tx">Coin plate with the swipe price and a step tick ("+1 in 4 swipes");</text>
+      <text x="22" y="39" class="tx">Wave now as a stone button, 40 px tall, boss tint when a boss is next.</text>
+    </g>
+    <g transform="translate(0,520)">
+      <text class="h" y="12">Rules the layout keeps</text>
+      <text y="30" class="tx">· No DOM element over a lane or the board (banners, cards, popups). Diegetic marks only.</text>
+      <text y="44" class="tx">· Text ≥ 12 px; targets ≥ 44 px; stable widths (tabular numerals, fixed slots).</text>
+      <text y="58" class="tx">· Stage insets measured from the lintel's bottom and the deck's top (as fitStage does now).</text>
+      <text y="72" class="tx">· One ink (#2b1d2e), one cream (#fffaf2), one stone grey family; element colours only as signals.</text>
+      <text y="86" class="tx">· Reduce motion: ribbons fade in place; braziers hold steady; no shakes.</text>
+      <text y="100" class="tx">· Boss wave: lintel meter → boss HP bar; the boss gate wears red banners; everything else unchanged.</text>
+    </g>
+    <g transform="translate(0,640)">
+      <text class="h" y="12">Vertical budget (390×844)</text>
+      <text y="30" class="tx">safe 47 · top bar 44 · lintel 30 · news 28 · field 304 · parapet (in field) · keep 284 · deck 30 · bottom 44 · safe 34</text>
+      <text y="44" class="tx">Field = 8 world units above the keep as today (U ≈ 35 px/unit at 390×844; U ≈ 32 at 360×640).</text>
+      <text y="58" class="tx">Short phones (≤ 700 px tall): the news ribbon overlaps the lintel's bottom edge; the lintel drops the chapter name.</text>
+    </g>
+    <g transform="translate(0,720)">
+      <text class="h" y="12">Owner</text>
+      <text y="30" class="tx">UX fork: zones B, C, D, G, H, the rail and the dialogs (src/ui, src/ux). Art fork: the frame kit (towers, gates,</text>
+      <text y="44" class="tx">lanes, parapet, keep) in src/render/scenery.js + src/art/frame.js, and the tile layout (blocks.js).</text>
+    </g>
+  </g>
+</svg>

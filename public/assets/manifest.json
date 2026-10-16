@@ -171,9 +171,52 @@
     "portrait.metal+nature.ascended": "gen/portrait.metal+nature.ascended.png",
     "enemy.elfRuler.portrait": "gen/enemy.elfRuler.portrait.png",
     "enemy.kiteNinja.portrait": "gen/enemy.kiteNinja.portrait.png",
-    "enemy.dragonRider.portrait": "gen/enemy.dragonRider.portrait.png"
+    "enemy.dragonRider.portrait": "gen/enemy.dragonRider.portrait.png",
+    "vfx.fire.tongue": "gen/vfx.fire.tongue.png",
+    "vfx.fire.ember": "gen/vfx.fire.ember.png",
+    "vfx.fire.smoke": "gen/vfx.fire.smoke.png",
+    "vfx.fire.burst": "gen/vfx.fire.burst.png",
+    "vfx.fire.scorch": "gen/vfx.fire.scorch.png",
+    "vfx.ice.harpoon": "gen/vfx.ice.harpoon.png",
+    "vfx.ice.shard": "gen/vfx.ice.shard.png",
+    "vfx.ice.block": "gen/vfx.ice.block.png",
+    "vfx.ice.burst": "gen/vfx.ice.burst.png",
+    "vfx.ice.frost": "gen/vfx.ice.frost.png",
+    "vfx.lightning.link": "gen/vfx.lightning.link.png",
+    "vfx.lightning.spark": "gen/vfx.lightning.spark.png",
+    "vfx.lightning.burst": "gen/vfx.lightning.burst.png",
+    "vfx.poison.glob": "gen/vfx.poison.glob.png",
+    "vfx.poison.drip": "gen/vfx.poison.drip.png",
+    "vfx.poison.bubble": "gen/vfx.poison.bubble.png",
+    "vfx.poison.splat": "gen/vfx.poison.splat.png",
+    "vfx.earth.pebble": "gen/vfx.earth.pebble.png",
+    "vfx.earth.dust": "gen/vfx.earth.dust.png",
+    "vfx.earth.stars": "gen/vfx.earth.stars.png",
+    "vfx.earth.crack": "gen/vfx.earth.crack.png",
+    "vfx.wind.swirl": "gen/vfx.wind.swirl.png",
+    "vfx.wind.feather": "gen/vfx.wind.feather.png",
+    "vfx.wind.streak": "gen/vfx.wind.streak.png",
+    "vfx.metal.slash": "gen/vfx.metal.slash.png",
+    "vfx.metal.glint": "gen/vfx.metal.glint.png",
+    "vfx.nature.arc": "gen/vfx.nature.arc.png",
+    "vfx.nature.tendril": "gen/vfx.nature.tendril.png",
+    "vfx.nature.leaf": "gen/vfx.nature.leaf.png",
+    "vfx.nature.blossom": "gen/vfx.nature.blossom.png",
+    "env.brazier": "gen/env.brazier.png",
+    "env.flame": "gen/env.flame.png",
+    "env.banner": "gen/env.banner.png",
+    "env.lantern": "gen/env.lantern.png",
+    "env.moss": "gen/env.moss.png",
+    "env.mushroom": "gen/env.mushroom.png",
+    "env.ember": "gen/env.ember.png",
+    "env.forest.ridge": "gen/env.forest.ridge.png",
+    "env.fareast.ridge": "gen/env.fareast.ridge.png",
+    "env.peaks.ridge": "gen/env.peaks.ridge.png",
+    "env.forest.backdrop": "gen/env.forest.backdrop.png",
+    "env.fareast.backdrop": "gen/env.fareast.backdrop.png",
+    "env.peaks.backdrop": "gen/env.peaks.backdrop.png"
   },
-  "generatedAt": "2026-10-14T15:41:12.312Z",
+  "generatedAt": "2026-10-15T22:17:16.995Z",
   "meta": {
     "pet.fire.16": {
       "qa": {
@@ -1057,20 +1100,62 @@
           1024
         ],
         "key": [
-          9,
-          243,
-          6
+          253,
+          1,
+          251
         ],
-        "coverage": 0.579,
+        "rim_mode": "none",
+        "rim_share": 0,
+        "rim_px": 0,
+        "coverage": 0.459,
         "size": [
-          210,
-          256
+          512,
+          492
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T07:55:10.013Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T19:20:03.995Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 2,
+        "pass": false,
+        "inside": true,
+        "score": 0.9821,
+        "worst": -0.016,
+        "margins": {
+          "contract": 0.041,
+          "twin": 0.056,
+          "twinChapter": 0.006,
+          "ally": -0.016,
+          "ground": 0.047
+        },
+        "contract40": 0.641,
+        "contract120": 0.619,
+        "mirror": false,
+        "twin": [
+          0.544,
+          "enemy.elfRuler"
+        ],
+        "twinChapter": [
+          0.544,
+          "enemy.elfRuler"
+        ],
+        "ally": [
+          0.666,
+          "fusion.wind+nature"
+        ],
+        "ground": {
+          "lane": 0.636,
+          "hedge": 0.473,
+          "keep": 0.38,
+          "fareast.hedge": 0.467
+        },
+        "light": 0.329,
+        "dark": 0.248,
+        "rescored": "2026-10-15T22:17:10.640Z"
+      }
     },
     "enemy.griffinChick": {
       "qa": {
@@ -1079,20 +1164,62 @@
           1024
         ],
         "key": [
-          16,
-          240,
-          8
+          9,
+          248,
+          6
         ],
-        "coverage": 0.519,
+        "rim_mode": "flood",
+        "rim_share": 0.1499,
+        "rim_px": 23,
+        "rim_kept": 0,
+        "coverage": 0.431,
         "size": [
-          201,
-          256
+          512,
+          403
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T07:56:32.322Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T19:26:14.668Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 6,
+        "pass": true,
+        "inside": true,
+        "score": 1.5761,
+        "worst": 0.012,
+        "margins": {
+          "contract": 0.39,
+          "twin": 0.024,
+          "twinChapter": 0.012,
+          "ally": 0.072,
+          "ground": 0.037
+        },
+        "contract40": 0.99,
+        "contract120": 0.986,
+        "mirror": false,
+        "twin": [
+          0.576,
+          "enemy.armoredSoldier"
+        ],
+        "twinChapter": [
+          0.538,
+          "enemy.elfRuler"
+        ],
+        "ally": [
+          0.578,
+          "fusion.lightning+earth"
+        ],
+        "ground": {
+          "lane": 0.674,
+          "hedge": 0.447,
+          "keep": 0.37
+        },
+        "light": 0.272,
+        "dark": 0.628,
+        "rescored": "2026-10-15T22:17:11.006Z"
+      }
     },
     "enemy.leafSprite": {
       "qa": {
@@ -1101,20 +1228,62 @@
           1024
         ],
         "key": [
-          253,
-          2,
-          249
+          252,
+          4,
+          250
         ],
-        "coverage": 0.567,
+        "rim_mode": "flood",
+        "rim_share": 0,
+        "rim_px": 1,
+        "rim_kept": 0,
+        "coverage": 0.503,
         "size": [
-          209,
-          256
+          512,
+          454
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T07:58:15.029Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T19:32:26.333Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 4,
+        "pass": false,
+        "inside": false,
+        "score": 0.9019,
+        "worst": -0.048,
+        "margins": {
+          "contract": 0.047,
+          "twin": 0.002,
+          "twinChapter": -0.048,
+          "ally": 0.056,
+          "ground": 0.156
+        },
+        "contract40": 0.647,
+        "contract120": 0.649,
+        "mirror": false,
+        "twin": [
+          0.598,
+          "enemy.hoodedFlier"
+        ],
+        "twinChapter": [
+          0.598,
+          "enemy.hoodedFlier"
+        ],
+        "ally": [
+          0.594,
+          "fusion.ice+metal"
+        ],
+        "ground": {
+          "lane": 0.79,
+          "hedge": 0.571,
+          "keep": 0.489
+        },
+        "light": 0.106,
+        "dark": 0.439,
+        "rescored": "2026-10-15T22:17:11.379Z"
+      }
     },
     "enemy.axolotlFairy": {
       "qa": {
@@ -1123,20 +1292,62 @@
           1024
         ],
         "key": [
-          14,
-          237,
+          8,
+          251,
           6
         ],
-        "coverage": 0.545,
+        "rim_mode": "flood",
+        "rim_share": 0.1975,
+        "rim_px": 52,
+        "rim_kept": 0,
+        "coverage": 0.315,
         "size": [
-          235,
-          256
+          512,
+          468
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:00:23.259Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T19:35:10.999Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 3,
+        "pass": true,
+        "inside": true,
+        "score": 1.5166,
+        "worst": 0.038,
+        "margins": {
+          "contract": 0.348,
+          "twin": 0.07,
+          "twinChapter": 0.038,
+          "ally": 0.192,
+          "ground": 0.055
+        },
+        "contract40": 0.948,
+        "contract120": 0.944,
+        "mirror": false,
+        "twin": [
+          0.53,
+          "enemy.dragonRider"
+        ],
+        "twinChapter": [
+          0.512,
+          "enemy.griffinChick"
+        ],
+        "ally": [
+          0.458,
+          "fusion.ice+lightning"
+        ],
+        "ground": {
+          "lane": 0.699,
+          "hedge": 0.4,
+          "keep": 0.388
+        },
+        "light": 0.225,
+        "dark": 0.61,
+        "rescored": "2026-10-15T22:17:11.750Z"
+      }
     },
     "fusion.fire+ice": {
       "qa": {
@@ -2493,20 +2704,62 @@
           1024
         ],
         "key": [
-          13,
-          235,
-          7
+          7,
+          249,
+          6
         ],
-        "coverage": 0.521,
+        "rim_mode": "flood",
+        "rim_share": 0.0001,
+        "rim_px": 3,
+        "rim_kept": 0,
+        "coverage": 0.471,
         "size": [
-          239,
-          256
+          498,
+          512
         ],
-        "fringe": 0.0001,
+        "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:57:58.516Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T19:41:15.461Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 1,
+        "pass": false,
+        "inside": false,
+        "score": 1.262,
+        "worst": -0.055,
+        "margins": {
+          "contract": 0.354,
+          "twin": -0.005,
+          "twinChapter": -0.055,
+          "ally": -0.006,
+          "ground": 0.053
+        },
+        "contract40": 0.954,
+        "contract120": 0.95,
+        "mirror": false,
+        "twin": [
+          0.605,
+          "enemy.leafSprite"
+        ],
+        "twinChapter": [
+          0.605,
+          "enemy.leafSprite"
+        ],
+        "ally": [
+          0.656,
+          "fusion.poison+earth"
+        ],
+        "ground": {
+          "lane": 0.696,
+          "hedge": 0.472,
+          "keep": 0.386
+        },
+        "light": 0.299,
+        "dark": 0.6,
+        "rescored": "2026-10-15T22:17:12.129Z"
+      }
     },
     "enemy.flameSprite": {
       "qa": {
@@ -2515,20 +2768,62 @@
           1024
         ],
         "key": [
-          13,
-          237,
+          10,
+          249,
           6
         ],
-        "coverage": 0.534,
+        "rim_mode": "flood",
+        "rim_share": 0,
+        "rim_px": 1,
+        "rim_kept": 0,
+        "coverage": 0.276,
         "size": [
-          200,
-          256
+          512,
+          424
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:58:52.057Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T19:47:27.506Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 3,
+        "pass": true,
+        "inside": true,
+        "score": 1.4718,
+        "worst": 0.046,
+        "margins": {
+          "contract": 0.317,
+          "twin": 0.144,
+          "twinChapter": 0.094,
+          "ally": 0.28,
+          "ground": 0.046
+        },
+        "contract40": 0.917,
+        "contract120": 0.92,
+        "mirror": false,
+        "twin": [
+          0.456,
+          "enemy.axolotlFairy"
+        ],
+        "twinChapter": [
+          0.456,
+          "enemy.axolotlFairy"
+        ],
+        "ally": [
+          0.37,
+          "fusion.earth+metal"
+        ],
+        "ground": {
+          "lane": 0.664,
+          "hedge": 0.43,
+          "keep": 0.379
+        },
+        "light": 0.06,
+        "dark": 0.621,
+        "rescored": "2026-10-15T22:17:12.496Z"
+      }
     },
     "enemy.ninja": {
       "qa": {
@@ -2537,20 +2832,62 @@
           1024
         ],
         "key": [
-          14,
-          234,
-          7
+          9,
+          248,
+          5
         ],
-        "coverage": 0.489,
+        "rim_mode": "flood",
+        "rim_share": 0,
+        "rim_px": 1,
+        "rim_kept": 0,
+        "coverage": 0.444,
         "size": [
-          171,
-          256
+          512,
+          355
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:00:08.530Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T19:53:35.332Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 1,
+        "pass": false,
+        "inside": false,
+        "score": 1.0435,
+        "worst": -0.082,
+        "margins": {
+          "contract": 0.276,
+          "twin": 0.084,
+          "twinChapter": 0.051,
+          "ally": 0.182,
+          "ground": -0.082
+        },
+        "contract40": 0.876,
+        "contract120": 0.866,
+        "mirror": false,
+        "twin": [
+          0.516,
+          "enemy.griffinChick"
+        ],
+        "twinChapter": [
+          0.499,
+          "enemy.armoredSoldier"
+        ],
+        "ally": [
+          0.468,
+          "fusion.earth+nature"
+        ],
+        "ground": {
+          "lane": 0.766,
+          "hedge": 0.395,
+          "keep": 0.251
+        },
+        "light": 0.23,
+        "dark": 0.695,
+        "rescored": "2026-10-15T22:17:12.852Z"
+      }
     },
     "enemy.armoredSoldier": {
       "qa": {
@@ -2559,20 +2896,61 @@
           1024
         ],
         "key": [
-          12,
-          234,
-          6
+          251,
+          5,
+          249
         ],
-        "coverage": 0.453,
+        "rim_mode": "none",
+        "rim_share": 0,
+        "rim_px": 0,
+        "coverage": 0.553,
         "size": [
-          231,
-          256
+          512,
+          298
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:00:42.038Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T19:59:09.774Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 3,
+        "pass": false,
+        "inside": false,
+        "score": 1.3716,
+        "worst": -0.034,
+        "margins": {
+          "contract": 0.344,
+          "twin": -0.034,
+          "twinChapter": 0.016,
+          "ally": 0.09,
+          "ground": 0.04
+        },
+        "contract40": 0.944,
+        "contract120": 0.941,
+        "mirror": false,
+        "twin": [
+          0.634,
+          "enemy.elfRuler"
+        ],
+        "twinChapter": [
+          0.534,
+          "enemy.pixie"
+        ],
+        "ally": [
+          0.56,
+          "fusion.ice+nature"
+        ],
+        "ground": {
+          "lane": 0.727,
+          "hedge": 0.405,
+          "keep": 0.373
+        },
+        "light": 0.217,
+        "dark": 0.624,
+        "rescored": "2026-10-15T22:17:13.210Z"
+      }
     },
     "enemy.ringMonk": {
       "qa": {
@@ -2581,20 +2959,62 @@
           1024
         ],
         "key": [
-          12,
-          238,
+          8,
+          247,
           7
         ],
-        "coverage": 0.583,
+        "rim_mode": "flood",
+        "rim_share": 0.0001,
+        "rim_px": 4,
+        "rim_kept": 0,
+        "coverage": 0.447,
         "size": [
-          153,
-          256
+          492,
+          512
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:01:56.986Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:02:04.157Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 2,
+        "pass": true,
+        "inside": true,
+        "score": 1.558,
+        "worst": 0.027,
+        "margins": {
+          "contract": 0.354,
+          "twin": 0.122,
+          "twinChapter": 0.072,
+          "ally": 0.027,
+          "ground": 0.182
+        },
+        "contract40": 0.954,
+        "contract120": 0.95,
+        "mirror": false,
+        "twin": [
+          0.478,
+          "enemy.pixie"
+        ],
+        "twinChapter": [
+          0.478,
+          "enemy.pixie"
+        ],
+        "ally": [
+          0.623,
+          "fusion.lightning+wind"
+        ],
+        "ground": {
+          "lane": 0.515,
+          "hedge": 0.572,
+          "keep": 0.541
+        },
+        "light": 0.338,
+        "dark": 0.173,
+        "rescored": "2026-10-15T22:17:13.583Z"
+      }
     },
     "enemy.kiteMinion": {
       "qa": {
@@ -2603,20 +3023,61 @@
           1024
         ],
         "key": [
-          11,
-          238,
-          6
+          9,
+          245,
+          7
         ],
-        "coverage": 0.441,
+        "rim_mode": "none",
+        "rim_share": 0,
+        "rim_px": 0,
+        "coverage": 0.415,
         "size": [
-          232,
-          256
+          512,
+          254
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:03:12.808Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:05:31.586Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 3,
+        "pass": false,
+        "inside": false,
+        "score": 1.3637,
+        "worst": -0.038,
+        "margins": {
+          "contract": 0.364,
+          "twin": 0.104,
+          "twinChapter": 0.054,
+          "ally": 0.294,
+          "ground": -0.038
+        },
+        "contract40": 0.964,
+        "contract120": 0.956,
+        "mirror": false,
+        "twin": [
+          0.496,
+          "enemy.armoredSoldier"
+        ],
+        "twinChapter": [
+          0.496,
+          "enemy.armoredSoldier"
+        ],
+        "ally": [
+          0.356,
+          "fusion.ice+nature"
+        ],
+        "ground": {
+          "lane": 0.724,
+          "hedge": 0.4,
+          "keep": 0.295
+        },
+        "light": 0.251,
+        "dark": 0.49,
+        "rescored": "2026-10-15T22:17:13.924Z"
+      }
     },
     "enemy.villager": {
       "qa": {
@@ -2625,20 +3086,62 @@
           1024
         ],
         "key": [
-          14,
-          237,
-          7
+          8,
+          247,
+          6
         ],
-        "coverage": 0.423,
+        "rim_mode": "flood",
+        "rim_share": 0.1754,
+        "rim_px": 48,
+        "rim_kept": 0,
+        "coverage": 0.462,
         "size": [
-          203,
-          256
+          487,
+          512
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:03:46.281Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:08:16.690Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 1,
+        "pass": true,
+        "inside": true,
+        "score": 1.5671,
+        "worst": 0.008,
+        "margins": {
+          "contract": 0.371,
+          "twin": 0.071,
+          "twinChapter": 0.067,
+          "ally": 0.008,
+          "ground": 0.11
+        },
+        "contract40": 0.971,
+        "contract120": 0.971,
+        "mirror": false,
+        "twin": [
+          0.529,
+          "enemy.elfRuler"
+        ],
+        "twinChapter": [
+          0.483,
+          "enemy.redDragon"
+        ],
+        "ally": [
+          0.642,
+          "fusion.earth+nature"
+        ],
+        "ground": {
+          "lane": 0.588,
+          "hedge": 0.451,
+          "keep": 0.443
+        },
+        "light": 0.277,
+        "dark": 0.556,
+        "rescored": "2026-10-15T22:17:14.300Z"
+      }
     },
     "enemy.wyvern": {
       "qa": {
@@ -2647,20 +3150,62 @@
           1024
         ],
         "key": [
-          252,
-          14,
-          249
+          5,
+          250,
+          5
         ],
-        "coverage": 0.456,
+        "rim_mode": "flood",
+        "rim_share": 0.0016,
+        "rim_px": 41,
+        "rim_kept": 0,
+        "coverage": 0.343,
         "size": [
-          256,
-          253
+          512,
+          481
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:04:59.435Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:14:23.664Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 5,
+        "pass": true,
+        "inside": true,
+        "score": 1.6047,
+        "worst": 0.096,
+        "margins": {
+          "contract": 0.4,
+          "twin": 0.128,
+          "twinChapter": 0.131,
+          "ally": 0.161,
+          "ground": 0.096
+        },
+        "contract40": 1,
+        "contract120": 0.995,
+        "mirror": false,
+        "twin": [
+          0.472,
+          "enemy.pixie"
+        ],
+        "twinChapter": [
+          0.419,
+          "enemy.phoenix"
+        ],
+        "ally": [
+          0.489,
+          "fusion.earth+wind"
+        ],
+        "ground": {
+          "lane": 0.631,
+          "hedge": 0.441,
+          "keep": 0.429
+        },
+        "light": 0.278,
+        "dark": 0.57,
+        "rescored": "2026-10-15T22:17:14.673Z"
+      }
     },
     "enemy.phoenix": {
       "qa": {
@@ -2669,20 +3214,62 @@
           1024
         ],
         "key": [
-          14,
-          237,
-          8
+          8,
+          246,
+          6
         ],
-        "coverage": 0.487,
+        "rim_mode": "flood",
+        "rim_share": 0,
+        "rim_px": 2,
+        "rim_kept": 0,
+        "coverage": 0.39,
         "size": [
-          218,
-          256
+          512,
+          339
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:06:13.034Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:19:59.820Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 5,
+        "pass": true,
+        "inside": true,
+        "score": 1.4367,
+        "worst": 0.098,
+        "margins": {
+          "contract": 0.27,
+          "twin": 0.098,
+          "twinChapter": 0.131,
+          "ally": 0.14,
+          "ground": 0.207
+        },
+        "contract40": 0.87,
+        "contract120": 0.863,
+        "mirror": false,
+        "twin": [
+          0.502,
+          "enemy.pixie"
+        ],
+        "twinChapter": [
+          0.419,
+          "enemy.wyvern"
+        ],
+        "ally": [
+          0.51,
+          "fusion.wind+nature"
+        ],
+        "ground": {
+          "lane": 0.54,
+          "hedge": 0.637,
+          "keep": 0.61
+        },
+        "light": 0.405,
+        "dark": 0.389,
+        "rescored": "2026-10-15T22:17:15.031Z"
+      }
     },
     "enemy.redDragon": {
       "qa": {
@@ -2691,20 +3278,62 @@
           1024
         ],
         "key": [
-          14,
-          237,
-          8
+          6,
+          248,
+          6
         ],
-        "coverage": 0.493,
+        "rim_mode": "flood",
+        "rim_share": 0,
+        "rim_px": 1,
+        "rim_kept": 0,
+        "coverage": 0.573,
         "size": [
-          227,
-          256
+          512,
+          348
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:06:45.484Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:23:24.114Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 1,
+        "pass": true,
+        "inside": true,
+        "score": 1.5768,
+        "worst": 0.014,
+        "margins": {
+          "contract": 0.382,
+          "twin": 0.014,
+          "twinChapter": 0.067,
+          "ally": 0.035,
+          "ground": 0.076
+        },
+        "contract40": 0.982,
+        "contract120": 0.986,
+        "mirror": false,
+        "twin": [
+          0.586,
+          "enemy.elfRuler"
+        ],
+        "twinChapter": [
+          0.483,
+          "enemy.villager"
+        ],
+        "ally": [
+          0.615,
+          "fusion.ice+nature"
+        ],
+        "ground": {
+          "lane": 0.684,
+          "hedge": 0.409,
+          "keep": 0.413
+        },
+        "light": 0.28,
+        "dark": 0.58,
+        "rescored": "2026-10-15T22:17:15.388Z"
+      }
     },
     "enemy.elfRuler": {
       "qa": {
@@ -2713,20 +3342,62 @@
           1024
         ],
         "key": [
-          12,
-          236,
+          8,
+          247,
           7
         ],
-        "coverage": 0.588,
+        "rim_mode": "flood",
+        "rim_share": 0.0004,
+        "rim_px": 17,
+        "rim_kept": 0,
+        "coverage": 0.469,
         "size": [
-          305,
-          384
+          768,
+          622
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:08:00.243Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:29:35.887Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 4,
+        "pass": false,
+        "inside": false,
+        "score": 1.0491,
+        "worst": -0.046,
+        "margins": {
+          "contract": 0.322,
+          "twin": -0.034,
+          "twinChapter": -0.046,
+          "ally": -0.035,
+          "ground": 0.203
+        },
+        "contract40": 0.922,
+        "contract120": 0.907,
+        "mirror": false,
+        "twin": [
+          0.634,
+          "enemy.armoredSoldier"
+        ],
+        "twinChapter": [
+          0.596,
+          "enemy.hoodedFlier"
+        ],
+        "ally": [
+          0.685,
+          "fusion.ice+earth"
+        ],
+        "ground": {
+          "lane": 0.625,
+          "hedge": 0.544,
+          "keep": 0.536
+        },
+        "light": 0.361,
+        "dark": 0.457,
+        "rescored": "2026-10-15T22:17:15.908Z"
+      }
     },
     "enemy.kiteNinja": {
       "qa": {
@@ -2735,20 +3406,62 @@
           1024
         ],
         "key": [
-          10,
-          239,
+          8,
+          247,
           6
         ],
-        "coverage": 0.505,
+        "rim_mode": "flood",
+        "rim_share": 0.0001,
+        "rim_px": 1,
+        "rim_kept": 0,
+        "coverage": 0.452,
         "size": [
-          357,
-          384
+          768,
+          731
         ],
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:09:14.249Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:32:07.163Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 1,
+        "pass": false,
+        "inside": true,
+        "score": 1.0828,
+        "worst": -0.029,
+        "margins": {
+          "contract": 0.145,
+          "twin": 0.055,
+          "twinChapter": 0.015,
+          "ally": 0.009,
+          "ground": -0.029
+        },
+        "contract40": 0.745,
+        "contract120": 0.755,
+        "mirror": false,
+        "twin": [
+          0.545,
+          "enemy.elfRuler"
+        ],
+        "twinChapter": [
+          0.535,
+          "enemy.pixie"
+        ],
+        "ally": [
+          0.641,
+          "fusion.ice+wind"
+        ],
+        "ground": {
+          "lane": 0.744,
+          "hedge": 0.355,
+          "keep": 0.304
+        },
+        "light": 0.24,
+        "dark": 0.502,
+        "rescored": "2026-10-15T22:17:16.466Z"
+      }
     },
     "enemy.dragonRider": {
       "qa": {
@@ -2757,20 +3470,62 @@
           1024
         ],
         "key": [
-          12,
-          239,
-          8
+          10,
+          245,
+          6
         ],
-        "coverage": 0.498,
+        "rim_mode": "flood",
+        "rim_share": 0.0001,
+        "rim_px": 3,
+        "rim_kept": 0,
+        "coverage": 0.28,
         "size": [
-          329,
-          384
+          768,
+          665
         ],
-        "fringe": 0.0001,
+        "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T11:09:48.807Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:35:33.473Z",
+      "gate": {
+        "gateVersion": 2,
+        "n": 3,
+        "pass": false,
+        "inside": true,
+        "score": 1.4574,
+        "worst": -0.021,
+        "margins": {
+          "contract": 0.38,
+          "twin": 0.07,
+          "twinChapter": 0.142,
+          "ally": 0.223,
+          "ground": -0.021
+        },
+        "contract40": 0.98,
+        "contract120": 0.967,
+        "mirror": false,
+        "twin": [
+          0.53,
+          "enemy.axolotlFairy"
+        ],
+        "twinChapter": [
+          0.408,
+          "enemy.redDragon"
+        ],
+        "ally": [
+          0.427,
+          "fusion.lightning+earth"
+        ],
+        "ground": {
+          "lane": 0.742,
+          "hedge": 0.312,
+          "keep": 0.32
+        },
+        "light": 0.133,
+        "dark": 0.674,
+        "rescored": "2026-10-15T22:17:16.995Z"
+      }
     },
     "badge.fire": {
       "qa": {
@@ -3825,8 +4580,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:38:53.180Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:44:02.047Z"
     },
     "enemy.kiteNinja.portrait": {
       "qa": {
@@ -3841,8 +4596,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:40:09.278Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:44:20.410Z"
     },
     "enemy.dragonRider.portrait": {
       "qa": {
@@ -3857,8 +4612,936 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:41:12.312Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:45:39.072Z"
+    },
+    "vfx.fire.tongue": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          6,
+          247,
+          6
+        ],
+        "coverage": 0.552,
+        "size": [
+          192,
+          161
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:36:00.103Z"
+    },
+    "vfx.fire.ember": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          7,
+          247,
+          6
+        ],
+        "coverage": 0.709,
+        "size": [
+          173,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:37:18.215Z"
+    },
+    "vfx.fire.smoke": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          6,
+          244,
+          10
+        ],
+        "coverage": 0.709,
+        "size": [
+          186,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:37:57.219Z"
+    },
+    "vfx.fire.burst": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          6,
+          246,
+          10
+        ],
+        "coverage": 0.551,
+        "size": [
+          256,
+          252
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:39:14.671Z"
+    },
+    "vfx.fire.scorch": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          7,
+          248,
+          5
+        ],
+        "coverage": 0.646,
+        "size": [
+          256,
+          227
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:40:30.851Z"
+    },
+    "vfx.ice.harpoon": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          9,
+          247,
+          6
+        ],
+        "coverage": 0.279,
+        "size": [
+          192,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:41:11.029Z"
+    },
+    "vfx.ice.shard": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          10,
+          248,
+          5
+        ],
+        "coverage": 0.655,
+        "size": [
+          165,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:42:28.467Z"
+    },
+    "vfx.ice.block": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          9,
+          246,
+          6
+        ],
+        "coverage": 0.761,
+        "size": [
+          190,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:43:05.999Z"
+    },
+    "vfx.ice.burst": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          7,
+          249,
+          5
+        ],
+        "coverage": 0.508,
+        "size": [
+          252,
+          256
+        ],
+        "fringe": 0.0001,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:44:25.726Z"
+    },
+    "vfx.ice.frost": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          17,
+          176,
+          51
+        ],
+        "coverage": 0.692,
+        "size": [
+          256,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:45:06.640Z"
+    },
+    "vfx.lightning.link": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          10,
+          247,
+          7
+        ],
+        "coverage": 0.515,
+        "size": [
+          192,
+          103
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:46:23.277Z"
+    },
+    "vfx.lightning.spark": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          10,
+          245,
+          10
+        ],
+        "coverage": 0.327,
+        "size": [
+          192,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:47:00.386Z"
+    },
+    "vfx.lightning.burst": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          8,
+          248,
+          5
+        ],
+        "coverage": 0.447,
+        "size": [
+          256,
+          255
+        ],
+        "fringe": 0.0001,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:48:18.738Z"
+    },
+    "vfx.poison.glob": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          24,
+          251
+        ],
+        "coverage": 0.546,
+        "size": [
+          192,
+          147
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:48:57.495Z"
+    },
+    "vfx.poison.drip": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          12,
+          252
+        ],
+        "coverage": 0.56,
+        "size": [
+          133,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:50:15.250Z"
+    },
+    "vfx.poison.bubble": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          42,
+          251
+        ],
+        "coverage": 0.696,
+        "size": [
+          191,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:51:32.736Z"
+    },
+    "vfx.poison.splat": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          14,
+          251
+        ],
+        "coverage": 0.401,
+        "size": [
+          256,
+          217
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:53:29.868Z"
+    },
+    "vfx.earth.pebble": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          10,
+          247,
+          5
+        ],
+        "coverage": 0.701,
+        "size": [
+          192,
+          187
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:54:08.465Z"
+    },
+    "vfx.earth.dust": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          8,
+          248,
+          6
+        ],
+        "coverage": 0.544,
+        "size": [
+          192,
+          152
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:55:24.744Z"
+    },
+    "vfx.earth.stars": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          7,
+          246,
+          10
+        ],
+        "coverage": 0.466,
+        "size": [
+          184,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:56:01.904Z"
+    },
+    "vfx.earth.crack": {
+      "qa": {
+        "src": [
+          1584,
+          672
+        ],
+        "key": [
+          6,
+          247,
+          8
+        ],
+        "coverage": 0.363,
+        "size": [
+          256,
+          70
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:46:18.735Z"
+    },
+    "vfx.wind.swirl": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          254,
+          47,
+          252
+        ],
+        "coverage": 0.484,
+        "size": [
+          192,
+          126
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:57:57.552Z"
+    },
+    "vfx.wind.feather": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          5,
+          249
+        ],
+        "coverage": 0.48,
+        "size": [
+          191,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T20:59:14.839Z"
+    },
+    "vfx.wind.streak": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          253,
+          51,
+          247
+        ],
+        "coverage": 0.543,
+        "size": [
+          256,
+          101
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:00:32.770Z"
+    },
+    "vfx.metal.slash": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          6,
+          249,
+          5
+        ],
+        "coverage": 0.435,
+        "size": [
+          192,
+          191
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:01:09.186Z"
+    },
+    "vfx.metal.glint": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          8,
+          248,
+          6
+        ],
+        "coverage": 0.302,
+        "size": [
+          188,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:02:27.800Z"
+    },
+    "vfx.nature.arc": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          254,
+          41,
+          253
+        ],
+        "coverage": 0.309,
+        "size": [
+          192,
+          188
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:03:05.483Z"
+    },
+    "vfx.nature.tendril": {
+      "qa": {
+        "src": [
+          1584,
+          672
+        ],
+        "key": [
+          253,
+          14,
+          250
+        ],
+        "coverage": 0.325,
+        "size": [
+          256,
+          52
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:47:36.059Z"
+    },
+    "vfx.nature.leaf": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          252,
+          4,
+          248
+        ],
+        "coverage": 0.687,
+        "size": [
+          184,
+          192
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:05:02.973Z"
+    },
+    "vfx.nature.blossom": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          254,
+          45,
+          252
+        ],
+        "coverage": 0.626,
+        "size": [
+          192,
+          184
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:06:21.162Z"
+    },
+    "env.brazier": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          10,
+          247,
+          6
+        ],
+        "coverage": 0.655,
+        "size": [
+          256,
+          204
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:06:58.529Z"
+    },
+    "env.flame": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          9,
+          247,
+          8
+        ],
+        "coverage": 0.576,
+        "size": [
+          202,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:08:16.217Z"
+    },
+    "env.banner": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          11,
+          243,
+          33
+        ],
+        "coverage": 0.79,
+        "size": [
+          113,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:08:52.666Z"
+    },
+    "env.lantern": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          8,
+          246,
+          8
+        ],
+        "coverage": 0.528,
+        "size": [
+          174,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:10:11.318Z"
+    },
+    "env.moss": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          254,
+          66,
+          253
+        ],
+        "coverage": 0.629,
+        "size": [
+          256,
+          202
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:11:28.162Z"
+    },
+    "env.mushroom": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          8,
+          245,
+          7
+        ],
+        "coverage": 0.615,
+        "size": [
+          256,
+          248
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:12:04.534Z"
+    },
+    "env.ember": {
+      "qa": {
+        "src": [
+          1024,
+          1024
+        ],
+        "key": [
+          6,
+          248,
+          11
+        ],
+        "coverage": 0.663,
+        "size": [
+          255,
+          256
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:13:21.854Z"
+    },
+    "env.forest.ridge": {
+      "qa": {
+        "src": [
+          1584,
+          672
+        ],
+        "key": [
+          248,
+          50,
+          252
+        ],
+        "coverage": 0.524,
+        "size": [
+          1024,
+          254
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:13:58.683Z"
+    },
+    "env.fareast.ridge": {
+      "qa": {
+        "src": [
+          1584,
+          672
+        ],
+        "key": [
+          11,
+          223,
+          28
+        ],
+        "coverage": 0.445,
+        "size": [
+          1024,
+          187
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:15:17.531Z"
+    },
+    "env.peaks.ridge": {
+      "qa": {
+        "src": [
+          1584,
+          672
+        ],
+        "key": [
+          8,
+          248,
+          7
+        ],
+        "coverage": 0.409,
+        "size": [
+          1024,
+          191
+        ],
+        "fringe": 0,
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:15:54.630Z"
+    },
+    "env.forest.backdrop": {
+      "qa": {
+        "src": [
+          768,
+          1376
+        ],
+        "coverage": 1,
+        "size": [
+          893,
+          1600
+        ],
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:17:15.142Z"
+    },
+    "env.fareast.backdrop": {
+      "qa": {
+        "src": [
+          768,
+          1376
+        ],
+        "coverage": 1,
+        "size": [
+          893,
+          1600
+        ],
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:18:34.127Z"
+    },
+    "env.peaks.backdrop": {
+      "qa": {
+        "src": [
+          768,
+          1376
+        ],
+        "coverage": 1,
+        "size": [
+          893,
+          1600
+        ],
+        "ok": true
+      },
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-15T21:19:14.868Z"
     }
   }
 }

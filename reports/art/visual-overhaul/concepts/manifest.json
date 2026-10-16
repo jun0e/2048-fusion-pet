@@ -1,0 +1,742 @@
+{
+ "images": {
+  "foe-moth-b": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "magenta",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-moth.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a luna moth foe (Moonmoth): broad pale-mint wings with soft eye-spots, a plump cream furry body, feathery antennae, two long tail streamers, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #A9D9C8, #E4EFE8, #F3EADC, #5F8F86, with rose pink #E58AA6 eye-spots as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid magenta #FF00FF, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:07:12.565Z",
+   "secs": 20,
+   "usd": 0.134,
+   "keyed": "concepts/foe-moth-b.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     252,
+     3,
+     249
+    ],
+    "coverage": 0.502,
+    "size": [
+     455,
+     512
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "foe-moth-a": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "magenta",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-moth.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a luna moth foe (Moonmoth): broad pale-mint wings with soft eye-spots, a plump cream furry body, feathery antennae, two long tail streamers, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #A9D9C8, #E4EFE8, #F3EADC, #5F8F86, with rose pink #E58AA6 eye-spots as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid magenta #FF00FF, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:07:13.778Z",
+   "secs": 21,
+   "usd": 0.134,
+   "keyed": "concepts/foe-moth-a.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     252,
+     9,
+     250
+    ],
+    "coverage": 0.462,
+    "size": [
+     469,
+     512
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "foe-fox-a": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-fox.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a shadow fox foe (Nightfox): a sleek low running fox with upright ears, a big brush tail with a cream tip, a small red scarf, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #3C3D5C, #5A5C82, #F3EADC, #8A8A9E, with red #C04848 on the scarf and eyes as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:07:32.764Z",
+   "secs": 19,
+   "usd": 0.134,
+   "keyed": "concepts/foe-fox-a.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     8,
+     248,
+     6
+    ],
+    "coverage": 0.377,
+    "size": [
+     512,
+     466
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "foe-fox-b": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-fox.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a shadow fox foe (Nightfox): a sleek low running fox with upright ears, a big brush tail with a cream tip, a small red scarf, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #3C3D5C, #5A5C82, #F3EADC, #8A8A9E, with red #C04848 on the scarf and eyes as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:07:33.863Z",
+   "secs": 20,
+   "usd": 0.134,
+   "keyed": "concepts/foe-fox-b.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     8,
+     248,
+     5
+    ],
+    "coverage": 0.422,
+    "size": [
+     512,
+     497
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "foe-pangolin-a": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "magenta",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-pangolin.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a pangolin guard foe: a wedge-shaped armoured body of overlapping lacquered scales, a small low head, short legs, a thick tail hooking up over its rump, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #7A5A3A, #A67C52, #E6D3B3, #4E3A26, with jade green #5F9A7A on the scale edges as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid magenta #FF00FF, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:07:53.086Z",
+   "secs": 20,
+   "usd": 0.134,
+   "keyed": "concepts/foe-pangolin-a.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     252,
+     3,
+     250
+    ],
+    "coverage": 0.481,
+    "size": [
+     512,
+     359
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "foe-pangolin-b": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "magenta",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-pangolin.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a pangolin guard foe: a wedge-shaped armoured body of overlapping lacquered scales, a small low head, short legs, a thick tail hooking up over its rump, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #7A5A3A, #A67C52, #E6D3B3, #4E3A26, with jade green #5F9A7A on the scale edges as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid magenta #FF00FF, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:07:54.302Z",
+   "secs": 20,
+   "usd": 0.134,
+   "keyed": "concepts/foe-pangolin-b.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     252,
+     2,
+     250
+    ],
+    "coverage": 0.518,
+    "size": [
+     512,
+     388
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "foe-macaque-a": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-macaque.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a snow macaque monk foe floating in a lotus pose, arms raised holding two brass ring cymbals clashed above its head, a round body, a round head with small ears, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #C9C3BB, #8C8680, #F3EADC, #D99A16, with red #C04848 on the face as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:08:36.780Z",
+   "secs": 43,
+   "usd": 0.134,
+   "keyed": "concepts/foe-macaque-a.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     8,
+     248,
+     5
+    ],
+    "coverage": 0.483,
+    "size": [
+     459,
+     512
+    ],
+    "fringe": 0.0001,
+    "ok": true
+   }
+  },
+  "foe-macaque-b": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-macaque.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a snow macaque monk foe floating in a lotus pose, arms raised holding two brass ring cymbals clashed above its head, a round body, a round head with small ears, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #C9C3BB, #8C8680, #F3EADC, #D99A16, with red #C04848 on the face as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:09:38.211Z",
+   "secs": 104,
+   "usd": 0.134,
+   "keyed": "concepts/foe-macaque-b.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     9,
+     249,
+     5
+    ],
+    "coverage": 0.62,
+    "size": [
+     377,
+     512
+    ],
+    "fringe": 0.0001,
+    "ok": true
+   }
+  },
+  "foe-hivequeen-b": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-hivequeen.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a hive queen bee boss: a low crowned head, a round thorax, a big banded abdomen hanging behind, two long narrow wings swept up and back, a stinger, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #D99A16, #2B1D2E, #F3EADC, #A66F10, with bright gold #FFD84A on the crown as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:11:19.047Z",
+   "secs": 100,
+   "usd": 0.134,
+   "keyed": "concepts/foe-hivequeen-b.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     8,
+     247,
+     6
+    ],
+    "coverage": 0.442,
+    "size": [
+     512,
+     419
+    ],
+    "fringe": 0.0001,
+    "ok": true
+   }
+  },
+  "vfx-fire-sheet": {
+   "group": "vfx",
+   "model": "gemini-3-pro-image",
+   "aspect": "16:9",
+   "bg": "magenta",
+   "refs": [],
+   "prompt": "A game VFX sprite sheet for the FIRE element of a cute sticker-style mobile game, items arranged in neat rows with clear gaps on a flat magenta background, no labels, no text, no frame. Row 1: a flame tongue (a rolling fire-breath shape pointing right) in three flicker variants. Row 2: six small ember shapes and three dark smoke puffs. Row 3: a dark flat scorch-mark decal, a horizontal ribbon trail segment that could tile end to end, a ring of small sun rays (a halo add-on). Row 4: an eight-frame ember-splash impact animation left to right, small to big to fading. Every item is a solid opaque flat shape with a thick dark plum outline (#2B1D2E) and one cel-shade tone, in warm fire colours (#C8352B, #F2662D, #FF9E3D, #FFD24A, #FFE9BF). No glow, no transparency, no gradients, no soft edges, no sparkles outside the shapes.",
+   "at": "2026-10-15T18:11:37.410Z",
+   "secs": 18,
+   "usd": 0.134,
+   "keyed": "concepts/vfx-fire-sheet.keyed.png",
+   "qa": {
+    "src": [
+     1376,
+     768
+    ],
+    "key": [
+     188,
+     64,
+     136
+    ],
+    "coverage": 0.271,
+    "size": [
+     512,
+     290
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "vfx-ice-sheet": {
+   "group": "vfx",
+   "model": "gemini-3-pro-image",
+   "aspect": "16:9",
+   "bg": "magenta",
+   "refs": [],
+   "prompt": "A game VFX sprite sheet for the ICE element of a cute sticker-style mobile game, items arranged in neat rows with clear gaps on a flat magenta background, no labels, no text, no frame. Row 1: a narrow crystal harpoon pointing right, two small crystal shard escorts, a short thin tether rope segment. Row 2: a sonar ping ring in four sizes from large to small (contracting). Row 3: an ice-block cage (a rounded cube of ice with cracks), a frost ring decal seen from above, a frost-crack add-on piece. Row 4: an eight-frame crystal-shatter impact animation left to right. Every item is a solid opaque flat shape with a thick dark plum outline (#2B1D2E) and one cel-shade tone, in cold colours (#2B5A86, #4FB3D9, #9BE7F5, #DDF7FC, #F7FDFF). No glow, no transparency, no gradients, no soft edges.",
+   "at": "2026-10-15T18:11:59.375Z",
+   "secs": 22,
+   "usd": 0.134,
+   "keyed": "concepts/vfx-ice-sheet.keyed.png",
+   "qa": {
+    "src": [
+     1376,
+     768
+    ],
+    "key": [
+     253,
+     24,
+     253
+    ],
+    "coverage": 0.333,
+    "size": [
+     512,
+     292
+    ],
+    "fringe": 0.0002,
+    "ok": true
+   }
+  },
+  "ladder-fire": {
+   "group": "ladder",
+   "model": "gemini-3-pro-image",
+   "aspect": "16:9",
+   "bg": "none",
+   "refs": [
+    "public/assets/gen/pet.fire.128.png",
+    "public/assets/gen/fusion.fire+ice.png"
+   ],
+   "prompt": "A concept strip for a cute sticker-style mobile tower-defense game: five equal panels side by side, each panel the same vertical cobbled sand lane seen from above with dark hedges, small cute enemy animals walking down from the top, and the fire creature at the bottom (image 1 is the baby fire dragon; image 2 is its grown form). The panels show how its fire-breath attack grows: panel 1: the baby breathes three tiny embers; panel 2: a short flame tongue with four embers and a small scorch mark; panel 3: a long flame tongue three cells long with ember rain and dark smoke puffs; panel 4: the grown dragon stands beside the lane and breathes a blue flame tongue with frost crystal shards along its edge; panel 5: the grown dragon wears a golden sun halo and breathes two flame licks with small gold rays. Flat cel shading, thick dark plum outlines, cream sticker rims on the creatures, no glow effects, no text. Landscape 16:9.",
+   "at": "2026-10-15T18:12:41.058Z",
+   "secs": 42,
+   "usd": 0.134
+  },
+  "ladder-ice": {
+   "group": "ladder",
+   "model": "gemini-3-pro-image",
+   "aspect": "16:9",
+   "bg": "none",
+   "refs": [
+    "public/assets/gen/pet.ice.128.png",
+    "public/assets/gen/fusion.ice+lightning.png"
+   ],
+   "prompt": "A concept strip for a cute sticker-style mobile tower-defense game: five equal panels side by side, each panel the same vertical cobbled sand lane seen from above with dark hedges, small cute enemy animals walking down from the top, and the ice creature at the bottom (image 1 is the baby orca; image 2 is its grown form). The panels show how its harpoon attack grows: panel 1: a dashed sonar ring contracts onto one enemy and a small crystal harpoon flies up on a thin tether line; panel 2: three sonar rings over three lanes and the harpoon leaves two faint ghost afterimages; panel 3: the harpoon flies with two shard escorts and the struck enemy is boxed inside a rounded ice block; panel 4: the grown orca swims beside the lane and throws a cyan harpoon with a small lightning spark on its tip; panel 5: the grown orca wears a golden clock-face halo and every enemy on the lane is boxed in ice. Flat cel shading, thick dark plum outlines, cream sticker rims on the creatures, no glow effects, no text. Landscape 16:9.",
+   "at": "2026-10-15T18:12:41.390Z",
+   "secs": 42,
+   "usd": 0.134
+  },
+  "frame-kit-sheet": {
+   "group": "frame",
+   "model": "gemini-3-pro-image",
+   "aspect": "16:9",
+   "bg": "magenta",
+   "refs": [],
+   "prompt": "A game environment kit sheet for a cute sticker-style tower-defense game, items arranged with clear gaps on a flat magenta background, no labels, no text: a stone castle keep corner with a short round corner tower; a straight segment of crenellated stone parapet with one merlon carrying an iron brazier, unlit; the same brazier lit with a small steady flame; a stone gate arch with a dark closed opening; the same arch open with a purple swirl inside; a straight stone tower pillar segment; a strip of dark green hedge; a short cobbled sand road segment with a thin tick line across it. Clay-toned palette (#CFCABF stone, #A9A295 stone shade, #E9E4D8 stone light, #8A6A43 timber, #4A5A52 hedge, #E9DCC0 sand), a thick dark plum outline (#2B1D2E), flat cel shading with one shade tone, no glow, no gradients.",
+   "at": "2026-10-15T18:14:19.856Z",
+   "secs": 99,
+   "usd": 0.134,
+   "keyed": "concepts/frame-kit-sheet.keyed.png",
+   "qa": {
+    "src": [
+     1376,
+     768
+    ],
+    "key": [
+     192,
+     69,
+     137
+    ],
+    "coverage": 0.475,
+    "size": [
+     512,
+     298
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "pose-fire-windup": {
+   "group": "poses",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "public/assets/gen/pet.fire.128.png"
+   ],
+   "prompt": "Same creature as the input image: same design, colours, markings, outline, cream sticker rim and framing. Change only the pose: it crouches low in a wind-up, chest puffed and cheeks full, eyes narrowed with effort, about to breathe fire; no fire yet. Facing left. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:14:39.325Z",
+   "secs": 19,
+   "usd": 0.134,
+   "keyed": "concepts/pose-fire-windup.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     7,
+     248,
+     5
+    ],
+    "coverage": 0.643,
+    "size": [
+     320,
+     269
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "pose-ice-tailslap": {
+   "group": "poses",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "public/assets/gen/pet.ice.128.png"
+   ],
+   "prompt": "Same creature as the input image: same design, colours, markings, outline, cream sticker rim and framing. Change only the pose: its tail is raised high mid tail-slap, body arched, mouth open in a sonar call. Facing left. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:16:19.650Z",
+   "secs": 100,
+   "usd": 0.134,
+   "keyed": "concepts/pose-ice-tailslap.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     7,
+     249,
+     5
+    ],
+    "coverage": 0.587,
+    "size": [
+     317,
+     320
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "fusion-smogpup-coil": {
+   "group": "fusion",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "magenta",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-smogpup.png",
+    "public/assets/gen/pet.fire.128.png",
+    "public/assets/gen/pet.poison.128.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette to fill: keep its proportions and pose exactly, facing left. Image 2 is a baby fire creature and image 3 a baby poison creature from the same game. Create ONE grown-up creature named Smogpup inside the silhouette: a long serpent-coiled body taken from the poison creature, the dragon head with small horns and a row of back spikes from the fire creature, its eyes and face from image 2, cool and powerful. HARD COLOUR RULE: body colours only from #C8352B, #F2662D, #FF9E3D, #FFD24A, #FFE9BF; at most two accents from #A35CF0 and #8FE53A; outline #2B1D2E, cream rim #FFFAF2. Polished mobile-game character art, sticker style: simple big clean rounded shapes with very few small details, a thick even dark plum outline (#2B1D2E) around every form, a thin cream-white sticker rim (#FFFAF2) outside the outline, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, big expressive eyes. Original design. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid magenta #FF00FF, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:16:47.690Z",
+   "secs": 45,
+   "usd": 0.134,
+   "keyed": "concepts/fusion-smogpup-coil.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     252,
+     4,
+     250
+    ],
+    "coverage": 0.611,
+    "size": [
+     308,
+     320
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "style-forest": {
+   "group": "style",
+   "model": "gemini-3-pro-image",
+   "aspect": "9:16",
+   "bg": "none",
+   "refs": [
+    "reports/art/visual-overhaul/inputs/01-gameplay-wave6.jpg",
+    "reports/art/visual-overhaul/concepts/refs/wireframe-phone.png"
+   ],
+   "prompt": "Image 1 is the current screen of the phone game 2048 Siege; image 2 is the wireframe of its visual redesign. Paint the redesigned screen as a finished game screenshot with the same phone proportions and the same structure: a 4x4 grid of numbered creature tiles at the bottom, four lanes above it, a HUD at the top. Art direction: a cute sticker-style tower-defense game, flat cel shading, thick dark plum outlines, no glow effects. The 4x4 board is a grey stone keep with round corner towers; where the lanes meet it runs a crenellated parapet with four iron braziers, one lit. The four lanes are cobbled sand roads with dark green hedges between them and a thin tick line per cell. At the top of the lanes stand four stone gate arches, two of them open with a purple swirl inside. Above the gates a stone lintel bar shows a wave number, a foes-left meter and a small 4x4 grid icon, and above the lintel a single cream news ribbon. Stone towers frame the lanes on both sides; four small cream portrait cards hang on the right tower. Foes walking down the lanes (muted colours, dark outlines, no cream rim, each a different animal): a pale luna moth, a brown dormouse, a green shield beetle with its wing cases raised. On the board, a baby fire dragon tile breathes a short flame tongue with embers up its lane, and a small crystal harpoon on a thin tether flies up another lane from an orca tile. Tiles are cream plates with big dark numbers at the top and chibi creatures peeking over the bottom edge, with a cream sticker rim. Behind everything a painted night-blue forest valley. No text other than the numbers. Portrait 9:16.",
+   "at": "2026-10-15T18:17:49.080Z",
+   "secs": 43,
+   "usd": 0.134
+  },
+  "style-fareast": {
+   "group": "style",
+   "model": "gemini-3-pro-image",
+   "aspect": "9:16",
+   "bg": "none",
+   "refs": [
+    "reports/art/visual-overhaul/inputs/01-gameplay-wave6.jpg",
+    "reports/art/visual-overhaul/concepts/refs/wireframe-phone.png"
+   ],
+   "prompt": "Image 1 is the current screen of the phone game 2048 Siege; image 2 is the wireframe of its visual redesign. Paint the redesigned screen as a finished game screenshot with the same phone proportions and structure (4x4 numbered creature tiles at the bottom inside a stone keep, four lanes above, a HUD at the top), in the Fareast Kingdom chapter: cobbled roads with red lacquered bridge planks, paper lanterns hanging on the dark hedges between the lanes, stone gate arches at the top with red banners on one of them, a stone lintel bar at the top showing a boss health bar with a small crab portrait, a single cream news ribbon above the gates, stone towers on both sides with four portrait cards hanging on the right tower. Foes (muted colours, dark plum outlines, no cream rim, each a different animal): a giant hermit crab boss carrying a pagoda-shaped shell with two raised claws coming out of a gate, a sleek navy shadow fox running, a brown pangolin guard with lacquered scales, a small paper kite carp fluttering. A cute bird pet stands on the field beside a lane and sends a pale mint feather-gust ribbon with tumbling feathers up the lane, pushing the fox back with a small dust streak. Cute sticker-style art, flat cel shading, thick outlines, no glow. No text other than the numbers. Portrait 9:16.",
+   "at": "2026-10-15T18:19:38.078Z",
+   "secs": 109,
+   "usd": 0.134
+  },
+  "style-peaks": {
+   "group": "style",
+   "model": "gemini-3-pro-image",
+   "aspect": "9:16",
+   "bg": "none",
+   "refs": [
+    "reports/art/visual-overhaul/inputs/01-gameplay-wave6.jpg",
+    "reports/art/visual-overhaul/concepts/refs/wireframe-phone.png"
+   ],
+   "prompt": "Image 1 is the current screen of the phone game 2048 Siege; image 2 is the wireframe of its visual redesign. Paint the redesigned screen as a finished game screenshot with the same phone proportions and structure (4x4 numbered creature tiles at the bottom inside a stone keep, four lanes above, a HUD at the top), in the Dragon Peaks chapter: basalt-grey cobbled roads with thin ember cracks, dark hedges of scorched thorns between the lanes, stone gate arches at the top, a stone lintel bar with a wave number and a foes meter, and a cream news ribbon above the gates reading as a short banner. Foes (muted colours, dark plum outlines, no cream rim, each a different animal): a slate mountain ibex charging head-down with big curved horns, a charcoal cinder bat with ember eyes, a huge magma snail with a rock shell and a lava foot at a gate. A legendary unicorn pet with a golden halo of small lightning bolts glides above the field and a chain of cream lightning links jumps between three foes. On the board, tiles are cream plates with big dark numbers and chibi creatures peeking over the bottom edge; one tile wears a gold frame. Cute sticker-style art, flat cel shading, thick outlines, no glow. No text other than the numbers. Portrait 9:16.",
+   "at": "2026-10-15T18:19:58.598Z",
+   "secs": 21,
+   "usd": 0.134
+  },
+  "foe-hivequeen-a": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-hivequeen.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a hive queen bee boss: a low crowned head, a round thorax, a big banded abdomen hanging behind, two long narrow wings swept up and back, a stinger, one of the animal army that besieges the player’s keep. HARD COLOUR RULE: use only these colours: #D99A16, #2B1D2E, #F3EADC, #A66F10, with bright gold #FFD84A on the crown as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:20:40.999Z",
+   "secs": 42,
+   "usd": 0.134,
+   "keyed": "concepts/foe-hivequeen-a.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     9,
+     249,
+     5
+    ],
+    "coverage": 0.442,
+    "size": [
+     512,
+     413
+    ],
+    "fringe": 0.0001,
+    "ok": true
+   }
+  },
+  "foe-moth-c": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "magenta",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-moth.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. VIEW RULE: seen from directly above with both wings fully and symmetrically spread like a pinned specimen, the body vertical in the middle, the head at the top and the tail at the bottom; no three-quarter turn, no perspective. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a luna moth foe (Moonmoth): broad wings whose fields are dusty dark teal with a pale mint edge band and cream eye-spots, a plump cream furry body, feathery antennae, two long tail streamers, one of the animal army that besieges the player’s keep. VALUE RULE: the main body mass is mid-dark and at least a quarter of the creature is a clearly lighter cream zone (belly, chest, face or wing field), so it reads on both a light road and a dark hedge. HARD COLOUR RULE: use only these colours: #5F8F86, #3F6B63, #A9D9C8, #F3EADC, with rose pink #E58AA6 on the eye-spot centres as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid magenta #FF00FF, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:22:23.342Z",
+   "secs": 102,
+   "usd": 0.134,
+   "keyed": "concepts/foe-moth-c.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     252,
+     23,
+     252
+    ],
+    "coverage": 0.452,
+    "size": [
+     512,
+     471
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "foe-moth-d": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "magenta",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-moth.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. VIEW RULE: seen from directly above with both wings fully and symmetrically spread like a pinned specimen, the body vertical in the middle, the head at the top and the tail at the bottom; no three-quarter turn, no perspective. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a luna moth foe (Moonmoth): broad wings whose fields are dusty dark teal with a pale mint edge band and cream eye-spots, a plump cream furry body, feathery antennae, two long tail streamers, one of the animal army that besieges the player’s keep. VALUE RULE: the main body mass is mid-dark and at least a quarter of the creature is a clearly lighter cream zone (belly, chest, face or wing field), so it reads on both a light road and a dark hedge. HARD COLOUR RULE: use only these colours: #5F8F86, #3F6B63, #A9D9C8, #F3EADC, with rose pink #E58AA6 on the eye-spot centres as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid magenta #FF00FF, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:22:51.701Z",
+   "secs": 28,
+   "usd": 0.134,
+   "keyed": "concepts/foe-moth-d.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     253,
+     1,
+     250
+    ],
+    "coverage": 0.451,
+    "size": [
+     486,
+     512
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "foe-macaque-c": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-macaque.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. VIEW RULE: a strict side view (profile) facing left, the camera level with the creature, no three-quarter turn, no perspective, no foreshortening. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a snow macaque monk foe floating in a lotus pose, arms raised holding two brass ring cymbals clashed above its head, a round body of slate-grey fur with a cream belly and chin, a round head with small ears, one of the animal army that besieges the player’s keep. VALUE RULE: the main body mass is mid-dark and at least a quarter of the creature is a clearly lighter cream zone (belly, chest, face or wing field), so it reads on both a light road and a dark hedge. HARD COLOUR RULE: use only these colours: #8C8680, #5E5A56, #F3EADC, #D99A16, with red #C04848 on the face as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:45:15.040Z",
+   "secs": 671,
+   "usd": 0.134,
+   "keyed": "concepts/foe-macaque-c.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     8,
+     249,
+     5
+    ],
+    "coverage": 0.441,
+    "size": [
+     485,
+     512
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "foe-fox-c": {
+   "group": "foes",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "green",
+   "refs": [
+    "reports/art/visual-overhaul/concepts/refs/sil-fox.png",
+    "public/assets/gen/enemy.ninja.png"
+   ],
+   "prompt": "Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, facing left, and design the creature’s surface inside it; do not add limbs, wings, props or accessories that would change the silhouette. VIEW RULE: a strict side view (profile) facing left, the camera level with the creature, no three-quarter turn, no perspective, no foreshortening. Image 2 shows the required rendering (outline weight, cel shading, eye style): match it. The creature: a shadow fox foe (Nightfox): a sleek low running fox with upright ears, a big brush tail with a cream tip, a large cream chest and belly, a small red scarf, one of the animal army that besieges the player’s keep. VALUE RULE: the main body mass is mid-dark and at least a quarter of the creature is a clearly lighter cream zone (belly, chest, face or wing field), so it reads on both a light road and a dark hedge. HARD COLOUR RULE: use only these colours: #3C3D5C, #5A5C82, #F3EADC, #8A8A9E, with red #C04848 on the scarf and eyes as the single bright accent, plus the outline #2B1D2E and black/white for the eyes. Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. Background: the entire background is a perfectly flat, uniform solid pure green #00FF00, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.",
+   "at": "2026-10-15T18:45:37.863Z",
+   "secs": 22,
+   "usd": 0.134,
+   "keyed": "concepts/foe-fox-c.keyed.png",
+   "qa": {
+    "src": [
+     1024,
+     1024
+    ],
+    "key": [
+     8,
+     249,
+     7
+    ],
+    "coverage": 0.429,
+    "size": [
+     512,
+     353
+    ],
+    "fringe": 0,
+    "ok": true
+   }
+  },
+  "frame-road-tile": {
+   "group": "frame",
+   "model": "gemini-3-pro-image",
+   "aspect": "1:1",
+   "bg": "none",
+   "refs": [],
+   "prompt": "A seamless tileable top-down texture of a cobbled sand road for a cute sticker-style game: rounded cobbles in warm sand tones (#E9DCC0, #D9C7A3, #B59F7C) with thin dark plum (#2B1D2E) outlines between the stones, flat cel shading, low contrast so characters stay readable on top of it, no text, no objects; the pattern must continue across all four edges so the image tiles without a seam. Square.",
+   "at": "2026-10-15T18:46:24.824Z",
+   "secs": 46,
+   "usd": 0.134
+  }
+ },
+ "notes": [
+  "foe-hivequeen-a: skipped after 429 × 3 (Resource has been exhausted (e.g. check quota).)",
+  "frame-road-tile: skipped after 429 × 3 (Resource has been exhausted (e.g. check quota).)",
+  "foe-macaque-c: skipped after 429 × 3 (Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/gener)",
+  "foe-fox-c: skipped after 429 × 3 (Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/gener)"
+ ],
+ "generatedAt": "2026-10-15T18:46:24.826Z"
+}

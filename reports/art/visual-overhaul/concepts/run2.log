@@ -1,0 +1,22 @@
+plan: 8 concepts, 8 to make; list price if all on gemini-3-pro-image: $1.07 (on gemini-3.1-flash-image: $0.54)
+  style-forest: 429, waiting 20 s
+✓ style-forest (gemini-3-pro-image, 43 s)
+  style-fareast: 429, waiting 20 s
+  style-fareast: 429, waiting 60 s
+✓ style-fareast (gemini-3-pro-image, 109 s)
+✓ style-peaks (gemini-3-pro-image, 21 s)
+  foe-hivequeen-a: 429, waiting 20 s
+✓ foe-hivequeen-a (gemini-3-pro-image, 42 s)
+  foe-moth-c: 429, waiting 20 s
+  foe-moth-c: 429, waiting 60 s
+✓ foe-moth-c (gemini-3-pro-image, 102 s)
+✓ foe-moth-d (gemini-3-pro-image, 28 s)
+  foe-macaque-c: 429, waiting 20 s
+  foe-macaque-c: 429, waiting 60 s
+  foe-macaque-c: 429, waiting 120 s
+  foe-fox-c: 429, waiting 20 s
+  foe-fox-c: 429, waiting 60 s
+  foe-fox-c: 429, waiting 120 s
+
+6 made, 2 failed or skipped; concepts in /Users/lap14657/merge-ball-td-siege/.worktrees/ux-journey/reports/art/visual-overhaul/concepts; list-price total of all concepts so far $3.08
+exit 1

@@ -1,20 +1,36 @@
-/* Key-visual demo: namecards, cut-in and the style switcher (index.html?kv) */
+/* Namecards on the rail that hangs on the right tower (src/kv/namecards.js), the skill cut-in, and
+   the key-visual demo's style switcher (index.html?kv) */
 .kv-cards {
   position: absolute;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   z-index: 4;
 }
 
 .kv-card {
   position: relative;
   padding: 0;
-  background: none !important;
+  background: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  gap: 4px;
   transition: transform 0.2s;
+}
+
+/* each card hangs from an iron hook on the tower */
+.kv-card::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 8px;
+  height: 6px;
+  margin-left: -4px;
+  border: 2px solid #2b1d2e;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
 }
 
 .kv-port {
@@ -26,7 +42,7 @@
   border: 3px solid var(--cream);
   box-shadow:
     0 0 0 2px #2b1d2e,
-    0 4px 0 2px #2b1d2e66;
+    0 3px 0 2px #2b1d2e59;
   background: var(--c);
   transition:
     transform 0.15s,
@@ -48,18 +64,47 @@
   filter: saturate(0.3) brightness(0.62);
 }
 
-.kv-fill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: calc(var(--f, 0) * 100%);
-  background: color-mix(in srgb, var(--c) 45%, transparent);
-  border-top: 2px solid color-mix(in srgb, var(--c) 60%, white);
+/* the charge: a fill bar under the portrait; at full it turns into the inverted READY pill */
+.kv-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  background: #fffaf2;
+  box-shadow: 0 0 0 2px #2b1d2e;
+  overflow: hidden;
 }
 
-.kv-card.ready .kv-fill {
+.kv-bar i {
+  position: absolute;
+  inset: 0;
+  background: var(--c);
+  box-shadow: inset 0 -2px 0 #2b1d2e33;
+  transform-origin: 0 50%;
+  transform: scaleX(var(--f, 0));
+}
+
+.kv-bar b {
   display: none;
+}
+
+.kv-card.ready .kv-bar {
+  height: 16px;
+  margin-top: -6px;
+  background: #2b1d2e;
+  box-shadow: 0 0 0 2px var(--cream);
+  display: grid;
+  place-items: center;
+}
+
+.kv-card.ready .kv-bar i {
+  display: none;
+}
+
+.kv-card.ready .kv-bar b {
+  display: block;
+  font: 800 12px/1 var(--font-display);
+  letter-spacing: 0.02em;
+  color: var(--cream);
 }
 
 .kv-shine {
@@ -73,13 +118,12 @@
   animation: kvShine 1.9s ease-in-out infinite;
 }
 
-/* ready reads by colour, a ring and a shine (not by glow alone) */
+/* ready reads by colour, a rim in the element colour and a shine (not by glow alone) */
 .kv-card.ready .kv-port {
+  border-color: var(--c);
   box-shadow:
     0 0 0 2px #2b1d2e,
-    0 0 0 5px var(--c),
-    0 0 0 7px #2b1d2e,
-    0 4px 0 6px #2b1d2e44;
+    0 3px 0 2px #2b1d2e59;
 }
 
 .kv-card.ready {
@@ -88,8 +132,8 @@
 
 .kv-glyphs {
   position: absolute;
-  left: 3px;
-  top: 3px;
+  left: 2px;
+  top: 2px;
   display: flex;
   gap: 1px;
 }
@@ -99,32 +143,12 @@
   height: 13px;
 }
 
-.kv-name {
-  position: relative;
-  z-index: 1;
-  margin-top: -9px;
-  font: 800 10px/1 var(--font-display);
-  background: var(--cream);
-  color: var(--ink);
-  border-radius: 999px;
-  padding: 3px 6px 2px;
-  box-shadow: 0 0 0 1.5px #2b1d2e;
-  white-space: nowrap;
-  max-width: 120%;
-}
-
-.kv-card.ready .kv-name {
-  background: #2b1d2e;
-  color: var(--cream);
-  box-shadow: 0 0 0 1.5px var(--cream);
-}
-
 .kv-card.nudge {
   animation: kvNudge 0.3s;
 }
 
 .kv-card.fire .kv-port {
-  transform: scale(1.14);
+  transform: scale(1.08);
 }
 
 .kv-card.lost {
@@ -216,16 +240,16 @@
 }
 
 .kv-style button {
-  font: 800 11px/1 var(--font-display) !important;
+  font: 800 11px/1 var(--font-display);
   padding: 6px 4px 4px;
   border-radius: 9px;
   background: transparent;
-  color: var(--ink-soft) !important;
+  color: var(--ink-soft);
 }
 
 .kv-style button.on {
   background: #2b1d2e;
-  color: var(--cream) !important;
+  color: var(--cream);
 }
 
 @keyframes kvShine {

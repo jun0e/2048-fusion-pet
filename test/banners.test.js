@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createBannerQueue, bannerTimes, BANNER } from '../src/ux/banners.js';
+import { pageBanner, pageSeconds } from '../src/ui/hud.js';
 
 /** A queue that records what it shows. */
 function queue(opts = {}) {
@@ -65,4 +66,40 @@ test('a paused game holds the queue; a long queue keeps the newest news', () => 
   q.clear();
   assert.equal(q.showing, null);
   assert.equal(q.waiting, 0);
+});
+
+
+test('the ribbon turns every page of a long banner before the next news takes its place', () => {
+  // the HUD's ribbon (src/ui/hud.js): a banner's pages share its reading time; the queue gives way to
+  // the next banner after that time. Played out at a 360 px phone's line (282 px).
+  const measure = (text, part) => text.length * (part === 'title' ? 9 : 7);
+  const news = [
+    { title: 'Board locked!', sub: 'No swipe can move a block until one is destroyed or boss x2s make a pair.' },
+    { title: 'New die: Lightning', sub: 'Added to your deck: blocks reaching 16 can now roll it.' },
+    { title: 'Elf Ruler defeated!', sub: 'Your blocks got 8 x2s. Merge the new pairs!' },
+  ];
+  for (const long of news) {
+    let on = null; // { item, pages, per, t }
+    const q = createBannerQueue({
+      show: (b) => {
+        const pages = pageBanner(b.title, b.sub, 282, measure);
+        on = { item: b, pages, per: pageSeconds(b, pages.length), t: 0 };
+      },
+    });
+    q.push(long);
+    q.push({ title: 'Wave 4', sub: 'Eternal Forest · 9 foes' });
+    const seen = new Map(); // page → seconds on screen
+    for (let i = 0; i < 200 && on?.item.title !== 'Wave 4'; i++) {
+      q.update(0.05);
+      if (on.item.title === 'Wave 4') break;
+      const at = Math.min(on.pages.length - 1, Math.floor(on.t / on.per));
+      seen.set(at, (seen.get(at) ?? 0) + 0.05);
+      on.t += 0.05;
+    }
+    assert.ok(on.pages, 'it paged');
+    const pages = pageBanner(long.title, long.sub, 282, measure);
+    assert.ok(pages.length >= 2, `"${long.title}" needs pages at 282 px`);
+    for (let k = 0; k < pages.length; k++) assert.ok((seen.get(k) ?? 0) >= 1, `"${long.title}" page ${k + 1}/${pages.length} showed ${(seen.get(k) ?? 0).toFixed(2)} s`);
+    assert.ok(pageSeconds(long, pages.length) * pages.length <= bannerTimes(long).min, 'all its pages fit its reading time');
+  }
 });

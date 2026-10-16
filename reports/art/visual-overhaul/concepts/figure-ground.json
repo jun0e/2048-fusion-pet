@@ -1,0 +1,878 @@
+{
+ "fox-a": {
+  "name": "fox",
+  "chapter": "fareast",
+  "bodyL": 38.1,
+  "outlineL": 14.4,
+  "lightShare": 0.15,
+  "darkShare": 0.77,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 42.8,
+    "outlineDL": 66.4,
+    "dE": 60.2,
+    "sepShare": 0.84,
+    "verdict": "pass"
+   },
+   "lacquer plank": {
+    "hex": "#B2574E",
+    "bodyDL": 10.0,
+    "outlineDL": 33.6,
+    "dE": 54.1,
+    "sepShare": 0.15,
+    "verdict": "outline only"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 1.4,
+    "outlineDL": 22.3,
+    "dE": 28.2,
+    "sepShare": 0.21,
+    "verdict": "weak"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 11.5,
+    "outlineDL": 12.2,
+    "dE": 12.6,
+    "sepShare": 0.23,
+    "verdict": "weak"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 12.9,
+    "outlineDL": 36.6,
+    "dE": 16.1,
+    "sepShare": 0.15,
+    "verdict": "weak"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 50.0,
+    "outlineDL": 73.7,
+    "dE": 62.5,
+    "sepShare": 0.85,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 9.0,
+    "outlineDL": 32.7,
+    "dE": 49.1,
+    "sepShare": 0.15,
+    "verdict": "outline only"
+   }
+  }
+ },
+ "fox-b": {
+  "name": "fox",
+  "chapter": "fareast",
+  "bodyL": 37.1,
+  "outlineL": 15.0,
+  "lightShare": 0.13,
+  "darkShare": 0.76,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 43.8,
+    "outlineDL": 65.9,
+    "dE": 59.0,
+    "sepShare": 0.86,
+    "verdict": "pass"
+   },
+   "lacquer plank": {
+    "hex": "#B2574E",
+    "bodyDL": 10.9,
+    "outlineDL": 33.1,
+    "dE": 51.8,
+    "sepShare": 0.14,
+    "verdict": "outline only"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 0.4,
+    "outlineDL": 21.7,
+    "dE": 26.1,
+    "sepShare": 0.17,
+    "verdict": "outline only"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 10.5,
+    "outlineDL": 11.6,
+    "dE": 10.8,
+    "sepShare": 0.22,
+    "verdict": "weak"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 13.9,
+    "outlineDL": 36.0,
+    "dE": 15.5,
+    "sepShare": 0.14,
+    "verdict": "weak"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 51.0,
+    "outlineDL": 73.1,
+    "dE": 61.8,
+    "sepShare": 0.87,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 10.0,
+    "outlineDL": 32.1,
+    "dE": 46.6,
+    "sepShare": 0.14,
+    "verdict": "outline only"
+   }
+  }
+ },
+ "fox-c": {
+  "name": "fox",
+  "chapter": "fareast",
+  "bodyL": 30.4,
+  "outlineL": 11.9,
+  "lightShare": 0.26,
+  "darkShare": 0.68,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 50.5,
+    "outlineDL": 69.0,
+    "dE": 64.2,
+    "sepShare": 0.73,
+    "verdict": "pass"
+   },
+   "lacquer plank": {
+    "hex": "#B2574E",
+    "bodyDL": 17.7,
+    "outlineDL": 36.2,
+    "dE": 52.6,
+    "sepShare": 0.26,
+    "verdict": "weak"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 6.3,
+    "outlineDL": 24.8,
+    "dE": 27.7,
+    "sepShare": 0.27,
+    "verdict": "weak"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 3.8,
+    "outlineDL": 14.7,
+    "dE": 4.4,
+    "sepShare": 0.32,
+    "verdict": "weak"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 20.6,
+    "outlineDL": 39.1,
+    "dE": 21.8,
+    "sepShare": 0.86,
+    "verdict": "pass"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 57.7,
+    "outlineDL": 76.2,
+    "dE": 67.5,
+    "sepShare": 0.74,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 16.7,
+    "outlineDL": 35.2,
+    "dE": 48.3,
+    "sepShare": 0.26,
+    "verdict": "weak"
+   }
+  }
+ },
+ "hivequeen-a": {
+  "name": "hivequeen",
+  "chapter": "forest",
+  "bodyL": 68.7,
+  "outlineL": 14.0,
+  "lightShare": 0.24,
+  "darkShare": 0.07,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 12.1,
+    "outlineDL": 66.9,
+    "dE": 36.0,
+    "sepShare": 0.38,
+    "verdict": "weak"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 32.0,
+    "outlineDL": 22.7,
+    "dE": 62.4,
+    "sepShare": 0.62,
+    "verdict": "pass"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 42.1,
+    "outlineDL": 12.6,
+    "dE": 81.3,
+    "sepShare": 0.92,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 17.7,
+    "outlineDL": 37.0,
+    "dE": 67.6,
+    "sepShare": 0.33,
+    "verdict": "weak"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 19.4,
+    "outlineDL": 74.1,
+    "dE": 43.5,
+    "sepShare": 0.42,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 21.6,
+    "outlineDL": 33.1,
+    "dE": 34.1,
+    "sepShare": 0.6,
+    "verdict": "pass"
+   }
+  }
+ },
+ "hivequeen-b": {
+  "name": "hivequeen",
+  "chapter": "forest",
+  "bodyL": 50.8,
+  "outlineL": 10.4,
+  "lightShare": 0.16,
+  "darkShare": 0.36,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 30.1,
+    "outlineDL": 70.5,
+    "dE": 40.7,
+    "sepShare": 0.52,
+    "verdict": "pass"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 14.1,
+    "outlineDL": 26.3,
+    "dE": 49.3,
+    "sepShare": 0.48,
+    "verdict": "pass"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 24.2,
+    "outlineDL": 16.3,
+    "dE": 66.2,
+    "sepShare": 0.64,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 0.2,
+    "outlineDL": 40.7,
+    "dE": 57.4,
+    "sepShare": 0.19,
+    "verdict": "outline only"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 37.3,
+    "outlineDL": 77.8,
+    "dE": 49.3,
+    "sepShare": 0.58,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 3.7,
+    "outlineDL": 36.8,
+    "dE": 19.3,
+    "sepShare": 0.46,
+    "verdict": "pass"
+   }
+  }
+ },
+ "macaque-a": {
+  "name": "macaque",
+  "chapter": "fareast",
+  "bodyL": 77.1,
+  "outlineL": 15.1,
+  "lightShare": 0.52,
+  "darkShare": 0.04,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 3.8,
+    "outlineDL": 65.8,
+    "dE": 12.0,
+    "sepShare": 0.29,
+    "verdict": "weak"
+   },
+   "lacquer plank": {
+    "hex": "#B2574E",
+    "bodyDL": 29.1,
+    "outlineDL": 33.0,
+    "dE": 46.9,
+    "sepShare": 0.58,
+    "verdict": "pass"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 40.4,
+    "outlineDL": 21.6,
+    "dE": 42.1,
+    "sepShare": 0.75,
+    "verdict": "pass"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 50.5,
+    "outlineDL": 11.6,
+    "dE": 56.9,
+    "sepShare": 0.96,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 26.1,
+    "outlineDL": 36.0,
+    "dE": 33.8,
+    "sepShare": 0.57,
+    "verdict": "pass"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 11.0,
+    "outlineDL": 73.1,
+    "dE": 12.9,
+    "sepShare": 0.42,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 30.0,
+    "outlineDL": 32.1,
+    "dE": 35.3,
+    "sepShare": 0.59,
+    "verdict": "pass"
+   }
+  }
+ },
+ "macaque-b": {
+  "name": "macaque",
+  "chapter": "fareast",
+  "bodyL": 77.3,
+  "outlineL": 14.2,
+  "lightShare": 0.54,
+  "darkShare": 0.03,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 3.6,
+    "outlineDL": 66.7,
+    "dE": 14.3,
+    "sepShare": 0.35,
+    "verdict": "weak"
+   },
+   "lacquer plank": {
+    "hex": "#B2574E",
+    "bodyDL": 29.2,
+    "outlineDL": 33.9,
+    "dE": 48.1,
+    "sepShare": 0.56,
+    "verdict": "pass"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 40.6,
+    "outlineDL": 22.5,
+    "dE": 41.8,
+    "sepShare": 0.67,
+    "verdict": "pass"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 50.6,
+    "outlineDL": 12.5,
+    "dE": 56.0,
+    "sepShare": 0.97,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 26.2,
+    "outlineDL": 36.9,
+    "dE": 32.5,
+    "sepShare": 0.55,
+    "verdict": "pass"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 10.9,
+    "outlineDL": 74.0,
+    "dE": 14.1,
+    "sepShare": 0.44,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 30.1,
+    "outlineDL": 33.0,
+    "dE": 36.8,
+    "sepShare": 0.61,
+    "verdict": "pass"
+   }
+  }
+ },
+ "macaque-c": {
+  "name": "macaque",
+  "chapter": "fareast",
+  "bodyL": 54.8,
+  "outlineL": 14.9,
+  "lightShare": 0.2,
+  "darkShare": 0.19,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 26.1,
+    "outlineDL": 66.0,
+    "dE": 29.6,
+    "sepShare": 0.65,
+    "verdict": "pass"
+   },
+   "lacquer plank": {
+    "hex": "#B2574E",
+    "bodyDL": 6.7,
+    "outlineDL": 33.2,
+    "dE": 39.1,
+    "sepShare": 0.22,
+    "verdict": "weak"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 18.0,
+    "outlineDL": 21.8,
+    "dE": 20.6,
+    "sepShare": 0.36,
+    "verdict": "weak"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 28.1,
+    "outlineDL": 11.7,
+    "dE": 36.9,
+    "sepShare": 0.79,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 3.7,
+    "outlineDL": 36.1,
+    "dE": 19.4,
+    "sepShare": 0.22,
+    "verdict": "weak"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 33.4,
+    "outlineDL": 73.2,
+    "dE": 34.6,
+    "sepShare": 0.78,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 7.6,
+    "outlineDL": 32.2,
+    "dE": 22.7,
+    "sepShare": 0.23,
+    "verdict": "weak"
+   }
+  }
+ },
+ "moth-a": {
+  "name": "moth",
+  "chapter": "forest",
+  "bodyL": 84.8,
+  "outlineL": 12.8,
+  "lightShare": 0.76,
+  "darkShare": 0.02,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 4.0,
+    "outlineDL": 68.1,
+    "dE": 23.9,
+    "sepShare": 0.11,
+    "verdict": "outline only"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 48.1,
+    "outlineDL": 23.9,
+    "dE": 49.9,
+    "sepShare": 0.91,
+    "verdict": "pass"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 58.2,
+    "outlineDL": 13.8,
+    "dE": 69.2,
+    "sepShare": 0.97,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 33.8,
+    "outlineDL": 38.2,
+    "dE": 47.3,
+    "sepShare": 0.77,
+    "verdict": "pass"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 3.3,
+    "outlineDL": 75.3,
+    "dE": 21.1,
+    "sepShare": 0.23,
+    "verdict": "weak"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 37.7,
+    "outlineDL": 34.3,
+    "dE": 50.0,
+    "sepShare": 0.77,
+    "verdict": "pass"
+   }
+  }
+ },
+ "moth-b": {
+  "name": "moth",
+  "chapter": "forest",
+  "bodyL": 83.6,
+  "outlineL": 14.8,
+  "lightShare": 0.81,
+  "darkShare": 0.02,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 2.7,
+    "outlineDL": 66.1,
+    "dE": 24.6,
+    "sepShare": 0.14,
+    "verdict": "outline only"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 46.9,
+    "outlineDL": 21.9,
+    "dE": 48.5,
+    "sepShare": 0.92,
+    "verdict": "pass"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 57.0,
+    "outlineDL": 11.8,
+    "dE": 67.4,
+    "sepShare": 0.98,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 32.6,
+    "outlineDL": 36.2,
+    "dE": 45.5,
+    "sepShare": 0.82,
+    "verdict": "pass"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 4.5,
+    "outlineDL": 73.3,
+    "dE": 21.8,
+    "sepShare": 0.18,
+    "verdict": "outline only"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 36.5,
+    "outlineDL": 32.3,
+    "dE": 49.7,
+    "sepShare": 0.82,
+    "verdict": "pass"
+   }
+  }
+ },
+ "moth-c": {
+  "name": "moth",
+  "chapter": "forest",
+  "bodyL": 48.8,
+  "outlineL": 15.8,
+  "lightShare": 0.34,
+  "darkShare": 0.1,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 32.1,
+    "outlineDL": 65.0,
+    "dE": 42.1,
+    "sepShare": 0.59,
+    "verdict": "pass"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 12.1,
+    "outlineDL": 20.9,
+    "dE": 15.3,
+    "sepShare": 0.43,
+    "verdict": "pass"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 22.2,
+    "outlineDL": 10.8,
+    "dE": 37.0,
+    "sepShare": 0.9,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 2.2,
+    "outlineDL": 35.2,
+    "dE": 25.8,
+    "sepShare": 0.35,
+    "verdict": "weak"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 39.3,
+    "outlineDL": 72.3,
+    "dE": 45.6,
+    "sepShare": 0.65,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 1.7,
+    "outlineDL": 31.3,
+    "dE": 36.7,
+    "sepShare": 0.35,
+    "verdict": "weak"
+   }
+  }
+ },
+ "moth-d": {
+  "name": "moth",
+  "chapter": "forest",
+  "bodyL": 63.0,
+  "outlineL": 13.7,
+  "lightShare": 0.43,
+  "darkShare": 0.11,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 17.9,
+    "outlineDL": 67.2,
+    "dE": 29.3,
+    "sepShare": 0.48,
+    "verdict": "pass"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 26.3,
+    "outlineDL": 23.0,
+    "dE": 26.9,
+    "sepShare": 0.53,
+    "verdict": "pass"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 36.4,
+    "outlineDL": 13.0,
+    "dE": 46.3,
+    "sepShare": 0.89,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 12.0,
+    "outlineDL": 37.4,
+    "dE": 27.2,
+    "sepShare": 0.45,
+    "verdict": "pass"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 25.1,
+    "outlineDL": 74.5,
+    "dE": 31.5,
+    "sepShare": 0.56,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 15.8,
+    "outlineDL": 33.5,
+    "dE": 36.2,
+    "sepShare": 0.44,
+    "verdict": "pass"
+   }
+  }
+ },
+ "pangolin-a": {
+  "name": "pangolin",
+  "chapter": "fareast",
+  "bodyL": 54.3,
+  "outlineL": 13.6,
+  "lightShare": 0.12,
+  "darkShare": 0.42,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 26.6,
+    "outlineDL": 67.2,
+    "dE": 28.6,
+    "sepShare": 0.7,
+    "verdict": "pass"
+   },
+   "lacquer plank": {
+    "hex": "#B2574E",
+    "bodyDL": 6.2,
+    "outlineDL": 34.4,
+    "dE": 27.0,
+    "sepShare": 0.23,
+    "verdict": "weak"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 17.6,
+    "outlineDL": 23.1,
+    "dE": 33.9,
+    "sepShare": 0.33,
+    "verdict": "weak"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 27.7,
+    "outlineDL": 13.0,
+    "dE": 50.2,
+    "sepShare": 0.56,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 3.3,
+    "outlineDL": 37.4,
+    "dE": 37.7,
+    "sepShare": 0.17,
+    "verdict": "outline only"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 33.8,
+    "outlineDL": 74.5,
+    "dE": 36.7,
+    "sepShare": 0.77,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 7.2,
+    "outlineDL": 33.5,
+    "dE": 7.7,
+    "sepShare": 0.24,
+    "verdict": "weak"
+   }
+  }
+ },
+ "pangolin-b": {
+  "name": "pangolin",
+  "chapter": "fareast",
+  "bodyL": 50.3,
+  "outlineL": 13.1,
+  "lightShare": 0.09,
+  "darkShare": 0.16,
+  "grounds": {
+   "lane cobble": {
+    "hex": "#D9C7A3",
+    "bodyDL": 30.6,
+    "outlineDL": 67.8,
+    "dE": 32.6,
+    "sepShare": 0.89,
+    "verdict": "pass"
+   },
+   "lacquer plank": {
+    "hex": "#B2574E",
+    "bodyDL": 2.2,
+    "outlineDL": 34.9,
+    "dE": 26.4,
+    "sepShare": 0.11,
+    "verdict": "outline only"
+   },
+   "hedge": {
+    "hex": "#4A5A52",
+    "bodyDL": 13.6,
+    "outlineDL": 23.6,
+    "dE": 32.9,
+    "sepShare": 0.15,
+    "verdict": "weak"
+   },
+   "keep floor": {
+    "hex": "#3E3C58",
+    "bodyDL": 23.6,
+    "outlineDL": 13.5,
+    "dE": 49.0,
+    "sepShare": 0.82,
+    "verdict": "pass"
+   },
+   "keep floor (alt)": {
+    "hex": "#7A778E",
+    "bodyDL": 0.8,
+    "outlineDL": 37.9,
+    "dE": 38.7,
+    "sepShare": 0.18,
+    "verdict": "outline only"
+   },
+   "current cream lane": {
+    "hex": "#E9DCC0",
+    "bodyDL": 37.9,
+    "outlineDL": 75.0,
+    "dE": 40.7,
+    "sepShare": 0.9,
+    "verdict": "pass"
+   },
+   "brown stand-in": {
+    "hex": "#8A6A43",
+    "bodyDL": 3.1,
+    "outlineDL": 34.0,
+    "dE": 4.0,
+    "sepShare": 0.1,
+    "verdict": "outline only"
+   }
+  }
+ }
+}

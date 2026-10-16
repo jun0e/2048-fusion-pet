@@ -24,6 +24,13 @@ export const PIXEL_TILE = 36; // pixel tile grid
 const BABY_CROP = 0.76; // a baby shows its top 76%: it peeks over the tile's bottom edge
 const GEN_BABY_CROP = 0.84; // generated babies are trimmed to the body: hide just the feet
 export const CREATURE_MAX_W = 0.9; // a creature never gets wider than 90% of its cell
+/**
+ * How tall a roaming pet stands, in cells (proposal W4): a fusion 1.0, a legend 1.15 under its
+ * halo, so pets read smaller than the bosses (1.24–1.37 cells) and never hide the fight. The
+ * code-drawn canvases carry padding around the creature: they are drawn this much taller.
+ */
+export const ROAMER_CELLS = { fusion: 1.0, legend: 1.15 };
+const ROAMER_PAD = { fusion: 1.42 / 1.18, legend: 1.62 / 1.32 };
 
 
 /** Display height of the creature, as a fraction of the cell: grows 16 → 128. */
@@ -371,11 +378,13 @@ export function createArt(initial = 'sticker') {
      * How to stand a roamer texture: `feet` = anchor y (share of its height), `height` =
      * display height of the texture in cells, `maxW` = widest it may get, in cells.
      * Code-drawn canvases carry padding; generated sprites are trimmed to the creature.
+     * The creature itself stands ROAMER_CELLS tall: smaller than a boss, so it never hides the fight.
      */
     roamerFit(cls) {
       const legend = !!cls.ultimate;
-      if (gen({ kind: 'fusion', a: cls.element, b: cls.fusion })) return { feet: 0.97, height: legend ? 1.32 : 1.18, maxW: 1.75 };
-      return { feet: 0.89, height: legend ? 1.62 : 1.42, maxW: Infinity };
+      const k = legend ? ROAMER_CELLS.legend : ROAMER_CELLS.fusion;
+      if (gen({ kind: 'fusion', a: cls.element, b: cls.fusion })) return { feet: 0.97, height: k, maxW: k * 1.25 };
+      return { feet: 0.89, height: k * (legend ? ROAMER_PAD.legend : ROAMER_PAD.fusion), maxW: Infinity };
     },
     halo(apex) {
       const px = style === 'pixel';

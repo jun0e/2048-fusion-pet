@@ -1,9 +1,10 @@
-// Pooled visual effects in world space: additive particles, expanding rings,
-// damage numbers (bitmap font), lightning arcs, wind slashes, sky bolts,
-// meteors and poison contagion lines.
+// Pooled visual effects in world space: particles (soft dots, sparks and the attacks' bits),
+// expanding rings, explosions, damage numbers (bitmap font), beams and coin drops, all in normal
+// blend (nothing on the field is additive). The attacks' own shapes are src/render/attacks.js.
+// Every local effect books its light here (src/ux/photosafe.js).
 import { BitmapFont, BitmapText, Container, Graphics, Sprite } from 'pixi.js';
-import { laneAt } from '../config.js';
-import { softDot, ringTex, sparkTex, projTex, coinTex, boomFrames } from './textures.js';
+import { softDot, ringTex, sparkTex, coinTex, boomFrames } from './textures.js';
+import { BURST, COIN, LINE, NUMBER, createLightBudget, fitBoom, fitRing } from '../ux/photosafe.js';
 
 const MAX_PARTS = 900;
 const MAX_NUMS = 90;
@@ -31,9 +32,16 @@ export function createFx(stage) {
   const partLayer = new Container();
   layers.fx.addChild(partLayer);
   const parts = [];
+  // photosafe: rings, explosions, lines, bursts, the attacks' sprites and enemies' hit flashes share a
+  // light budget (src/ux/photosafe.js POINT), so what they light at the same moment never adds up to a large flash
+  let light = createLightBudget();
   const free = [];
 
-  function particle(tex, x, y, { vx = 0, vy = 0, life = 0.5, size = 0.2, grow = 0, color = 0xffffff, alpha = 1, gravity = 0, drag = 0, spin = 0, add = true, rot = 0 } = {}) {
+  /**
+   * One pooled particle: `size` is its long edge in world units (a texture keeps its aspect); it
+   * shows `delay` s from now (a meteor's dust where it lands) for `life` s. Not booked: callers book.
+   */
+  function particle(tex, x, y, { vx = 0, vy = 0, life = 0.5, size = 0.2, grow = 0, color = 0xffffff, alpha = 1, gravity = 0, drag = 0, spin = 0, rot = 0, delay = 0 } = {}) {
     let p = free.pop();
     if (!p) {
       if (parts.length >= MAX_PARTS) return null;
@@ -43,17 +51,18 @@ export function createFx(stage) {
       partLayer.addChild(sp);
     }
     p.sp.texture = tex;
-    p.sp.visible = true;
-    p.sp.blendMode = add ? 'add' : 'normal';
+    p.sp.visible = delay <= 0;
     p.sp.tint = hex(color);
     p.sp.rotation = rot;
-    Object.assign(p, { x, y, vx, vy, life, max: life, size, grow, alpha, gravity, drag, spin });
+    Object.assign(p, { x, y, vx, vy, life, max: life, size, grow, alpha, gravity, drag, spin, delay });
     parts.push(p);
     return p;
   }
 
   function burst(x, y, color, n = 12, { speed = 4, size = 0.18, life = 0.5, gravity = -6, spread = Math.PI * 2, dir = 0 } = {}) {
     const cols = Array.isArray(color) ? color : [color];
+    // fewer particles when the light budget is short (each lights about BURST.perSize2 × size²)
+    n = Math.round(n * light.book(n * BURST.perSize2 * size * size, life * 1.2));
     for (let i = 0; i < n; i++) {
       const a = dir + (Math.random() - 0.5) * spread;
       const sp = speed * (0.4 + Math.random() * 0.8);
@@ -70,14 +79,11 @@ export function createFx(stage) {
     }
   }
 
-  function ring(x, y, color, r0, r1, life = 0.35, width = 1) {
-    const p = particle(ringTex(), x, y, { life, size: r0 * 2, grow: (r1 - r0) * 2, color, alpha: 0.9 });
-    if (p) p.width = width;
-    return p;
-  }
-
-  function trail(x, y, color, size = 0.22) {
-    particle(softDot(), x, y, { life: 0.22, size, grow: -size * 0.6, color, alpha: 0.75 });
+  /** A ring growing from r0 to r1: at most POINT.ringMax, smaller (or none) when the light budget is short. */
+  function ring(x, y, color, r0, r1, life = 0.35) {
+    const r = fitRing(light, r0, r1, life);
+    if (!r) return null;
+    return particle(ringTex(), x, y, { life, size: r.r0 * 2, grow: (r.r1 - r.r0) * 2, color, alpha: 0.9 });
   }
 
   // --- damage numbers ---------------------------------------------------------
@@ -85,6 +91,8 @@ export function createFx(stage) {
   const freeNums = [];
   function number(x, y, amount, { color = 0xffffff, crit = false, small = false, prefix = '' } = {}) {
     if (amount < 0.5) return;
+    const scale = crit ? 0.52 : small ? 0.3 : 0.36;
+    if (!light.bookAll(NUMBER.lit * (scale / NUMBER.scale) ** 2, NUMBER.life)) return; // skipped when the light budget is short
     let n = freeNums.pop();
     if (!n) {
       if (nums.length >= MAX_NUMS) {
@@ -99,61 +107,22 @@ export function createFx(stage) {
     n.t.text = prefix + fmt(amount) + (crit ? '!' : '');
     n.t.tint = hex(color);
     n.t.visible = true;
-    Object.assign(n, { x: x + (Math.random() - 0.5) * 0.4, y: y + 0.4, vy: 2.6, life: 0.75, max: 0.75, scale: crit ? 0.52 : small ? 0.3 : 0.36 });
+    Object.assign(n, { x: x + (Math.random() - 0.5) * 0.4, y: y + 0.4, vy: 2.6, life: NUMBER.life, max: NUMBER.life, scale });
     nums.push(n);
   }
 
-  // --- arcs, slashes, bolts, meteors (Graphics redrawn while alive) ----------------
+  // --- beams (Graphics redrawn while alive; rare: a heal's beam, a namecard's ribbon) ----------
   const lineLayer = new Container();
   layers.fx.addChild(lineLayer);
-  const lines = []; // { g, kind, pts, color, life, max, ... }
+  const lines = []; // { g, x0, y0, x1, y1, color, life, max, scale }
 
-  function lightning(points, color = 0xffe14d, life = 0.2, width = 1) {
-    const g = new Graphics();
-    g.blendMode = 'add';
-    lineLayer.addChild(g);
-    lines.push({ g, kind: 'arc', pts: points, color: hex(color), life, max: life, width, seed: Math.random() * 100 });
-    for (const p of points.slice(1)) burst(p.x, p.y, [color, 0xffffff], 5, { speed: 3, size: 0.14, life: 0.25, gravity: 0 });
-  }
-
-  /** A glowing beam from a side die into the block it just classed. */
+  /** A beam from (x0, y0) to (x1, y1): a heal reaching its block, a namecard reaching its pet. */
   function beam(x0, y0, x1, y1, color) {
+    const k = light.book(Math.hypot(x1 - x0, y1 - y0) * LINE.beam, 0.4, LINE.minShare); // LINE.beam wide at most
+    if (!k) return;
     const g = new Graphics();
-    g.blendMode = 'add';
     lineLayer.addChild(g);
-    lines.push({ g, kind: 'beam', x0, y0, x1, y1, color: hex(color), life: 0.4, max: 0.4 });
-  }
-
-  function slash(lane, s, len, color) {
-    const g = new Graphics();
-    g.blendMode = 'add';
-    lineLayer.addChild(g);
-    lines.push({ g, kind: 'slash', lane, s, len, color: hex(color), life: 0.28, max: 0.28 });
-  }
-
-  function bolt(x, y, color = 0xffe14d) {
-    const top = { x: x + (Math.random() - 0.5) * 2, y: 13 };
-    const pts = [top];
-    for (let i = 1; i < 6; i++) pts.push({ x: top.x + (x - top.x) * (i / 6) + (Math.random() - 0.5) * 0.8, y: top.y + (y - top.y) * (i / 6) });
-    pts.push({ x, y });
-    lightning(pts, color, 0.28, 1.6);
-    ring(x, y, color, 0.2, 1.2, 0.3);
-  }
-
-  const meteors = [];
-  function meteor(x, y, radius, onLand) {
-    const sp = new Sprite(projTex('meteor'));
-    sp.anchor.set(0.5);
-    sp.tint = 0xffb27a;
-    lineLayer.addChild(sp);
-    meteors.push({ sp, x0: x - 4, y0: y + 9, x, y, t: 0, dur: 0.28, radius, onLand });
-  }
-
-  function spread(from, to) {
-    const g = new Graphics();
-    g.blendMode = 'add';
-    lineLayer.addChild(g);
-    lines.push({ g, kind: 'spread', pts: [from, to], color: 0xb46cff, life: 0.4, max: 0.4 });
+    lines.push({ g, x0, y0, x1, y1, color: hex(color), life: 0.4, max: 0.4, scale: k });
   }
 
   // --- update -------------------------------------------------------------------
@@ -162,14 +131,15 @@ export function createFx(stage) {
   layers.fx.addChild(boomLayer);
   const booms = [];
   /** `kind` = element (or 'plain'); `size` in world units. */
-  function explode(x, y, kind, size = 1.6, { dur = 0.36, flash = null } = {}) {
+  function explode(x, y, kind, size = 1.6, { dur = 0.36 } = {}) {
+    size = fitBoom(light, size, dur); // photosafe: at most POINT.boomMax, smaller (or none) when the light budget is short
+    if (!size) return;
     if (booms.length > 60) booms.shift().sp.destroy();
     const frames = boomFrames(kind);
     const sp = new Sprite(frames[0]);
     sp.anchor.set(0.5);
     boomLayer.addChild(sp);
     booms.push({ sp, frames, x, y, size, t: 0, dur });
-    if (flash != null) particle(softDot(), x, y, { life: 0.16, size: size * 1.3, grow: 0.6, color: flash });
   }
 
   function updateBooms(dt) {
@@ -194,6 +164,10 @@ export function createFx(stage) {
   const coins = [];
   /** `target()` returns the counter's world position (it follows resizes). */
   function coinDrop(x, y, n, target, onArrive) {
+    // fewer coins fly when the light budget is short (the counter still pulses once)
+    const m = Math.round(n * light.book(n * COIN.lit, COIN.life(n)));
+    if (!m && n > 0) onArrive?.();
+    n = m;
     for (let i = 0; i < n && coins.length < 80; i++) {
       const sp = new Sprite(coinTex());
       sp.anchor.set(0.5);
@@ -241,6 +215,7 @@ export function createFx(stage) {
   }
 
   function update(dt) {
+    light.tick(dt);
     updateCoins(dt);
     updateBooms(dt);
     const U = stage.view.U;
@@ -248,23 +223,34 @@ export function createFx(stage) {
     const sy = stage.sy;
     for (let i = parts.length - 1; i >= 0; i--) {
       const p = parts[i];
-      p.life -= dt;
+      let step = dt;
+      if (p.delay > 0) {
+        // waiting to show: its life starts when its delay runs out
+        if (p.delay >= dt) {
+          p.delay -= dt;
+          continue;
+        }
+        step = dt - p.delay;
+        p.delay = 0;
+        p.sp.visible = true;
+      }
+      p.life -= step;
       if (p.life <= 0) {
         p.sp.visible = false;
         parts.splice(i, 1);
         free.push(p);
         continue;
       }
-      p.vy += p.gravity * dt;
-      const k = Math.exp(-p.drag * dt);
+      p.vy += p.gravity * step;
+      const k = Math.exp(-p.drag * step);
       p.vx *= k;
       p.vy *= k;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.size = Math.max(0, p.size + p.grow * dt / p.max);
+      p.x += p.vx * step;
+      p.y += p.vy * step;
+      p.size = Math.max(0, p.size + p.grow * step / p.max);
       const f = p.life / p.max;
       p.sp.position.set(sx(p.x), sy(p.y));
-      p.sp.width = p.sp.height = p.size * U;
+      p.sp.scale.set((p.size * U) / Math.max(p.sp.texture.width, p.sp.texture.height, 1)); // the long edge is `size`
       p.sp.alpha = p.alpha * Math.min(1, f * 1.6);
       p.sp.rotation += p.spin * dt;
     }
@@ -295,58 +281,16 @@ export function createFx(stage) {
       }
       const f = l.life / l.max;
       l.g.clear();
-      if (l.kind === 'arc' || l.kind === 'spread') {
-        const jag = l.kind === 'arc' ? 0.28 : 0;
-        const draw = (w, a, col) => {
-          l.g.moveTo(sx(l.pts[0].x), sy(l.pts[0].y));
-          for (let j = 1; j < l.pts.length; j++) {
-            const p = l.pts[j - 1];
-            const q = l.pts[j];
-            for (let s = 1; s <= 3; s++) {
-              const t = s / 3;
-              const jx = s < 3 ? (Math.random() - 0.5) * jag : 0;
-              const jy = s < 3 ? (Math.random() - 0.5) * jag : 0;
-              l.g.lineTo(sx(p.x + (q.x - p.x) * t + jx), sy(p.y + (q.y - p.y) * t + jy));
-            }
-          }
-          l.g.stroke({ width: w * U, color: col, alpha: a * f, cap: 'round', join: 'round' });
-        };
-        draw(0.34 * (l.width ?? 1), 0.35, l.color);
-        draw(0.12 * (l.width ?? 1), 1, 0xffffff);
-      } else if (l.kind === 'beam') {
-        const k = 1 - f; // the head races ahead, the tail follows
-        const hx = l.x0 + (l.x1 - l.x0) * Math.min(1, k * 2.2);
-        const hy = l.y0 + (l.y1 - l.y0) * Math.min(1, k * 2.2);
-        l.g.moveTo(sx(l.x0), sy(l.y0)).lineTo(sx(hx), sy(hy)).stroke({ width: 0.5 * U * f, color: l.color, alpha: 0.55 * f, cap: 'round' });
-        l.g.moveTo(sx(l.x0), sy(l.y0)).lineTo(sx(hx), sy(hy)).stroke({ width: 0.14 * U * f, color: 0xffffff, alpha: f, cap: 'round' });
-      } else if (l.kind === 'slash') {
-        const a = laneAt(l.lane, l.s - l.len);
-        const b = laneAt(l.lane, l.s + l.len * 0.3);
-        l.g.moveTo(sx(a.x), sy(a.y)).lineTo(sx(b.x), sy(b.y)).stroke({ width: 0.55 * U * f, color: l.color, alpha: 0.5 * f, cap: 'round' });
-        l.g.moveTo(sx(a.x), sy(a.y)).lineTo(sx(b.x), sy(b.y)).stroke({ width: 0.16 * U * f, color: 0xffffff, alpha: f, cap: 'round' });
-      }
-    }
-    for (let i = meteors.length - 1; i >= 0; i--) {
-      const m = meteors[i];
-      m.t += dt;
-      const t = Math.min(1, m.t / m.dur);
-      const x = m.x0 + (m.x - m.x0) * t;
-      const y = m.y0 + (m.y - m.y0) * t;
-      m.sp.position.set(sx(x), sy(y));
-      m.sp.width = m.sp.height = 1.6 * U;
-      m.sp.rotation = Math.atan2(-(m.y - m.y0), m.x - m.x0);
-      trail(x, y, 0xff8a3d, 0.9);
-      if (t >= 1) {
-        m.sp.destroy();
-        meteors.splice(i, 1);
-        ring(m.x, m.y, 0xffb27a, 0.3, m.radius * 2, 0.5);
-        burst(m.x, m.y, [0xff8a3d, 0xffd36b, 0x7a5a3a], 36, { speed: 8, size: 0.32, life: 0.7, gravity: -10 });
-        m.onLand?.();
-      }
+      const k = 1 - f; // the head races ahead, the tail follows
+      const hx = l.x0 + (l.x1 - l.x0) * Math.min(1, k * 2.2);
+      const hy = l.y0 + (l.y1 - l.y0) * Math.min(1, k * 2.2);
+      l.g.moveTo(sx(l.x0), sy(l.y0)).lineTo(sx(hx), sy(hy)).stroke({ width: LINE.beam * U * f * l.scale, color: l.color, alpha: 0.55 * f, cap: 'round' });
+      l.g.moveTo(sx(l.x0), sy(l.y0)).lineTo(sx(hx), sy(hy)).stroke({ width: LINE.beamCore * U * f * l.scale, color: 0xfffaf2, alpha: f, cap: 'round' });
     }
   }
 
   function reset() {
+    light = createLightBudget();
     for (const c of coins) c.sp.destroy();
     coins.length = 0;
     for (const b of booms) b.sp.destroy();
@@ -357,9 +301,25 @@ export function createFx(stage) {
     freeNums.push(...nums.splice(0));
     for (const l of lines) l.g.destroy();
     lines.length = 0;
-    for (const m of meteors) m.sp.destroy();
-    meteors.length = 0;
   }
 
-  return { particle, burst, ring, trail, number, lightning, slash, beam, bolt, meteor, spread, coinDrop, explode, update, reset };
+  return {
+    particle,
+    burst,
+    ring,
+    number,
+    beam,
+    coinDrop,
+    explode,
+    update,
+    reset,
+    /** Book a flash that lights `lit` for `life` seconds (from `delay` s on) into the light budget, whole or not at all (an enemy's hit flash). */
+    flashAll: (lit, life, delay = 0) => light.bookAll(lit, life, delay),
+    /** Book as much of it as fits (0 below minShare): → the share booked, to draw it at (a text popup's size). */
+    flashShare: (lit, life, minShare = 0, delay = 0) => light.book(lit, life, minShare, delay),
+    /** What the local effects light now (world units², to 10% or more), for checks. */
+    get lit() {
+      return light.used;
+    },
+  };
 }

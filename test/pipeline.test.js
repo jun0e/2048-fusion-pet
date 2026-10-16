@@ -7,6 +7,13 @@ import { checkBudget, MONTH_MS } from '../tools/gemini-budget.mjs';
 import { spriteId, portraitId } from '../src/art/sprite-ids.js';
 import { ELEMENT_PALETTES, UNIVERSAL } from '../src/art/palettes.js';
 import { FUSIONS } from '../src/sim/classes.js';
+import { FOE_ROSTER } from '../src/art/foe-roster.js';
+import { VFX_IDS, VFX_PIECES } from '../src/art/attack-vfx.js';
+import { CHAPTER_GROUNDS, FRAME_ASSETS } from '../src/art/frame-kit.js';
+import { commitManifest, onlyMatcher, readManifest, withLock } from '../tools/pipeline.mjs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const root = '/nonexistent'; // no approved references: the plain prompts
 const rows = buildAssetRows();
@@ -14,8 +21,10 @@ const core = plan(rows, root, ['P0', 'P1']);
 const byId = new Map(core.jobs.map((j) => [j.id, j]));
 const hexes = (el) => ELEMENT_PALETTES[el].colors.map((c) => c.hex);
 
-test('P0+P1 plans the 125 core images: eggs, 32 pets, 28 fusions + portraits, 8 halos, 8 badges, 17 foes, background', () => {
-  assert.equal(core.jobs.length, 125);
+test('P0+P1 plans the 168 core images: eggs, 32 pets, 28 fusions + portraits, 8 halos, 8 badges, 17 foes, 30 attack sprites, 13 frame pieces, background', () => {
+  assert.equal(core.jobs.length, 168);
+  assert.equal(core.jobs.filter((j) => j.id in FRAME_ASSETS).length, Object.keys(FRAME_ASSETS).length);
+  assert.equal(core.jobs.filter((j) => /^vfx\./.test(j.id)).length, VFX_IDS.length);
   assert.equal(core.jobs.filter((j) => /^badge\./.test(j.id)).length, 8);
   const count = (re) => core.jobs.filter((j) => re.test(j.id)).length;
   assert.equal(count(/^egg\./), 3);
@@ -56,8 +65,38 @@ test('stages are edits of the previous stage; fusions see both parents and the g
   assert.deepEqual(byId.get('fusion.fire+ice').refs, ['pet.fire.128', 'pet.ice.128']);
   assert.deepEqual(byId.get('fusion.wind+metal').refs, ['pet.wind.128', 'pet.metal.128', 'fusion.fire+ice']);
   assert.deepEqual(byId.get('portrait.poison+earth').refs, ['fusion.poison+earth'], 'portraits see only their own fusion');
-  assert.deepEqual(byId.get('enemy.ninja').refs, ['enemy.pixie']);
-  assert.deepEqual(byId.get('enemy.pixie').refs, []);
+});
+
+test('foes fill their own silhouette contract, styled by their chapter golden, three candidates each', () => {
+  for (const [k, r] of Object.entries(FOE_ROSTER)) {
+    const j = byId.get(`enemy.${k}`);
+    assert.equal(j.refs[0], `tools/refs/foes/sil-${r.animal}.png`, `${k}: image 1 is its contract`);
+    assert.ok(existsSync(new URL(`../${j.refs[0]}`, import.meta.url)), `${k}: the contract file exists`);
+    assert.equal(j.pick.n, 3);
+    assert.equal(j.pick.contract, j.refs[0]);
+    assert.equal(j.pick.others.length, 16, `${k}: checked against every other foe`);
+    assert.ok(j.prompt.includes(r.pose) && j.prompt.includes(r.accent), `${k}: the pose and accent are in the prompt`);
+    for (const h of r.pal) assert.ok(j.prompt.includes(h), `${k}: ${h} is in the colour rule`);
+    assert.equal(j.post.size, r.boss ? 768 : 512);
+    assert.equal(j.post.stripRim, true, `${k}: no cream rim (the heroes' cue)`);
+    assert.equal(j.pick.chapters[0], r.chapter, `${k}: its own chapter first`);
+    for (const [name, hex] of Object.entries(CHAPTER_GROUNDS[r.chapter])) assert.equal(j.pick.grounds[name], hex, `${k}: reads on its chapter's ${name}`);
+    for (const o of j.pick.others) assert.ok(o.chapters.length >= 1, `${k}: ${o.id} says where it marches`);
+    assert.equal(j.pick.animal, r.animal);
+    assert.equal(j.pick.pose, r.pose, 'the strict round can name its features');
+  }
+  const moth = byId.get('enemy.pixie').pick;
+  assert.deepEqual(moth.chapters, ['forest', 'fareast'], 'the moth marches in two chapters');
+  assert.equal(moth.grounds['fareast.hedge'], CHAPTER_GROUNDS.fareast.hedge, 'and must read on both hedges');
+  assert.ok(byId.get('enemy.ninja').pick.others.find((o) => o.id === 'enemy.pixie').chapters.includes('fareast'), 'the fox is held apart from the moth');
+  assert.deepEqual(byId.get('enemy.pixie').refs.slice(1), ['tools/refs/foes/render-ref.png'], 'the forest golden starts from the frozen render');
+  assert.ok(existsSync(new URL('../tools/refs/foes/render-ref.png', import.meta.url)));
+  assert.deepEqual(byId.get('enemy.pixie').deps, []);
+  assert.deepEqual(byId.get('enemy.ninja').refs.slice(1), ['enemy.pixie'], 'a chapter golden follows the forest golden');
+  assert.deepEqual(byId.get('enemy.villager').refs.slice(1), ['enemy.pixie']);
+  assert.deepEqual(byId.get('enemy.kiteNinja').deps, ['enemy.ninja'], 'every other foe follows its chapter golden');
+  assert.deepEqual(byId.get('enemy.redDragon').deps, ['enemy.villager']);
+  assert.equal(new Set(Object.values(FOE_ROSTER).map((r) => r.animal)).size, 17, 'seventeen different animals');
 });
 
 test('the palette hard limit: babies name their 6 element colours and snap to them', () => {
@@ -156,4 +195,82 @@ test('classify429: Vertex shared-capacity exhaustion is retried, not a stop', ()
 test("classify429: Vertex's 'Resource has been exhausted (e.g. check quota)' is a retry", () => {
   const q = classify429({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'Resource has been exhausted (e.g. check quota).' } });
   assert.equal(q.kind, 'minute');
+});
+
+test('attack sprites: one job per piece, never a glow; bodies are cream-white for the tint, decals lie flat', () => {
+  for (const id of VFX_IDS) {
+    const j = byId.get(id);
+    const [, el, piece] = id.split('.');
+    const v = VFX_PIECES[el][piece];
+    assert.ok(j, `${id} is planned`);
+    assert.ok(/NO glow/.test(j.prompt), `${id}: no glow`);
+    assert.equal(j.post.fit, 'trim');
+    if (v.tint) assert.ok(j.prompt.includes('only cream-white') && !j.prompt.includes('HARD COLOUR RULE'), `${id}: tintable`);
+    else assert.ok(j.prompt.includes('HARD COLOUR RULE'), `${id}: full colour in its palette`);
+    if (v.kind === 'decal') assert.ok(j.prompt.includes('Seen from directly above'), `${id}: a ground decal`);
+    assert.equal(j.bg, v.bg ?? BG_FOR[el]);
+  }
+  assert.equal(byId.get('vfx.nature.blossom').bg, 'green', 'the pink blossom does not key on magenta');
+  assert.match(byId.get('vfx.nature.blossom').prompt, /pure green #00FF00/);
+});
+
+test('--only takes ids and globs', () => {
+  const m = onlyMatcher(['enemy.*', 'vfx.fire.tongue']);
+  assert.ok(m('enemy.pixie') && m('enemy.elfRuler.portrait') && m('vfx.fire.tongue'));
+  assert.ok(!m('vfx.fire.ember') && !m('xenemy.pixie') && !m('fusion.fire+ice'));
+  assert.ok(onlyMatcher(['fusion.fire+ice'])('fusion.fire+ice'), 'a literal + is not a regex');
+});
+
+test('a manifest write merges into the file on disk and replaces it atomically', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'manifest-'));
+  try {
+    const file = join(dir, 'manifest.json');
+    assert.deepEqual(readManifest(file), { files: {}, meta: {} }, 'no file yet: empty');
+    commitManifest(file, { 'enemy.a': { file: 'gen/enemy.a.png', meta: { qa: { ok: true } } } }, 'T1');
+    // another process writes its own entry meanwhile (as the older pipeline did: the whole file)
+    const theirs = JSON.parse(readFileSync(file, 'utf8'));
+    theirs.files['vfx.b'] = 'gen/vfx.b.png';
+    theirs.meta['vfx.b'] = { qa: { ok: true } };
+    writeFileSync(file, JSON.stringify(theirs));
+    const m = commitManifest(file, { 'enemy.a': { meta: { qa: { ok: false }, gate: { pass: false } } } }, 'T2');
+    assert.equal(m.files['vfx.b'], 'gen/vfx.b.png', "the other process's entry survives");
+    assert.deepEqual(m.meta['enemy.a'], { qa: { ok: false }, gate: { pass: false } }, 'this job: its meta replaced');
+    assert.equal(m.files['enemy.a'], 'gen/enemy.a.png');
+    assert.equal(m.generatedAt, 'T2');
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), m, 'what is on disk is what was merged');
+    assert.deepEqual(readdirSync(dir), ['manifest.json'], 'no temp file left behind');
+    writeFileSync(file, '{"files": {');
+    assert.throws(() => readManifest(file, { tries: 2 }), /does not parse/, 'a broken manifest stops the run rather than being replaced');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('withLock: one holder at a time, released even when the work throws; a crashed holder’s stale lock is taken over', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'lock-test-'));
+  try {
+    const lock = join(dir, 'manifest.json.lock');
+    assert.equal(withLock(lock, () => existsSync(lock)), true, 'held while the work runs');
+    assert.equal(existsSync(lock), false, 'released after');
+    assert.throws(() => withLock(lock, () => { throw new Error('boom'); }), /boom/);
+    assert.equal(existsSync(lock), false, 'released when the work throws');
+    mkdirSync(lock);
+    const old = new Date(Date.now() - 60000);
+    utimesSync(lock, old, old);
+    assert.equal(withLock(lock, () => 'taken over'), 'taken over', 'a lock older than 30 s belongs to a crashed process');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the six reviewed gate misses are accepted (reported, not a failed run); every other foe must pass', () => {
+  const accepted = Object.keys(FOE_ROSTER).filter((k) => byId.get(`enemy.${k}`).pick.accepted);
+  assert.deepEqual(accepted.sort(), ['armoredSoldier', 'elfRuler', 'hoodedFlier', 'kiteMinion', 'leafSprite', 'ninja']);
+  for (const k of accepted) {
+    const a = byId.get(`enemy.${k}`).pick.accepted;
+    const gates = Object.keys(a.margins);
+    assert.ok(gates.length > 0 && gates.every((g) => ['contract', 'twin', 'twinChapter', 'ally', 'ground'].includes(g)), `${k}: the gates it may miss`);
+    assert.ok(Object.values(a.margins).every((v) => v < 0 && v > -0.1), `${k}: each reviewed margin`);
+    assert.match(a.why, /2026-10-16/, `${k}: the reason is dated`);
+  }
 });

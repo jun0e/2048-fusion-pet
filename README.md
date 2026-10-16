@@ -44,7 +44,7 @@ Run it next to the main game: `npm run dev -- --port 5176`.
 ```bash
 npm install
 npm run dev        # then open the printed URL
-npm test           # 48 headless tests: 2048 rules, dice and classes, lane combat, economy, wave loop
+npm test           # 271 headless tests: 2048 rules, dice and classes, lane combat, economy, wave loop, photosafety, art gates
 npm run build      # production bundle in dist/
 ```
 
@@ -54,9 +54,9 @@ Controls: swipe (touch or mouse drag) or arrow keys / WASD. Tap a block to see i
 
 ## How a run plays
 
-1. **Prep.** 15 seconds and 80 coins before the first wave (or press **Wave now**). The next wave's lanes are telegraphed: their portals open, chevrons flow down them and the board column that defends each lane lights up.
-2. **Waves.** Enemies spawn at the portals at the top, walk down their lane, through their board column and into the wall under the board. Each block fires by its class's range, target rule and pattern (see **Shooting** below), skipping enemies already doomed by shots in flight. Ultimates reach every lane. Enemies that reach the wall damage the castle (1,000 HP).
-3. **Breaks.** Clearing a wave pays a bonus and starts a break to spend it: 14 s before wave 2, 2 s longer each wave, capped at 30 s from wave 10. **Wave now** skips it. A boss comes every 5th wave, in the red lane; killing it promotes your biggest block one tier.
+1. **Prep.** 15 seconds and 80 coins before the first wave (or press **Wave now**). The next wave's lanes are telegraphed: their gates open and show the foes coming, and the brazier over each lane lights up.
+2. **Waves.** Enemies spawn at the gates at the top, walk down their lane, through their board column and into the wall under the board. Each block fires by its class's range, target rule and pattern (see **Shooting** below), skipping enemies already doomed by shots in flight. Ultimates reach every lane. Enemies that reach the wall damage the castle (1,000 HP).
+3. **Breaks.** Clearing a wave pays a bonus and starts a break to spend it: 14 s before wave 2, 2 s longer each wave, capped at 30 s from wave 10. **Wave now** skips it. A boss comes every 5th wave, through the gate with red banners; killing it promotes your biggest block one tier.
 
 You lose when the castle falls.
 
@@ -167,22 +167,24 @@ A fusion carries both elements' effects. The projectile takes the first element'
 | Metal | Midas | Every 4 s, gilds every foe on the field (each drops bonus coins) |
 | Nature | Lifebloom | Every 6 s, heals the castle by 40 |
 
-## Enemies (from Slime Legion footage)
+## Enemies: an animal army
+
+Every enemy is one animal with its own silhouette (`src/art/foe-roster.js`). The pipeline generates each one inside its silhouette contract and gates it against look-alikes (`tools/silhouette-check.py`; see `reports/art/visual-overhaul/proposal.md`, section 7).
 
 | Chapter (10 waves each, then loop) | Enemies | Boss |
 |---|---|---|
-| Eternal Forest | Pixie, Griffin Chick, Leaf Sprite, Axolotl Fairy, Hooded Flier, Flame Sprite (fire) | Elf Ruler: heals nearby allies |
-| Fareast Kingdom | Ninja, Armoured Soldier (30% physical RES), Ring Monk, Pixie | Kite Ninja: 50% physical RES, summons minions on death |
-| Dragon Peaks | Villager, Wyvern, Phoenix (fire), Red Dragon (fire) | Earth Dragon Rider: fire, 20% physical RES |
+| Eternal Forest (the Wild Hunt) | Moonmoth, Dormouse, Shield Beetle, Gillnewt, Horned Owl, Ember Salamander (fire) | Hive Queen: heals nearby allies |
+| Fareast Kingdom (the Paper Court) | Nightfox, Pangolin Guard (30% physical RES), Cymbal Macaque, Moonmoth | Pagoda Crab: 50% physical RES, releases kite carps when it falls |
+| Dragon Peaks (the Ember Peaks) | Crag Ibex, Crag Wyvern, Cinder Bat (fire), Magma Snail (fire) | Lava Wyrm: fire, 20% physical RES |
 
 ## What you see
 
 - Blocks are bevelled, coloured by tier (plain) or element (classed), with element icons, a glow for classes, recoil and a muzzle spark on every shot.
-- Projectiles are bold outlined sprites in their element's shape and colour, with a glow, a ground shadow and a two-colour trail: fireballs, crystal lances, homing darts, boulders that rise and fall over their shadow, crescent blades, spinning steel stars, leaf seeds, pebbles. Fusions keep the first element's shape in the second element's colour, so Blue Flame shoots blue fireballs.
-- Every hit plays an 8-frame explosion at the contact point: fire blast, crystal shatter, spark star, toxic cloud, rock blast with debris, wind swirl, steel flash with a coin, petal burst (plain shots puff dust). Fusions add a ring in the second colour.
+- The field is a siege: a stone keep around the board, towers left and right, a gate arch at the top of each lane (an open gate shows the next wave's foes), cobbled lanes with a tick per cell, hedges between them, and a parapet whose braziers light over the lanes under attack. Each chapter has its own skin and painted backdrop (`src/render/frame.js`).
+- Attacks are generated sticker sprites with trails (`src/art/attack-vfx.js`): Ember Breath's flame tongue, the ice harpoon on its tether, bolt-link chains, venom globs that leave a puddle, quake cracks, gust ribbons, claw slashes and bramble arcs, with element impacts and ground marks. Each block size adds one visible thing to its attack (16, 32–64, 128, a 256 fusion, a 4096 legend), and the pet winds up before it fires. Fusions take the first element's shape in the fusion colour plus the second element's add-on.
 - Tap a block to see its range: outlined bands over the lanes it covers, from its reach above the block to its reach below, or Nature's circle.
 - Monsters show an HP bar (bosses also show the number) and status badges with stacks: burn ×n, poison ×n, chill −%, freeze seconds. Burning monsters shed embers, poisoned ones bubble, chilled ones turn blue, frozen ones sit in an ice block. Burn and poison ticks print their own orange and green numbers.
-- Hits print damage numbers; lightning draws jagged arcs, wind slashes down the lane, earth rings out, Meteor streaks down and explodes, Tempest drops sky bolts, Sun/Timestop/Vortex flash the screen.
+- Hits print damage numbers. Nothing on the field is additive, and every flash stays photosafe (`docs/ux/photosafe.md`).
 - Kills print a gold `+N` and drop spinning coins that fly into the coin counter. A leak flashes that lane's section of the wall red and shakes it.
 - Dormant blocks (below 16) are a pale version of their die colour; awakened blocks are full colour with a glow. A merge that awakens, fuses or ascends a block announces the combination; when an awakened block overrides a different colour, a small `Fire over Ice` pop-up shows which colour won. Metal-marked foes carry a coin badge (`+60`); Nature heals print a green `+N` on the wall.
 

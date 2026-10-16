@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#1c2547" />
+    <meta name="theme-color" content="#1f3352" />
     <meta name="description" content="Merge blocks into turrets and hold the siege." />
     <!-- installed from the home screen: full screen, portrait (public/manifest.webmanifest) -->
     <meta name="mobile-web-app-capable" content="yes" />
@@ -28,7 +28,7 @@
         z-index: 20;
         display: grid;
         place-items: center;
-        background: #1c2547;
+        background: linear-gradient(180deg, #2a4466, #1f3352 55%, #15223a);
         color: #fffaf2;
         font-family: 'Baloo 2', system-ui, sans-serif;
         transition: opacity 0.4s ease;
@@ -51,10 +51,13 @@
         place-items: center;
         width: 120px;
         height: 104px;
-        border-radius: 28px;
-        background: #ffd34a;
-        box-shadow: 0 10px 0 #c47a10;
-        color: #4a2e12;
+        border-radius: 24px;
+        background: #fffaf2;
+        border: 3px solid #2b1d2e;
+        box-shadow:
+          inset 0 -6px 0 #e6d6be,
+          0 6px 0 #2b1d2e99;
+        color: #2b1d2e;
         font-size: 40px;
         font-weight: 800;
       }
@@ -68,7 +71,8 @@
         width: 140px;
         height: 8px;
         border-radius: 999px;
-        background: #ffffff22;
+        background: #fffaf2;
+        border: 2px solid #2b1d2e;
         overflow: hidden;
       }
       .boot-bar i {
@@ -76,7 +80,7 @@
         width: 40%;
         height: 100%;
         border-radius: 999px;
-        background: #ffd34a;
+        background: #2b1d2e;
         animation: boot-slide 1.1s ease-in-out infinite alternate;
       }
       #boot.done .boot-bar i {
@@ -107,10 +111,11 @@
       .boot-new {
         min-height: 44px;
         padding: 12px 28px;
-        border: 0;
-        border-radius: 16px;
+        border: 2px solid #2b1d2e;
+        border-radius: 18px;
         background: #bfe3bd;
-        color: #2b1d12;
+        box-shadow: 0 3px 0 #2b1d2e59;
+        color: #2b1d2e;
         font: 800 17px system-ui, sans-serif;
       }
       #boot:not(.failed) .boot-new {

@@ -1,0 +1,254 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1000 660" width="1000" height="660" font-family="Helvetica, Arial, sans-serif">
+  <title>2048 Siege: proposed enemy roster as solid silhouettes (17 foes, one animal form each)</title>
+  <desc>Each creature sits in a 120x120 box (ground at y=104, facing left). The small copy beside each is the 40 px on-screen check. Grid cells start at x = 20 + col*155, y = 60 + row*185 (6 columns), so a rasteriser can crop and compare the masks.</desc>
+  <style>
+    .lbl { font-size: 11px; fill: #2b1d2e; font-weight: 700; }
+    .sub { font-size: 9px; fill: #6a6f7a; }
+    .hd  { font-size: 16px; fill: #2b1d2e; font-weight: 700; }
+    .ch  { font-size: 10px; fill: #8a8f9a; font-weight: 700; letter-spacing: 1px; }
+    .box { fill: #f3f1ec; stroke: #d6d2c9; stroke-width: 1; }
+    .sil { fill: #15121a; }
+  </style>
+  <defs>
+    <!-- Chapter 1: Eternal Forest -->
+    <symbol id="moth" viewBox="0 0 120 120">
+      <g class="sil">
+        <path d="M55,50 C30,20 5,30 8,56 C10,70 35,72 55,66 Z"/>
+        <path d="M65,50 C90,20 115,30 112,56 C110,70 85,72 65,66 Z"/>
+        <path d="M55,66 C35,68 20,84 26,98 C34,108 50,96 56,80 Z"/>
+        <path d="M65,66 C85,68 100,84 94,98 C86,108 70,96 64,80 Z"/>
+        <ellipse cx="60" cy="62" rx="9" ry="22"/>
+        <circle cx="60" cy="36" r="9"/>
+        <path d="M56,30 L40,10 M64,30 L80,10" stroke="#15121a" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <path d="M28,96 L22,118 M92,96 L98,118" stroke="#15121a" stroke-width="4" stroke-linecap="round" fill="none"/>
+      </g>
+    </symbol>
+    <symbol id="dormouse" viewBox="0 0 120 120">
+      <g class="sil">
+        <ellipse cx="64" cy="76" rx="28" ry="24"/>
+        <circle cx="38" cy="58" r="17"/>
+        <circle cx="30" cy="40" r="8"/>
+        <circle cx="46" cy="38" r="8"/>
+        <ellipse cx="22" cy="64" rx="7" ry="5"/>
+        <path d="M90,82 C114,74 118,40 100,30" stroke="#15121a" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <ellipse cx="52" cy="100" rx="9" ry="4"/>
+        <ellipse cx="78" cy="100" rx="9" ry="4"/>
+      </g>
+    </symbol>
+    <symbol id="beetle" viewBox="0 0 120 120">
+      <g class="sil">
+        <path d="M14,88 C14,52 106,52 106,88 Z"/>
+        <polygon points="42,56 18,20 54,42"/>
+        <polygon points="78,56 102,20 66,42"/>
+        <path d="M14,76 C4,70 2,60 8,54 M14,82 C4,88 2,96 8,102" stroke="#15121a" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M30,88 L22,106 M50,88 L46,106 M72,88 L78,106 M92,88 L100,104" stroke="#15121a" stroke-width="5" stroke-linecap="round" fill="none"/>
+      </g>
+    </symbol>
+    <symbol id="axolotl" viewBox="0 0 120 120">
+      <g class="sil">
+        <!-- swims diagonally up-left: the only diagonal mass in the roster -->
+        <ellipse cx="60" cy="70" rx="40" ry="15" transform="rotate(25 60 70)"/>
+        <circle cx="24" cy="52" r="15"/>
+        <path d="M28,40 L14,18 M32,38 L30,12 M38,40 L48,16" stroke="#15121a" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <polygon points="90,78 118,72 112,90 118,108 92,98"/>
+        <ellipse cx="42" cy="78" rx="7" ry="5"/>
+        <ellipse cx="80" cy="98" rx="7" ry="5"/>
+      </g>
+    </symbol>
+    <symbol id="owl" viewBox="0 0 120 120">
+      <g class="sil">
+        <ellipse cx="60" cy="66" rx="30" ry="40"/>
+        <polygon points="40,34 32,6 54,30"/>
+        <polygon points="80,34 88,6 66,30"/>
+        <path d="M30,56 C10,60 4,86 12,100 C22,92 30,80 34,70 Z"/>
+        <path d="M90,56 C110,60 116,86 108,100 C98,92 90,80 86,70 Z"/>
+        <ellipse cx="50" cy="106" rx="8" ry="5"/>
+        <ellipse cx="70" cy="106" rx="8" ry="5"/>
+      </g>
+    </symbol>
+    <symbol id="salamander" viewBox="0 0 120 120">
+      <g class="sil">
+        <ellipse cx="56" cy="84" rx="40" ry="13"/>
+        <ellipse cx="18" cy="80" rx="14" ry="10"/>
+        <path d="M94,80 C112,74 118,60 110,44 C120,36 116,22 104,20 C110,34 100,40 98,56 C96,66 100,76 94,80 Z"/>
+        <path d="M30,94 L18,106 M44,94 L40,108 M70,94 L66,108 M84,94 L96,106" stroke="#15121a" stroke-width="6" stroke-linecap="round" fill="none"/>
+      </g>
+    </symbol>
+    <symbol id="hivequeen" viewBox="0 0 120 120">
+      <g class="sil">
+        <!-- low head, big hanging abdomen, two long narrow wings streaking up and back -->
+        <ellipse cx="76" cy="78" rx="32" ry="24"/>
+        <circle cx="38" cy="64" r="15"/>
+        <circle cx="16" cy="58" r="11"/>
+        <polygon points="6,48 8,34 12,48 16,32 20,48 24,36 26,48"/>
+        <ellipse cx="60" cy="34" rx="30" ry="8" transform="rotate(-35 60 34)"/>
+        <ellipse cx="78" cy="44" rx="32" ry="7" transform="rotate(-20 78 44)"/>
+        <polygon points="106,82 120,78 106,88"/>
+        <path d="M30,78 L26,100 M44,80 L46,102 M62,92 L64,106" stroke="#15121a" stroke-width="4" stroke-linecap="round" fill="none"/>
+      </g>
+    </symbol>
+    <!-- Chapter 2: Fareast Kingdom -->
+    <symbol id="fox" viewBox="0 0 120 120">
+      <g class="sil">
+        <ellipse cx="62" cy="80" rx="34" ry="14"/>
+        <ellipse cx="24" cy="70" rx="16" ry="11"/>
+        <polygon points="14,62 8,40 26,60"/>
+        <polygon points="28,60 34,38 42,62"/>
+        <ellipse cx="102" cy="60" rx="12" ry="26" transform="rotate(-30 102 60)"/>
+        <path d="M36,90 L20,106 M48,90 L56,108 M78,90 L70,108 M88,88 L108,102" stroke="#15121a" stroke-width="5" stroke-linecap="round" fill="none"/>
+      </g>
+    </symbol>
+    <symbol id="pangolin" viewBox="0 0 120 120">
+      <g class="sil">
+        <!-- scaled wedge, head low in front, thick tail hooking up over the rump -->
+        <path d="M8,98 C20,60 58,36 96,44 C108,48 112,70 108,98 Z"/>
+        <ellipse cx="14" cy="92" rx="12" ry="8"/>
+        <path d="M100,88 C122,82 124,56 108,44 C118,58 114,76 98,82 Z"/>
+        <ellipse cx="40" cy="102" rx="9" ry="5"/>
+        <ellipse cx="80" cy="102" rx="9" ry="5"/>
+      </g>
+    </symbol>
+    <symbol id="macaque" viewBox="0 0 120 120">
+      <g class="sil">
+        <!-- lotus float, arms raised: the cymbals meet above the head (a Y on a ball) -->
+        <circle cx="60" cy="74" r="24"/>
+        <circle cx="60" cy="44" r="15"/>
+        <circle cx="46" cy="42" r="5"/>
+        <circle cx="74" cy="42" r="5"/>
+        <path d="M44,62 L30,30 M76,62 L90,30" stroke="#15121a" stroke-width="7" stroke-linecap="round" fill="none"/>
+        <circle cx="26" cy="20" r="12"/>
+        <circle cx="94" cy="20" r="12"/>
+        <ellipse cx="60" cy="96" rx="30" ry="9"/>
+      </g>
+    </symbol>
+    <symbol id="kitecarp" viewBox="0 0 120 120">
+      <g class="sil">
+        <circle cx="16" cy="72" r="14"/>
+        <polygon points="16,58 90,64 90,80 16,86"/>
+        <polygon points="90,64 118,50 112,72 118,94 90,80"/>
+        <polygon points="50,62 60,46 72,62"/>
+        <polygon points="36,84 42,100 54,84"/>
+      </g>
+    </symbol>
+    <symbol id="pagodacrab" viewBox="0 0 120 120">
+      <g class="sil">
+        <!-- wide flat base, a stepped pagoda shell, two claws raised like side towers (a U) -->
+        <ellipse cx="60" cy="90" rx="44" ry="16"/>
+        <polygon points="26,76 94,76 88,64 32,64"/>
+        <polygon points="34,64 86,64 80,52 40,52"/>
+        <polygon points="56,52 64,52 60,36"/>
+        <polygon points="16,82 6,32 22,28 32,74"/>
+        <circle cx="12" cy="26" r="11"/>
+        <polygon points="104,82 114,32 98,28 88,74"/>
+        <circle cx="108" cy="26" r="11"/>
+        <path d="M28,102 L14,114 M40,104 L34,116 M80,104 L86,116 M92,102 L106,114" stroke="#15121a" stroke-width="5" stroke-linecap="round" fill="none"/>
+      </g>
+    </symbol>
+    <!-- Chapter 3: Dragon Peaks -->
+    <symbol id="ibex" viewBox="0 0 120 120">
+      <g class="sil">
+        <ellipse cx="62" cy="76" rx="30" ry="18"/>
+        <ellipse cx="28" cy="62" rx="14" ry="10"/>
+        <path d="M30,52 C40,20 80,16 96,40 C84,30 56,30 42,56 Z"/>
+        <path d="M36,54 C48,26 78,24 90,44 C80,36 58,38 46,58 Z"/>
+        <polygon points="18,70 14,84 26,72"/>
+        <path d="M40,92 L38,108 M52,92 L52,108 M72,92 L72,108 M84,92 L86,108" stroke="#15121a" stroke-width="6" stroke-linecap="round" fill="none"/>
+      </g>
+    </symbol>
+    <symbol id="wyvern" viewBox="0 0 120 120">
+      <g class="sil">
+        <path d="M60,58 C40,36 10,30 2,44 C12,40 30,46 44,62 Z"/>
+        <path d="M60,58 C80,36 110,30 118,44 C108,40 90,46 76,62 Z"/>
+        <ellipse cx="62" cy="68" rx="14" ry="10"/>
+        <polygon points="38,60 12,52 8,62 36,70"/>
+        <polygon points="42,60 60,36 52,62"/>
+        <path d="M74,72 C96,78 110,94 118,110" stroke="#15121a" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <path d="M56,76 L52,90 M68,76 L72,90" stroke="#15121a" stroke-width="4" stroke-linecap="round" fill="none"/>
+      </g>
+    </symbol>
+    <symbol id="bat" viewBox="0 0 120 120">
+      <g class="sil">
+        <path d="M48,64 C40,40 20,24 4,28 C10,36 8,46 2,52 C12,50 20,56 18,66 C28,62 40,68 48,78 Z"/>
+        <path d="M72,64 C80,40 100,24 116,28 C110,36 112,46 118,52 C108,50 100,56 102,66 C92,62 80,68 72,78 Z"/>
+        <ellipse cx="60" cy="74" rx="12" ry="18"/>
+        <circle cx="60" cy="52" r="10"/>
+        <polygon points="52,46 48,26 60,44"/>
+        <polygon points="68,46 72,26 60,44"/>
+        <ellipse cx="54" cy="94" rx="4" ry="6"/>
+        <ellipse cx="66" cy="94" rx="4" ry="6"/>
+      </g>
+    </symbol>
+    <symbol id="toad" viewBox="0 0 120 120">
+      <g class="sil">
+        <!-- magma snail: a big round rock shell riding a long low lava foot, eye stalks up front -->
+        <circle cx="72" cy="60" r="32"/>
+        <path d="M4,96 C8,84 30,82 60,86 L104,86 C112,88 112,96 104,100 L8,100 Z"/>
+        <ellipse cx="18" cy="84" rx="14" ry="9"/>
+        <path d="M14,76 L6,52 M22,76 L20,50" stroke="#15121a" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <circle cx="6" cy="50" r="5"/>
+        <circle cx="20" cy="48" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="wyrm" viewBox="0 0 120 120">
+      <g class="sil">
+        <circle cx="108" cy="92" r="11"/>
+        <circle cx="90" cy="94" r="13"/>
+        <circle cx="72" cy="92" r="14"/>
+        <circle cx="54" cy="86" r="15"/>
+        <circle cx="40" cy="68" r="14"/>
+        <circle cx="32" cy="48" r="13"/>
+        <ellipse cx="22" cy="32" rx="16" ry="12"/>
+        <polygon points="8,36 0,46 14,42"/>
+        <polygon points="54,72 50,54 62,72"/>
+        <polygon points="72,78 70,60 80,80"/>
+        <polygon points="90,82 90,66 98,84"/>
+        <polygon points="28,22 36,4 34,24"/>
+        <polygon points="18,22 14,4 24,24"/>
+        <polygon points="116,92 120,80 120,104"/>
+      </g>
+    </symbol>
+  </defs>
+
+  <rect width="1000" height="660" fill="#ffffff"/>
+  <text x="20" y="30" class="hd">2048 Siege: proposed enemy roster, solid silhouettes (120 px box, facing left) with the 40 px on-screen check</text>
+  <text x="20" y="46" class="sub">Rule: every foe is a different animal with a different primary shape; none repeats a pet animal (dragon-lizard, bird, turtle, orca, snake, unicorn, lion, ox). Target: closest-twin overlap (IoU at 40 px) at most 0.60.</text>
+
+  <!-- row 0: Eternal Forest -->
+  <text x="20" y="56" class="ch">CHAPTER 1 · ETERNAL FOREST (the Wild Hunt)</text>
+  <g transform="translate(20,60)"><rect class="box" width="120" height="120"/><use xlink:href="#moth" width="120" height="120"/><use xlink:href="#moth" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">1 Moonmoth</text><text y="148" class="sub">was Pixie · M · swarm flyer</text></g>
+  <g transform="translate(175,60)"><rect class="box" width="120" height="120"/><use xlink:href="#dormouse" width="120" height="120"/><use xlink:href="#dormouse" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">2 Dormouse</text><text y="148" class="sub">was Griffin Chick · S · fast, fragile</text></g>
+  <g transform="translate(330,60)"><rect class="box" width="120" height="120"/><use xlink:href="#beetle" width="120" height="120"/><use xlink:href="#beetle" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">3 Shield Beetle</text><text y="148" class="sub">was Leaf Sprite · M · slow, tough</text></g>
+  <g transform="translate(485,60)"><rect class="box" width="120" height="120"/><use xlink:href="#axolotl" width="120" height="120"/><use xlink:href="#axolotl" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">4 Gillnewt (axolotl)</text><text y="148" class="sub">was Axolotl Fairy · M · fast swimmer</text></g>
+  <g transform="translate(640,60)"><rect class="box" width="120" height="120"/><use xlink:href="#owl" width="120" height="120"/><use xlink:href="#owl" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">5 Horned Owl</text><text y="148" class="sub">was Hooded Flier · L · tank flyer</text></g>
+  <g transform="translate(795,60)"><rect class="box" width="120" height="120"/><use xlink:href="#salamander" width="120" height="120"/><use xlink:href="#salamander" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">6 Ember Salamander</text><text y="148" class="sub">was Flame Sprite · M · fire crawler</text></g>
+
+  <!-- row 1: boss 1 + Fareast -->
+  <text x="20" y="241" class="ch">BOSS 1 · HIVE QUEEN</text>
+  <text x="175" y="241" class="ch">CHAPTER 2 · FAREAST KINGDOM (the Paper Court)</text>
+  <g transform="translate(20,245)"><rect class="box" width="120" height="120"/><use xlink:href="#hivequeen" width="120" height="120"/><use xlink:href="#hivequeen" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">7 Hive Queen (boss)</text><text y="148" class="sub">was Elf Ruler · XL · heals allies</text></g>
+  <g transform="translate(175,245)"><rect class="box" width="120" height="120"/><use xlink:href="#fox" width="120" height="120"/><use xlink:href="#fox" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">8 Nightfox</text><text y="148" class="sub">was Ninja · S · runner</text></g>
+  <g transform="translate(330,245)"><rect class="box" width="120" height="120"/><use xlink:href="#pangolin" width="120" height="120"/><use xlink:href="#pangolin" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">9 Pangolin Guard</text><text y="148" class="sub">was Armoured Soldier · L · armour, slow</text></g>
+  <g transform="translate(485,245)"><rect class="box" width="120" height="120"/><use xlink:href="#macaque" width="120" height="120"/><use xlink:href="#macaque" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">10 Cymbal Macaque</text><text y="148" class="sub">was Ring Monk · M · floats</text></g>
+  <g transform="translate(640,245)"><rect class="box" width="120" height="120"/><use xlink:href="#kitecarp" width="120" height="120"/><use xlink:href="#kitecarp" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">11 Kite Carp</text><text y="148" class="sub">was Kite Minion · S · summoned</text></g>
+  <g transform="translate(795,245)"><rect class="box" width="120" height="120"/><use xlink:href="#pagodacrab" width="120" height="120"/><use xlink:href="#pagodacrab" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">12 Pagoda Crab (boss)</text><text y="148" class="sub">was Kite Ninja · XL · armour, summons</text></g>
+
+  <!-- row 2: Dragon Peaks -->
+  <text x="20" y="426" class="ch">CHAPTER 3 · DRAGON PEAKS (the Ember Peaks)</text>
+  <g transform="translate(20,430)"><rect class="box" width="120" height="120"/><use xlink:href="#ibex" width="120" height="120"/><use xlink:href="#ibex" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">13 Crag Ibex</text><text y="148" class="sub">was Villager · M · charger</text></g>
+  <g transform="translate(175,430)"><rect class="box" width="120" height="120"/><use xlink:href="#wyvern" width="120" height="120"/><use xlink:href="#wyvern" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">14 Crag Wyvern</text><text y="148" class="sub">was Wyvern · L · fast glider</text></g>
+  <g transform="translate(330,430)"><rect class="box" width="120" height="120"/><use xlink:href="#bat" width="120" height="120"/><use xlink:href="#bat" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">15 Cinder Bat</text><text y="148" class="sub">was Phoenix · M · fire flyer</text></g>
+  <g transform="translate(485,430)"><rect class="box" width="120" height="120"/><use xlink:href="#toad" width="120" height="120"/><use xlink:href="#toad" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">16 Magma Snail</text><text y="148" class="sub">was Red Dragon · L · heavy, slow, fire</text></g>
+  <g transform="translate(640,430)"><rect class="box" width="120" height="120"/><use xlink:href="#wyrm" width="120" height="120"/><use xlink:href="#wyrm" x="124" y="80" width="40" height="40"/><text y="136" class="lbl">17 Lava Wyrm (boss)</text><text y="148" class="sub">was Earth Dragon Rider · XL · fire, armour</text></g>
+  <g transform="translate(795,430)">
+    <rect class="box" width="120" height="120" fill="#ffffff"/>
+    <text x="6" y="18" class="lbl">Legend</text>
+    <text x="6" y="34" class="sub">S ≈ 22–27 px tall on a phone</text>
+    <text x="6" y="46" class="sub">M ≈ 28–33 px · L ≈ 35–44 px</text>
+    <text x="6" y="58" class="sub">XL (boss) ≈ 70–95 px</text>
+    <text x="6" y="72" class="sub">Facing: side profile facing left;</text>
+    <text x="6" y="84" class="sub">flyers = symmetric top-down spread;</text>
+    <text x="6" y="96" class="sub">never 3/4 (foes.js flips by dirX).</text>
+    <text x="6" y="108" class="sub">Two-value: mid-dark mass (L* 35–55)</text>
+    <text x="6" y="118" class="sub">+ a light zone ≥ 25% of the body.</text>
+  </g>
+</svg>
