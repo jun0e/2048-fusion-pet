@@ -1,14 +1,24 @@
 // 2048 block views: slide animation between cells, merge (both parents slide
 // into the target cell, then the new block pops), spawn pop-in, class glow,
-// ultimate charge ring, recoil + muzzle flash when firing.
+// ultimate charge ring, recoil + muzzle flash when firing. The creature on the tile
+// sells its attack's stage (src/art/attack-vfx.js petPose): a wind-up before each shot
+// (WIND_UP s of real time at any speed: 16 hops, 32–64 crouch, 128 crouches and recoils),
+// and a Pride Pounce cub leaps onto its prey and back, with an afterimage from 32.
+// Nothing is additive: the class glow is a tinted soft dot under the tile and the muzzle
+// flash a white silhouette of the tile, both in normal blend below the flash thresholds
+// (photosafe.js TILE_GLOW).
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { GRID, cellX, cellY } from '../config.js';
 import { ELEMENTS, fusionOf, milestonePieces } from '../sim/classes.js';
+import { LADDER, createSimRate, has, ladderStage, leapAt, petPose, windUpAt } from '../art/attack-vfx.js';
 import { blockTex, softDot, sparkTex, BLOCK_PX } from './textures.js';
+import { createAfterimage } from './trails.js';
 import { BURST, HIT_TINT, TILE_GLOW } from '../ux/photosafe.js';
 
 const SLIDE = 0.11;
+const FOLLOW = 0.22; // seconds of follow-through after a shot
 const ease = (t) => 1 - (1 - t) ** 3;
+const smooth = (t) => t * t * (3 - 2 * t);
 const hex = (c) => parseInt(c.replace('#', ''), 16);
 
 const mixColor = (a, b, k) => {
@@ -16,6 +26,31 @@ const mixColor = (a, b, k) => {
   const m = (sh) => Math.round(ch(a, sh) + (ch(b, sh) - ch(a, sh)) * k) << sh;
   return m(16) | m(8) | m(0);
 };
+
+const whites = new WeakMap(); // texture → its white silhouette (null when it cannot be read back)
+/** A white silhouette of a tile's texture (its alpha, filled white), built once: the muzzle flash, in normal blend. */
+function whiteOf(tex) {
+  if (!tex || tex === Texture.EMPTY) return null;
+  if (whites.has(tex)) return whites.get(tex);
+  let out = null;
+  try {
+    const r = tex.source.resolution ?? 1;
+    const f = tex.frame;
+    const c = document.createElement('canvas'); // the tile's size, so the flash scales with the tile
+    c.width = Math.max(1, Math.round(f.width));
+    c.height = Math.max(1, Math.round(f.height));
+    const g = c.getContext('2d');
+    g.drawImage(tex.source.resource, f.x * r, f.y * r, f.width * r, f.height * r, 0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, c.width, c.height);
+    out = Texture.from(c);
+  } catch {
+    out = null; // no flash rather than an additive one
+  }
+  whites.set(tex, out);
+  return out;
+}
 
 function drawMilestone(g, tier, U) {
   g.clear();
@@ -43,8 +78,12 @@ export function createBlocks(stage, fx, { art = null } = {}) {
   const glowLayer = new Container();
   const layer = new Container();
   stage.layers.tiles.addChild(glowLayer, layer);
+  const echoLayer = new Container(); // a leaping cub's afterimage, over the field
+  stage.layers.shots.addChild(echoLayer);
   const views = new Map();
   const ghosts = [];
+  const live = new Set(); // reused each frame
+  const simRate = createSimRate(); // the game speed, so a wind-up lasts WIND_UP s of real time
   let lastMoves = -1;
   let slideT = 1;
   let time = 0;
@@ -52,9 +91,8 @@ export function createBlocks(stage, fx, { art = null } = {}) {
 
   function makeView() {
     const c = new Container();
-    const glow = new Sprite(softDot());
+    const glow = new Sprite(softDot()); // normal blend: a tinted haze, at most TILE_GLOW.glow
     glow.anchor.set(0.5);
-    glow.blendMode = 'add';
     glowLayer.addChild(glow);
     const body = new Sprite();
     body.anchor.set(0.5);
@@ -65,16 +103,41 @@ export function createBlocks(stage, fx, { art = null } = {}) {
     const overlay = new Sprite();
     overlay.anchor.set(0.5);
     overlay.visible = false;
-    const flash = new Sprite();
+    const flash = new Sprite(); // the muzzle flash: a white silhouette of the tile, normal blend
     flash.anchor.set(0.5);
-    flash.blendMode = 'add';
     flash.alpha = 0;
     const charge = new Graphics();
     const milestone = new Graphics(); // the 4-piece border: progress to the next milestone
     const sel = new Graphics();
     c.addChild(body, creature, overlay, flash, milestone, charge, sel);
     layer.addChild(c);
-    return { c, glow, body, creature, overlay, flash, milestone, msKey: '', charge, sel, key: '', pop: 0, punch: 0, appear: 1, delay: 0, crop: 0, maxW: Infinity, egg: false };
+    // wind: the wind-up (0–1); left/period: the sim's cooldown as last seen and its full length; pose/hop: reused each frame
+    return { c, glow, body, creature, overlay, flash, milestone, msKey: '', charge, sel, key: '', pop: 0, punch: 0, appear: 1, delay: 0, crop: 0, maxW: Infinity, egg: false, wind: 0, follow: 0, left: 0, period: Infinity, aim: { x: 0, y: 1 }, pose: {}, hop: {}, leap: null, echo: null };
+  }
+
+  const dropView = (v) => {
+    v.c.destroy({ children: true });
+    v.glow.destroy();
+    v.echo?.destroy();
+  };
+
+  /**
+   * The creature's pose for its attack's stage: the wind-up rises before a shot (WIND_UP s of real
+   * time at any game speed, from the sim's cooldown: defense.cooldownLeft, read only) and settles
+   * if no shot comes; the follow-through falls after a shot. None under Reduce motion. → petPose or null
+   */
+  function windUp(v, t, run, dt, reduced, rate) {
+    if (reduced || !t.cls.element || t.tier < 4) {
+      v.wind = v.follow = 0;
+      return null;
+    }
+    const left = run.defense.cooldownLeft?.(t.id) ?? 0;
+    if (left > v.left + 1e-6) v.period = left; // a shot just reset it: its full length
+    v.left = left;
+    const want = windUpAt(left, rate, v.period);
+    v.wind = want >= v.wind ? want : Math.max(0, v.wind - dt / 0.1);
+    v.follow = Math.max(0, v.follow - dt / FOLLOW);
+    return petPose(ladderStage(t.tier), smooth(v.wind), v.follow, v.aim, v.pose);
   }
 
   const keyOf = (t) => `${t.tier}.${t.cls.element ?? ''}.${t.cls.fusion ?? ''}.${t.cls.ultimate ?? ''}`;
@@ -82,6 +145,7 @@ export function createBlocks(stage, fx, { art = null } = {}) {
   function sync(run, dt) {
     time += dt;
     const U = stage.view.U;
+    const reduced = stage.reduced;
     const grid = run.grid;
     if (grid.moves !== lastMoves) {
       lastMoves = grid.moves;
@@ -89,7 +153,8 @@ export function createBlocks(stage, fx, { art = null } = {}) {
     }
     slideT = Math.min(1, slideT + dt / SLIDE);
     const e = ease(slideT);
-    const live = new Set();
+    const rate = simRate.update(run.time ?? 0, dt);
+    live.clear();
 
     for (const t of run.tiles) {
       live.add(t.id);
@@ -122,7 +187,7 @@ export function createBlocks(stage, fx, { art = null } = {}) {
           v.overlay.visible = false;
           v.creature.visible = false;
         }
-        v.flash.texture = v.body.texture;
+        v.flash.texture = whiteOf(v.body.texture) ?? Texture.EMPTY; // the same size as the tile's: it scales with it
       }
       // position: slide from the previous cell
       const fx0 = cellX(t.fromCol);
@@ -163,6 +228,29 @@ export function createBlocks(stage, fx, { art = null } = {}) {
         v.creature.scale.set(cs * (1 - amp * 0.6 * ph + squash * 0.5), cs * (1 + amp * ph - squash));
         v.creature.position.set(0, GRID.cell * U * 0.43 * popS);
         v.creature.rotation = v.egg ? Math.sin(time * (t.tier >= 3 ? 9 : 2.4) + t.id) * (t.tier >= 3 ? 0.06 : 0.03) * (t.tier >= 3 && Math.sin(time * 0.9 + t.id) > 0.4 ? 1 : 0.4) : 0;
+        // the attack's wind-up and follow-through (cells)
+        const pose = v.egg ? null : windUp(v, t, run, dt, reduced, rate);
+        if (pose) {
+          const cell = GRID.cell * U;
+          v.creature.scale.x *= pose.sx;
+          v.creature.scale.y *= pose.sy;
+          v.creature.position.x += pose.x * cell;
+          v.creature.position.y -= pose.y * cell;
+          v.creature.rotation += pose.rot;
+        }
+        // Pride Pounce: the cub leaps onto its prey and bounds back; from 32 its afterimage follows
+        const L = v.leap ? leapAt(time - v.leap.t0, v.hop) : null;
+        if (L) {
+          v.creature.position.x += v.leap.dx * L.k * U;
+          v.creature.position.y -= (v.leap.dy * L.k + L.lift) * U;
+        } else v.leap = null;
+        const step = L && t.cls.element === 'metal' ? LADDER.metal[ladderStage(t.tier)] : null;
+        const n = step && has(step, 'ghosts') ? step.ghosts : 0;
+        if (n || v.echo) {
+          v.echo ??= createAfterimage(echoLayer, 3);
+          v.echo.push(dt, v.c.position.x + v.creature.position.x, v.c.position.y + v.creature.position.y, v.creature.scale.x, v.creature.scale.y, v.creature.rotation);
+          v.echo.draw(n, v.creature.texture, 0xffffff, 0.5, 1);
+        }
       }
 
       // class glow
@@ -175,7 +263,8 @@ export function createBlocks(stage, fx, { art = null } = {}) {
         const big = els.length === 3 ? 1.9 : els.length === 2 ? 1.6 : 1.4;
         v.glow.width = v.glow.height = GRID.cell * U * big * popS * (1 + 0.06 * Math.sin(time * 4 + t.id));
         // with creature art the glow is a whisper: colour and shape carry the class
-        v.glow.alpha = (els.length === 3 ? 0.6 : els.length === 2 ? 0.42 : 0.26) * (useArt ? 0.3 : 1);
+        // photosafe: at most TILE_GLOW.glow, so a legend's colours taking turns stay below the threshold
+        v.glow.alpha = Math.min(TILE_GLOW.glow, (els.length === 3 ? 0.6 : els.length === 2 ? 0.42 : 0.26) * (useArt ? 0.3 : 1));
       } else v.glow.visible = false;
 
       // the 4-piece border: one piece per merge toward the next milestone.
@@ -205,8 +294,7 @@ export function createBlocks(stage, fx, { art = null } = {}) {
 
     for (const [id, v] of views) {
       if (!live.has(id)) {
-        v.c.destroy({ children: true });
-        v.glow.destroy();
+        dropView(v);
         views.delete(id);
       }
     }
@@ -221,8 +309,7 @@ export function createBlocks(stage, fx, { art = null } = {}) {
         g.v.c.alpha = 1 - k;
       }
       if (g.t >= SLIDE) {
-        g.v.c.destroy({ children: true });
-        g.v.glow.destroy();
+        dropView(g.v);
         ghosts.splice(i, 1);
       }
     }
@@ -241,7 +328,19 @@ export function createBlocks(stage, fx, { art = null } = {}) {
       }
     } else if (e.type === 'fire') {
       const v = views.get(e.id);
-      if (v) v.punch = 1;
+      if (v) {
+        v.punch = 1;
+        v.wind = 0;
+        v.follow = 1;
+        if (e.target) {
+          const dx = e.target.x - e.x;
+          const dy = e.target.y - e.y;
+          const d = Math.hypot(dx, dy) || 1;
+          v.aim.x = dx / d;
+          v.aim.y = dy / d;
+          if (e.pattern === 'pounce' && v.creature.visible && !v.egg && !stage.reduced) v.leap = { t0: time, dx, dy };
+        }
+      }
       if (e.target) {
         const dx = e.target.x - e.x;
         const dy = e.target.y - e.y;
@@ -275,15 +374,9 @@ export function createBlocks(stage, fx, { art = null } = {}) {
   }
 
   function reset() {
-    for (const v of views.values()) {
-      v.c.destroy({ children: true });
-      v.glow.destroy();
-    }
+    for (const v of views.values()) dropView(v);
     views.clear();
-    for (const g of ghosts) {
-      g.v.c.destroy({ children: true });
-      g.v.glow.destroy();
-    }
+    for (const g of ghosts) dropView(g.v);
     ghosts.length = 0;
     lastMoves = -1;
   }

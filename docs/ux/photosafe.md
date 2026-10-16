@@ -1,6 +1,6 @@
 # Photosafe effects
 
-Some players have photosensitive epilepsy, and flashing light can trigger a seizure. The game must not show such flashes. This page gives the rules that every visual effect must obey, how they are applied, and the measured result (2026-10-15).
+Some players have photosensitive epilepsy, and flashing light can trigger a seizure. The game must not show such flashes. This page gives the rules that every visual effect must obey, how they are applied, and the measured result (2026-10-15; the sprite attacks 2026-10-16).
 
 ## The rules
 
@@ -36,49 +36,130 @@ The rules live in `src/ux/photosafe.js`.
    - It shows only when 3 or fewer blocks are left in a wave. Only then does it take the flash budget, so a pulse nobody sees never holds back a cut-in.
    - Its alpha is 0.35 and it lasts 0.6 s, which is less than the 1 s gap.
 4. **Local effects share a light budget.**
-   - The local effects are rings, explosions, lines (lightning, wind slashes, beams, poison spread), particle bursts, enemies' hit flashes, damage numbers, coins, status embers (fire, poison, frost), and the text popups and combo pill drawn over the canvas.
+   - The local effects are rings, explosions, beams, particle bursts, the sprite attacks (see 8), enemies' hit flashes, damage numbers, coins, status embers (fire, poison, frost), and the text popups and combo pill drawn over the canvas.
    - Together they may light at most 10 units² to 10% or more at any moment. A large flash is about 11 at 25 cm and 16 at 30 cm, so 10 stays under both.
    - Each effect books its light over its life:
      - a ring grows until it fades;
      - an explosion holds its brightest frame;
      - every other effect holds its first moment.
    - The budget keeps one slot for each frame (1/60 s) of the next 2 s. Each slot holds the most the booked effects light within it. A new effect fits if every slot it touches stays under the cap, so a check costs well under a microsecond however busy the screen is.
+   - An effect that shows later books from then: a claw slash once the cub lands, a crater where the meteor hits.
    - When the budget is short, the new effect is drawn smaller, thinner, with fewer particles or coins, or not at all. A text popup is drawn smaller, down to 60% of its font size, or not at all. An enemy's hit flash, a damage number, an ember and the combo pill are drawn whole or not at all.
    - A text popup lights about 0.42 × its characters × its font size² (px², measured with its 5 px outline), converted at the stage's px per world unit. It books 1.25 × that, because its float-up pops to 1.1×.
-   - An enemy under steady fire keeps its hit flash on; it is booked again every 0.12 s and goes out when the budget refuses.
-   - A lightning arc keeps one jagged shape for its life (it no longer jitters every frame), and books 10% more than its points' length for the jag.
+   - An enemy under steady fire keeps its hit flash on; it is booked again every 0.12 s of real time and goes out when the budget refuses. The audit books it the same way.
    - Caps by design:
      - a ring at most 2 world units (radius);
      - an explosion at most 3.2 across;
-     - thin line glows: a slash 0.3 wide, a beam 0.35, a sky bolt 1.1 × the arc's 0.34.
-   - Measured shares of a texture lit to 10% or more: ring 19%, the brightest explosion frame (fire) 28%, soft dot 65%, spark 15%, the generated foes at hit-flash strength 5–22%.
+     - a beam's glow 0.35 wide.
+   - Measured shares of a texture lit to 10% or more: ring 19%, the brightest explosion frame (fire) 28%, soft dot 65%, spark 15%.
+   - An enemy's hit flash is a white silhouette of its sprite at 75% in normal blend (built once per sprite; nothing additive). Measured 2026-10-16 on the 17 generated foes as drawn (the sprite fills its square, `foeDrawSize`), over every ground and status tint: it lights 21–46% of that square (the Horned Owl the most), so it books 47% (`FOE_FLASH.share`, the most plus 1% for a crawler's squash). Before, the additive copy booked 25% of a smaller square, while the new sprites lit up to 35%. The audit's flash counts are unchanged; under heavy fire the flash shows less often (light kept 56% at x1, 19% at x4).
    - The old flash dot at each impact is gone; the explosion carries the hit.
-   - Outside the budget: projectiles in flight (they move rather than flash), a legendary pet's rare single sparkle, and banners and announcement pills. A banner stays at least 1.8 s and a pill 2.1 s, so each changes at most once in a second. When news is waiting, a banner gives way to the next with one quick dip, at most once every 1.8 s.
+   - Outside the budget: projectiles in flight and what rides with them, ribbons and afterimages (they move rather than flash), a legendary pet's rare single sparkle, and banners and announcement pills. A banner stays at least 1.8 s and a pill 2.1 s, so each changes at most once in a second. When news is waiting, a banner gives way to the next with one quick dip, at most once every 1.8 s.
 5. **A block under attack holds its red.** The tint holds while hits keep coming (one within 0.4 s), then fades. Before, the block blinked with every hit. The shudder for each hit stays.
-   - A turret's muzzle flash (alpha 0.12) and a heal's green tint (at most a 40% mix) stay below the flash threshold, so the whole board can glow at once without a flash. The muzzle spark takes from the light budget.
+   - The tiles' glows stay below the flash threshold, so the whole board can glow at once without a flash. All are in normal blend:
+     - a turret's muzzle flash is a white silhouette of its tile at alpha 0.12, which changes any colour's luminance by 6% at most;
+     - a heal's green tint is at most a 40% mix;
+     - a class glow is a soft dot in the element's colour under the tile, at alpha 0.22 at most (0.08–0.18 with the sticker art). That changes the keep's floor by under 9%, even for the palest fusion colour (#e0f7ff in the classic style, 8.4%), and a legend's three colours take turns within 7%.
+   - The muzzle spark takes from the light budget.
 6. **The lanes' warning glow breathes slowly** (once every 2 s) and gently, so it is no red flash.
-7. **Reduce motion (in-game setting) turns off** washes, the edge pulse, the skill cut-in and shakes. The rare milestone number still shows, fading in and out in place over 1.6 s.
+7. **Reduce motion (in-game setting) turns off** washes, the edge pulse, the skill cut-in and shakes. The rare milestone number still shows, fading in and out in place over 1.6 s. The attacks hold still:
+   - a gust's ribbon fades in place instead of racing up the lane (and then books its light);
+   - the pieces and bits stay where they appear;
+   - a pet does no wind-up, lunge or leap, and a legend's halo does not swell;
+   - there are no afterimages.
+8. **The sprite attacks are solid shapes, and nothing on the field is additive.**
+   - The attacks are drawn with sticker sprites in normal blend: a fire tongue, a ping ring, bolt links, a claw slash, a bramble arc, bursts, ground decals and small bits. Fusions take their colour; nothing glows.
+   - `src/art/attack-vfx.js` `attackLight` plans what each attack event books. `src/render/attacks.js` and `shots.js` draw from that plan, so the audit counts exactly what is drawn.
+     - Each draw names the plan item that pays for it.
+     - `test/attack-render.test.js` draws every attack at every stage and holds each draw to its item: no earlier, no later and no bigger than booked, and no more of them.
+   - Each piece books the box it is drawn in at its biggest: its size after it swells, and a particle's size jitter.
+     - A generated sprite is fitted inside its box, so it can never outgrow its booking.
+     - A bit lives 85–100% of its booked life, never longer.
+   - Long pieces are drawn to their length with their own shape: a quake's cracks, a meteor's crater, a pulse's tendrils.
+     - Each fits a box that long and at most 0.36 (crack) or 0.2 (tendril) as tall; the box is what it books.
+     - The generated crack is 0.24 as tall as it is long and the tendril 0.17, so both reach their full length.
+     - A fatter sprite would be drawn shorter, never squashed or stretched.
+   - A piece lights its opaque share of that box, trimmed to its shape: the larger of the code-drawn sprite and the generated one (`PIECE_LIT`). The shares were measured on 2026-10-16, after the crack and the tendril were redrawn long and thin.
+   - Each books 1.2 × that share, rounded up to 5% (`VFX_MARGIN`), in case a newer generated sprite is fuller:
+     - bodies: tongue 100%, glob, link and harpoon 90%, swirl 70%, slash 65%, bramble arc 45%;
+     - bits: block, bubble, ember, smoke and pebble 100%, dust and leaf 95%, ice shard and blossom 90%, drip 85%, feather 80%, stars 65%, tendril 60%, spark 50%, glint 45%;
+     - bursts: fire 80%, ice 75%, lightning 65%;
+     - decals: frost 100%, streak 95%, scorch 90%, splat 75%, crack 65%;
+     - the ping ring 40%, a defeat puff 85%, a soft particle 80%, a ribbon and a tether 100%.
+   - At startup, before any fight, the game makes every generated sprite ready and measures it again (`textures.js` `readyVfx`). A fuller one books more, from the first attack, and no frame in combat stops to read pixels back.
+     - A piece that should point along its motion but was drawn at a slant is turned level (the first harpoon came diagonal).
+     - `test/vfx-lit.test.js` measures the sprites on disk the same way, so a re-made sprite fuller than its share fails the tests.
+   - When the budget is short:
+     - a sprite is drawn smaller, a line (a link, a tether) thinner, and bits and tendrils fewer;
+     - a glint and a stun's stars are drawn whole or not at all.
+   - Ground decals (scorch, frost, splat, crack, wind streak, a meteor's crater) fade in over 0.25 s, hold at least 1.1 s, then fade out over 0.9 s.
+     - Their rise and their fall are more than a second apart, so a decal never makes a flash pair on its own.
+     - A decal books its area for its rise. A meteor's crater rises where the meteor lands, 0.28 s after the strike, and books from then.
+   - A venom puddle is a faint, splat-edged stain in its class colour, no wider than the sim's puddle (its droplets reach that radius). It books nothing, so it must stay under the threshold on its own:
+     - Its alpha (0.095–0.16 by tint) keeps every colour of it under a 9% change in luminance over every ground it can lie on: each chapter's lane tones and hedges. The walls and the keep are drawn over it.
+     - The change is reckoned as the screen blends it, in gamma space, not in linear light, which would under-count a dark tint on the light lane by about 1.4×.
+     - It seeps in over 0.4 s, then holds at least 1.2 s of real time, then dries with the sim's puddle, but over 0.6 s at least. At x4 the stain outlives the sim's puddle a little, and its rise and fall are always more than a second apart.
+   - On the keep, a foe stands on a pale patch instead of its dark shadow, so a dark foe (the Nightfox, the Kite Carp) still reads on the dark floor.
+     - The patch is the lane's sand at alpha 0.28, which changes the floor and the pits by under 9%.
+     - It cross-fades with the shadow over 0.3 s as a foe steps onto or off the keep, and moves with the foe.
+   - The things that move are outside the budget, as projectiles always were: the harpoon and the glob, the escorts and the add-on riding them, ribbons (a gust racing up its lane, an apex's ribbon behind a shot) and afterimages.
+     - A harpoon's tether is booked as a line, for the flight it was thrown for. If a pushed foe makes the chase longer, the tether ends on time and is never drawn longer than booked.
 
 **For new effects:**
 
-- Draw rings, explosions, lines, bursts, numbers and coins with `fx` (`ring`, `explode`, `lightning`, `bolt`, `slash`, `beam`, `spread`, `burst`, `trail`, `number`, `coinDrop`): they are booked in the light budget. Show a floating text with main.js's `popup`, not `hud.popup`.
-- For any other local flash, ask `fx.flashAll(lit, life)` first; that is how an enemy's hit flash does it.
+- Draw rings, explosions, beams, bursts, numbers and coins with `fx` (`ring`, `explode`, `beam`, `burst`, `number`, `coinDrop`): they are booked in the light budget. Show a floating text with main.js's `popup`, not `hud.popup`.
+- For an attack's sprites:
+  - Add its items to `attackLight` in `src/art/attack-vfx.js`, each with its own key and its `delay` if it shows later.
+  - Draw them with `bookPlan` and the trails' `piece` and `decal`, inside the box each item books (`fit`), naming the item they draw for (`book`).
+  - `fx.particle` does not book: book the bits first.
+- Never use an additive blend.
+- For any other local flash, ask `fx.flashAll(lit, life, delay)` first; that is how an enemy's hit flash does it.
 - Do not draw any other large glow or flash yourself.
 - Use `stage.flash(color)` for a full-screen wash.
 - For another large flash (a panel, a big glow), ask `stage.takeFlash()` first, and skip the flash when it says no.
 
 ## Measured
 
-`node tools/flash-audit.mjs` plays 12 bot games on the real sim: up to 15 minutes each, pets roaming, and namecards tapped as soon as they are ready. When several cards are ready together, the taps come 0.2 s apart. It also plays a stress board of 4 legendaries. The tool counts what the screen would show per second of real time. For local effects it adds up what they light at each moment: the old ones at full size, the new ones as the light budget draws them.
+`node tools/flash-audit.mjs` plays 12 bot games on the real sim: up to 15 minutes each, pets roaming, and namecards tapped as soon as they are ready. When several cards are ready together, the taps come 0.2 s apart. It also plays a stress board of 4 legendaries. The tool counts what the screen would show per second of real time. For local effects it adds up what they light at each moment: the old ones at full size, the new ones as the light budget draws them. The photosafe rows draw today's effects: since 2026-10-16 the attacks are the sprite attacks, booked as `attackLight` plans them.
 
 | Effects | Speed | Large flashes in any 1 s | Above the thresholds | From local effects | Red | Wash peak alpha | Most lit by local effects at once (units²) | Red pulses of one block in any 1 s |
 |---|---|---|---|---|---|---|---|---|
 | Before | x1 | 5 | 5 | 5 | 4 | 0.28 | 212 | 4 |
 | Before | x2 | 6 | 6 | 6 | 5 | 0.28 | 286 | 5 |
 | Before | x4 | 7 | 7 | 5 | 7 | 0.28 | 403 | 5 |
-| Photosafe | x1 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
-| Photosafe | x2 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
-| Photosafe | x4 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Photosafe (2026-10-15) | x1 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Photosafe (2026-10-15) | x2 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Photosafe (2026-10-15) | x4 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Sprite attacks (2026-10-16) | x1 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Sprite attacks (2026-10-16) | x2 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Sprite attacks (2026-10-16) | x4 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Booked as drawn (2026-10-16, review fixes) | x1 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Booked as drawn (2026-10-16, review fixes) | x2 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Booked as drawn (2026-10-16, review fixes) | x4 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+
+The sprite attacks change nothing in these counts: every flash column is the same as before them, and the local effects still never make a large flash.
+
+The "booked as drawn" rows come from the review of the sprite attacks. Every flash column is unchanged; what changed is that the audit now books what the game draws:
+
+- A late piece books from when it shows, where before it was counted from the event:
+  - a meteor's crater, dust and pebbles, where it lands;
+  - a pounce's glint, after the leap;
+  - a pulse's blossoms, as the arc passes.
+- The shares are re-measured on the current generated sprites. The crack, the arc and the slash are fuller than the code-drawn ones were.
+- An enemy's hit flash is booked again every 0.12 s while it stays hit, as `foes.js` does it, not once per run of hits.
+- A sky strike books its bolt's bends, and a drip rope its sag.
+
+The most lit at once is now measured over every frame booked, not only at the events. The before rows moved a little (x2 289, x4 413): an input to the hit flashes changed while this pass was running.
+
+The audit also plays 40 ladder boards: one sturdy block of each element at each attack stage (16, 64, 128, a 256 fusion and a 4096 apex), 60 s each, so every attack is measured at every stage. Every element's attack came at every stage, at least 22 times. Measured on their own:
+
+| Effects | Speed | Large flashes in any 1 s | Above the thresholds | From local effects | Red | Wash peak alpha | Most lit by local effects at once (units²) | Red pulses of one block in any 1 s |
+|---|---|---|---|---|---|---|---|---|
+| Before | x4 | 6 | 6 | 5 | 4 | 0.28 | 193 | 5 |
+| Sprite attacks | x1 | 2 | 1 | 0 | 2 | 0.08 | 10.0 | 2 |
+| Sprite attacks | x4 | 2 | 1 | 0 | 2 | 0.08 | 10.0 | 2 |
+
+The 2 red flashes in a second on a ladder board are a Sun legendary's orange wash and its own skill panel (also orange, a saturated red) within the same second. Each comes from its own one-a-second budget, as rule 2 allows; WCAG allows 3. The local effects add none.
 
 What the "before" effects were:
 
@@ -96,6 +177,20 @@ What the "before" effects were:
 | x1 | 79% | 73% | 65% | 57% | 54% | 79% | 61% | 70% | 83% |
 | x4 | 48% | 34% | 34% | 29% | 21% | 48% | 29% | 35% | 51% |
 
+With the sprite attacks (2026-10-16), fewer effects are cut: 19% of local effects at x1 (26% before them) and 50% at x4 (58% before). Light kept on average:
+
+| Speed | Attack sprites | Attack bits | Decals | Links | Pings | Rings | Explosions | Bursts | Enemy hit flashes | Damage numbers | Text popups | Coins | Embers |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| x1 | 80% | 70% | 77% | 82% | 89% | 80% | 89% | 72% | 63% | 83% | 64% | 69% | 92% |
+| x4 | 46% | 37% | 42% | 49% | 61% | 57% | 55% | 41% | 25% | 50% | 30% | 27% | 68% |
+
+Booked as drawn (the review fixes), a little more is cut: 22% at x1 and 53% at x4. Light kept on average:
+
+| Speed | Attack sprites | Attack bits | Decals | Links | Pings | Rings | Explosions | Bursts | Enemy hit flashes | Damage numbers | Text popups | Coins | Embers |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| x1 | 79% | 67% | 75% | 80% | 87% | 78% | 88% | 70% | 55% | 81% | 62% | 65% | 90% |
+| x4 | 48% | 37% | 39% | 46% | 58% | 54% | 53% | 38% | 19% | 47% | 29% | 21% | 64% |
+
 I also checked the renderer in the browser:
 
 - **Washes:** four legendaries (Plague, Sun, Midas, Lifebloom) fought at x4 for 40 s of frames. That gave 28 washes, never two within 1.00 s, with a peak alpha of 0.078 and at most 0.011 of change in one frame.
@@ -111,3 +206,27 @@ I also checked the renderer in the browser:
 - a short audit of the real event stream at x4 has these limits:
   - at most one flash above the thresholds and two in all per second;
   - no large flash from local effects.
+
+`test/photosafe.test.js` also holds that an effect booked with a delay leaves the frames before it free, and that the audit books a hit flash as the game does.
+
+`test/attack-ladder.test.js` holds the sprite attacks to them:
+
+- every attack at every stage plans its light, and a higher stage never books less than the one below it;
+- a frantic second of sprite attacks never lights more than the cap at once;
+- the audit, with the ladder boards: every element's attack at every stage, at most 2 large flashes and 1 above the thresholds in any second, none from local effects, and never more than the cap lit at once;
+- a pet's wind-up lasts the same real time at x1, x2 and x4.
+
+`test/attack-render.test.js` draws every attack, impact and status through the real renderer. It runs each one with the budget granting all, half or a third, and with Reduce motion. Every draw must show inside its plan item's window and light no more than the item booked. The cases include:
+
+- a pulse among foes struck by other attacks;
+- tendrils and cracks of any shape;
+- a meteor that lands later;
+- a harpoon chasing a foe twice as far as it was thrown for.
+
+`test/vfx-lit.test.js` measures the generated sprites on disk against the shares they book, and checks that the long pieces stay long.
+
+`test/puddles.test.js` checks the puddles:
+
+- the gamma-space step over every ground, for every tint;
+- the splat inside the sim's radius;
+- the hold of over a second at x1, x2 and x4, in the real renderer.

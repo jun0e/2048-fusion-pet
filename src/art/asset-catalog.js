@@ -4,6 +4,8 @@
 import { ELEMENTS, ELEMENT_KEYS, FUSIONS, APEX } from '../sim/classes.js';
 import { ENEMY_TYPES, CHAPTERS } from '../sim/enemies.js';
 import { petName } from './tokens.js';
+import { VFX_PIECES } from './attack-vfx.js';
+import { FRAME_ASSETS } from './frame-kit.js';
 
 /** Every asset as a row; `price` is the USD cost of one image attempt. */
 export function buildAssetRows(price = 0.0336) {
@@ -103,6 +105,10 @@ export function buildAssetRows(price = 0.0336) {
   for (const k of [...ELEMENT_KEYS, 'plain']) {
     add({ id: `boom.${k}`, cat: 'Effect', layer: 'Map field', name: `${k} explosion`, desc: '8-frame burst', style: 'Sticker', src: '8 × 128²', display: '1.4–2.6 cell', method: 'Code-drawn (current)', priority: 'P2', gens: 0 });
   }
+  // the overhaul's generated attack sprites (src/art/attack-vfx.js): bodies tinted per element in code
+  for (const [el, pieces] of Object.entries(VFX_PIECES))
+    for (const [p, v] of Object.entries(pieces))
+      add({ id: `vfx.${el}.${p}`, cat: 'Effect', layer: 'Map field', name: `${ELEMENTS[el].name} ${p}`, desc: v.desc, style: 'Sticker (no glow)', src: v.kind === 'decal' || v.kind === 'burst' ? '256×256' : '192×192', display: '0.3–1.6 u', method: 'Gemini generate', priority: 'P1', gens: 1, notes: v.tint ? 'cream-white, tinted per element in code' : '' });
   for (const k of ['burn', 'poison', 'chill', 'freeze', 'loot']) {
     add({ id: `status.${k}`, cat: 'Effect', layer: 'Map field', name: `${k} status icon`, desc: 'Badge over a foe with stack count', style: 'Flat glyph', src: '64×64', display: '0.35 cell', method: 'Hand SVG', priority: 'P1', gens: 0 });
   }
@@ -144,6 +150,9 @@ export function buildAssetRows(price = 0.0336) {
     ['env.portal', 'Enemy portal', 'Idle + active states', 'Code-drawn', 'P1'],
     ['env.board', 'Board panel', 'Dark plum tray under the 4×4 grid', 'Code-drawn', 'P1'],
   ]) add({ id, cat: 'Environment', layer: 'Map field', name, desc, style: 'Sticker', src: '-', display: '-', method, priority: pri, gens: method.startsWith('Gemini') ? 4 : 0 });
+  // the overhaul's siege frame: drawn in code, plus these generated pieces (src/art/frame-kit.js)
+  for (const [id, f] of Object.entries(FRAME_ASSETS))
+    add({ id, cat: 'Environment', layer: 'Map field', name: id.slice(4), desc: f.desc, style: f.kind === 'backdrop' ? 'Painted' : 'Sticker', src: f.kind === 'backdrop' ? '1600 px tall' : f.kind === 'strip' ? '1024 px wide' : '256×256', display: '-', method: 'Gemini generate', priority: 'P1', gens: 1 });
   for (const el of ELEMENT_KEYS) add({ id: `die.${el}`, cat: 'UI', layer: 'HUD', name: `${ELEMENTS[el].name} die`, desc: 'Deck row die face with glyph', style: 'Sticker', src: '96×96', display: '0.72 unit', method: 'Code-drawn', priority: 'P1', gens: 0 });
   for (const k of ['restart', 'sound', 'mute', 'auto', 'pause', 'help', 'coin', 'blocks']) add({ id: `icon.${k}`, cat: 'UI', layer: 'HUD', name: `${k} icon`, desc: 'Redraw in the creature ink style (chunky, plum) instead of stock stroke icons (G4 tell)', style: 'Flat glyph', src: 'vector', display: '22 pt', method: 'Hand SVG', priority: 'P2', gens: 0 });
   for (const [id, name, desc] of [

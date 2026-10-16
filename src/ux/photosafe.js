@@ -10,9 +10,10 @@
 // - large flashes above the thresholds (the red edge pulse when a block falls, a pet skill's
 //   cut-in panel) share their own budget, also one a second. Washes and flashes together: at
 //   most 2 in any second, so effects never stack into a flicker;
-// - local effects (rings, explosions, lines, particle bursts, enemies' hit flashes) share a light
-//   budget: what they change by 10% or more at the same moment stays under POINT.cap, below a
-//   large flash; when it is short, they are drawn smaller, thinner, fewer or not at all;
+// - local effects (rings, explosions, lines, particle bursts, the sprite attacks, enemies' hit
+//   flashes) share a light budget: what they change by 10% or more at the same moment stays under
+//   POINT.cap, below a large flash; when it is short, they are drawn smaller, thinner, fewer or
+//   not at all. Nothing on the field is additive;
 // - frequent tile glows (a turret's muzzle flash, a heal's green) stay below the thresholds;
 // - a block under attack holds its red instead of blinking.
 // The in-game Reduce motion setting turns washes and large flashes off. tools/flash-audit.mjs
@@ -57,25 +58,29 @@ export const boomLit = (size) => POINT.boomShare * size * size;
  * holds (most), or `lit(s)` (s from 0 to 1, the most at `peak`) for a ring that grows. fit gives
  * the largest share (0–1) of a new effect that keeps every slot it touches under the cap, so
  * the light on screen never passes the cap. A check costs one pass over the effect's slots,
- * however many effects are on screen.
+ * however many effects are on screen. An effect that shows `delay` seconds from now (a slash
+ * after the leap, a crater where the meteor lands) books from then, for its life.
  */
 export function createLightBudget({ cap = POINT.cap, fps = 60, horizon = 2 } = {}) {
   const n = Math.ceil(horizon * fps) + 2;
   const slots = new Float64Array(n); // a ring buffer: slot c lives at c % n
   let now = 0;
   let base = 0; // the slot `now` is in
+  let peak = 0; // the most any slot has held
   const at = (c) => c % n;
-  /** The most `lit` (a number, or a function of s) lights in slot c, for an effect starting now. */
-  function most(lit, life, peak, c) {
+  /** The most `lit` (a number, or a function of s) lights in slot c, for an effect starting `delay` s from now. */
+  function most(lit, life, peak, c, delay) {
     if (typeof lit === 'number') return lit;
-    const s0 = Math.max(0, (c / fps - now) / life);
-    const s1 = Math.min(1 - 1e-9, ((c + 1) / fps - now) / life);
+    const t0 = now + delay;
+    const s0 = Math.max(0, (c / fps - t0) / life);
+    const s1 = Math.min(1 - 1e-9, ((c + 1) / fps - t0) / life);
     let m = Math.max(lit(s0), lit(s1));
     if (peak > s0 && peak < s1) m = Math.max(m, lit(peak));
     return m;
   }
-  /** The slots an effect of `life` seconds starting now touches. */
-  const last = (life) => Math.min(base + n - 2, Math.floor((now + life) * fps));
+  /** The slots an effect of `life` seconds starting `delay` s from now touches: first … last. */
+  const first = (delay) => Math.max(base, Math.floor((now + delay) * fps));
+  const last = (life, delay) => Math.min(base + n - 2, Math.floor((now + delay + life) * fps));
   return {
     tick(dt) {
       now += dt;
@@ -87,29 +92,36 @@ export function createLightBudget({ cap = POINT.cap, fps = 60, horizon = 2 } = {
     get used() {
       return slots[at(base)];
     },
-    fit(lit, life, peak = 0) {
+    fit(lit, life, peak = 0, delay = 0) {
       let share = 1;
-      for (let c = base, end = last(life); c <= end; c++) {
-        const want = most(lit, life, peak, c);
+      for (let c = first(delay), end = last(life, delay); c <= end; c++) {
+        const want = most(lit, life, peak, c, delay);
         if (want > 0) share = Math.min(share, Math.max(0, cap - slots[at(c)]) / want);
       }
       return share;
     },
-    /** Book an effect: `lit` a number (it holds) or a function of s (a ring). */
-    take(lit, life, peak = 0) {
-      for (let c = base, end = last(life); c <= end; c++) slots[at(c)] += most(lit, life, peak, c);
+    /** Book an effect: `lit` a number (it holds) or a function of s (a ring), from `delay` s on. */
+    take(lit, life, top = 0, delay = 0) {
+      for (let c = first(delay), end = last(life, delay); c <= end; c++) {
+        slots[at(c)] += most(lit, life, top, c, delay);
+        peak = Math.max(peak, slots[at(c)]);
+      }
     },
-    /** Book an effect that lights `lit` for `life` seconds, as much of it as fits. → the share booked (0–1) */
-    book(lit, life, minShare = 0) {
-      const share = this.fit(lit, life);
+    /** The most any frame has been booked to light so far (world units²): never above the cap. */
+    get peak() {
+      return peak;
+    },
+    /** Book an effect that lights `lit` for `life` seconds (from `delay` s on), as much of it as fits. → the share booked (0–1) */
+    book(lit, life, minShare = 0, delay = 0) {
+      const share = this.fit(lit, life, 0, delay);
       if (share <= minShare || share <= 0) return 0;
-      this.take(lit * share, life);
+      this.take(lit * share, life, 0, delay);
       return share;
     },
     /** Book it whole, or not at all. → whether it fits */
-    bookAll(lit, life) {
-      if (this.fit(lit, life) < 1) return false;
-      this.take(lit, life);
+    bookAll(lit, life, delay = 0) {
+      if (this.fit(lit, life, 0, delay) < 1) return false;
+      this.take(lit, life, 0, delay);
       return true;
     },
   };
@@ -136,10 +148,10 @@ export function fitBoom(budget, size, life) {
 }
 
 /**
- * Lines light their glow stroke, length × width (world units). Lines are lightning, wind slashes,
- * beams and poison spread. The glows are thin by design: a slash 0.3 wide (a 3-lane gust
- * fits the budget), a beam 0.35, a sky bolt 1.1 × the arc's 0.34. They are drawn thinner when
- * the budget is short, and not at all below minShare.
+ * Lines light their stroke, length × width (world units): a beam (a heal reaching its block, a
+ * namecard reaching its pet) 0.35 wide at most. They are drawn thinner when the budget is short,
+ * and not at all below minShare (the sprite attacks' links and tethers too). slash and bolt are
+ * the old wind slash and sky bolt, which tools/flash-audit.mjs still draws for its 'before' rows.
  */
 export const LINE = { minShare: 0.2, slash: 0.3, slashCore: 0.1, beam: 0.35, beamCore: 0.1, bolt: 1.1 };
 
@@ -150,14 +162,36 @@ export const LINE = { minShare: 0.2, slash: 0.3, slashCore: 0.1, beam: 0.35, bea
  */
 export const BURST = { perSize2: 0.51, spark: 0.151 };
 
-/** A soft dot (an ember, a meteor trail) lights `share` of its square at alpha 1, and `trail` at the trail's 0.75 (measured). */
-export const DOT = { share: 0.647, trail: 0.6 };
+/** A soft dot (a status ember or bubble) lights `share` of its square at alpha 1 (measured). */
+export const DOT = { share: 0.647 };
 
 /** A damage number lights about `lit` as it pops in at its usual scale (0.36), for `life` seconds; skipped when the budget is short. */
 export const NUMBER = { lit: 0.12, scale: 0.36, life: 0.75 };
 
 /** A coin flying to the counter lights about `lit`; n coins fly for life(n) seconds (they leave 0.05 s apart). Fewer fly when the budget is short. */
 export const COIN = { lit: 0.15, life: (n) => 0.28 + 0.05 * Math.max(0, n - 1) + 0.45 };
+
+/**
+ * The sprite attacks (src/art/attack-vfx.js plans them; src/render/attacks.js, shots.js and
+ * trails.js draw them): solid sticker shapes in normal blend, none additive. An appearing sprite
+ * lights a share of its box (w × h world units) to 10% or more: its opaque share, measured per
+ * piece on the code-drawn fallbacks trimmed to their shape (attack-vfx.js PIECE_LIT), times this
+ * margin for a generated sprite drawn fuller than its fallback. A line (a lightning link, a
+ * harpoon's tether, a drip rope) lights its length × width × its share. Outside the budget,
+ * because they move rather than flash: projectiles and what rides with them, ribbons and
+ * afterimages. Under Reduce motion a ribbon fades in place instead, and books.
+ */
+export const VFX_MARGIN = 1.2;
+
+/** What an appearing sprite w × h (world units) lights to 10% or more, at `share` of its box. */
+export const spriteLit = (w, h, share) => Math.max(0, w) * Math.max(0, h) * share;
+
+/**
+ * Ground decals (scorch, frost, splat, crack, streak, crater): each fades in over `rise`, holds
+ * `hold` and fades out over `fall`, at `alpha`. Its rise and its fall are more than a second
+ * apart, so a decal never makes a flash pair on its own: it books its area for its rise.
+ */
+export const DECAL = { rise: 0.25, hold: 1.1, fall: 0.9, alpha: 0.85 };
 
 /**
  * Text drawn over the canvas (src/ui/hud.js). A popup lights about `perChar` × its characters ×
@@ -176,13 +210,30 @@ export const popupFont = (tier) => Math.min(40, 18 + tier * 1.6);
 export const textInk = (text, fontPx, U) => (TEXT.peak * TEXT.perChar * String(text).length * fontPx * fontPx) / (U * U);
 
 /**
- * An enemy's hit flash, an additive copy of its sprite at `alpha`: it lights `share` of the
- * square it is drawn in (measured on the generated foes: 5–22%). Whole or not at all.
+ * An enemy's hit flash: a white silhouette of its sprite over it at `alpha`, in normal blend
+ * (src/render/foes.js). It lights `share` of the square it is drawn in (foe-roster.js foeDrawSize,
+ * squared): measured 2026-10-16 on the 17 generated foes at GEN_FILL 1, over every ground and body
+ * tint, 21–46% (the Horned Owl the most); booked at the most, plus 1% for the crawl's squash.
+ * Whole or not at all.
  */
-export const FOE_FLASH = { share: 0.25, alpha: 0.75, life: 0.12 };
+export const FOE_FLASH = { share: 0.47, alpha: 0.75, life: 0.12 };
 
-/** Glows on the board's tiles, below the thresholds: a turret's muzzle flash (additive) and a heal's green tint (its strongest mix). */
-export const TILE_GLOW = { muzzle: 0.12, heal: 0.4 };
+/**
+ * A foe on the keep stands on a pale contact patch instead of its dark shadow (src/render/foes.js),
+ * so a dark foe still reads on the dark floor: the lane's sand at `alpha` changes the keep's floor
+ * and pits by under 9% (gamma space), so the patch's fade in and out over `fade` s is never a
+ * flash. It moves with its foe.
+ */
+export const FOE_PATCH = { color: 0xd9c7a3, alpha: 0.28, fade: 0.3 };
+
+/**
+ * Glows on the board's tiles, below the thresholds, all in normal blend: a turret's muzzle flash
+ * (a white silhouette of its tile, changing any colour's luminance by at most 6%), a heal's green
+ * tint (its strongest mix) and a class glow (a soft dot in the element colour under the tile, at
+ * most `glow`: under 9% over the keep's floor even for the palest fusion colour, #e0f7ff in the
+ * classic style, and a legend's colours take turns within 7%).
+ */
+export const TILE_GLOW = { muzzle: 0.12, heal: 0.4, glow: 0.22 };
 
 /** A block under attack: its red tint holds while hits keep coming (one within `hold` s), then fades over 1 / decay s. */
 export const HIT_TINT = { hold: 0.4, decay: 1.6 };
@@ -204,6 +255,40 @@ export function linear(color) {
 export function luminance(color) {
   const { r, g, b } = linear(color);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * How much an overlay of `color` at `alpha` in normal blend changes the luminance of `ground`
+ * (0xRRGGBB both). WebGL blends the stored sRGB values (gamma space), not linear light, so a
+ * dark overlay on a light ground changes it more than its alpha suggests. → |ΔY| (0–1)
+ */
+export function overlayStep(ground, color, alpha) {
+  const ch = (sh) => toLinear((((ground >> sh) & 255) * (1 - alpha) + ((color >> sh) & 255) * alpha) / 255);
+  return Math.abs(0.2126 * ch(16) + 0.7152 * ch(8) + 0.0722 * ch(0) - luminance(ground));
+}
+
+/** A tinted texel (0xRRGGBB): the texture's colour times the tint, as the renderer multiplies them (sRGB). */
+export const tinted = (texel, tint) => [16, 8, 0].reduce((c, sh) => c | (Math.round((((texel >> sh) & 255) * ((tint >> sh) & 255)) / 255) << sh), 0);
+
+/**
+ * Venom puddles (src/render/shots.js) book nothing, so they stay below the threshold: over every
+ * ground a puddle can lie on (the chapters' lane tones and hedges; the walls and the keep are drawn
+ * over it), none of its tinted texels changes the luminance by `step` or more at any alpha up to
+ * its own, which is at most `alpha` (a stain, not a haze). It fades in over `rise` s of real time,
+ * holds at least `hold` s, then dries over at least `fall` s, so its rise and its fall are more
+ * than a second apart at any game speed.
+ */
+export const PUDDLE = { step: 0.09, alpha: 0.16, rise: 0.4, hold: 1.2, fall: 0.6 };
+
+/** The alpha a puddle of `tint` may have: the largest (to 0.005) that keeps every texel over every ground under PUDDLE.step. */
+export function puddleAlpha(tint, texels, grounds) {
+  const colors = texels.map((x) => tinted(x, tint));
+  let ok = 0;
+  for (let a = 0.005; a <= PUDDLE.alpha + 1e-9; a += 0.005) {
+    for (const g of grounds) for (const c of colors) if (overlayStep(g, c, a) >= PUDDLE.step) return ok;
+    ok = Math.round(a * 1000) / 1000;
+  }
+  return ok;
 }
 
 /** A saturated red (ITU-R BT.1702): R / (R + G + B) ≥ 0.8 in linear light. */

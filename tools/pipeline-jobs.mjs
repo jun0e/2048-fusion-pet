@@ -10,7 +10,9 @@ import { ELEMENTS, FUSIONS, APEX } from '../src/sim/classes.js';
 import { ENEMY_TYPES } from '../src/sim/enemies.js';
 import { ELEMENT_PALETTES, UNIVERSAL } from '../src/art/palettes.js';
 import { petName } from '../src/art/tokens.js';
-import { ASSETS as ENEMY_ASSETS } from './assets.config.mjs';
+import { FOE_ROSTER, CHAPTER_GOLDEN, foeChapters } from '../src/art/foe-roster.js';
+import { VFX_PIECES } from '../src/art/attack-vfx.js';
+import { FRAME_ASSETS, CHAPTER_GROUNDS } from '../src/art/frame-kit.js';
 
 export const MODEL_FAST = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-nano-banana-2.1';
 // portraits, boss banners and the background: the same model by default, so one pass of the
@@ -30,9 +32,40 @@ const STICKER =
 const VINYL =
   'Stylized 3D render of a collectible soft-vinyl designer toy: smooth matte materials, large soft colour gradients, gentle ambient occlusion, warm key light from the upper left, ' +
   'a strong rim light in the creature’s own element colour from behind right, no fur strands or texture noise. Original design. No text, no logo, no watermark.';
+// Foes (the visual overhaul, proposal 7.3): each fills its own silhouette contract (image 1) in a
+// view the renderer can flip, with a dark mass and a cream zone so it reads on a light road and a
+// dark hedge. Three candidates each; tools/silhouette-check.py scores them and tools/pick.mjs keeps
+// the best inside the gates (the contract, no twin among the foes it marches with, no hero look,
+// readable on every ground of its chapters); a strict round (tools/pick.mjs strictText) follows
+// only when none is inside them.
 const FOE =
-  'Polished mobile-game enemy art, chibi proportions (big head, small body), simple clean shapes with few small details, a thick dark plum outline (#2B1D2E) and NO cream rim, ' +
-  'flat colours with one cel-shade tone, slightly muted colours so the heroes read as foes. Original design that does not copy any existing game. No text, no logo, no watermark, no ground, no cast shadow.';
+  'Polished mobile-game enemy creature art in the same sticker style as the heroes but as a foe: simple big clean rounded shapes with few small details, ' +
+  'a thick even dark plum outline (#2B1D2E) around every form and NO cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, ' +
+  'light from the upper left, slightly muted colours with one bright accent on the eyes or a weak point, a small mischievous face. ' +
+  'Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow.';
+const FOE_SIL =
+  'Image 1 is the exact silhouette this creature must fill: keep its proportions, pose and outline exactly, and design the creature’s surface inside it; ' +
+  'do not add limbs, wings, props or accessories that would change the silhouette. ';
+const FOE_VIEW = {
+  profile: 'VIEW RULE: a strict side view (profile) facing left, the camera level with the creature, no three-quarter turn, no perspective, no foreshortening. ',
+  front: 'VIEW RULE: a straight front view, symmetrical, the camera level with the creature, no three-quarter turn, no perspective. ',
+  spread: 'VIEW RULE: both wings fully and symmetrically spread like a pinned specimen, no three-quarter turn, no perspective. ',
+};
+const FOE_RENDER = 'Image 2 shows the required rendering (outline weight, cel shading, eye style): match it, but not its species or pose. ';
+const FOE_VALUES =
+  'VALUE RULE: the main body mass is dark and at least a third of the creature is a clearly lighter cream zone (belly, chest, face or wing field), so it reads on both a light road and a dark hedge. ';
+// the forest golden's rendering reference: a frozen copy of the first foe set's ninja raw
+const FOE_RENDER_REF = 'tools/refs/foes/render-ref.png';
+const foeSil = (type) => `tools/refs/foes/sil-${FOE_ROSTER[type].animal}.png`;
+/** A foe's chapters, its own first: every chapter it marches in (foe-roster.js foeChapters). */
+const chaptersOf = (type) => [FOE_ROSTER[type].chapter, ...foeChapters(type).filter((c) => c !== FOE_ROSTER[type].chapter)];
+/** The grounds of those chapters: its own chapter's by name, another chapter's only where it differs ('fareast.hedge'). */
+function groundsOf(chapters) {
+  const out = { ...CHAPTER_GROUNDS[chapters[0]] };
+  for (const c of chapters.slice(1))
+    for (const [name, hex] of Object.entries(CHAPTER_GROUNDS[c])) if (!Object.values(out).includes(hex)) out[`${c}.${name}`] = hex;
+  return out;
+}
 const bgLine = (bg) =>
   `Background: the entire background is a perfectly flat, uniform solid ${bg === 'magenta' ? 'magenta #FF00FF' : 'pure green #00FF00'}, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.`;
 
@@ -221,16 +254,60 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
 
   if ((m = id.match(/^enemy\.([a-zA-Z]+)(\.portrait)?$/))) {
     const [, type, portrait] = m;
-    const cfg = ENEMY_ASSETS.find((x) => x.key === `enemy.${type}`);
-    const subject = cfg ? cfg.prompt.replace(/^A single /, '').split('. Front')[0] : ENEMY_TYPES[type].name;
-    const golden = 'enemy.pixie';
+    const r = FOE_ROSTER[type];
+    if (!r) return null;
     if (portrait)
       return { ...base, model: models.best, bg: 'none', refs: [`enemy.${type}`], deps: [`enemy.${type}`], post: { fit: 'cover', size: 512 },
-        prompt: `${VINYL} A dramatic head-and-shoulders portrait of the boss in image 1 (keep its design), for a "boss approaches" banner: low camera, menacing but cute. Dark stormy plate behind. Square.` };
-    const refs = type === 'pixie' ? [] : [golden];
-    const bg = cfg?.bg ?? 'green';
-    return { ...base, bg, refs, deps: refs, post: { ...base.post, size: ENEMY_TYPES[type].boss ? 384 : 256 },
-      prompt: `${refs.length ? 'Image 1 shows the required style for every enemy; match its rendering and proportions exactly. ' : ''}A ${subject}, one of the invading heroes of a cute mobile defense game, front three-quarter view, walking pose. ${FOE} ${bgLine(bg)}` };
+        prompt: `${VINYL} A dramatic head-and-shoulders portrait of the boss in image 1, ${r.name} (${r.desc}); keep its design and colours exactly. For a "boss approaches" banner: low camera, menacing but cute. Dark stormy plate behind. Square.` };
+    // rendering reference: the forest golden starts from the frozen render, each chapter golden
+    // follows the forest golden, and every other foe follows its own chapter's golden
+    const golden = CHAPTER_GOLDEN[r.chapter];
+    const style = type === CHAPTER_GOLDEN.forest ? FOE_RENDER_REF : `enemy.${type === golden ? CHAPTER_GOLDEN.forest : golden}`;
+    const refs = [foeSil(type), style];
+    const others = Object.keys(FOE_ROSTER)
+      .filter((k) => k !== type)
+      .map((k) => ({ id: `enemy.${k}`, sil: foeSil(k), chapter: FOE_ROSTER[k].chapter, chapters: chaptersOf(k) }));
+    const chapters = chaptersOf(type);
+    return { ...base, model: models.best, bg: r.bg, refs, deps: refs.filter((x) => !x.includes('/')),
+      post: { fit: 'trim', size: r.boss ? 768 : 512, stripRim: true }, // a foe has no cream rim: that is the heroes' cue
+      pick: { n: 3, contract: foeSil(type), view: r.view, chapter: r.chapter, chapters, grounds: groundsOf(chapters), others, allies: 'fusion.', animal: r.animal, pose: r.pose, accepted: r.gateAccepted },
+      prompt:
+        `${FOE_SIL}${FOE_VIEW[r.view]}${FOE_RENDER}The creature: ${r.desc}, one of the animal army that besieges the player’s keep. Pose: ${r.pose}. ${FOE_VALUES}` +
+        `HARD COLOUR RULE: use only these colours: ${list(r.pal)}, with ${r.accent} as the single bright accent, plus the outline ${UNI[0]} and black/white for the eyes. ${FOE} ${bgLine(r.bg)}` };
+  }
+
+  if ((m = id.match(/^vfx\.([a-z]+)\.([a-z]+)$/))) {
+    // attack sprites: solid sticker shapes, never glows (motion carries combat, not brightness)
+    const [, el, piece] = m;
+    const v = VFX_PIECES[el]?.[piece];
+    if (!v) return null;
+    const bg = v.bg ?? BG_FOR[el]; // a piece in its element's key colour keys on the other one (the pink blossom)
+    const colours = v.tint
+      ? `COLOUR RULE: only cream-white ${UNI[1]}, one light grey cel-shade tone #D9D2C7 and the plum outline ${UNI[0]}; no other colours (the game tints it).`
+      : `HARD COLOUR RULE: use only these colours: ${list(v.pal ?? hexes(el))}, plus white and the plum outline ${UNI[0]}.`;
+    const flat = v.kind === 'decal' ? 'Seen from directly above, lying flat on the ground, no cast shadow. ' : '';
+    // a long thin piece (a crack, a tendril) is drawn on a wide canvas so the model keeps it long
+    return { ...base, model: models.best, bg, aspect: v.aspect ?? base.aspect, post: { fit: 'trim', size: v.kind === 'decal' || v.kind === 'burst' || v.aspect ? 256 : 192 },
+      prompt:
+        `A single game effect sprite for a cute sticker-style mobile tower-defense game: ${v.desc}. ${flat}` +
+        `Solid opaque shapes with a thick even dark plum outline (${UNI[0]}), flat colour fills with one crisp cel-shade tone; NO glow, NO soft gradient, NO light rays, NO transparency, NO motion blur. ` +
+        `${colours} One object only, centred, with margin. No text, no logo, no watermark. ${bgLine(bg)}` };
+  }
+
+  if (FRAME_ASSETS[id]) {
+    // the siege frame's generated pieces: chapter paintings, far silhouette strips, props
+    const f = FRAME_ASSETS[id];
+    if (f.kind === 'backdrop')
+      return { ...base, model: models.best, aspect: '9:16', bg: 'none', post: { fit: 'cover', size: 1600 },
+        prompt:
+          `Vertical mobile game background, 9:16: ${f.desc}. Low contrast and quiet so cute characters, a stone keep and a puzzle board stay readable on top; ` +
+          'leave the middle and lower two thirds mostly empty and dark. Flat painterly style matching cute sticker art. No characters, no text, no UI.' };
+    const strip = f.kind === 'strip';
+    const look = strip
+      ? 'Flat silhouette shapes with no outline and no detail inside. '
+      : `Solid opaque shapes with a thick even dark plum outline (${UNI[0]}), flat colour fills with one crisp cel-shade tone; NO glow, NO soft gradient, NO light rays. `;
+    return { ...base, model: models.best, aspect: strip ? '21:9' : '1:1', bg: f.bg, post: { fit: 'trim', size: strip ? 1024 : 256 },
+      prompt: `A single game scenery sprite for a cute sticker-style mobile tower-defense game: ${f.desc}. ${look}No text, no logo, no watermark. ${bgLine(f.bg)}` };
   }
 
   if (id === 'env.background')

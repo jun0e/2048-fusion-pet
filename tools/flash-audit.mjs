@@ -1,7 +1,10 @@
 // Photosensitivity audit: plays bot games on the real sim (pets roaming, namecards tapped as
-// soon as they are ready, a burst of taps when several are) and a stress board of
-// legendaries, then counts the large flashes the screen would show per second of real time
-// at x1, x2 and x4: the old effects against the rules in src/ux/photosafe.js.
+// soon as they are ready, a burst of taps when several are), a stress board of legendaries
+// and a ladder board per element (one block at every attack stage: 16, 64, 128, a 256 fusion
+// and a 4096 apex), then counts the large flashes the screen would show per second of real
+// time at x1, x2 and x4: the old effects against the rules in src/ux/photosafe.js. The
+// photosafe effects are today's: the sprite attacks book what src/art/attack-vfx.js
+// attackLight plans for each event, as src/render/attacks.js and shots.js draw them.
 // A large flash is one of these:
 // - a full-screen wash;
 // - the red edge pulse when a block falls (it shows only in danger: 3 or fewer blocks in a wave);
@@ -14,13 +17,15 @@
 // - the big milestone number (it takes the flash budget).
 // WCAG 2.3.1 allows at most 3 in any second. A block's red hit tint is counted per block.
 //
-//   node tools/flash-audit.mjs [--seeds=12] [--minutes=15]
+//   node tools/flash-audit.mjs [--seeds=12] [--minutes=15] [--ladder=150]
 import { pathToFileURL } from 'node:url';
 import { createRun } from '../src/sim/run.js';
 import { bestDir } from '../src/autoplay.js';
 import { FIELD, PHYSICS } from '../src/config.js';
 import { BURST, COIN, DOT, FOE_FLASH, HIT_TINT, HURT_PULSE, LINE, NUMBER, POINT, SIGNATURE_TINT, TEXT, boomLit, createFlashGuard, createLightBudget, fitBoom, fitRing, isSaturatedRed, popupFont, ringLit, textInk, washAlpha } from '../src/ux/photosafe.js';
-import { ELEMENTS } from '../src/sim/classes.js';
+import { ELEMENTS, ELEMENT_KEYS } from '../src/sim/classes.js';
+import { STAGES, attackLight, attackOf } from '../src/art/attack-vfx.js';
+import { foeDrawSize } from '../src/art/foe-roster.js';
 
 const TAP_GAP = 0.2; // seconds of real time between taps on cards that are ready together
 const PHONE_U = 32; // px per world unit on a small phone: text over the canvas is biggest there
@@ -41,9 +46,9 @@ const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 const polyline = (pts) => pts.slice(1).reduce((sum, q, i) => sum + dist(pts[i], q), 0);
 
 /**
- * What an event draws locally, as main.js, pets.js, shots.js, blocks.js and fx.js ask for it:
- * rings [r0, r1, life], an explosion, the old flash dot, lines [lit at full width, life] and
- * bursts [particles, size, life].
+ * What an event drew locally before the sprite attacks, as main.js, pets.js, shots.js, blocks.js
+ * and fx.js asked for it: rings [r0, r1, life], an explosion, the old flash dot, lines [lit at
+ * full width, life] and bursts [particles, size, life]. The 'before' policy draws these.
  */
 function pointEffects(e) {
   const fx = (p) => ({ rings: [], lines: [], bursts: [], ...p });
@@ -115,8 +120,8 @@ function pointEffects(e) {
     }
     case 'remove':
       return e.reason === 'destroyed' ? fx({ boom: 2.6, dot: 2.6 * OLD.dotScale, bursts: [[26, 0.3, 0.6]], texts: [text('Block lost!', 4)] }) : fx({ bursts: [[18, 0.24, 0.45]] });
-    case 'foeFlash': // enemies hit this step (play() adds these): each flashes its sprite
-      return fx({ foes: e.lits });
+    case 'foeFlash': // enemies hit this step (play() adds these): before, each run of hits flashed its sprite once
+      return e.starts.length ? fx({ foes: e.starts }) : null;
     case 'hit':
       return e.amount >= 0.5 ? fx({ numbers: [0.36] }) : null;
     case 'coins':
@@ -128,6 +133,21 @@ function pointEffects(e) {
     default:
       return null;
   }
+}
+
+/** The events the sprite attacks draw (src/render/attacks.js, shots.js): they book attackLight's items. */
+const SPRITE_EVENTS = new Set(['breath', 'gust', 'pulse', 'quake', 'pounce', 'ping', 'impact', 'fire', 'strike', 'kill', 'stun', 'freeze', 'bite', 'weaken', 'spread', 'meteor', 'pushed']);
+/** How the trim statistics name attackLight's item kinds. */
+const SPRITE_KIND = { bits: 'attack bits', sprite: 'attack sprites', decal: 'decals', line: 'links', ring: 'pings' };
+
+/**
+ * What an event draws locally today: the sprite attacks' plan (src/art/attack-vfx.js
+ * attackLight: sprites [{ kind, lit, life, all, min }]); the other events as before.
+ */
+function nowEffects(e) {
+  if (!SPRITE_EVENTS.has(e.type)) return pointEffects(e);
+  const plan = attackLight(e);
+  return plan?.items.length ? { rings: [], lines: [], bursts: [], sprites: plan.items } : null;
 }
 
 /**
@@ -186,7 +206,16 @@ function pointLight(items, safe) {
         const k = budget.book(lit, life, TEXT.minScale ** 2); // drawn smaller (font × √k), or not at all
         count('text', k < 1, k);
       }
+      for (const it of p.sprites ?? []) {
+        // the sprite attacks: whole or not at all, or smaller, thinner, fewer (as attacks.js bookPlan), each from its delay on
+        if (it.all) count(SPRITE_KIND[it.kind], !budget.bookAll(it.lit, it.life, it.delay ?? 0));
+        else {
+          const k = budget.book(it.lit, it.life, it.min ?? 0, it.delay ?? 0);
+          count(SPRITE_KIND[it.kind], k < 1, k);
+        }
+      }
       used = budget.used;
+      peak = Math.max(peak, budget.peak); // every frame booked so far, delayed ones too
     } else {
       now = w;
       for (let i = live.length - 1; i >= 0; i--) {
@@ -241,6 +270,7 @@ function play(run, { seconds, bot }) {
   const cards = new Map();
   const flashing = new Set(); // enemies whose hit flash is on
   const emit = new Map(); // enemy id → its status-particle and DoT-number timers
+  let wasLit = false; // some foe's hit flash was on last step
   let t = 0;
   let next = 0;
   for (let i = 0; i < seconds / PHYSICS.dt && !run.over; i++) {
@@ -248,14 +278,25 @@ function play(run, { seconds, bot }) {
     run.step();
     const danger = run.blocks <= 3 && run.phase === 'wave'; // as main.js decides it
     for (const e of run.drainEvents()) out.push([run.time, e, danger]);
-    // enemies hit this step: each shows a hit flash of its sprite (foes.js)
+    // enemies hit this step: each shows a hit flash of its sprite, as big as foes.js draws it
+    // (foeDrawSize). Every step any foe is lit (and the step after, when its flash goes out):
+    // which foes, their light, and whose run of hits starts here (flashes books them as foes.js does)
+    const ids = [];
     const lits = [];
+    const starts = [];
     for (const f of run.enemies) {
-      if (f.flash > 0 && !flashing.has(f.id)) lits.push(FOE_FLASH.share * (f.def.size * (f.boss ? 2.6 : 2.5)) ** 2);
-      if (f.flash > 0) flashing.add(f.id);
-      else flashing.delete(f.id);
+      if (!(f.flash > 0)) {
+        flashing.delete(f.id);
+        continue;
+      }
+      const lit = FOE_FLASH.share * foeDrawSize(f.def) ** 2;
+      ids.push(f.id);
+      lits.push(lit);
+      if (!flashing.has(f.id)) starts.push(lit);
+      flashing.add(f.id);
     }
-    if (lits.length) out.push([run.time, { type: 'foeFlash', lits }, danger]);
+    if (ids.length || wasLit) out.push([run.time, { type: 'foeFlash', ids, lits, starts }, danger]);
+    wasLit = ids.length > 0;
     // foes.js: every 0.09 s a burning foe sheds an ember, a poisoned one a bubble (6 in 10), a
     // chilled one frost (4 in 10, counted as that share of light); twice a second its DoT numbers
     const embers = [];
@@ -300,6 +341,62 @@ function stressRun() {
   return run;
 }
 
+/** The block of each ladder stage: [tier, class] for an element (i: its index; partner and apex follow it). */
+const LADDER_BLOCKS = {
+  16: (el) => [4, { element: el }],
+  64: (el) => [6, { element: el }],
+  128: (el) => [7, { element: el }],
+  256: (el, i) => [8, { element: el, fusion: ELEMENT_KEYS[(i + 1) % 8] }],
+  4096: (el, i) => [12, { element: el, fusion: ELEMENT_KEYS[(i + 1) % 8], ultimate: ELEMENT_KEYS[(i + 2) % 8] }],
+};
+
+/**
+ * A ladder board: one block of an element at one attack stage (a fusion or an apex roams), made
+ * sturdy so the waves keep coming at it (a lone block draws every foe), so the audit sees each
+ * attack at each stage on its own.
+ */
+function ladderRun(el, i, stage) {
+  const run = createRun({ seed: 300 + i * 7 + STAGES.indexOf(stage), autoChoose: true, roaming: true, empty: true });
+  const [tier, cls] = LADDER_BLOCKS[stage](el, i);
+  const t = run.spawnDebug(tier, 1, 3);
+  t.cls = cls;
+  t.maxHp = t.hp = 1e7;
+  return run;
+}
+
+/** How many of each element's own attacks came at each ladder stage: { 'fire.16': n, … }. */
+function coverageOf(scenarios) {
+  const out = Object.fromEntries(ELEMENT_KEYS.flatMap((el) => STAGES.map((st) => [`${el}.${st}`, 0])));
+  for (const s of scenarios) {
+    for (const [, e] of s.events) {
+      const a = attackOf(e);
+      if (a) out[`${a.el}.${a.stage}`] += 1;
+    }
+  }
+  return out;
+}
+
+/**
+ * Hit flashes as src/render/foes.js books them: when a foe's run of hits starts, and again every
+ * FOE_FLASH.life of real time while it lasts (it goes out when the run ends; a refused one waits
+ * for its next turn), each one whole or not at all. Fed play()'s foeFlash events (the foes lit in
+ * a step) in order, at real time w. → (e, w) → the point effects to book now, or null
+ */
+export function createFoeFlashes() {
+  const lit = new Map(); // enemy id → the real time its hit flash is booked until
+  return (e, w) => {
+    const on = new Set(e.ids);
+    for (const id of lit.keys()) if (!on.has(id)) lit.delete(id); // its run of hits is over
+    const foes = [];
+    e.ids.forEach((id, k) => {
+      if (lit.has(id) && w < lit.get(id)) return;
+      foes.push(e.lits[k]);
+      lit.set(id, w + FOE_FLASH.life);
+    });
+    return foes.length ? { rings: [], lines: [], bursts: [], foes } : null;
+  };
+}
+
 /** The large flashes (real time) and the per-block hit pulses of one event list at one speed. */
 function flashes(events, speed, safe) {
   const washes = createFlashGuard();
@@ -308,6 +405,7 @@ function flashes(events, speed, safe) {
   const hits = new Map(); // block id → [real time of each new red pulse]
   const tint = new Map(); // block id → real time of its last hit
   const points = []; // { w, p }: the point effects, in real time
+  const foeFlashes = createFoeFlashes(); // photosafe: hit flashes as foes.js books them
   let lastSim = null;
   let taps = 0;
   // a full-screen wash (capped below the thresholds) takes the wash budget; the red edge pulse
@@ -327,7 +425,7 @@ function flashes(events, speed, safe) {
       lastSim = simT;
       w += taps * TAP_GAP;
     }
-    const p = pointEffects(e);
+    const p = safe ? (e.type === 'foeFlash' ? foeFlashes(e, w) : nowEffects(e)) : pointEffects(e);
     if (p) points.push({ w, p });
     if (e.type === 'signature' && SIGNATURE_TINT[e.effect]) wash(w, SIGNATURE_TINT[e.effect], OLD.signatureAlpha);
     else if (e.type === 'skill') {
@@ -374,16 +472,8 @@ function flashes(events, speed, safe) {
   };
 }
 
-/**
- * Audit the old effects and the photosafe ones: per policy and speed, the worst game's large
- * flashes in any 1 s (those above the thresholds, those from point effects, the red ones), the
- * peak wash alpha, the brightest frame of point effects, and the most red pulses one block shows
- * in any 1 s.
- */
-export function audit({ seeds = 12, minutes = 15, stressSeconds = 180, speeds = [1, 2, 4], stress = true } = {}) {
-  const scenarios = [];
-  for (let seed = 1; seed <= seeds; seed++) scenarios.push({ name: `bot ${seed}`, events: play(createRun({ seed, autoChoose: true, roaming: true }), { seconds: minutes * 60, bot: true }) });
-  if (stress) scenarios.push({ name: 'stress', events: play(stressRun(), { seconds: stressSeconds, bot: false }) });
+/** Per policy and speed, the worst scenario's numbers (see audit). */
+function rowsFor(scenarios, speeds) {
   const rows = [];
   for (const safe of [false, true]) {
     for (const speed of speeds) {
@@ -417,15 +507,48 @@ export function audit({ seeds = 12, minutes = 15, stressSeconds = 180, speeds = 
   return rows;
 }
 
+/**
+ * Audit the old effects and the photosafe ones: per policy and speed, the worst game's large
+ * flashes in any 1 s (those above the thresholds, those from point effects, the red ones), the
+ * peak wash alpha, the brightest frame of point effects, and the most red pulses one block shows
+ * in any 1 s. With `ladderSeconds`, the 40 ladder boards are measured too, on their own
+ * (rows.ladder), and rows.coverage counts each element's attacks at each stage.
+ */
+export function audit({ seeds = 12, minutes = 15, stressSeconds = 180, speeds = [1, 2, 4], stress = true, ladderSeconds = 0 } = {}) {
+  const scenarios = [];
+  for (let seed = 1; seed <= seeds; seed++) scenarios.push({ name: `bot ${seed}`, events: play(createRun({ seed, autoChoose: true, roaming: true }), { seconds: minutes * 60, bot: true }) });
+  if (stress) scenarios.push({ name: 'stress', events: play(stressRun(), { seconds: stressSeconds, bot: false }) });
+  const rows = rowsFor(scenarios, speeds);
+  if (ladderSeconds > 0) {
+    const boards = ELEMENT_KEYS.flatMap((el, i) => STAGES.map((st) => ({ name: `${el} ${st}`, events: play(ladderRun(el, i, st), { seconds: ladderSeconds, bot: false }) })));
+    rows.ladder = rowsFor(boards, speeds);
+    rows.coverage = coverageOf([...scenarios, ...boards]); // each element's attacks seen at each ladder stage
+  } else rows.coverage = coverageOf(scenarios);
+  return rows;
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const arg = (name, d) => Number(process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ?? d);
   const seeds = arg('seeds', 12);
   const minutes = arg('minutes', 15);
-  const rows = audit({ seeds, minutes });
-  console.log(`${seeds} bot games (up to ${minutes} min, pets roaming, namecards tapped when ready) + a stress board of 4 legendaries`);
+  const ladderSeconds = arg('ladder', 60);
+  const rows = audit({ seeds, minutes, ladderSeconds });
+  console.log(`${seeds} bot games (up to ${minutes} min, pets roaming, namecards tapped when ready) + a stress board of 4 legendaries + 40 ladder boards (each element at each attack stage, ${ladderSeconds} s each)`);
   console.log(`a large local flash: the local effects on screen light ${POINT.large} units² or more to 10%; photosafe keeps them under ${POINT.cap}\n`);
-  console.log('| effects | speed | large flashes in any 1 s | above the thresholds | from local effects | red | wash peak alpha | most lit by local effects at once (units²) | red pulses of one block in any 1 s |');
-  console.log('|---|---|---|---|---|---|---|---|---|');
-  for (const x of rows) console.log(`| ${x.policy} | x${x.speed} | ${x.large.perSecond} (${x.large.name}) | ${x.above.flashPerSecond} | ${x.point.pointPerSecond} | ${x.red.redPerSecond} | ${x.wash.toFixed(2)} | ${x.pointPeak.toFixed(1)} | ${x.hit.hitPerSecond} |`);
+  const table = (list) => {
+    console.log('| effects | speed | large flashes in any 1 s | above the thresholds | from local effects | red | wash peak alpha | most lit by local effects at once (units²) | red pulses of one block in any 1 s |');
+    console.log('|---|---|---|---|---|---|---|---|---|');
+    for (const x of list) console.log(`| ${x.policy} | x${x.speed} | ${x.large.perSecond} (${x.large.name}) | ${x.above.flashPerSecond} | ${x.point.pointPerSecond} | ${x.red.redPerSecond} | ${x.wash.toFixed(2)} | ${x.pointPeak.toFixed(1)} | ${x.hit.hitPerSecond} |`);
+  };
+  table(rows);
   for (const x of rows.filter((r) => r.policy === 'photosafe')) console.log(`\nx${x.speed}: ${((100 * x.trimmed.smaller) / Math.max(1, x.trimmed.asked)).toFixed(1)}% of local effects drawn smaller, thinner, fewer or not at all (light budget), of ${x.trimmed.asked}. Light kept on average: ${Object.entries(x.trimmed.kinds).map(([k, v]) => `${k} ${((100 * v.kept) / v.asked).toFixed(0)}%`).join(', ')}`);
+  if (rows.ladder) {
+    console.log(`\nThe 40 ladder boards on their own (one sturdy block of each element at each attack stage, ${ladderSeconds} s each):\n`);
+    table(rows.ladder);
+    for (const x of rows.ladder.filter((r) => r.policy === 'photosafe')) console.log(`\nladder x${x.speed}: ${((100 * x.trimmed.smaller) / Math.max(1, x.trimmed.asked)).toFixed(1)}% drawn smaller, thinner, fewer or not at all, of ${x.trimmed.asked}. Light kept on average: ${Object.entries(x.trimmed.kinds).map(([k, v]) => `${k} ${((100 * v.kept) / v.asked).toFixed(0)}%`).join(', ')}`);
+  }
+  console.log('\nEach element\'s attacks seen at each ladder stage (all scenarios):\n');
+  console.log(`| element | ${STAGES.join(' | ')} |`);
+  console.log(`|---|${STAGES.map(() => '---').join('|')}|`);
+  for (const el of ELEMENT_KEYS) console.log(`| ${el} | ${STAGES.map((st) => rows.coverage[`${el}.${st}`]).join(' | ')} |`);
 }

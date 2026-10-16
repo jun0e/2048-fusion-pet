@@ -1,16 +1,40 @@
 // Pixi application, world→screen layout and render layers.
 // World units: x right, y up (the sim's coordinates). Screen: pixels, y down.
-// U = pixels per world unit, recomputed on resize so the deck row, the board, the
-// castle wall and the four lanes below it fit between the DOM HUD bars (their
-// heights come from setInsets, measured from the HUD).
+// U = pixels per world unit, recomputed on resize so the deck row, the keep (the board), the
+// parapet and the four lanes above it, up to the gate arches, fit between the DOM HUD's bands:
+// the head (top bar, chapter lintel and news ribbon) and the bottom bar (coins, Wave now). The
+// bands come from setInsets, measured from the HUD. The width also leaves the right tower room
+// for the namecard rail (RAIL_MIN), so a card can never cover lane 4.
 import { Application, Container, Graphics } from 'pixi.js';
 // no runtime code generation: the game also runs under a strict Content-Security-Policy
 // (no 'unsafe-eval'), e.g. as a claude.ai artifact
 import 'pixi.js/unsafe-eval';
 import { createFlashGuard, washAlpha, washLevel } from '../ux/photosafe.js';
+import { FRAME_GEOM, RAIL_PX } from '../art/frame-kit.js';
 
-export const WORLD = { minX: -4.75, maxX: 4.75, minY: -1.7, maxY: 18.15 }; // deck row + board + lanes above (no wall)
+export const WORLD = { minX: -4.75, maxX: 4.75, minY: -1.7, maxY: 18.15 }; // deck row + keep + lanes up to the gate arches
 const LAYERS = ['bg', 'path', 'board', 'tiles', 'enemies', 'shots', 'fx', 'numbers', 'overlay'];
+
+/**
+ * The narrowest namecard rail (px): 44 px cards, RAIL_PX.margin each side. The rail hangs on the
+ * right tower, right of x = FRAME_GEOM.towerIn. The world is sized first and keeps the tower at
+ * least this wide; the cards then take the width the tower has, up to 44 px on a 360 px phone and
+ * 48–52 px on wider ones (src/kv/namecards.js railLayout).
+ */
+export const RAIL_MIN = RAIL_PX.card + 2 * RAIL_PX.margin;
+
+/**
+ * Pixels per world unit for a w × h screen whose HUD bands take `top` and `bottom` px: the world
+ * fits the band between them and the width. The rail only binds when even its narrowest cards
+ * would not fit the right tower, so a phone whose cards fit gets the height's U.
+ */
+export function fitU(w, h, { top = 0, bottom = 0 } = {}) {
+  const availH = Math.max(100, h - top - bottom);
+  const byWidth = w / (WORLD.maxX - WORLD.minX);
+  const byHeight = availH / (WORLD.maxY - WORLD.minY);
+  const byRail = (w / 2 - RAIL_MIN) / FRAME_GEOM.towerIn;
+  return Math.max(4, Math.min(byWidth, byHeight, byRail));
+}
 
 export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}) {
   const app = new Application();
@@ -41,7 +65,7 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
     const w = app.screen.width;
     const h = app.screen.height;
     const availH = Math.max(100, h - insets.top - insets.bottom);
-    view.U = Math.min(w / (WORLD.maxX - WORLD.minX), availH / (WORLD.maxY - WORLD.minY));
+    view.U = fitU(w, h, insets);
     view.ox = w / 2 - ((WORLD.minX + WORLD.maxX) / 2) * view.U;
     view.oy = insets.top + availH / 2 + ((WORLD.minY + WORLD.maxY) / 2) * view.U;
     view.w = w;

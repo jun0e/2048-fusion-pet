@@ -706,7 +706,7 @@ test('game-over copy and the retry hint', () => {
   assert.equal(causeLine({ wave: 4, by: 'Pixie' }), 'A Pixie broke your last block on wave 4.');
   assert.equal(causeLine({ wave: 4 }), 'Your last block fell on wave 4.');
   assert.match(lossHint({ wave: 2, maxTier: 3 }), /16/);
-  assert.match(lossHint({ wave: 2, maxTier: 5 }), /lit lanes/);
+  assert.match(lossHint({ wave: 2, maxTier: 5 }), /lit braziers/);
   assert.match(lossHint({ wave: 9, maxTier: 7 }), /spare/);
   assert.equal(returnGoal(0), null);
   assert.equal(returnGoal(12), 'Your best is wave 12. Beat it!');

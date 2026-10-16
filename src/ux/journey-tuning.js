@@ -25,7 +25,7 @@ export const gameOverWords = (cause = causeLine({ wave: 1, by: 'Pixie' })) => 1 
  */
 export function lossHint({ wave, maxTier }) {
   if (maxTier < 4) return 'Merge to 16: only blocks of 16 or more shoot.';
-  if (wave <= 3) return 'Build 16s under the lit lanes, then tap Wave now.';
+  if (wave <= 3) return 'Build 16s under the lit braziers, then tap Wave now.';
   return 'Spread turrets over the lanes and keep spare blocks.';
 }
 

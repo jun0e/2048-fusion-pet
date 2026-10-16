@@ -117,3 +117,52 @@ test('the real event stream at x4: one flash and one wash a second at most, wash
   assert.ok(safe.pointPeak <= POINT.cap + 1e-3, `rings and explosions lit ${safe.pointPeak.toFixed(4)} units² at once`);
   assert.ok(safe.hit.hitPerSecond <= 3, `a block blinked ${safe.hit.hitPerSecond} times in a second`);
 });
+
+test('an effect that shows later books from then: the frames before its delay stay free, the ones after it fill', () => {
+  const b = createLightBudget({ cap: POINT.cap });
+  assert.equal(b.book(6, 0.25, 0, 0.3), 1, 'a crater laid where a meteor lands, 0.3 s from now');
+  assert.equal(b.used, 0, 'nothing lit now');
+  assert.equal(b.fit(9, 0.25), 1, 'the next 0.25 s are still free');
+  assert.ok(b.fit(9, 0.25, 0, 0.3) < 0.5, 'its window is not');
+  for (let t = 0; t < 0.31; t += 1 / 60) b.tick(1 / 60);
+  assert.ok(Math.abs(b.used - 6) < 1e-9, 'it lights from its delay on');
+  for (let t = 0; t < 0.3; t += 1 / 60) b.tick(1 / 60);
+  assert.equal(b.used, 0, 'for its life only');
+  assert.ok(Math.abs(b.peak - 6) < 1e-9, 'the most any frame held');
+  // whole or not at all, from its delay
+  const c = createLightBudget({ cap: POINT.cap });
+  assert.equal(c.bookAll(8, 0.2, 0.5), true);
+  assert.equal(c.bookAll(3, 0.2, 0.6), false, 'it would pass the cap where the two overlap');
+  assert.equal(c.bookAll(3, 0.2, 0.75), true, 'after the first is over it fits');
+  assert.ok(c.peak <= POINT.cap);
+});
+
+test('the audit books a hit flash as the game does: when a run of hits starts, then every FOE_FLASH.life of real time', async () => {
+  const { createFoeFlashes } = await import('../tools/flash-audit.mjs');
+  const { FOE_FLASH } = await import('../src/ux/photosafe.js');
+  // a foe hit without pause for 0.5 s of sim time, then a pause, then hit again (sim steps of 1/60 s)
+  const steps = (speed) => {
+    const book = createFoeFlashes();
+    const at = [];
+    for (let i = 0; i <= 60; i++) {
+      const sim = i / 60;
+      const on = sim < 0.5 || sim >= 0.7;
+      const p = book({ ids: on ? [1] : [], lits: on ? [0.9] : [] }, sim / speed);
+      if (p) at.push(+(sim / speed).toFixed(4));
+    }
+    return at;
+  };
+  for (const speed of [1, 2, 4]) {
+    const at = steps(speed);
+    const step = 1 / 60 / speed; // a sim step in real time
+    const run = at.filter((w) => w < 0.5 / speed);
+    assert.equal(run[0], 0, `x${speed}: at once`);
+    for (let i = 1; i < run.length; i++) {
+      const gap = run[i] - run[i - 1];
+      assert.ok(gap >= FOE_FLASH.life - 1e-3 && gap < FOE_FLASH.life + step + 1e-3, `x${speed}: booked again as the last runs out (${gap.toFixed(3)} s)`);
+    }
+    assert.ok(run.at(-1) + FOE_FLASH.life + step >= 0.5 / speed - 1e-3, `x${speed}: booked for the whole run of hits`);
+    assert.ok(at.includes(+(0.7 / speed).toFixed(4)), `x${speed}: a new run of hits books at once`);
+  }
+  assert.ok(steps(1).filter((w) => w < 0.5).length > steps(4).filter((w) => w < 0.5 / 4).length, 'on real time: fewer at x4');
+});

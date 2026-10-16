@@ -1,14 +1,18 @@
-// Procedural 2D art, drawn once into canvases and turned into Pixi textures.
-// Generated sprites (public/assets, see tools/gen-assets.mjs) replace these
-// per key when present: enemy.<type>, proj.<element>, bg.
+// Procedural 2D art, drawn once into canvases and turned into Pixi textures, and the generated
+// sprites that replace it (public/assets/manifest.json, made by tools/pipeline.mjs): foes
+// (enemy.<type>) and attack sprites (vfx.<element>.<piece>, else src/render/vfx-fallback.js) here;
+// the pets, the frame kit and the HUD art through src/art.
 //
-// Projectile shapes are drawn mostly white so they can be tinted per element
-// (a fireball tinted ice-blue is the Blue Flame fusion's projectile).
+// The old projectile shapes (projTex) are drawn mostly white so they can be tinted; the game
+// still flies the meteor's streak, and the asset page shows the rest.
 
 import { Assets, Texture } from 'pixi.js';
 import { TIER_COLORS, tierValue } from '../config.js';
 import { ELEMENTS, fusionOf } from '../sim/classes.js';
 import { ENEMY_TYPES } from '../sim/enemies.js';
+import { VFX_IDS, noteLit } from '../art/attack-vfx.js';
+import { CEL, CREAM, INK, LINK_BOT, LINK_TOP, VFX_FALLBACK, drawPuddle, hash01i, poly, sticker } from './vfx-fallback.js';
+export { PUDDLE_TEXELS } from './vfx-fallback.js';
 
 const FONT = '"Baloo 2", "Nunito", system-ui, sans-serif';
 const cache = new Map();
@@ -593,17 +597,278 @@ export const projTex = (shape) => {
   });
 };
 
+// --- attack sprites (src/art/attack-vfx.js): generated vfx.<element>.<piece>, else src/render/vfx-fallback.js ---
+
+/** Pieces whose brief says they point (or lie) to the right: the renderer rotates them by their motion (a slanted one is levelled). */
+export const POINTS_RIGHT = new Set(['fire.tongue', 'ice.harpoon', 'lightning.link', 'poison.glob', 'wind.swirl', 'wind.streak', 'earth.crack', 'nature.tendril']);
+// long pieces drawn to a length (attack-vfx.js VFX_ASPECT): always trimmed, so their own shape fills the length
+const LONG = new Set(['vfx.earth.crack', 'vfx.nature.tendril']);
+const readied = new Map(); // id → the generated sprite, ready to draw
+const readiedShare = new Map(); // id → its opaque share, as measured
+
+/**
+ * A generated attack sprite made ready once: an elongated piece that should point to the right but
+ * was drawn at a slant (its long axis more than 11° off) is turned level and trimmed, and its opaque
+ * share is measured for the light budget (attack-vfx.js noteLit), so a fuller sprite books more.
+ * readyVfx does this for every one at startup.
+ */
+function readyGenerated(id, t) {
+  if (readied.has(id)) return readied.get(id);
+  let out = t;
+  try {
+    const src = t.source.resource;
+    const w = Math.round(t.width);
+    const h = Math.round(t.height);
+    const read = (c) => c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data;
+    let c = canvas(w, h, (g) => g.drawImage(src, 0, 0, w, h));
+    let d = read(c);
+    if (POINTS_RIGHT.has(id.slice(4))) {
+      // the long axis from the alpha mask's second moments
+      let n = 0;
+      let sx = 0;
+      let sy = 0;
+      let sxx = 0;
+      let syy = 0;
+      let sxy = 0;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 25) (n += 1), (sx += x), (sy += y), (sxx += x * x), (syy += y * y), (sxy += x * y);
+      const mx = sx / n;
+      const my = sy / n;
+      const cxx = sxx / n - mx * mx;
+      const cyy = syy / n - my * my;
+      const cxy = sxy / n - mx * my;
+      const th = 0.5 * Math.atan2(2 * cxy, cxx - cyy); // screen angle of the long axis, its tip to the right
+      const spread = Math.sqrt(((cxx - cyy) / 2) ** 2 + cxy * cxy);
+      const long = (cxx + cyy) / 2 + spread;
+      const short = Math.max(1e-6, (cxx + cyy) / 2 - spread);
+      if (Math.abs(th) > 0.2 && long / short > 2) {
+        const W = Math.ceil(Math.abs(w * Math.cos(th)) + Math.abs(h * Math.sin(th)));
+        const H = Math.ceil(Math.abs(w * Math.sin(th)) + Math.abs(h * Math.cos(th)));
+        c = canvas(W, H, (g) => {
+          g.translate(W / 2, H / 2);
+          g.rotate(-th);
+          g.drawImage(src, -w / 2, -h / 2, w, h);
+        });
+        d = read(c);
+      }
+    }
+    if (id === 'vfx.nature.arc') {
+      // the arc turns about its box's bottom-right corner (its centre): one bulging down-right is turned round
+      let n = 0;
+      let sum = 0;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 25) (n += 1), (sum += x / w + y / h);
+      if (n && sum / n > 1) {
+        c = canvas(w, h, (g) => {
+          g.translate(w, h);
+          g.rotate(Math.PI);
+          g.drawImage(src, 0, 0, w, h);
+        });
+        d = read(c);
+      }
+    }
+    // trim to the shape, and measure its opaque share
+    let x0 = c.width;
+    let y0 = c.height;
+    let x1 = -1;
+    let y1 = -1;
+    let on = 0;
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        if (d[(y * c.width + x) * 4 + 3] <= 25) continue;
+        on += 1;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+    if (x1 >= x0) {
+      const share = on / ((x1 - x0 + 1) * (y1 - y0 + 1));
+      noteLit(id.slice(4), share);
+      readiedShare.set(id, share);
+      if (c.width !== w || c.height !== h || id === 'vfx.nature.arc' || LONG.has(id)) {
+        const tw = x1 - x0 + 1;
+        const th2 = y1 - y0 + 1;
+        const from = c;
+        out = Texture.from(canvas(tw + 4, th2 + 4, (g) => g.drawImage(from, x0, y0, tw, th2, 2, 2, tw, th2)));
+      }
+    }
+  } catch {
+    // an image the page may not read back: draw it as it is
+  }
+  readied.set(id, out);
+  return out;
+}
+
+const vfxCache = new Map(); // element → Map(piece → texture): a lookup builds no string (shots and attacks ask often)
+
+/** An attack sprite: the generated vfx.<el>.<piece> when it exists (made ready once), else its code-drawn fallback. */
+export function vfxTex(el, piece) {
+  let byPiece = vfxCache.get(el);
+  if (!byPiece) vfxCache.set(el, (byPiece = new Map()));
+  let t = byPiece.get(piece);
+  if (!t) {
+    const id = `vfx.${el}.${piece}`;
+    const f = VFX_FALLBACK[id];
+    t = generated.has(id) ? readyGenerated(id, generated.get(id)) : f ? tex(`vfxp.${el}.${piece}`, f[0], f[1], f[2]) : softDot();
+    byPiece.set(piece, t);
+  }
+  return t;
+}
+
+/**
+ * Make every generated attack sprite ready now, right after loadGeneratedAssets: levelled,
+ * trimmed and its opaque share measured for the light budget (attack-vfx.js noteLit). So the
+ * first attack of a fight already books its sprite's real share, and no frame in combat stops to
+ * read pixels back. → { id: the measured share } of the generated sprites
+ */
+export function readyVfx() {
+  vfxCache.clear(); // a lookup before the sprites loaded kept a fallback
+  for (const id of VFX_IDS) if (generated.has(id)) readyGenerated(id, generated.get(id));
+  return Object.fromEntries(readiedShare);
+}
+
+/**
+ * The cream core of the code-drawn bolt link: its zigzag pulled in toward its middle, no outline,
+ * drawn untinted over the element-tinted link in the same box. Null once a generated link exists
+ * (its own cream and cel tones, tinted, carry the core).
+ */
+export function linkCoreTex() {
+  if (generated.has('vfx.lightning.link')) return null;
+  return tex('vfxp.lightning.linkcore', 128, 40, (g) => {
+    const mid = LINK_TOP.map(([x, y], i) => [(x + LINK_BOT[5 - i][0]) / 2, (y + LINK_BOT[5 - i][1]) / 2]);
+    const pull = (p, m) => [m[0] + (p[0] - m[0]) * 0.4, m[1] + (p[1] - m[1]) * 0.4];
+    g.beginPath();
+    poly(g, [...LINK_TOP.map((p, i) => pull(p, mid[i])), ...LINK_BOT.map((p, i) => pull(p, mid[5 - i]))]);
+    g.closePath();
+    g.fillStyle = CREAM;
+    g.fill();
+  });
+}
+
+/** The ribbon trail's 64×16 band per element (tinted at runtime): plum edges, a cream band, a repeating pattern. */
+export const RIBBON_PX = { w: 64, h: 16 };
+export function ribbonTex(el) {
+  const t = drawRibbonTex(el);
+  if (t.source.style.addressMode !== 'repeat') {
+    t.source.style.addressMode = 'repeat'; // the band repeats along the rope (a 64×16 power of two)
+    t.source.style.update();
+  }
+  return t;
+}
+const drawRibbonTex = (el) =>
+  tex(`ribbon.${el}`, RIBBON_PX.w, RIBBON_PX.h, (g) => {
+    g.fillStyle = CREAM;
+    g.fillRect(0, 3, 64, 10);
+    g.fillStyle = INK;
+    g.fillRect(0, 1.5, 64, 2);
+    g.fillRect(0, 12.5, 64, 2);
+    g.strokeStyle = CEL;
+    g.fillStyle = CEL;
+    g.lineWidth = 2;
+    g.lineCap = 'round';
+    g.beginPath();
+    switch (el) {
+      case 'fire': // flame wisps
+        for (let x = 0; x < 64; x += 16) {
+          g.moveTo(x + 2, 11);
+          g.quadraticCurveTo(x + 8, 9, x + 10, 5);
+          g.quadraticCurveTo(x + 11, 9, x + 15, 11);
+        }
+        g.stroke();
+        break;
+      case 'ice': // frost facets
+        for (let x = 0; x < 64; x += 8) {
+          g.moveTo(x, 12);
+          g.lineTo(x + 6, 4);
+        }
+        g.stroke();
+        break;
+      case 'lightning': // a zigzag
+        g.moveTo(0, 8);
+        for (let x = 0; x < 64; x += 8) {
+          g.lineTo(x + 4, 4.5);
+          g.lineTo(x + 8, 11.5);
+        }
+        g.stroke();
+        break;
+      case 'poison': // bubbles
+        for (const [x, y, r] of [[6, 8, 2.5], [20, 6, 1.8], [33, 9, 2.8], [47, 6, 1.6], [57, 9, 2.2]]) {
+          g.moveTo(x + r, y);
+          g.arc(x, y, r, 0, Math.PI * 2);
+        }
+        g.fill();
+        break;
+      case 'earth': // grit
+        for (let i = 0; i < 12; i++) {
+          const x = (i * 5.3) % 64;
+          const y = 5 + ((i * 7) % 6);
+          g.moveTo(x + 1.4, y);
+          g.arc(x, y, 1.4, 0, Math.PI * 2);
+        }
+        g.fill();
+        break;
+      case 'metal': // glints
+        for (let x = 0; x < 64; x += 16) {
+          g.moveTo(x + 3, 10);
+          g.lineTo(x + 9, 5);
+        }
+        g.stroke();
+        break;
+      case 'nature': // a vine with leaves
+        g.moveTo(0, 8);
+        for (let x = 0; x <= 64; x += 2) g.lineTo(x, 8 + Math.sin((x / 64) * Math.PI * 4) * 2.5);
+        g.stroke();
+        g.beginPath();
+        for (const x of [8, 24, 40, 56]) {
+          g.moveTo(x + 3, 6);
+          g.ellipse(x, 6 + (x % 32 === 8 ? 0 : 4), 3, 1.6, 0.5, 0, Math.PI * 2);
+        }
+        g.fill();
+        break;
+      default: // wind: speed lines
+        for (const [x0, x1, y] of [[2, 22, 6], [30, 58, 6], [12, 40, 10], [46, 62, 10]]) {
+          g.moveTo(x0, y);
+          g.lineTo(x1, y);
+        }
+        g.stroke();
+    }
+  });
+
+/** Echo Harpoon's ping: a cream ring with plum edges (tinted), closing on its prey. */
+export const pingTex = () =>
+  tex('vfx.ping', 128, 128, (g) => {
+    g.beginPath();
+    g.arc(64, 64, 56, 0, Math.PI * 2);
+    g.strokeStyle = INK;
+    g.lineWidth = 14;
+    g.stroke();
+    g.strokeStyle = CREAM;
+    g.lineWidth = 8;
+    g.stroke();
+  });
+
+/** A venom puddle (src/render/vfx-fallback.js drawPuddle; tinted and drawn faint by shots.js at the sim's radius). */
+export const puddleTex = () =>
+  tex('vfx.puddle', 256, 256, (g) => {
+    g.scale(2, 2); // drawn on a 128 grid
+    drawPuddle(g);
+  });
+
+/** A defeated foe's puff: a ring of cream lobes with plum outlines (tinted with the foe's colour). */
+export const poofTex = () =>
+  tex('vfx.poof', 128, 128, (g) => {
+    const lobes = Array.from({ length: 7 }, (_, i) => {
+      const a = (i / 7) * Math.PI * 2;
+      return [64 + Math.cos(a) * 38, 64 + Math.sin(a) * 38, 16 + 4 * hash01i(i + 71)];
+    });
+    for (const [x, y, r] of lobes) sticker(g, () => g.arc(x, y, r, 0, Math.PI * 2), CREAM, { line: 4, cel: CEL, celPath: () => g.rect(0, y + 2, 128, 40) });
+  });
+
 // --- explosions: 8-frame sprite animations played at the point of contact -------------
 
 const BOOM_FRAMES = 8;
 const BOOM_PX = 128;
 const rnd = (i, j) => hash01i(i * 131 + j * 7919);
-function hash01i(n) {
-  let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b);
-  h ^= h >>> 13;
-  h = Math.imul(h, 0xc2b2ae35);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
 
 function drawBoom(g, kind, f) {
   const u = f / (BOOM_FRAMES - 1); // 0..1 through the animation

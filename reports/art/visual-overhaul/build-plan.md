@@ -26,19 +26,19 @@ The design is `proposal.md`, Revision 2. This file is the execution plan and the
 ### P-A Housekeeping
 - [x] Key off disk: `tools/curl-post.mjs` plus a test. Delete the 3 leftover temp key files.
 - [x] The worktree can run the pipeline (symlinks, raws, caps off).
-- [ ] Commit the key fix and the caps change, after the review.
+- [x] Commit the key fix and the caps change, after the review.
 
 ### P-B Monster roster (W1): pipeline
-- [ ] `src/art/foe-roster.js`: the 17 keys, each with animal, display name, chapter, view, pose, description, palette, accent, bg, silhouette and size class.
-- [ ] `tools/refs/foes/`: the silhouette contract images (`sil-*.png`) and a frozen render reference (the old ninja raw).
-- [ ] `tools/silhouette-check.py`: the gates (contract IoU, twin, ally, figure-ground, two-value) and a candidate score.
-- [ ] `tools/pipeline-jobs.mjs`: the enemy branch on the Rev 2 contract, with chapter goldens and candidates 3. Boss portraits depend on the new sprites.
-- [ ] `tools/pipeline.mjs`: the candidates picker. It makes N candidates, post-processes each, scores them, picks one, and makes one strict retry if none passes.
-- [ ] Tests (`test/pipeline.test.js`).
-- [ ] Run: the 17 foes, then the 3 boss portraits.
+- [x] `src/art/foe-roster.js`: the 17 keys, each with animal, display name, chapter, view, pose, description, palette, accent, bg, silhouette and size class.
+- [x] `tools/refs/foes/`: the silhouette contract images (`sil-*.png`) and a frozen render reference (the old ninja raw).
+- [x] `tools/silhouette-check.py`: the gates (contract IoU, twin, ally, figure-ground, two-value) and a candidate score.
+- [x] `tools/pipeline-jobs.mjs`: the enemy branch on the Rev 2 contract, with chapter goldens and candidates 3. Boss portraits depend on the new sprites.
+- [x] `tools/pipeline.mjs`: the candidates picker. It makes N candidates, post-processes each, scores them, picks one, and makes one strict retry if none passes.
+- [x] Tests (`test/pipeline.test.js`).
+- [x] Run: the 17 foes, then the 3 boss portraits.
 
 ### P-C Monster rendering
-- [ ] `foes.js`:
+- [x] `foes.js`:
   - the new art, `GEN_FILL` 1.0 and the S floor;
   - the plum contact shadow at 30%;
   - correct facing for left-facing art;
@@ -47,10 +47,10 @@ The design is `proposal.md`, Revision 2. This file is the execution plan and the
   - the hit flash kept inside the light budget;
   - a death puff and fall.
 - [ ] Generated state frames (wing or leg cycle, attack telegraph, hit, death) as edits of the 1024 px raws, with code-driven frame swaps.
-- [ ] Display names in `enemies.js`; tests.
+- [x] Display names in `enemies.js`; tests.
 
 ### P-D Projectiles, trails, impacts, ladder (W2)
-- [ ] 8 VFX sheets (pipeline jobs `vfx.<el>`, pro model, 2 candidates), sliced into an atlas and JSON (`tools/slice-sheet.py`).
+- [x] 8 VFX sheets (pipeline jobs `vfx.<el>`, pro model, 2 candidates), sliced into an atlas and JSON (`tools/slice-sheet.py`).
 - [x] `src/art/attack-vfx.js`: the ladder table (element × stage gives core, count, trail, add-on, impact, lit).
 - [x] `src/render/trails.js`: ribbons (MeshRope), afterimages, tethers, decals; pooled and capped.
 - [x] `shots.js` and `fx.js`:
@@ -61,27 +61,27 @@ The design is `proposal.md`, Revision 2. This file is the execution plan and the
 - [x] `flash-audit.mjs` covers the new kinds; the audit shows no regression.
 
 ### P-E Frame kit, HUD, layout (W3, W6)
-- [ ] Generated chapter kits:
+- [x] Generated chapter kits:
   - towers, gate arch, parapet merlon and brazier, hedge, keep frame;
   - calm-centre lane tiles;
   - treeline strips;
   - 3 painted backdrops.
-- [ ] `scenery.js` and `src/art/frame.js`:
+- [x] `scenery.js` and `src/art/frame.js`:
   - towers, gates (portal inside, next-wave chips);
   - lanes with ticks and hedges;
   - parapet and braziers, which replace the danger glow;
   - the keep frame with flagstone pits.
-- [ ] HUD:
+- [x] HUD:
   - lintel (crest and wave, foes meter, keep grid, boss bar);
   - news ribbon in the sky;
   - namecard rail on the right tower;
   - deck "next die at 256" slot;
   - coin price tick;
   - stone buttons.
-- [ ] Layout bands, checked at 5 phone sizes; nothing over the lanes.
+- [x] Layout bands, checked at 5 phone sizes; nothing over the lanes.
 
 ### P-F Pets (W4, W5)
-- [ ] Fusions at 1.0 cell and legends at 1.15; z-sort so foes are drawn above pets.
+- [x] Fusions at 1.0 cell and legends at 1.15; z-sort so foes are drawn above pets.
 - [ ] Fusion silhouette pass: assign body plans across the whole roster (`src/art/bodyplans.js`) and regenerate the 28 fusions with the twin gate. Regenerate the portraits that changed.
 
 ### P-G Ship
@@ -180,3 +180,19 @@ The design is `proposal.md`, Revision 2. This file is the execution plan and the
   - Round 3: `strip_rim` has a thickness check (`RIM_THICK`: a band holding a disc 6 % of the side wide is a body part, so it is peeled and QA fails), and acceptances are pinned per gate (`gateAccepted: { margins, why }`, `acceptedMiss`).
   - Round 4 nits: a repost whose QA fails keeps the shipped file and exits 1; the lock takeover checks the inode; acceptances compare each gate's own margin.
   - Commit P-B/P-C once the P-D and P-E fixers finish and `npm test` is green.
+- 2026-10-16: the P-D fixer is done (271 tests).
+  - The meteor books with a `delay`; puddles use gamma-correct alpha (0.095–0.16) and are held for at least 1.2 s of real time; `readyVfx()` measures at startup with a `vfx-lit` test.
+  - Tendril and crack are fitted; reduce motion for pets; renderer conformance test; nothing additive anywhere in `src`.
+  - V1 (puddle splats), V2 (pets at 1.0/1.15 cell, y-sorted in the enemies layer), V3 (sand patch for foes on the keep), and lift caps.
+  - **P-D re-review: 9.5.** The class-glow cap was lowered from 0.26 to 0.22 as asked (8.4 % on the palest fusion).
+  - Open minors, for later: the puddle stain outlives its effect at x4; no test pins the patch and glow numbers; the kv pixel filter now also pixelates pets; gust wiggle under reduce motion; the meteor's plan is over the cap on its own.
+- 2026-10-16: commit `7a3f105` holds the report folder (proposal, build plan, concept record: keyed PNGs, JPEG frames; raws ignored). The code commit for P-B..P-E comes after the P-E re-review.
+- 2026-10-16: all phases P-B to P-E reviewed at 9.5 or more (P-B/P-C 9.6, P-D 9.5, P-E 9.5 after two rounds each).
+  - 271 tests and the build pass.
+  - The single file packs at 8.2 MB (215 sprites, 7.1 MB as WebP), under the 16 MB limit and the 12 MB sprite budget.
+  - Committed as one code-and-art commit; the phases share files, so there are no per-phase commits.
+  - Deviations from the proposal, all defaults recorded above:
+    - VFX are 30 per-piece sprites, not 8 sliced sheets, and there is no atlas yet.
+    - The frame is drawn in code with generated props, backdrops and ridges, not generated kit sheets.
+    - Foe state frames (poses) are not generated: the code drives the motion per roster `move`.
+    - The fusion silhouette pass (P-F) is deferred (see the P-F finding).

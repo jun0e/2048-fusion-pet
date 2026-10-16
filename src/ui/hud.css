@@ -1,18 +1,40 @@
+/* The run screen's HUD (proposal 4.1, zones B–H; src/ui/hud.js). Three materials only:
+   clay (cream plates: score, coins, the ribbon, cards, dialogs), stone (the lintel, the discs,
+   Wave now) and timber (the deck rail, drawn in the canvas). Radii 12 (chips), 18 (plates),
+   24 (dialogs). Ink on clay, cream on stone. Numerals are Baloo 2 ExtraBold in tabular,
+   fixed-width slots; body text is Nunito; nothing is smaller than 12 px. */
 :root {
   --cream: #fffaf2;
   --cream-2: #f6ead8;
-  --ink: #574536;
-  --ink-soft: #8a7462;
+  --clay-edge: #e6d6be;
+  --ink: #2b1d2e;
+  --ink-soft: #6b5868;
   --sage: #bfe3bd;
   --sage-d: #7fb97c;
   --peach: #f7c4a8;
   --butter: #f8e3a0;
-  --clay-drop: 0 5px 0 #96785a33, 0 14px 26px #503c2829;
+  --gold: #ffcf4a;
+  --gold-text: #ffdb70; /* gold as text on stone: 4.6:1 or more on every chapter's slate */
+  --danger: #b23a3a;
+  /* the HUD's stone: hud.js sets it from the chapter skin (src/art/frame-kit.js, slate) */
+  --stone: #5e625c;
+  --stone-l: #7c8079;
+  --stone-d: #3f433e;
+  --r-chip: 12px;
+  --r-plate: 18px;
+  --r-dialog: 24px;
+  --line: 2px solid var(--ink);
+  --drop: 0 3px 0 #2b1d2e59;
+  --clay-drop: 0 5px 0 #2b1d2e33, 0 14px 26px #2b1d2e29;
   --clay-hi: inset 0 2px 0 #fffc, inset 0 -3px 0 #7850320f;
   --font-display: 'Baloo 2', 'Nunito', system-ui, sans-serif;
   --font-body: 'Nunito', system-ui, sans-serif;
   --sa-t: env(safe-area-inset-top, 0px);
   --sa-b: env(safe-area-inset-bottom, 0px);
+  /* the head and the bottom bar (the stage's bands are measured from them, main.js fitStage) */
+  --top-y: calc(var(--sa-t) + 6px);
+  --head-y: calc(var(--top-y) + 48px);
+  --foot-y: calc(var(--sa-b) + 8px);
 }
 
 * {
@@ -24,7 +46,7 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #f8e9d6;
+  background: #1c2547;
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
@@ -46,7 +68,9 @@ body {
   z-index: 5;
 }
 
-#hud button {
+/* :where() keeps this at a bare element's weight, so any class (.fight, .speed-btn, .soft …) styles
+   its own button without !important */
+:where(#hud) button {
   pointer-events: auto;
   touch-action: manipulation; /* no double-tap zoom, no tap delay */
   font: inherit;
@@ -55,32 +79,58 @@ body {
   cursor: pointer;
 }
 
-/* --- top bar ------------------------------------------------------------ */
+/* --- materials ------------------------------------------------------------------------ */
+/* stone: a flat slate face, a lit top edge and one cel tone at the bottom, an ink line */
+.stone,
+.lintel,
+.fight {
+  background:
+    linear-gradient(180deg, var(--stone-l) 0 3px, transparent 3px),
+    linear-gradient(0deg, var(--stone-d) 0 4px, transparent 4px),
+    var(--stone);
+  border: var(--line);
+  box-shadow: var(--drop);
+  color: var(--cream);
+}
+
+/* clay: a cream plate, an ink line, a soft lower lip */
+.score-card,
+.coinbar,
+.top-chip,
+.ribbon {
+  background: var(--cream);
+  border: var(--line);
+  box-shadow:
+    inset 0 -3px 0 var(--clay-edge),
+    var(--drop);
+  color: var(--ink);
+}
+
+/* --- B · top bar: Pause and Speed, the score plate, the top-block chip ------------------ */
 .topbar {
   position: absolute;
-  top: calc(var(--sa-t) + 12px);
-  left: 12px;
-  right: 12px;
+  top: var(--top-y);
+  left: 8px;
+  right: 8px;
+  height: 44px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: start;
+  align-items: center;
   gap: 8px;
 }
 
 .icons {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .icon-btn {
-  width: 46px;
-  height: 46px;
+  width: 44px; /* a finger-sized target */
+  height: 44px;
   border-radius: 50%;
-  background: var(--cream);
-  box-shadow: var(--clay-drop), var(--clay-hi);
   display: grid;
   place-items: center;
-  font-size: 20px;
+  font-size: 17px;
   transition: transform 0.12s ease;
 }
 
@@ -89,44 +139,54 @@ body {
 }
 
 .icon-btn svg {
-  width: 22px;
-  height: 22px;
-  stroke: var(--ink);
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
   fill: none;
-  stroke-width: 2.4;
+  stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.score-card {
-  min-width: 132px;
-  padding: 6px 20px 8px;
-  border-radius: 22px;
-  background: var(--cream);
-  box-shadow: var(--clay-drop), var(--clay-hi);
-  text-align: center;
+.speed-btn {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
 }
 
-.score-card .label {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+/* lit: gold text a shade lighter than the ring, 4.5:1 or more on every chapter's stone */
+.speed-btn.fast {
+  color: var(--gold-text);
+  box-shadow:
+    inset 0 0 0 2px var(--gold),
+    var(--drop);
+}
+
+.score-card {
+  min-width: 128px;
+  height: 44px;
+  padding: 2px 16px 0;
+  border-radius: var(--r-plate);
+  text-align: center;
+  display: grid;
+  align-content: center;
 }
 
 .score-card .score {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 34px;
+  font-size: 23px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
 .score-card .best {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1.15;
   color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
 }
 
 .score.bump {
@@ -136,39 +196,50 @@ body {
 .top-right {
   justify-self: end;
   display: flex;
-  align-items: start;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
 }
 
-.speed-btn {
-  font-family: var(--font-display) !important;
-  font-weight: 800 !important;
-  font-size: 17px;
+.top-chip {
+  --c: #c39bff;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-shadow:
+    inset 0 0 0 3px var(--c),
+    inset 0 0 0 5px var(--cream),
+    inset 0 -3px 0 5px var(--clay-edge),
+    var(--drop);
 }
 
-.speed-btn.fast {
-  background: var(--butter) !important;
-}
-
-.next-card {
-  justify-self: end;
-  padding: 6px 10px 8px;
-  border-radius: 20px;
-  background: var(--cream);
-  box-shadow: var(--clay-drop), var(--clay-hi);
-  text-align: center;
-}
-
-.next-card .label {
-  font-size: 12px;
+.top-chip b {
+  font-family: var(--font-display);
   font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin-bottom: 2px;
+  font-size: max(12px, calc(19px - var(--d, 3) * 1.6px));
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
-/* tier chip: a little 2D ball used in the HUD */
+/* five digits (16384 and up) do not fit the disc's inner ring at 12 px: a pill, at 14 px */
+.top-chip.wide {
+  width: auto;
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 22px;
+}
+
+.top-chip.wide b {
+  font-size: 14px;
+}
+
+.top-chip.pop {
+  animation: pop 0.3s ease;
+}
+
+/* tier chip: a little 2D ball (the die card, the game-over card) */
 .chip {
   --c: #8ecae6;
   width: 40px;
@@ -190,7 +261,403 @@ body {
   animation: pop 0.3s ease;
 }
 
-/* --- floating feedback --------------------------------------------------- */
+/* --- C · the chapter lintel: crest and wave · foes meter (boss bar) · keep grid --------- */
+.statusbar {
+  position: absolute;
+  top: var(--head-y);
+  left: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lintel {
+  /* above the news ribbon: the ribbon slides out from under it, and never covers the keep grid */
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  border-radius: var(--r-chip);
+  display: grid;
+  /* the wave and chapter take what they need, the meter keeps 118 px or more; when it is short
+     the chapter name gives way first (it ellipses) */
+  grid-template-columns: minmax(0, auto) minmax(118px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.day {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.crest {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: var(--line);
+  display: grid;
+  place-items: center;
+}
+
+.crest svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.crest .f {
+  fill: var(--ink);
+}
+
+.crest .a {
+  stroke: #ff7a2e;
+}
+
+.day-n {
+  flex: none;
+  font-size: 16px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.best-wave,
+.chapter {
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.82;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.best-wave {
+  flex: none;
+}
+
+.best-wave:empty {
+  display: none;
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.meter-face {
+  flex: none;
+  position: relative;
+  width: 26px;
+  height: 26px;
+  margin: -4px 0;
+  border-radius: 50%;
+  background: var(--cream);
+  border: var(--line);
+  overflow: hidden;
+  box-shadow: 0 0 0 2px var(--danger);
+}
+
+.meter-face[hidden] {
+  display: none;
+}
+
+.meter-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  transform: scale(1.25);
+}
+
+.meter-face.blank::after {
+  content: '♛';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.meter-bar {
+  position: relative;
+  flex: 1;
+  min-width: 30px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--cream);
+  border: var(--line);
+  overflow: hidden;
+}
+
+.meter-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  transform-origin: 0 50%;
+  transition: transform 0.25s ease;
+}
+
+/* before a wave the meter waits full, hatched: the foes have not come yet */
+.meter[data-mode='incoming'] .meter-fill {
+  background: repeating-linear-gradient(-45deg, var(--ink) 0 3px, var(--ink-soft) 3px 6px);
+}
+
+.meter[data-mode='boss'] .meter-fill {
+  background: var(--danger);
+}
+
+.meter[data-mode='over'] .meter-fill {
+  background: transparent;
+}
+
+.meter-label {
+  flex: none;
+  min-width: 3.6em;
+  font-size: 13px;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.castle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.keep-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 3px);
+  grid-auto-rows: 3px;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 4px;
+  background: var(--cream);
+  border: var(--line);
+}
+
+.keep-grid i {
+  border-radius: 0.5px;
+  background: #2b1d2e1f;
+}
+
+.keep-grid i.on {
+  background: var(--ink);
+}
+
+.castle-hp {
+  min-width: 2ch;
+  font-size: 16px;
+  line-height: 1;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.castle.low .keep-grid i.on {
+  background: var(--danger);
+}
+
+.castle.low .castle-hp {
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--danger);
+}
+
+.castle.shake {
+  animation: shake 0.35s ease;
+}
+
+/* --- D · the news ribbon: one line in the sky above the gates ---------------------------- */
+.ribbon {
+  position: relative;
+  margin-top: 4px;
+  height: 28px;
+  width: min(360px, calc(100vw - 52px));
+  border-radius: 6px;
+  display: grid;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.25s ease,
+    transform 0.32s cubic-bezier(0.2, 1.3, 0.4, 1);
+  pointer-events: none;
+}
+
+.ribbon.show {
+  opacity: 1;
+  transform: none;
+}
+
+/* the swallowtail ends, outside the strip's ink line */
+.ribbon::before,
+.ribbon::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  width: 16px;
+  height: 20px;
+  background: no-repeat center / 100% 100%;
+}
+
+.ribbon::before {
+  left: -16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 20'%3E%3Cpath d='M16 1H1.5L6 10l-4.5 9H16z' fill='%23e6d6be'/%3E%3Cpath d='M16 1H1.5L6 10l-4.5 9H16' fill='none' stroke='%232b1d2e' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.ribbon::after {
+  right: -16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 20'%3E%3Cpath d='M0 1h14.5L10 10l4.5 9H0z' fill='%23e6d6be'/%3E%3Cpath d='M0 1h14.5L10 10l4.5 9H0' fill='none' stroke='%232b1d2e' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.ribbon[data-tone='good'] {
+  background: #e7f5e2;
+}
+
+.ribbon[data-tone='boss'] {
+  background: #fde3df;
+  box-shadow:
+    inset 4px 0 0 var(--danger),
+    inset -4px 0 0 var(--danger),
+    inset 0 -3px 0 #efc3bc,
+    var(--drop);
+}
+
+.ribbon[data-tone='stage-3'] {
+  background: #fff0b8;
+}
+
+.ribbon-line {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 10px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ribbon-line.flip {
+  animation: ribbon-flip 0.22s ease;
+}
+
+.banner-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+.banner-title:empty {
+  display: none;
+}
+
+.banner-sub {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ribbon-line.sub-only .banner-sub {
+  color: var(--ink);
+}
+
+.ribbon.in {
+  animation: ribbon-in 0.32s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+
+@keyframes ribbon-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes ribbon-flip {
+  from {
+    opacity: 0.15;
+  }
+}
+
+/* a class announcement in the ribbon: [Fusion] Fire + Ice → Blue Flame */
+.announce {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.announce-kicker {
+  padding: 1px 7px;
+  border-radius: var(--r-chip);
+  background: #2b1d2e14;
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.announce .part {
+  padding: 0 7px;
+  border-radius: var(--r-chip);
+  background: var(--c);
+  box-shadow: inset 0 -2px 0 #0002;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.announce i {
+  font-style: normal;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+/* a name too long for the line on its own (the parts and the kicker gave way already) ellipses */
+.announce.squeeze b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.announce b {
+  padding: 0 9px;
+  border-radius: var(--r-chip);
+  background: var(--g);
+  box-shadow:
+    inset 0 2px 0 #fff8,
+    inset 0 -3px 0 #0003,
+    0 0 0 2px var(--ink);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink);
+}
+
+/* --- floating feedback ---------------------------------------------------------------- */
 .popup {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -204,37 +671,56 @@ body {
   white-space: nowrap;
 }
 
+/* the combo tally hangs on the left tower, clear of the lanes */
 .combo {
   position: absolute;
-  top: calc(var(--field-top, 18%) + 6px); /* top-right corner of the field, clear of the status bar */
-  right: 14px;
-  padding: 3px 12px;
-  border-radius: 999px;
+  top: calc(var(--gate-top, 30%) + 14px);
+  left: max(6px, calc(var(--tower-l, 56px) / 2 - 26px));
+  width: 52px;
+  padding: 3px 0 4px;
+  border-radius: var(--r-chip);
   background: var(--butter);
-  box-shadow: var(--clay-drop), var(--clay-hi);
+  border: var(--line);
+  box-shadow: var(--drop);
+  text-align: center;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 15px;
+  line-height: 1;
   opacity: 0;
+}
+
+.combo small {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.combo b {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
 }
 
 .combo.show {
   animation: combo 0.9s ease forwards;
 }
 
+/* a new top block (2048+): its number over the head of the screen, not over the lanes */
 .milestone {
   position: absolute;
-  top: 38%;
+  top: calc(var(--head-y) + 30px);
   left: 50%;
   transform: translate(-50%, -50%);
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 72px;
+  font-size: 56px;
+  line-height: 1;
   color: #ffd34d;
-  -webkit-text-stroke: 10px #b9771d;
+  -webkit-text-stroke: 9px var(--ink);
   paint-order: stroke fill;
   opacity: 0;
   pointer-events: none;
+  z-index: 2;
 }
 
 .milestone.show {
@@ -249,13 +735,192 @@ body {
   transition: opacity 0.2s linear;
 }
 
-/* --- game over ----------------------------------------------------------- */
+.vignette.hurt {
+  animation: hurt 0.6s ease-in-out; /* photosafe: HURT_PULSE.seconds; one at most per second (main.js asks stage.takeFlash) */
+}
+
+/* --- H · bottom bar: the coin plate (price and its step tick), Wave now ------------------- */
+.coinbar {
+  position: absolute;
+  left: 8px;
+  bottom: var(--foot-y);
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 7px 0 7px;
+  border-radius: var(--r-plate);
+}
+
+.coin-ico {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #fff3a8 0 18%, #ffd34a 45%, #e89a16 100%);
+  box-shadow:
+    inset 0 0 0 2px #c47a10,
+    0 0 0 2px var(--ink);
+}
+
+.coin-ico.gain {
+  animation: coin-gain 0.3s ease;
+}
+
+.coins {
+  min-width: 3ch;
+  font-family: var(--font-display);
+  font-size: 21px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cost {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 7px 0 9px;
+  border-radius: var(--r-chip);
+  background: #2b1d2e12;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.cost b {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the step tick: fills as the price nears its next step (+1 every 12 swipes) */
+.cost-step {
+  display: none;
+  position: relative;
+  width: 6px;
+  height: 16px;
+  margin-left: 1px;
+  border-radius: 2px;
+  background: #2b1d2e24;
+  overflow: hidden;
+}
+
+.cost.stepped .cost-step {
+  display: block;
+}
+
+.cost-step s {
+  position: absolute;
+  inset: 0;
+  background: var(--ink-soft);
+  transform-origin: 50% 100%;
+  transform: scaleY(0.08);
+  transition: transform 0.25s ease;
+}
+
+.cost.soon .cost-step s {
+  background: #d9822b;
+}
+
+.coinbar.poor .cost {
+  background: #ffd9d9;
+  color: var(--danger);
+}
+
+.coinbar.poor .cost b {
+  color: var(--danger);
+}
+
+.coinbar.deny {
+  animation: shake 0.35s ease;
+}
+
+.fight {
+  position: absolute;
+  right: 8px;
+  bottom: var(--foot-y);
+  height: 44px;
+  min-width: 112px;
+  padding: 0 14px;
+  border-radius: var(--r-plate);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  /* hidden (during a wave) it also leaves the tab order: visibility goes once the fade is done */
+  visibility: hidden;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    visibility 0s linear 0.2s;
+}
+
+.fight.show {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  visibility: visible;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.fight:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #2b1d2e59;
+}
+
+/* a phone 400 px wide or less: Wave now drops the wave's number (the lintel shows it), and on one
+   380 px wide or less both plates pack tighter, so the coin plate (5-digit coins, a 2-digit price
+   and its step tick) and Wave now (a 2-digit countdown) fit side by side with a gap between */
+@media (width <= 400px) {
+  .fight-n {
+    display: none;
+  }
+}
+
+@media (width <= 380px) {
+  .coinbar {
+    gap: 6px;
+    padding: 0 6px;
+  }
+  .coins {
+    font-size: 20px;
+  }
+  .fight {
+    min-width: 0;
+    padding: 0 12px;
+    font-size: 15px;
+  }
+}
+
+/* a boss next: the stone turns red */
+.fight.boss {
+  --stone: #8c3b3b;
+  --stone-l: #a85454;
+  --stone-d: #682a2a;
+}
+
+@keyframes coin-gain {
+  50% {
+    transform: scale(1.3);
+  }
+}
+
+/* --- dialogs: one clay sheet on a scrim ------------------------------------------------- */
 .scrim {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  background: #57453655;
+  background: #2b1d2e66;
   backdrop-filter: blur(3px);
   opacity: 0;
   pointer-events: none;
@@ -275,8 +940,9 @@ body {
 .card {
   width: min(320px, calc(100vw - 32px));
   padding: 22px 22px 18px;
-  border-radius: 28px;
+  border-radius: var(--r-dialog);
   background: var(--cream);
+  border: var(--line);
   box-shadow: var(--clay-drop), var(--clay-hi);
   text-align: center;
   transform: scale(0.94);
@@ -307,18 +973,18 @@ body {
 .danger {
   min-height: 46px;
   padding: 11px;
-  border-radius: 16px;
-  font-weight: 800 !important;
+  border-radius: var(--r-plate);
+  font-weight: 800;
   font-size: 16px;
 }
 
 .soft {
-  background: var(--cream-2) !important;
-  box-shadow: 0 4px 0 #96785a33;
+  background: var(--cream-2);
+  box-shadow: 0 4px 0 #2b1d2e26;
 }
 
 .danger {
-  background: #ffd0c8 !important;
+  background: #ffd0c8;
   box-shadow: 0 4px 0 #d9826f;
 }
 
@@ -367,7 +1033,7 @@ body {
 
 .stat {
   padding: 8px 4px;
-  border-radius: 16px;
+  border-radius: var(--r-chip);
   background: var(--cream-2);
 }
 
@@ -384,6 +1050,7 @@ body {
   font-size: 22px;
   font-weight: 800;
   line-height: 1.3;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat .chip {
@@ -397,7 +1064,7 @@ body {
   display: inline-block;
   margin-bottom: 12px;
   padding: 3px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   background: var(--butter);
   font-weight: 800;
   font-size: 13px;
@@ -406,12 +1073,12 @@ body {
 .primary {
   width: 100%;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: var(--r-plate);
   background: var(--sage);
   box-shadow: 0 5px 0 var(--sage-d), var(--clay-hi);
-  font-family: var(--font-display) !important;
-  font-weight: 800;
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-weight: 700; /* 16 px at 700: the size the dialogs were tuned with */
+  font-size: 16px;
 }
 
 .primary:active {
@@ -419,353 +1086,13 @@ body {
   box-shadow: 0 2px 0 var(--sage-d), var(--clay-hi);
 }
 
-@keyframes bump {
-  40% {
-    transform: scale(1.16);
-  }
-}
-
-@keyframes pop {
-  0% {
-    transform: scale(0.4);
-  }
-  70% {
-    transform: scale(1.15);
-  }
-}
-
-@keyframes float-up {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -30%) scale(0.6);
-  }
-  20% {
-    opacity: 1;
-    transform: translate(-50%, -60%) scale(1.1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -190%) scale(1);
-  }
-}
-
-@keyframes combo {
-  0% {
-    opacity: 0;
-    transform: translateX(-50%) scale(0.6);
-  }
-  20% {
-    opacity: 1;
-    transform: translateX(-50%) scale(1.12);
-  }
-  75% {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-8px);
-  }
-}
-
-@keyframes milestone {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.3) rotate(-8deg);
-  }
-  25% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.15) rotate(3deg);
-  }
-  70% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1) rotate(0deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -70%) scale(1.05);
-  }
-}
-
-/* --- defense layer ------------------------------------------------------- */
-.statusbar {
-  position: absolute;
-  top: calc(var(--sa-t) + 98px);
-  left: 12px;
-  right: 12px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 8px;
-  font-weight: 800;
-  font-size: 13px;
-}
-
-.statusbar > * {
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: #fffaf2e6;
-  box-shadow: 0 3px 0 #96785a26;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.day {
-  display: flex;
-  gap: 6px;
-  align-items: baseline;
-}
-
-.day .best-wave {
-  font-weight: 700;
-  color: var(--ink-soft);
-  font-size: 12px;
-}
-
-.day .chapter {
-  font-weight: 700;
-  color: var(--ink-soft);
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.day {
-  overflow: hidden;
-}
-
-@media (width <= 380px) {
-  /* a 360 px phone: the three status pills must fit one row */
-  .statusbar {
-    gap: 6px;
-    font-size: 12px;
-  }
-  .statusbar > * {
-    padding: 5px 8px;
-  }
-  .statusbar .phase {
-    font-size: 13px;
-  }
-  .castle-unit {
-    display: none; /* the icon and the count stay ("Blocks left" for screen readers) */
-  }
-}
-
-@media (width <= 420px) {
-  .day .chapter {
-    display: none;
-  }
-  .castle-bar {
-    width: 48px;
-  }
-}
-
-.phase {
-  justify-self: center;
-  font-family: var(--font-display);
-  font-size: 14px;
-  line-height: 1.3;
-}
-
-.phase[data-phase='wave'] {
-  background: #ffd9cf;
-}
-
-.phase[data-phase='prep'],
-.phase[data-phase='break'] {
-  background: #fff1c2;
-}
-
-.castle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.castle-bar {
-  width: 70px;
-  height: 9px;
-  border-radius: 999px;
-  background: #57453622;
-  overflow: hidden;
-}
-
-.castle-bar i {
-  display: block;
-  height: 100%;
-  width: 100%;
-  border-radius: 999px;
-  background: #7fcf74;
-  transition: width 0.25s ease;
-}
-
-.castle-hp {
-  font-variant-numeric: tabular-nums;
-  min-width: 34px;
-  text-align: right;
-}
-
-.castle.shake {
-  animation: shake 0.35s ease;
-}
-
-.vignette.hurt {
-  animation: hurt 0.6s ease-in-out; /* photosafe: HURT_PULSE.seconds; one at most per second (main.js asks stage.takeFlash) */
-}
-
-.fight {
-  position: absolute;
-  right: 14px;
-  bottom: calc(var(--sa-b) + 18px);
-  padding: 10px 16px;
-  border-radius: 18px;
-  background: #ffd0b8;
-  box-shadow: 0 5px 0 #df9474, var(--clay-hi);
-  font-family: var(--font-display) !important;
-  font-weight: 800;
-  font-size: 16px;
-  opacity: 0;
-  transform: translateY(8px);
-  pointer-events: none !important;
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.fight.show {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto !important;
-}
-
-.fight:active {
-  transform: translateY(3px);
-  box-shadow: 0 2px 0 #df9474;
-}
-
-/* --- economy: coins, swipe price, next wave ------------------------------- */
-.coinbar {
-  position: absolute;
-  left: 14px;
-  bottom: calc(var(--sa-b) + 16px);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px 6px 8px;
-  border-radius: 999px;
-  background: #fffaf2;
-  box-shadow: 0 5px 0 #96785a33, var(--clay-hi);
-}
-
-.coin-ico {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 38% 32%, #fff3a8 0 18%, #ffd34a 45%, #e89a16 100%);
-  box-shadow:
-    inset 0 0 0 2.5px #c47a10,
-    0 2px 0 #a8660f;
-}
-
-.coin-ico.gain {
-  animation: coin-gain 0.3s ease;
-}
-
-.coins {
-  font-family: var(--font-display);
-  font-size: 22px;
-  line-height: 1;
-  min-width: 36px;
-  font-variant-numeric: tabular-nums;
-}
-
-.cost {
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: #57453614;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--ink-soft);
-}
-
-.cost b {
-  color: var(--ink);
-}
-
-.coinbar.poor .cost {
-  background: #ffd9d9;
-  color: #b84040;
-}
-
-.coinbar.poor .cost b {
-  color: #b84040;
-}
-
-.coinbar.deny {
-  animation: shake 0.35s ease;
-}
-
-.fight.boss {
-  background: #ffb3b3;
-  box-shadow: 0 5px 0 #d46a6a, var(--clay-hi);
-}
-
-@keyframes coin-gain {
-  50% {
-    transform: scale(1.3);
-  }
-}
-
-.banner {
-  position: absolute;
-  top: calc(var(--field-top, 18%) + 78px); /* the upper lane field, clear of the portals and the board */
-  left: 50%;
-  transform: translate(-50%, -50%);
-  padding: 10px 22px 12px;
-  border-radius: 22px;
-  background: var(--cream);
-  box-shadow: var(--clay-drop), var(--clay-hi);
-  text-align: center;
-  opacity: 0;
-  pointer-events: none;
-  width: max-content;
-  max-width: calc(100vw - 40px);
-}
-
-.banner[data-tone='boss'] {
-  background: #ffe1e1;
-}
-
-.banner[data-tone='good'] {
-  background: #e3f5df;
-}
-
-.banner b {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 24px;
-  line-height: 1.15;
-}
-
-.banner span {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-soft);
-  max-width: 300px;
-  margin: 2px auto 0;
-}
-
-.banner.show {
-  animation: banner 2.2s ease forwards;
-}
-
-/* class choice */
+/* class choice (the die pick) */
 .choice {
   width: min(380px, calc(100vw - 24px));
   padding: 18px 16px 16px;
-  border-radius: 28px;
+  border-radius: var(--r-dialog);
   background: var(--cream);
+  border: var(--line);
   box-shadow: var(--clay-drop), var(--clay-hi);
   transform: scale(0.94);
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -814,9 +1141,9 @@ body {
   gap: 12px;
   width: 100%;
   padding: 10px 12px;
-  border-radius: 18px;
-  background: var(--cream-2) !important;
-  box-shadow: 0 4px 0 #96785a2e;
+  border-radius: var(--r-plate);
+  background: var(--cream-2);
+  box-shadow: 0 4px 0 #2b1d2e24;
   text-align: left;
   transition: transform 0.1s ease;
 }
@@ -834,11 +1161,21 @@ body {
 }
 
 .swatches i {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: var(--c);
   box-shadow: inset 0 -3px 0 #0000001f, 0 0 0 2px var(--cream);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+/* the element's badge (glyph on colour) over its swatch: the colour-blind channel */
+.swatches i img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .swatches i + i {
@@ -876,6 +1213,75 @@ body {
   background: #fffaf2;
 }
 
+/* --- shared keyframes -------------------------------------------------------------------- */
+@keyframes bump {
+  40% {
+    transform: scale(1.16);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -60%) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -190%) scale(1);
+  }
+}
+
+@keyframes combo {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes milestone {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(-8deg);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15) rotate(3deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -70%) scale(1.05);
+  }
+}
+
 @keyframes shake {
   20% {
     transform: translateX(-4px);
@@ -903,138 +1309,79 @@ body {
   }
 }
 
-@keyframes banner {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -40%) scale(0.85);
-  }
-  12% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.04);
-  }
-  80% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -60%) scale(1);
+/* --- small phones ------------------------------------------------------------------------ */
+/* the lintel keeps wave, the record to beat ("best 12", the main record), the meter and the keep
+   grid; the chapter name is the first to go (the crest still names the chapter): beside a record on
+   any phone (the lintel takes the phone's width below 560 px, and the name would be cut short), and
+   always on one 380 px wide or less */
+@media (width < 560px) {
+  .best-wave:not(:empty) + .chapter {
+    display: none;
   }
 }
 
-/* --- class combination announcements -------------------------------------- */
-#hud.choosing .announce-stack {
-  top: calc(var(--sa-t) + 12px);
-  bottom: auto;
-}
-
-.announce-stack {
-  position: absolute;
-  z-index: 3; /* above the pick-a-die scrim, which moves it to the top */
-  bottom: calc(100% - var(--board-top, 52%) + 8px); /* stacks upward from just above the board */
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  pointer-events: none;
-  width: max-content;
-  max-width: calc(100vw - 24px);
-}
-
-.announce {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 6px 4px 5px;
-  border-radius: 999px;
-  background: #fffaf2eb;
-  box-shadow: 0 3px 0 #96785a33, var(--clay-hi);
-  font-family: var(--font-display);
-  font-weight: 800;
-  white-space: nowrap;
-  animation: announce-in 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both;
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
-}
-
-.announce.out {
-  opacity: 0;
-  transform: translateY(-10px) scale(0.96);
-}
-
-.announce.stage-2 {
-  background: #fff4dcf2;
-}
-
-.announce.stage-3 {
-  background: #fff0b8f5;
-  box-shadow:
-    0 0 0 3px #ffe27a,
-    var(--clay-drop);
-}
-
-.announce-kicker {
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: #57453614;
-  font-family: var(--font-body);
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-
-.announce .part {
-  padding: 0 7px;
-  border-radius: 999px;
-  background: var(--c);
-  box-shadow: inset 0 -2px 0 #0002;
-  font-size: 13px;
-  color: #2d1c23;
-}
-
-.announce i {
-  font-style: normal;
-  color: var(--ink-soft);
-  font-size: 13px;
-}
-
-.announce b {
-  padding: 1px 10px;
-  border-radius: 999px;
-  background: var(--g);
-  box-shadow:
-    inset 0 2px 0 #fff8,
-    inset 0 -3px 0 #0003,
-    0 0 0 2px #2d1c23;
-  font-size: 15px;
-  color: #2d1c23;
-}
-
-@keyframes announce-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.85);
+@media (width <= 380px) {
+  .chapter {
+    display: none;
+  }
+  .lintel {
+    gap: 6px;
+  }
+  .meter-label,
+  .castle-hp,
+  .day-n {
+    font-size: 13px; /* the lintel's floor on a 360 px phone */
+  }
+  .day-n {
+    font-size: 15px;
+  }
+  .score-card {
+    min-width: 116px;
   }
 }
 
-/* siege: blocks-left counter in place of the castle bar */
-.castle-unit {
-  font-weight: 700;
-  font-size: 12px;
-  color: var(--ink-soft);
+/* a tablet or a desktop window: the HUD keeps a phone's width, centred over the field */
+@media (width >= 560px) {
+  .topbar,
+  .statusbar {
+    left: calc(50% - 232px);
+    right: calc(50% - 232px);
+  }
+  .coinbar {
+    left: calc(50% - 232px);
+  }
+  .fight {
+    right: calc(50% - 232px);
+  }
+  .ribbon {
+    width: 360px;
+  }
 }
 
-.castle.low {
-  background: #ffd9d9;
-  color: #b84040;
-}
-
-.castle .castle-hp {
-  min-width: 0;
+/* short screens (≤ 700 px tall): the ribbon tucks under the lintel's bottom edge, and the lintel
+   drops the chapter name (it keeps the record). The lintel stays on top, so the keep grid is never
+   covered; the ribbon is 2 px slimmer and tucks 5 px, behind the lintel's border and drop, so its
+   text stays clear. */
+@media (height <= 700px) {
+  :root {
+    --top-y: calc(var(--sa-t) + 4px);
+    --head-y: calc(var(--top-y) + 47px);
+    --foot-y: calc(var(--sa-b) + 6px);
+  }
+  .chapter {
+    display: none;
+  }
+  .ribbon {
+    height: 26px;
+    margin-top: -5px;
+  }
+  .ribbon::before,
+  .ribbon::after {
+    top: 2px;
+  }
+  .banner-title {
+    line-height: 22px;
+  }
 }
 
 /* --- tutorial: coach bubble, highlight ring, swipe finger, How to play ------ */
@@ -1096,18 +1443,18 @@ body {
   min-height: 44px;
   padding: 10px 18px;
   border-radius: 999px;
-  background: #ffd34a !important;
+  background: #ffd34a;
   box-shadow: 0 3px 0 #c47a10;
-  font-weight: 800 !important;
-  font-size: 15px;
+  font-weight: 800;
+  font-size: 16px;
 }
 
 .coach-skip {
   min-height: 44px;
   padding: 10px 12px;
-  background: none !important;
-  color: var(--ink-soft) !important;
-  font-size: 14px;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 16px;
   text-decoration: underline;
 }
 
@@ -1197,9 +1544,9 @@ body {
   min-height: 46px;
   padding: 10px;
   border-radius: 14px;
-  background: var(--cream-2) !important;
+  background: var(--cream-2);
   box-shadow: 0 4px 0 #96785a33;
-  font-weight: 800 !important;
+  font-weight: 800;
 }
 
 @keyframes coach-pulse {
@@ -1227,15 +1574,16 @@ body {
 }
 
 .help-scrim,
-.over-scrim {
-  z-index: 6; /* above coach tips */
+.over-scrim,
+.choice-scrim {
+  z-index: 6; /* above coach tips and the lintel (which stacks above the news ribbon) */
 }
 
 .pause-scrim {
   z-index: 9; /* above everything on the run screen: coach tips, namecards, cut-ins */
 }
 
-/* autoplay toggle */
+/* autoplay toggle (?dev only) */
 .auto-btn {
   display: flex;
   flex-direction: column;
@@ -1245,12 +1593,12 @@ body {
 }
 
 .auto-btn svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: 14px;
+  height: 14px;
 }
 
 .auto-btn span {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1;
@@ -1258,35 +1606,10 @@ body {
 }
 
 .auto-btn.on {
-  background: #ffd34a !important;
-  box-shadow: 0 4px 0 #c47a10, var(--clay-hi);
-}
-
-/* the top-left icon buttons (Pause, Sound; Auto with ?dev): two columns, so the score card keeps its room */
-.icons {
-  display: grid;
-  grid-template-columns: repeat(2, 44px);
-  gap: 6px;
-}
-
-.icons .icon-btn {
-  width: 44px; /* a finger-sized target */
-  height: 44px;
-  font-size: 17px;
-}
-
-.icons .icon-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-.icons .auto-btn svg {
-  width: 14px !important;
-  height: 14px !important;
-}
-
-.icons .auto-btn span {
-  font-size: 8px;
+  color: var(--gold-text);
+  box-shadow:
+    inset 0 0 0 2px var(--gold),
+    var(--drop);
 }
 
 /* journey: the break shrank because no swipe is possible, so Wave now pulses */
@@ -1298,43 +1621,107 @@ body {
     transform: scale(1.08);
   }
 }
-/* --- phones (touch screens) and short windows: a compact HUD leaves more room for the board */
-@media (max-height: 720px), (pointer: coarse) {
-  .topbar {
-    top: calc(var(--sa-t) + 6px);
+
+/* --- Reduce motion (a setting; it starts from the system preference) ------------------ */
+/* News still shows for its full time, but fades in place: no slide, no scale, no shake. */
+.reduce-motion .ribbon {
+  transform: none;
+  transition: opacity 0.25s ease;
+}
+
+.reduce-motion .ribbon.in {
+  animation-name: fade-in-still;
+}
+
+.reduce-motion .popup,
+.reduce-motion .milestone.show {
+  animation-name: fade-still;
+}
+
+.reduce-motion .combo.show {
+  animation-name: combo-still;
+}
+
+.reduce-motion .score.bump,
+.reduce-motion .chip.pop,
+.reduce-motion .top-chip.pop,
+.reduce-motion .vignette.hurt,
+.reduce-motion .coinbar.deny,
+.reduce-motion .coin-ico.gain,
+.reduce-motion .castle.shake,
+.reduce-motion .coach-ring,
+.reduce-motion .coach-hand i,
+.reduce-motion .fight.nudge,
+.reduce-motion .rotate-phone {
+  animation: none;
+}
+
+.reduce-motion .card,
+.reduce-motion .choice,
+.reduce-motion .fight {
+  transition: none;
+}
+
+@keyframes fade-in-still {
+  from {
+    opacity: 0;
   }
-  .icon-btn {
-    width: 44px;
-    height: 44px;
+}
+
+@keyframes fade-still {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%);
   }
-  .icon-btn svg {
-    width: 20px;
-    height: 20px;
+  15%,
+  75% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
   }
-  .score-card {
-    min-width: 112px;
-    padding: 3px 16px 5px;
-    border-radius: 18px;
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%);
   }
-  .score-card .label,
-  .next-card .label {
-    display: none;
+}
+
+@keyframes combo-still {
+  0% {
+    opacity: 0;
   }
-  .score-card .score {
-    font-size: 28px;
+  15%,
+  75% {
+    opacity: 1;
   }
-  .next-card {
-    padding: 4px;
-    border-radius: 50%;
+  100% {
+    opacity: 0;
   }
-  .statusbar {
-    top: calc(var(--sa-t) + 60px);
-  }
-  .coinbar {
-    bottom: calc(var(--sa-b) + 10px);
-  }
-  .fight {
-    bottom: calc(var(--sa-b) + 10px);
+}
+
+/* --- the news stops with the game: paused, or behind a die card -------------------------- */
+#hud.paused .ribbon.in,
+#hud.choosing .ribbon.in {
+  animation-play-state: paused;
+}
+
+/* --- the pets' namecards (src/kv): none during a die pick, and Reduce motion reaches them -- */
+/* a die card is a pause: no casting during the pick (the rail would sit above its scrim) */
+#hud.choosing .kv-cards,
+#hud.choosing .kv-cutin {
+  visibility: hidden;
+}
+/* src/kv/kv.css stops these only for the system setting; this is the in-game one. The skill cut-in
+   does not play at all under it (namecards.js asks stage.takeFlash). */
+.reduce-motion .kv-card.ready,
+.reduce-motion .kv-card.ready .kv-shine,
+.reduce-motion .kv-card.nudge {
+  animation: none;
+}
+.reduce-motion .kv-card.lost {
+  animation: kv-lost-still 1.4s ease-in forwards; /* fades, no fall */
+}
+@keyframes kv-lost-still {
+  to {
+    opacity: 0;
   }
 }
 
@@ -1465,9 +1852,9 @@ body {
   min-height: 48px;
   padding: 8px 14px;
   border-radius: 16px;
-  background: var(--cream-2) !important;
+  background: var(--cream-2);
   box-shadow: 0 4px 0 #96785a33;
-  font-weight: 800 !important;
+  font-weight: 800;
   font-size: 16px;
 }
 
@@ -1505,116 +1892,3 @@ body {
   transform: translateX(20px);
 }
 
-/* --- Reduce motion (a setting; it starts from the system preference) ------------------ */
-/* News still shows for its full time, but fades in place: no slide, no scale, no shake. */
-.reduce-motion .banner.show {
-  animation-name: banner-still;
-}
-
-.reduce-motion .popup,
-.reduce-motion .milestone.show {
-  animation-name: fade-still;
-}
-
-.reduce-motion .combo.show {
-  animation-name: combo-still;
-}
-
-.reduce-motion .score.bump,
-.reduce-motion .chip.pop,
-.reduce-motion .vignette.hurt,
-.reduce-motion .coinbar.deny,
-.reduce-motion .coin-ico.gain,
-.reduce-motion .announce,
-.reduce-motion .castle.shake,
-.reduce-motion .coach-ring,
-.reduce-motion .coach-hand i,
-.reduce-motion .fight.nudge,
-.reduce-motion .rotate-phone {
-  animation: none;
-}
-
-.reduce-motion .card,
-.reduce-motion .choice {
-  transition: none;
-}
-
-.reduce-motion .announce.out {
-  transform: none; /* it fades out in place */
-}
-
-@keyframes banner-still {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%);
-  }
-  8%,
-  85% {
-    opacity: 1;
-    transform: translate(-50%, -50%);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%);
-  }
-}
-
-@keyframes fade-still {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%);
-  }
-  15%,
-  75% {
-    opacity: 1;
-    transform: translate(-50%, -50%);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%);
-  }
-}
-
-@keyframes combo-still {
-  0% {
-    opacity: 0;
-    transform: translateX(-50%);
-  }
-  15%,
-  75% {
-    opacity: 1;
-    transform: translateX(-50%);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(-50%);
-  }
-}
-
-/* --- banners stop with the game: paused, or behind a die card ---------------------------- */
-#hud.paused .banner.show,
-#hud.choosing .banner.show {
-  animation-play-state: paused;
-}
-
-/* --- the pets' namecards (src/kv): none during a die pick, and Reduce motion reaches them -- */
-/* a die card is a pause: no casting during the pick (the strip would sit above its scrim) */
-#hud.choosing .kv-cards,
-#hud.choosing .kv-cutin {
-  visibility: hidden;
-}
-/* src/kv/kv.css stops these only for the system setting; this is the in-game one. The skill cut-in
-   does not play at all under it (namecards.js asks stage.takeFlash). */
-.reduce-motion .kv-card.ready,
-.reduce-motion .kv-card.ready .kv-shine,
-.reduce-motion .kv-card.nudge {
-  animation: none;
-}
-.reduce-motion .kv-card.lost {
-  animation: kv-lost-still 1.4s ease-in forwards; /* fades, no fall */
-}
-@keyframes kv-lost-still {
-  to {
-    opacity: 0;
-  }
-}

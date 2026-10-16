@@ -13,7 +13,7 @@ import { FLASH_SECONDS } from './journey-tuning.js';
 
 export const TIPS_BASELINE = {
   merge: 'Merged! A bigger block is a stronger turret.',
-  lanes: 'Enemies come down the glowing lanes. Each block shoots along its own column.',
+  lanes: 'Enemies come through the open gates; a lit brazier marks each lane they take. Each block shoots along its own column.',
   attacked: 'Enemies on the board attack your blocks. Their hidden health refills every wave.',
   lost: 'A destroyed block is gone for good. Keep spares on the board.',
   coins: 'Kills drop coins. Spend them on swipes.',
@@ -24,7 +24,7 @@ export const TIPS_BASELINE = {
   unlock: 'New die: blocks reaching 16 can now roll it.',
   fusion: 'Fusion! Two elements became one unique element with both effects. The border now counts to 4096.',
   ultimate: 'Ultimate! A signature attack that reaches the whole field.',
-  boss: 'Boss next, from the red portal. Kill it to promote your biggest block.',
+  boss: 'Boss next, through the gate with red banners. Kill it to promote your biggest block.',
   milestone: '2048! Keep going: 4096 makes an ultimate.',
 };
 
@@ -54,7 +54,7 @@ export const COACH_BASELINE = {
 // urgent ones (a block hit or lost, out of coins) jump the queue.
 export const TIPS = {
   merge: 'Merged! Bigger blocks shoot harder.',
-  lanes: 'Enemies come down the lit lanes.',
+  lanes: 'Enemies come down the lanes with lit braziers.',
   attacked: 'Enemies break your blocks for good. Lose them all, you lose.',
   lost: 'That block is gone for good. Keep spares.',
   coins: 'Kills drop coins for more swipes.',
@@ -65,7 +65,7 @@ export const TIPS = {
   unlock: 'New die! New 16s can roll it.',
   fusion: 'Fusion! Two elements, both effects. Next stop: 4096.',
   ultimate: 'Ultimate! It hits the whole field.',
-  boss: 'Boss from the red portal! Kill it: x2s for your blocks.',
+  boss: 'Boss through the bannered gate! Kill it: x2s for your blocks.',
   milestone: '2048! Reach 4096 for an ultimate.',
 };
 
@@ -123,7 +123,7 @@ export const HELP = [
   ['Upgrades', 'The 4-piece border fills one piece per merge. Full at 256: fusion, a unique element with both effects (Fire + Ice = Frostnova). Full again at 4096: ultimate.'],
   ['Unlocks', 'You start with 2 dice. Your first 64, 256 and 512 each add a new die to the deck.'],
   ['Coins', 'Kills and cleared waves pay coins. Three merges in one swipe refund it.'],
-  ['Bosses', 'Every 5th wave, from the red portal. Killing one gives your other blocks x2s, one for each doubling in your biggest block (256 = eight x2s), aimed to make pairs. No block grows past the biggest.'],
+  ['Bosses', 'Every 5th wave, through the gate with red banners. Killing one gives your other blocks x2s, one for each doubling in your biggest block (256 = eight x2s), aimed to make pairs. No block grows past the biggest.'],
 ];
 
 export const STORE_KEY = 'siege:tutorial';

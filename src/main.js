@@ -3,16 +3,19 @@ import { Assets } from 'pixi.js';
 import { createRun } from './sim/run.js';
 import { ENEMY_TYPES } from './sim/enemies.js';
 import { ELEMENTS, profileFor } from './sim/classes.js';
-import { FIELD, GRID, GRID_TOP, PHYSICS, cellX, cellY, laneX } from './config.js';
+import { FIELD, GRID, GRID_TOP, PHYSICS, cellX, cellY } from './config.js';
 import { createStage } from './render/stage.js';
 import { createScenery } from './render/scenery.js';
 import { createBlocks } from './render/blocks.js';
 import { createFoes } from './render/foes.js';
 import { createShots } from './render/shots.js';
+import { createTrails } from './render/trails.js';
+import { createAttacks } from './render/attacks.js';
 import { createDeck } from './render/deck.js';
 import { createFx } from './render/fx.js';
-import { loadGeneratedAssets } from './render/textures.js';
-import { createHud } from './ui/hud.js';
+import { loadGeneratedAssets, readyVfx } from './render/textures.js';
+import { createDiagnostics } from './render/diagnostics.js';
+import { createHud, bossHealth } from './ui/hud.js';
 import { createTutorial } from './ui/tutorial.js';
 import { createJourney } from './ux/journey.js';
 import { GAME_OVER_DELAY, causeLine, lossHint, returnGoal } from './ux/journey-tuning.js';
@@ -118,18 +121,23 @@ async function start() {
     Assets.setPreferences({ preferWorkers: false, preferCreateImageBitmap: false });
   }
   if (window.__GEN__ || !window.__SINGLE_FILE__) await loadGeneratedAssets();
+  readyVfx(); // the attack sprites: levelled and measured for the light budget now, not in the first fight
 
   const stage = await createStage(document.getElementById('app'));
   const fx = createFx(stage);
-  const scenery = createScenery(stage);
+  const scenery = createScenery(stage, fx); // fx: a lit brazier books its flame in the light budget
+  const diag = createDiagnostics(stage.app);
   const style = params.get('style') || 'sticker';
   const art = kvMode || style !== 'classic' ? createArt(style) : null;
   // the game draws the pets: fusions' pets roam the field (sim state: createRun({ roaming })).
   // ?style=classic draws none, so its fusions stay on the board; the showcase's run always roams.
   const roaming = !kvMode && !!art;
+  // the attacks' sprites: trails (ribbons, ghosts, tethers, decals, pieces) under the shots and the instant attacks' shapes
+  const trails = createTrails(stage);
+  const attacks = createAttacks(stage, fx, trails);
   const blocks = createBlocks(stage, fx, { art });
   const foes = createFoes(stage, fx);
-  const shots = createShots(stage, fx);
+  const shots = createShots(stage, fx, trails, attacks);
   const deck = createDeck(stage);
   const sfx = createSfx();
   const haptics = createHaptics();
@@ -218,7 +226,6 @@ async function start() {
   const hud = createHud(document.getElementById('hud'), {
     onRestart: restart,
     onMenu: (page) => (page === 'main' && pause.menu === 'closed' ? openMenu() : pause.show(page)),
-    onToggleMute: () => sfx.toggle(),
     onSetting: (name) => {
       if (name === 'sound') sfx.toggle();
       if (name === 'haptics') haptics.set(!haptics.on);
@@ -245,7 +252,6 @@ async function start() {
       return on;
     },
     onChoose: (i) => !paused && run.choose(i),
-    muted: sfx.muted,
     dev: devMode,
   });
 
@@ -323,6 +329,7 @@ async function start() {
     blocks.reset();
     foes.reset();
     shots.reset();
+    attacks.reset();
     fx.reset();
     kv?.reset();
     pets?.reset();
@@ -600,7 +607,7 @@ async function start() {
         case 'waveIncoming':
           hud.banner(
             `Wave ${e.wave - 1} cleared! +${clearBonus}`,
-            e.boss ? `Boss next: ${ENEMY_TYPES[e.boss].name}. Line up your blocks under the red lane.` : `Next: ${e.count} foes in ${e.lanes.length} lanes`,
+            e.boss ? `Boss next: ${ENEMY_TYPES[e.boss].name}. Line up your blocks under the gate with red banners.` : `Next: ${e.count} foes in ${e.lanes.length} lanes`,
             e.boss ? 'boss' : 'good',
           );
           break;
@@ -609,86 +616,36 @@ async function start() {
         case 'hit': {
           const big = e.crit && e.amount > 0;
           fx.number(e.x, e.y + 0.35, e.amount, { color: big ? hex(e.colors.at(-1)) : 0xffffff, crit: false });
+          attacks.onEvent(e); // where the area attacks' thorns and tendrils go
           break;
         }
         case 'impact':
           if (!e.area) shots.impact(e); // area attacks draw their own shape below
           if (e.kind === 'zap') sfx.kill(false);
           break;
-        // --- the basic attacks' shapes (the sim already applied the hits) ---
-        case 'breath': {
-          // Ember Breath: a fan of flame up (or down) the lane
-          const cols = [...e.colors.map(hex), 0xffb347, 0xffe27a];
-          const up = e.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-          fx.burst(e.x, e.y + e.dir * 0.4, cols, 22 + (e.lanes ?? 0) * 8, { speed: e.reach / 0.32, size: 0.32, life: 0.32, gravity: 0, spread: 0.75 + (e.lanes ?? 0) * 0.35, dir: up });
-          fx.ring(e.x, e.y + e.dir * 0.5, cols[0], 0.2, 0.9, 0.2);
-          break;
-        }
+        // --- the basic attacks' shapes and the statuses (src/render/attacks.js; the sim already applied the hits) ---
+        case 'breath':
         case 'gust':
-          // Wing Gust: a streak of wind up the whole lane (and the neighbours at 128)
-          for (let l = e.lane - e.lanes; l <= e.lane + e.lanes; l++) {
-            if (l < 0 || l >= FIELD.lanes) continue;
-            fx.slash(l, FIELD.spawnY - e.y, e.reach, hex(e.colors.at(-1)));
-          }
-          fx.burst(e.x, e.y + 0.5, [0xffffff, hex(e.colors.at(-1))], 10, { speed: 7, size: 0.2, life: 0.35, gravity: 0, spread: 0.4, dir: Math.PI / 2 });
-          break;
-        case 'pulse': {
-          // Bramble Shell: a thorny ring around the block
-          const c = hex(e.colors.at(-1));
-          fx.ring(e.x, e.y, c, 0.3, e.radius, 0.45, 2);
-          fx.ring(e.x, e.y, 0x8a5a33, 0.2, e.radius * 0.8, 0.35, 1);
-          fx.burst(e.x, e.y, [c, 0x7cd15a, 0x8a5a33], 16, { speed: e.radius * 3, size: 0.22, life: 0.35, gravity: 0 });
-          break;
-        }
+        case 'pulse':
         case 'quake':
-          // Quake Stomp: a shockwave across three lanes
-          for (let l = e.lane - e.lanes; l <= e.lane + e.lanes; l++) {
-            if (l < 0 || l >= FIELD.lanes) continue;
-            fx.ring(laneX(l), e.y, hex(e.colors.at(-1)), 0.3, e.reach * 0.9, 0.4, 1.6);
-            fx.burst(laneX(l), e.y, [0xc79a62, 0x8b6b4a, 0xeadbc0], 9, { speed: 4, size: 0.26, life: 0.45, gravity: -7 });
-          }
-          stage.shake(4);
-          break;
-        case 'pounce': {
-          // Pride Pounce: a golden leap onto the prey
-          fx.beam(e.from.x, e.from.y, e.to.x, e.to.y, 0xffd34a);
-          fx.burst(e.to.x, e.to.y, [0xffd34a, 0xffffff, hex(e.colors.at(-1))], 12, { speed: 5, size: 0.22, life: 0.3, gravity: 0 });
-          break;
-        }
+        case 'pounce':
         case 'ping':
-          // Echo Harpoon: the sonar ping finds its prey
-          fx.ring(e.x, e.y, 0x9be7f5, 0.15, 1.3, 0.35, 1.2);
-          fx.ring(e.x, e.y, 0xffffff, 0.1, 0.8, 0.25, 0.8);
-          break;
+        case 'pushed':
         case 'stun':
-          fx.burst(e.x, e.y + 0.7, [0xffe14d, 0xffffff], 7, { speed: 1.6, size: 0.17, life: 0.5, gravity: 0 });
-          break;
         case 'weaken':
-          fx.burst(e.x, e.y + 0.5, [0xa35cf0, 0xd9b3ff], 8, { speed: 1.8, size: 0.18, life: 0.45, gravity: -5 });
-          break;
         case 'bite':
-          fx.burst(e.x, e.y, [0xff6b6b, 0xffd34a, 0xffffff], 14, { speed: 6, size: 0.24, life: 0.3, gravity: 0 });
-          fx.ring(e.x, e.y, 0xffd34a, 0.2, 1.2, 0.25, 1.5);
-          break;
         case 'freeze':
-          fx.burst(e.x, e.y, [0xbfeaff, 0xffffff], 14, { speed: 3, size: 0.2, life: 0.4, gravity: 0 });
+        case 'strike':
+        case 'spread':
+          attacks.onEvent(e);
           break;
-        case 'kill': {
-          const def = e.enemy.def;
-          fx.burst(e.x, e.y, [hex(def.color), 0xffffff, 0xffe27a], e.boss ? 70 : 16, { speed: e.boss ? 9 : 5, size: e.boss ? 0.4 : 0.26, life: 0.6, gravity: -8 });
-          fx.ring(e.x, e.y, hex(def.color), 0.3, e.boss ? 3.5 : 1.3, 0.35);
+        case 'kill':
+          attacks.kill(e);
           sfx.kill(e.boss);
           if (e.boss) stage.shake(14); // the banner comes with the reward ('bossReward')
           break;
-        }
-        case 'strike':
-          fx.bolt(e.x, e.y);
-          break;
         case 'meteor':
-          fx.meteor(e.x, e.y, e.radius, () => stage.shake(10));
-          break;
-        case 'spread':
-          fx.spread(e.from, e.to);
+          attacks.meteor(e, () => stage.shake(10));
           break;
         case 'signature': {
           const tint = SIGNATURE_TINT[e.effect];
@@ -773,8 +730,10 @@ async function start() {
       blocks: run.blocks,
       boss: run.wave.boss,
       bestWave,
+      total: run.wave.count, // the foes meter's full mark
+      bossHp: bossHealth(run.enemies), // the lintel's boss bar
     });
-    hud.setEconomy(run.coins, run.swipeCost);
+    hud.setEconomy(run.coins, run.swipeCost, run.swipes); // the swipes count drives the price step tick
     hud.setChoice(gameOverShown ? null : run.pendingChoice);
     tutorial.update(live ? dt : 0);
     hud.update(live && !run.pendingChoice ? dt : 0); // banners wait behind a die card, too
@@ -790,13 +749,14 @@ async function start() {
 
     const perLane = [0, 0, 0, 0];
     for (const e of run.enemies) if (!e.dead && !e.gone) perLane[e.lane] += 1;
-    scenery.update(dt, { lanes: run.wave.lanes, bossLane: run.wave.bossLane, phase: run.phase, perLane });
+    scenery.update(dt, { lanes: run.wave.lanes, bossLane: run.wave.bossLane, phase: run.phase, perLane, run }); // run: chapter skin, gate chips, deck slot
     kv?.update(run, dt);
     pets?.update(run, dt, Math.max(0, run.time - t0)); // skills charge on sim time
     blocks.sync(run, dt);
     deck.sync(run, dt);
     foes.sync(run.enemies, dt);
     shots.sync(run.shots, dt, run.defense.puddles);
+    attacks.update(dt); // and the trails
     fx.update(dt);
     stage.update(dt);
   }
@@ -816,6 +776,8 @@ async function start() {
 
   // handy in the console while prototyping
   window.__mb = {
+    /** Renderer diagnostics: fps, frame-time p50/p95, scene counts, texture MB (?dev shows them). */
+    diag: () => diag.read(),
     get journey() {
       return journey.snapshot();
     },

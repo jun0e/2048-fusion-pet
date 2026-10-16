@@ -177,7 +177,9 @@ export function createDefense({ rng }) {
     }
   }
 
-  function knock(e, amount) {
+  /** `src` ({ by, tier, colors }: who pushed) only goes into the `pushed` event, for the renderer. */
+  function knock(e, amount, src = null) {
+    const from = { x: e.x, y: e.y };
     // bosses half as far; a foe pushed in the last 1.5 s is braced and slides only 40% as far,
     // so a gust stalls a lane without holding it forever
     const a = amount * (e.boss ? 0.5 : 1) * (e.braceT > 0 ? 0.4 : 1);
@@ -185,16 +187,18 @@ export function createDefense({ rng }) {
     if (e.mode === 'lane') {
       e.s = Math.max(0, e.s - a);
       place(e);
-      return;
+    } else {
+      // on the board: shoved back up, off the block it was attacking
+      e.y += a;
+      if (e.y > SIEGE.boardTop) {
+        e.mode = 'lane';
+        e.lane = laneOfX(e.x);
+        e.s = Math.max(0, FIELD.spawnY - e.y);
+        place(e);
+      } else e.s = FIELD.spawnY - e.y;
     }
-    // on the board: shoved back up, off the block it was attacking
-    e.y += a;
-    if (e.y > SIEGE.boardTop) {
-      e.mode = 'lane';
-      e.lane = laneOfX(e.x);
-      e.s = Math.max(0, FIELD.spawnY - e.y);
-      place(e);
-    } else e.s = FIELD.spawnY - e.y;
+    // for the renderer (a slide and a streak); the push is already done
+    events.push({ type: 'pushed', id: e.id, x: e.x, y: e.y, from, by: src?.by ?? null, tier: src?.tier, colors: src?.colors });
   }
 
   // --- the siege: enemies on the board hunt blocks ----------------------------
@@ -275,7 +279,8 @@ export function createDefense({ rng }) {
     e.s = FIELD.spawnY - e.y;
   }
 
-  function applyStatuses(e, prof, hitDamage) {
+  /** `origin` (the block or shot) is only read for the `pushed` event. */
+  function applyStatuses(e, prof, hitDamage, origin = null) {
     if (e.dead) return;
     addBurn(e, prof.burn, hitDamage);
     addPoison(e, prof.poison, hitDamage);
@@ -303,11 +308,11 @@ export function createDefense({ rng }) {
       e.stunT = Math.max(e.stunT, hold(prof.stun.dur));
     }
     if (prof.root && !e.dead) e.rootT = Math.max(e.rootT, hold(prof.root.dur));
-    if (prof.knockback) knock(e, prof.knockback);
+    if (prof.knockback) knock(e, prof.knockback, { by: prof.element, tier: origin?.tier, colors: prof.colors });
   }
 
   /** One foe hit by an area attack (cone, gust, pulse, quake, glob): damage + statuses; the primary can take a killing bite. */
-  function hitOne(prof, dmg, e, primary = null) {
+  function hitOne(prof, dmg, e, primary = null, origin = null) {
     if (e.dead) return;
     let d = dmg;
     if (prof.bite && e === primary && e.hp / e.maxHp < prof.bite.below && rng.next() < prof.bite.chance) {
@@ -316,14 +321,14 @@ export function createDefense({ rng }) {
     }
     if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur);
     const dealt = damage(e, d, prof.kinds);
-    applyStatuses(e, prof, d);
+    applyStatuses(e, prof, d, origin);
     events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: prof.colors, crit: d > dmg });
   }
 
   /** An area attack lands: every foe in `hits` takes it; a chain (Lightning fusions) jumps on from the target. */
   function area(prof, hits, origin, kind, target, extra = {}) {
     const primary = hits.includes(target) ? target : hits[0];
-    for (const e of hits) hitOne(prof, prof.damage, e, primary);
+    for (const e of hits) hitOne(prof, prof.damage, e, primary, origin);
     if (prof.chain && hits.length) chainFrom(prof, primary, new Set(hits), origin);
     events.push({ type: 'impact', x: hits[0]?.x ?? origin.x, y: hits[0]?.y ?? origin.y, kind, element: prof.element, pattern: prof.shoot?.pattern, tier: origin.tier ?? 1, colors: prof.colors, splash: 0, area: true, ...extra });
   }
@@ -345,7 +350,7 @@ export function createDefense({ rng }) {
       }
       if (!best) break;
       d *= prof.chain.falloff;
-      hitOne(prof, d, best);
+      hitOne(prof, d, best, null, origin);
       used.add(best);
       pts.push({ x: best.x, y: best.y });
       last = best;
@@ -419,7 +424,7 @@ export function createDefense({ rng }) {
       }
       if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur); // before the damage, so Metal's own killing blow pays out
       const dealt = damage(e, d, prof.kinds);
-      applyStatuses(e, prof, d);
+      applyStatuses(e, prof, d, origin);
       events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: prof.colors, crit: d > dmg * 0.999 && e === primary });
     }
     events.push({
@@ -538,7 +543,7 @@ export function createDefense({ rng }) {
               const dir = Math.sign(target.y - b.y) || 1;
               const hits = pool.filter((e) => !e.dead && inCone(e, b, shoot, dir));
               area(prof, hits, origin, 'breath', target);
-              events.push({ type: 'breath', x: b.x, y: b.y, dir, reach: shoot.reach, lanes: shoot.lanes ?? 0, colors: prof.colors, tier: b.tier });
+              events.push({ type: 'breath', x: b.x, y: b.y, dir, reach: shoot.reach, lanes: shoot.lanes ?? 0, colors: prof.colors, tier: b.tier, hits: hits.length });
               if (prof.regrow) regrow(tile, prof.regrow.pct);
               break;
             }
@@ -547,7 +552,7 @@ export function createDefense({ rng }) {
               const lane = laneOfX(b.x);
               const hits = pool.filter((e) => !e.dead && Math.abs(e.lane - lane) <= shoot.lanes && Math.abs(e.y - b.y) <= shoot.reach);
               area(prof, hits, origin, 'gust', target);
-              events.push({ type: 'gust', x: b.x, y: b.y, lane, lanes: shoot.lanes, reach: shoot.reach, colors: prof.colors, tier: b.tier });
+              events.push({ type: 'gust', x: b.x, y: b.y, lane, lanes: shoot.lanes, reach: shoot.reach, colors: prof.colors, tier: b.tier, hits: hits.length });
               if (prof.regrow) regrow(tile, prof.regrow.pct);
               break;
             }
@@ -555,7 +560,7 @@ export function createDefense({ rng }) {
               // Bramble Shell: a thorny ring; regrows the block and its neighbours when it bites
               const hits = pool.filter((e) => !e.dead && dist(e, b) <= shoot.radius);
               area(prof, hits, origin, 'pulse', target);
-              events.push({ type: 'pulse', x: b.x, y: b.y, radius: shoot.radius, colors: prof.colors, tier: b.tier });
+              events.push({ type: 'pulse', x: b.x, y: b.y, radius: shoot.radius, colors: prof.colors, tier: b.tier, hits: hits.length });
               if (prof.regrow && hits.length) regrow(tile, prof.regrow.pct);
               break;
             }
@@ -564,7 +569,7 @@ export function createDefense({ rng }) {
               const lane = laneOfX(b.x);
               const hits = pool.filter((e) => !e.dead && Math.abs(e.lane - lane) <= shoot.lanes && Math.abs(e.y - b.y) <= shoot.reach);
               area(prof, hits, origin, 'quake', target);
-              events.push({ type: 'quake', x: b.x, y: b.y, lane, lanes: shoot.lanes, reach: shoot.reach, colors: prof.colors, tier: b.tier });
+              events.push({ type: 'quake', x: b.x, y: b.y, lane, lanes: shoot.lanes, reach: shoot.reach, colors: prof.colors, tier: b.tier, hits: hits.length });
               if (prof.regrow) regrow(tile, prof.regrow.pct);
               break;
             }
@@ -583,7 +588,7 @@ export function createDefense({ rng }) {
             }
             case 'lance':
               // Echo Harpoon: the sonar ping marks the prey, the harpoon follows
-              events.push({ type: 'ping', id: target.id, x: target.x, y: target.y, from: { x: b.x, y: b.y } });
+              events.push({ type: 'ping', id: target.id, x: target.x, y: target.y, from: { x: b.x, y: b.y }, tier: b.tier, colors: prof.colors });
               launch(b, prof, target, { tileRef: tile });
               break;
             case 'burst':
@@ -660,7 +665,7 @@ export function createDefense({ rng }) {
           const e = targets.splice(Math.floor(rng.next() * targets.length), 1)[0];
           const d = prof.damage * sgn.pct;
           const dealt = damage(e, d, ['lightning']);
-          applyStatuses(e, prof, d);
+          applyStatuses(e, prof, d, b);
           events.push({ type: 'strike', x: e.x, y: e.y });
           events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#ffe14d'], crit: true });
         }
@@ -709,7 +714,7 @@ export function createDefense({ rng }) {
       case 'vortex':
         for (const e of pool) {
           if (e.boss) continue;
-          knock(e, sgn.push);
+          knock(e, sgn.push, { by: 'vortex', tier: b.tier, colors: prof.colors });
           e.chillSlow = Math.max(e.chillSlow, 0.3);
           e.chillT = Math.max(e.chillT, 2);
         }
@@ -728,7 +733,7 @@ export function createDefense({ rng }) {
       const impactR = Math.min(GRID.cell, pr.radius);
       const hits = alive().filter((e) => Math.hypot(e.x - sh.x1, e.y - sh.y1) <= impactR);
       const primary = hits.find((e) => e.id === sh.targetId) ?? hits[0];
-      for (const e of hits) hitOne(sh.prof, sh.damage, e, primary);
+      for (const e of hits) hitOne(sh.prof, sh.damage, e, primary, sh);
       if (sh.prof.chain && hits.length) chainFrom(sh.prof, primary, new Set(hits), sh);
       if (sh.prof.regrow && hits.length && sh.tileRef) regrow(sh.tileRef, sh.prof.regrow.pct);
       puddles.push({ id: nextPuddle++, x: sh.x1, y: sh.y1, r: pr.radius, t: pr.dur, max: pr.dur, every: pr.every, prof: sh.prof, tier: sh.tier });
@@ -935,6 +940,8 @@ export function createDefense({ rng }) {
     step,
     cast,
     sigCharge: (id) => sig.get(id) ?? 0,
+    /** Seconds until a block may fire again (0: ready, waiting for a target). Read-only: the renderer's wind-up. */
+    cooldownLeft: (id) => cool.get(id) ?? 0,
     drainEvents: () => events.splice(0, events.length),
     get aliveCount() {
       return enemies.length + pendingSpawns.length;
