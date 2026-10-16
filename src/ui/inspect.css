@@ -1,8 +1,8 @@
 /* Tile info popup (src/ui/inspect.js): a clay card in the HUD's own tokens, tinted by
-   the block's element colour (--c). inspect.js places it between the field's towers, never over
-   the namecard rail on the right one (it reaches over the left tower on a narrow field). It is the
-   one DOM card allowed over the lanes: it shows only while the player reads a block, and closes
-   with a tap anywhere. */
+   the block's element colour (--c). It opens short, over the board (.short, below); Details opens
+   the full card, which inspect.js places between the field's towers, never over the namecard rail
+   on the right one (it reaches over the left tower on a narrow field). The full card is the one DOM
+   card allowed over the lanes: the player asked for it, and it closes with a tap anywhere. */
 .inspect {
   position: absolute;
   top: calc(var(--field-top, 18%) + 6px); /* below the top bars: the pause button stays in reach */
@@ -244,7 +244,8 @@
     inset -3px 0 0 color-mix(in srgb, var(--c) 55%, transparent),
     inset 0 -3px 0 color-mix(in srgb, var(--c) 55%, transparent);
 }
-.inspect-sell {
+.inspect-sell,
+.inspect-more {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -257,6 +258,19 @@
   font: 800 16px var(--font-body); /* a button label at the 16 px floor */
   cursor: pointer;
   box-shadow: 0 3px 0 #96785a55;
+}
+.inspect-more {
+  background: var(--cream-2); /* the quiet one beside Sell: it only opens the full card */
+}
+.inspect-label {
+  display: inline-grid;
+  justify-items: center; /* "Sell" sits in the middle of the room "Tap again" keeps */
+}
+.inspect-label > span {
+  grid-area: 1 / 1; /* the label and the armed label share one cell: the button fits the wider */
+}
+.inspect-ghost {
+  visibility: hidden;
 }
 .inspect-sell b {
   display: inline-flex;
@@ -278,7 +292,8 @@
   cursor: default;
   box-shadow: none;
 }
-.inspect-sell:focus-visible {
+.inspect-sell:focus-visible,
+.inspect-more:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
@@ -302,4 +317,74 @@
   height: 18px;
   margin-left: -4px;
   object-fit: contain;
+}
+
+/* The short card, the one a tap opens: a row with the picture, the name and value and the ×, and a
+   row with Sell / Break and Details. 114 px in all, so it fits whole under or over any tapped row,
+   even on a phone with its toolbars showing (inspect.js placeShort, src/ui/short-card.js); the rest
+   of the card waits behind Details. */
+.inspect.short {
+  padding: 8px 12px;
+}
+.inspect.short .inspect-head {
+  min-height: 40px;
+  padding-right: 44px; /* the × */
+}
+.inspect.short .inspect-pic {
+  flex-basis: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+.inspect.short .inspect-pic-tile canvas {
+  width: 40px;
+  height: 40px;
+}
+.inspect.short .inspect-x {
+  top: 8px;
+  right: 8px;
+}
+.inspect.short h3 {
+  overflow: hidden;
+  white-space: nowrap; /* one line: a long name ends in "…" rather than growing the card */
+  text-overflow: ellipsis;
+}
+.inspect.short .inspect-act {
+  flex-wrap: nowrap;
+  bottom: -8px;
+  margin: 6px -12px -8px;
+  padding: 0 12px 8px;
+  border-top: 0; /* the head and its buttons read as one strip */
+}
+.inspect.short :is(.inspect-sell, .inspect-more) {
+  padding: 6px 14px;
+}
+/* narrowed to keep off the namecard rail (inspect.js placeShort): Details shows as its icon */
+.inspect-more-icon {
+  display: none;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.inspect.short.narrow .inspect-more {
+  justify-content: center;
+  width: 48px;
+  padding: 0;
+}
+.inspect.short.narrow .inspect-more-word {
+  display: none;
+}
+.inspect.short.narrow .inspect-more-icon {
+  display: block;
+}
+/* the screen's foot line: the short card reaches no lower (inspect.js reads its offsetTop) */
+.inspect-foot {
+  position: absolute;
+  bottom: var(--foot-y, 8px);
+  width: 0;
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
 }

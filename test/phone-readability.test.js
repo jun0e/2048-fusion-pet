@@ -76,6 +76,11 @@ test('buttons are 48 px, their icons 24 px', () => {
   assert.deepEqual(declOf('.icon-btn svg', 'width'), ['24px']);
   assert.deepEqual(declOf('.fight', 'height'), ['48px']);
   for (const sel of ['.soft', '.danger', '.primary', '.coach-ok', '.coach-skip', '.help-replay', '.switch']) assert.deepEqual(declOf(sel, 'min-height'), ['48px'], sel);
+  // the block card's Sell / Break and Details: 48 px tall, 16 px labels
+  for (const sel of ['.inspect-sell', '.inspect-more']) {
+    assert.deepEqual(declOf(sel, 'min-height'), ['48px'], sel);
+    floor([sel], 16, 'button label');
+  }
 });
 
 test("the lintel's countdown and foes count: the numbers in their own spans, the words as they were", () => {

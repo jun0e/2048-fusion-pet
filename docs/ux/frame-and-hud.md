@@ -5,7 +5,7 @@ This page says how the run screen is laid out after the visual overhaul (phase P
 ## The rules
 
 - No HUD element stays over a lane. The HUD lives in a head band above the field, a bottom bar under the board, and the towers at the sides. Some DOM sits over the field for a moment, or because the player asked for it:
-  - the block info card (`src/ui/inspect.js`) covers the lanes by design while the player reads a block, and closes with a tap anywhere. It sits between the towers, never over the namecard rail;
+  - the block info card (`src/ui/inspect.js`) opens short: the block's picture, name and value, with Sell / Break and Details. It sits over the board, under or over the tapped block (`src/ui/short-card.js`), so it never covers the lanes, in a wave or between waves. Where the board has no room for it, it covers the coin bar and Wave now: rows 1 and 2 on phones up to about 390 × 844 with its safe areas. Beside a namecard rail that runs past the parapet (four pets on a small phone) it narrows to the rail, with Details as an icon, so the skill buttons stay in reach. Details opens the full card, which covers the lanes while the player reads it, because they asked for it. The full card sits between the towers, never over the namecard rail. Either one closes with a tap anywhere;
   - the floating popups ("Block lost!", a signature's name) float up from the keep for under a second;
   - the pet skill cut-in (0.9 s), the coach's bubbles and the dialogs on their scrim.
 - Three materials only:

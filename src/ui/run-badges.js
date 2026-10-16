@@ -1,6 +1,6 @@
 // The spawn level and the keepsake on the run screen (src/sim/levels.js, src/sim/keepsakes.js):
 // two clay discs at the bottom corners, the level above the coin plate (XP is bought with coins)
-// and the keepsake above Wave now. Tapping a disc opens its card where the block card opens
+// and the keepsake above Wave now. Tapping a disc opens its card where the block's full card opens
 // (src/ui/inspect.js: at the top, so the board stays in view). The level card shows the spawn
 // odds now and at the next level, how XP comes, and Buy XP; the keepsake card says what the
 // keepsake does and which one unlocks next. Pure presentation; main.js feeds it every frame.

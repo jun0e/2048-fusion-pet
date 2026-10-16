@@ -122,6 +122,15 @@ Buttons:
 - The notes and the pet's name are 13 px.
 - The × is a 40 px disc with a 24 px glyph and a 48 px target.
 - Sell / Break is 48 px tall with a 16 px label. Its row stays at the card's foot while the card scrolls. On a 360 × 640 phone the card has room for its head and two lines, so before this the button was always below the fold.
+- A tap opens the short card (T19). It has two rows, 114 px in all:
+  - a 40 px picture of the tile, the title and value (20 px, on one line), and the ×;
+  - Sell / Break and Details, both 48 px tall with 16 px labels.
+
+  It sits over the board, under or over the tapped block. It fits whole on every row of every phone checked, including phones with their browser toolbars showing (360 × 560, 375 × 548, 320 × 568). So the lanes stay in view, and Sell never needs scrolling.
+- The short card's button says why it can't act: "Last block", or "Need 15" with the coin. The full card says it in a note beside the button.
+- Sell / Break is always as wide as its armed label, "Tap again", so arming never moves it over Details.
+- Beside a namecard rail that runs past the parapet, the card narrows and Details becomes a 48 px icon button. Its name stays "Details".
+- Details opens the full card above.
 
 **Coach** (`hud.css`): the tip is 16 px; Got it and Skip tutorial are 48 px tall; Skip tutorial is weight 800.
 
