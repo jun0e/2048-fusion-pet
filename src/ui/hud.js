@@ -314,6 +314,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   // it), the rest of the HUD is inert.
   let inerted = [];
   let page = 'closed';
+  let pauseHead = 'Paused'; // the pause card's title off the settings page ('Welcome back' after a resume)
   /**
    * Draw a page of the pause menu (src/ux/pause.js). 'closed' and 'help' hide the
    * card; 'confirm' asks before a restart (one stray tap must not end a long run).
@@ -336,9 +337,12 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       return;
     }
     if (info) {
-      $('.pause-card h2').textContent = info.title ?? 'Paused';
+      pauseHead = info.title ?? 'Paused';
       $('.pause-sub').textContent = `Wave ${info.wave} · ${info.score.toLocaleString()} points · ${info.blocks} block${info.blocks === 1 ? '' : 's'}`;
     }
+    // the settings page is a sheet of its own (T24): its own title, and no run line
+    $('.pause-card h2').textContent = next === 'settings' ? 'Settings' : pauseHead;
+    $('.pause-sub').hidden = next === 'settings';
     pauseCard.classList.toggle('confirming', next === 'confirm');
     pauseCard.classList.toggle('settings', next === 'settings');
     pauseScrim.inert = false;

@@ -1997,6 +1997,11 @@ body {
   display: none;
 }
 
+/* the settings sheet's own title (T24): no run line under it, so the title keeps the line's gap */
+.pause-card.settings h2 {
+  margin-bottom: 14px;
+}
+
 .pause-card.settings .pause-settings {
   display: flex;
 }

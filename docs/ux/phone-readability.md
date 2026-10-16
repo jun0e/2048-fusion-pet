@@ -120,6 +120,8 @@ Buttons:
   The short line fits one line on a 360 px phone, and wraps to two on a 320 px one. The long description stays on the block's full card (Details).
 - The game-over captions are 13 px in sentence case ("Top block" fits a third of a 360 px phone's card; spaced capitals at 13 px did not). The top block is a pill at 16 px. "New best wave!" and the run summary are 14 px.
 - How to play is 15 px, its headings 17 px. It scrolls inside, as before.
+- The pause menu's settings page is a sheet of its own (T24). It is titled "Settings", not "Paused", and has no run line under the title.
+- The settings sheet keeps room for one more 48 px row (T14's Language). With it, the sheet is 354 px tall, so it still fits a 375 × 548 phone without scrolling.
 - The tier chips (the die pick's head, the game-over top block) draw their white number in an ink outline, as the board's blocks do. White on a pale tier colour was 1.4:1.
 
 **Block card** (`src/ui/inspect.css`)
