@@ -7,11 +7,12 @@
 import { FIELD, GRID_TOP } from '../config.js';
 import { ENEMY_TYPES } from '../sim/enemies.js';
 import { generatedUrl } from '../render/textures.js';
+import { tr } from '../i18n/index.js';
 
 const SHOW_MS = 2600;
 const OUT_MS = 450;
 
-const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 export function createBossIntro(root, { stage }) {
   const el = document.createElement('div');
@@ -39,7 +40,7 @@ export function createBossIntro(root, { stage }) {
         <div class="boss-intro-card">
           <img alt="" src="${esc(pic)}" />
           <div class="boss-intro-text">
-            <span class="boss-intro-kicker">Boss</span>
+            <span class="boss-intro-kicker">${esc(tr('boss.kicker'))}</span>
             <b>${esc(boss.name)}</b>
             ${boss.intro ? `<span class="boss-intro-line">${esc(boss.intro)}</span>` : ''}
           </div>

@@ -3,6 +3,7 @@
 // dimmed under a padlock with the block that unlocks it. The keepsake brought last time is
 // picked already, so Start run is one tap. Pure presentation; main.js opens it (the game waits
 // meanwhile) and starts the run with the pick. Markup is built from constants (safe innerHTML).
+import { num, tr } from '../i18n/index.js';
 import { KEEPSAKES, isUnlocked, keepsakeById, nextKeepsake } from '../sim/keepsakes.js';
 import { tierValue } from '../config.js';
 import { LOCK_ICON, keepsakeIcon } from './keepsake-icons.js';
@@ -16,11 +17,11 @@ export function createKeepsakePicker(root, { onStart }) {
   scrim.inert = true;
   scrim.innerHTML = `
     <div class="card picker">
-      <h2 id="picker-title">Pick a keepsake</h2>
+      <h2 id="picker-title">${tr('picker.title')}</h2>
       <p class="sub picker-sub"></p>
-      <div class="ks-grid" role="group" aria-label="Keepsakes"></div>
+      <div class="ks-grid" role="group" aria-label="${tr('picker.group')}"></div>
       <div class="ks-detail" aria-live="polite"></div>
-      <button class="primary picker-start">Start run</button>
+      <button class="primary picker-start">${tr('picker.start')}</button>
     </div>`;
   root.appendChild(scrim);
   const grid = scrim.querySelector('.ks-grid');
@@ -50,15 +51,15 @@ export function createKeepsakePicker(root, { onStart }) {
   function render() {
     grid.innerHTML = KEEPSAKES.map((k) => {
       if (isUnlocked(k.id, best)) {
-        return `<button class="ks-opt" data-id="${k.id}" aria-pressed="${k.id === pick}">${fresh.includes(k.id) ? '<span class="ks-new">NEW</span>' : ''}<span class="ks-art">${keepsakeIcon(k.id)}</span>${k.name}</button>`;
+        return `<button class="ks-opt" data-id="${k.id}" aria-pressed="${k.id === pick}">${fresh.includes(k.id) ? `<span class="ks-new">${tr('picker.new')}</span>` : ''}<span class="ks-art">${keepsakeIcon(k.id)}</span>${k.name}</button>`;
       }
-      const v = tierValue(k.unlockTier).toLocaleString();
-      return `<button class="ks-opt locked" data-id="${k.id}" aria-pressed="false" aria-label="${k.name}, locked: make a ${v} to unlock it"><span class="ks-art">${keepsakeIcon(k.id)}</span><span class="ks-lock">${LOCK_ICON}</span>${k.name}<small>Make a ${v}</small></button>`;
+      const v = num(tierValue(k.unlockTier));
+      return `<button class="ks-opt locked" data-id="${k.id}" aria-pressed="false" aria-label="${tr('picker.lockedName', { name: k.name, value: v })}"><span class="ks-art">${keepsakeIcon(k.id)}</span><span class="ks-lock">${LOCK_ICON}</span>${k.name}<small>${tr('picker.make', { value: v })}</small></button>`;
     }).join('');
     const k = keepsakeById(view ?? pick);
     const owned = k && isUnlocked(k.id, best);
-    detail.innerHTML = k ? `<b>${k.name}</b>${owned ? '' : ` · locked`}<p>${k.desc}</p>${owned ? '' : `<p>Make a ${tierValue(k.unlockTier).toLocaleString()} in any run to unlock it.</p>`}` : '';
-    startBtn.textContent = `Start run with ${keepsakeById(pick)?.name ?? 'no keepsake'}`;
+    detail.innerHTML = k ? `<b>${k.name}</b>${owned ? '' : ` · ${tr('picker.locked')}`}<p>${k.desc}</p>${owned ? '' : `<p>${tr('picker.unlockHow', { value: num(tierValue(k.unlockTier)) })}</p>`}` : '';
+    startBtn.textContent = tr('picker.startWith', { name: keepsakeById(pick)?.name ?? tr('picker.noKeepsake') });
   }
 
   function close() {
@@ -78,8 +79,8 @@ export function createKeepsakePicker(root, { onStart }) {
       view = fresh[0] ?? pick; // a new keepsake is described first
       const nk = nextKeepsake(best);
       scrim.querySelector('.picker-sub').textContent = nk
-        ? `Your best block: ${best ? tierValue(best).toLocaleString() : 'none yet'}. A ${tierValue(nk.unlockTier).toLocaleString()} unlocks the next.`
-        : 'You own every keepsake.';
+        ? tr('picker.sub', { best: best ? num(tierValue(best)) : tr('ks.noneYet'), value: num(tierValue(nk.unlockTier)) })
+        : tr('ks.all');
       render();
       if (already) return; // the HUD is already waiting: a second open must not lose what it made inert
       // the rest of the HUD waits behind the dialog (no focus, no taps)

@@ -7,6 +7,7 @@
 // src/render/frame.js the pit, src/kv/roam.js the brackets on a picked den's pet.
 // Units: cells (one board square), origin at the cell's centre, y down (screen), unless a name says
 // "of the plaque" (its side T = PLAQUE.size).
+import { tr } from '../i18n/index.js';
 import { ELEMENTS, fusionOf, milestonePieces } from '../sim/classes.js';
 import { tierValue } from '../config.js';
 import { BLUSH, CREAM, GOLD, INK, luminance, tone } from './tokens.js';
@@ -115,7 +116,7 @@ export function meterSegments() {
 export function growthWords(tier) {
   const m = meterOf(tier);
   if (!m) return null;
-  return `${m.lit} of 4 merges to the ${m.goal} at ${m.goal === 'fusion' ? 256 : 4096}`;
+  return tr(`grow.${m.goal}`, { lit: m.lit }); // the language's table (src/i18n)
 }
 
 export const numberText = (tier) => String(tierValue(tier));

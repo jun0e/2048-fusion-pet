@@ -1,6 +1,7 @@
 // The short tile card's pure parts (src/ui/inspect.js: the card a tap on a block opens): where it
 // goes, and what its Sell / Break button says. Client px, y growing downward; no DOM, so a test
-// holds them to the phone sizes.
+// holds them to the phone sizes. The words come from the language's table (src/i18n, act.*).
+import { tr } from '../i18n/index.js';
 
 /**
  * The short card's top and height limit. In order: under the tapped block on the board alone (the
@@ -31,7 +32,7 @@ export function shortCardSpot({ tileTop, tileBottom, ceiling, boardBottom, floor
 }
 
 /** The armed button's label. The button is always as wide as this too, so arming never moves it. */
-export const ARMED_LABEL = 'Tap again';
+export const ARMED_LABEL = tr('act.armed');
 
 /**
  * What the Sell / Break button says, and the note beside it. The short card has no room for a note:
@@ -52,19 +53,19 @@ export function actState({ kind, amount, coins, last, armed, short }) {
   const poor = !sell && coins < cost;
   const disabled = last || poor;
   const verb = sell ? 'sell' : 'break';
-  const why = last ? 'Your last block can’t be removed.' : poor ? `Need ${cost} coins to break it.` : '';
+  const why = last ? tr('act.why.last') : poor ? tr('act.why.poor', { cost }) : '';
   const on = armed && !disabled;
-  let label = on ? ARMED_LABEL : sell ? 'Sell' : 'Break';
+  let label = on ? ARMED_LABEL : tr(`act.${verb}`);
   let coin = `${sell ? '+' : '−'}${cost}`;
-  if (short && last) [label, coin] = ['Last block', ''];
-  else if (short && poor) [label, coin] = ['Need', String(cost)];
+  if (short && last) [label, coin] = [tr('act.lastBlock'), ''];
+  else if (short && poor) [label, coin] = [tr('act.need'), String(cost)];
   return {
     sell,
     disabled,
     armed: on,
     label,
     coin,
-    aria: why || (on ? `Tap again to ${verb} for ${cost} coins` : `${sell ? 'Sell' : 'Break'} for ${cost} coins`),
-    note: short ? '' : why || (sell ? 'A turret sells for the price of one swipe.' : 'A block below 16 costs three swipes to break.'),
+    aria: why || tr(on ? `act.aria.armed.${verb}` : `act.aria.${verb}`, { cost }),
+    note: short ? '' : why || tr(`act.note.${verb}`),
   };
 }

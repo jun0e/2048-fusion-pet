@@ -7,6 +7,7 @@
 // information the player doesn't need yet, let experienced players skip, and
 // let anyone replay it.
 // Progress is kept in localStorage; `?tutorial` in the URL resets it.
+import { tr } from '../i18n/index.js';
 import { FIELD, GRID_TOP, laneX } from '../config.js';
 import { createCoach, loadStore, saveStore, HELP } from '../ux/coach.js';
 import { bubbleWidth, placeBubble } from '../ux/placement.js';
@@ -23,8 +24,8 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, 
     <div class="coach-bubble">
       <p class="coach-text"></p>
       <div class="coach-actions">
-        <button class="coach-skip" type="button">Skip tutorial</button>
-        <button class="coach-ok" type="button">Got it</button>
+        <button class="coach-skip" type="button">${tr('coach.skip')}</button>
+        <button class="coach-ok" type="button">${tr('coach.ok')}</button>
       </div>
       <i class="coach-arrow"></i>
     </div>`;
@@ -43,15 +44,15 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, 
   const help = document.createElement('div');
   help.className = 'scrim help-scrim';
   help.setAttribute('role', 'dialog');
-  help.setAttribute('aria-label', 'How to play');
+  help.setAttribute('aria-label', tr('pause.howto'));
   help.inert = true;
   help.innerHTML = `
     <div class="card help-card">
-      <h2>How to play</h2>
+      <h2>${tr('pause.howto')}</h2>
       <dl>${HELP.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
       <div class="help-actions">
-        <button class="help-replay" type="button">Replay tutorial</button>
-        <button class="primary help-close" type="button">Back</button>
+        <button class="help-replay" type="button">${tr('help.replay')}</button>
+        <button class="primary help-close" type="button">${tr('help.back')}</button>
       </div>
     </div>`;
   root.appendChild(help);

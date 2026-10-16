@@ -4,6 +4,7 @@
 // The portrait uses the second art style, a soft-vinyl toy render, so the card reads as a reward. States follow the style brief: charging (dimmed; a fill bar under the portrait),
 // ready (full colour, an element rim, the bar turns into an inverted READY pill, a shine sweep, a
 // small bob), activating (a 0.9 s cut-in that never blocks play), lost (grey, falls away).
+import { tr } from '../i18n/index.js';
 import { ELEMENTS, fusionOf, APEX } from '../sim/classes.js';
 import { GRID } from '../config.js';
 import { petName } from '../art/tokens.js';
@@ -129,7 +130,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
           .join('')}</div>
         <i class="kv-more" aria-hidden="true"></i>
       </div>
-      <div class="kv-bar"><i></i><b>READY</b></div>`;
+      <div class="kv-bar"><i></i><b>${tr('nc.pill')}</b></div>`;
     el.title = `${petName(t.cls.element, t.cls.fusion)}: ${skill}`;
     el.style.pointerEvents = 'auto';
     const card = { el, id: t.id, charge: CHARGE * 0.55, max: legend ? CHARGE_LEGEND : CHARGE, skill, name: petName(t.cls.element, t.cls.fusion), legend, cls: { ...t.cls }, lost: false, ready: null, role: 'own', more: 0, slot: '', castAt: -Infinity };
@@ -182,8 +183,8 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
 
   /** A card's name for a screen reader: its pet, its skill, its charge, and the cards behind it. */
   function label(card) {
-    const behind = card.role === 'face' ? ` ${card.more} more pet${card.more === 1 ? ' waits' : 's wait'} behind this card.` : '';
-    card.el.setAttribute('aria-label', `${card.name}: ${card.skill}. ${card.ready ? 'Ready: tap to cast.' : 'Charging.'}${behind}`);
+    const behind = card.role === 'face' ? ` ${tr('nc.behind', { n: card.more })}` : '';
+    card.el.setAttribute('aria-label', `${card.name}: ${card.skill}. ${tr(card.ready ? 'nc.ready' : 'nc.charging')}${behind}`);
   }
 
   /**

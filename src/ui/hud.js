@@ -16,8 +16,9 @@ import { generatedUrl } from '../render/textures.js';
 import { ELEMENTS } from '../sim/classes.js';
 import { portraitId, spriteId } from '../art/sprite-ids.js';
 import { petName } from '../art/tokens.js';
+import { LANG_NAMES, getLang, num, tr } from '../i18n/index.js';
 
-const STAGE_LABEL = { 1: 'Awakened', 2: 'Fusion', 3: 'Ultimate' };
+const STAGE_LABEL = { 1: tr('stage.1'), 2: tr('stage.2'), 3: tr('stage.3') };
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 function chipHtml(tier, cls = '') {
@@ -49,20 +50,20 @@ const CREST = {
  */
 export function meterState({ phase, left = 0, total = 0, boss = null, bossHp = null, timer = 0, holding = false }) {
   const secs = Math.ceil(timer);
-  const foes = `${left} foe${left === 1 ? '' : 's'}`;
+  const foes = tr('meter.foes', { n: left });
   if (phase === 'wave') {
     if (boss && bossHp != null) {
       const pct = Math.round(Math.max(0, Math.min(1, bossHp)) * 100);
-      return { mode: 'boss', fill: Math.max(0, Math.min(1, bossHp)), label: `${left} left`, say: `Boss wave: ${ENEMY_TYPES[boss]?.name ?? 'boss'} at ${pct}% health, ${foes} left` };
+      return { mode: 'boss', fill: Math.max(0, Math.min(1, bossHp)), label: tr('meter.left', { n: left }), say: tr('meter.say.boss', { name: ENEMY_TYPES[boss]?.name ?? tr('meter.boss'), pct, foes }) };
     }
-    return { mode: 'foes', fill: total > 0 ? Math.max(0, Math.min(1, left / total)) : 0, label: `${left} left`, say: `${boss ? 'Boss wave: ' : ''}${foes} left` };
+    return { mode: 'foes', fill: total > 0 ? Math.max(0, Math.min(1, left / total)) : 0, label: tr('meter.left', { n: left }), say: tr(boss ? 'meter.say.bossLeft' : 'meter.say.left', { foes }) };
   }
   if (phase === 'prep') {
     // the opening holds the countdown while the tutorial teaches: no frozen number
-    return holding ? { mode: 'incoming', fill: 1, label: 'Ready?', say: 'First wave: when ready' } : { mode: 'incoming', fill: 1, label: `In ${secs}s`, say: `First wave in ${secs} seconds` };
+    return holding ? { mode: 'incoming', fill: 1, label: tr('meter.ready'), say: tr('meter.say.ready') } : { mode: 'incoming', fill: 1, label: tr('meter.in', { n: secs }), say: tr('meter.say.first', { n: secs }) };
   }
-  if (phase === 'break') return { mode: 'incoming', fill: 1, label: `In ${secs}s`, say: `${boss ? 'Boss' : 'Next wave'} in ${secs} seconds` };
-  return { mode: 'over', fill: 0, label: 'Defeat', say: 'Defeat' };
+  if (phase === 'break') return { mode: 'incoming', fill: 1, label: tr('meter.in', { n: secs }), say: tr(boss ? 'meter.say.bossIn' : 'meter.say.next', { n: secs }) };
+  return { mode: 'over', fill: 0, label: tr('meter.defeat'), say: tr('meter.defeat') };
 }
 
 /** The keep grid: 16 cells (top-left first, as the DOM lays them out); the blocks alive light them from the bottom row up, left to right. */
@@ -164,8 +165,9 @@ export function popupPx(tier, scale = 1) {
 
 /** Wave now's label: "Wave 7 now ▶ 12". The wave's number (in its own span) gives way on a narrow phone. */
 export function fightLabel({ wave, boss = null, timer = 0, holding = false }) {
-  const what = boss ? 'Boss' : `Wave<span class="fight-n"> ${wave}</span>`;
-  return `${what} now ▶${holding ? '' : `<span class="fight-t"> ${Math.ceil(timer)}</span>`}`;
+  // the table's words around the wave's number (its span is the markup, not the table's)
+  const what = boss ? tr('fight.boss') : tr('fight.wave', { n: `<span class="fight-n"> ${wave}</span>` });
+  return `${what}${holding ? '' : `<span class="fight-t"> ${Math.ceil(timer)}</span>`}`;
 }
 
 /**
@@ -177,27 +179,27 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     <div class="vignette"></div>
     <div class="topbar">
       <div class="icons">
-        <button class="icon-btn stone" data-act="pause" aria-label="Pause">${ICON_PAUSE}</button>
-        <button class="icon-btn stone speed-btn" data-act="speed" aria-label="Game speed x1">x1</button>
+        <button class="icon-btn stone" data-act="pause" aria-label="${esc(tr('hud.pause'))}">${ICON_PAUSE}</button>
+        <button class="icon-btn stone speed-btn" data-act="speed" aria-label="${esc(tr('hud.speed', { n: 1 }))}">x1</button>
         ${dev ? `<button class="icon-btn stone auto-btn" data-act="auto" aria-label="Autoplay" aria-pressed="false">${ICON_PLAY}<span>Auto</span></button>` : ''}
       </div>
-      <div class="score-card" role="group" aria-label="Score">
+      <div class="score-card" role="group" aria-label="${esc(tr('hud.score'))}">
         <div class="score">0</div>
-        <div class="best">Best 0</div>
+        <div class="best">${esc(tr('hud.best', { n: 0 }))}</div>
       </div>
       <div class="top-right">
-        <div class="next-card" aria-label="Top block"><div class="next-slot"></div></div>
+        <div class="next-card" aria-label="${esc(tr('hud.top'))}"><div class="next-slot"></div></div>
       </div>
     </div>
     <div class="statusbar">
       <div class="lintel">
-        <div class="day"><i class="crest" aria-hidden="true"></i><b class="day-n"><span class="day-word">Wave</span> <span class="day-num">1</span></b><span class="best-wave"></span><span class="chapter">Eternal Forest</span></div>
-        <div class="phase meter" data-phase="prep" data-mode="incoming" role="img" aria-label="First wave: when ready">
+        <div class="day"><i class="crest" aria-hidden="true"></i><b class="day-n"><span class="day-word">${esc(tr('hud.wave'))}</span> <span class="day-num">1</span></b><span class="best-wave"></span><span class="chapter">Eternal Forest</span></div>
+        <div class="phase meter" data-phase="prep" data-mode="incoming" role="img" aria-label="${esc(tr('meter.say.ready'))}">
           <span class="meter-face" hidden><img alt="" /></span>
           <span class="meter-bar"><i class="meter-fill"></i></span>
-          <b class="meter-label">Ready?</b>
+          <b class="meter-label">${esc(tr('meter.ready'))}</b>
         </div>
-        <div class="castle" role="img" aria-label="Blocks left">
+        <div class="castle" role="img" aria-label="${esc(tr('hud.blocksLeft'))}">
           <span class="keep-grid" aria-hidden="true">${'<i></i>'.repeat(16)}</span>
           <span class="castle-hp">0</span>
         </div>
@@ -208,13 +210,13 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     </div>
     <div class="combo" aria-hidden="true"></div>
     <div class="milestone"></div>
-    <div class="coinbar" aria-label="Coins">
+    <div class="coinbar" aria-label="${esc(tr('hud.coins'))}">
       <span class="coin-ico"></span>
       <b class="coins">0</b>
-      <span class="cost" title="Price of the next swipe">Swipe <b class="cost-n">0</b><i class="cost-step" aria-hidden="true"><s></s></i></span>
+      <span class="cost" title="${esc(tr('coin.price'))}">${esc(tr('coin.swipe'))} <b class="cost-n">0</b><i class="cost-step" aria-hidden="true"><s></s></i></span>
     </div>
-    <button class="fight" data-act="fight">Wave<span class="fight-n"> 1</span> now ▶</button>
-    <div class="scrim choice-scrim" role="dialog" aria-modal="true" aria-label="Choose a new die">
+    <button class="fight" data-act="fight">${fightLabel({ wave: 1, holding: true })}</button>
+    <div class="scrim choice-scrim" role="dialog" aria-modal="true" aria-label="${esc(tr('die.name'))}">
       <div class="choice">
         <div class="choice-head"><div class="choice-chip"></div><div><h2 class="choice-title"></h2><p class="choice-sub"></p></div></div>
         <div class="options"></div>
@@ -223,54 +225,55 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     <div class="rotate" role="status">
       <div class="rotate-card">
         <i class="rotate-phone"></i>
-        <b>Turn your phone upright</b>
+        <b>${esc(tr('hud.rotate'))}</b>
         <span>2048 Siege plays in portrait. The game waits.</span>
       </div>
     </div>
     <div class="scrim pause-scrim" role="dialog" aria-modal="true" aria-labelledby="pause-title">
       <div class="card pause-card">
-        <h2 id="pause-title">Paused</h2>
+        <h2 id="pause-title">${esc(tr('pause.title'))}</h2>
         <p class="sub pause-sub"></p>
         <div class="pause-actions">
-          <button class="primary" data-act="resume">Resume</button>
-          <button class="soft" data-act="howto">How to play</button>
-          <button class="soft" data-act="settings">Settings</button>
-          <button class="soft" data-act="restart">Restart run</button>
+          <button class="primary" data-act="resume">${esc(tr('pause.resume'))}</button>
+          <button class="soft" data-act="howto">${esc(tr('pause.howto'))}</button>
+          <button class="soft" data-act="settings">${esc(tr('pause.settings'))}</button>
+          <button class="soft" data-act="restart">${esc(tr('pause.restart'))}</button>
         </div>
         <div class="pause-settings">
-          <button class="switch" data-act="set-sound" role="switch" aria-checked="true"><span>Sound</span><i></i></button>
-          <button class="switch" data-act="set-haptics" role="switch" aria-checked="true"><span>Vibration</span><i></i></button>
-          <button class="switch" data-act="set-motion" role="switch" aria-checked="false"><span>Reduce motion</span><i></i></button>
-          <button class="primary" data-act="settings-done">Done</button>
+          <button class="switch" data-act="set-sound" role="switch" aria-checked="true"><span>${esc(tr('set.sound'))}</span><i></i></button>
+          <button class="switch" data-act="set-haptics" role="switch" aria-checked="true"><span>${esc(tr('set.haptics'))}</span><i></i></button>
+          <button class="switch" data-act="set-motion" role="switch" aria-checked="false"><span>${esc(tr('set.motion'))}</span><i></i></button>
+          <button class="switch lang-row" data-act="set-lang" aria-label="${esc(tr('lang.say', { name: LANG_NAMES[getLang()] }))}"><span>${esc(tr('lang.row'))}</span><b>${esc(LANG_NAMES[getLang()])}</b></button>
+          <button class="primary" data-act="settings-done">${esc(tr('set.done'))}</button>
         </div>
         <div class="pause-confirm">
-          <p class="confirm-text">Restart? This run ends.</p>
+          <p class="confirm-text">${esc(tr('pause.confirm'))}</p>
           <div class="confirm-actions">
-            <button class="soft" data-act="restart-no">Keep playing</button>
-            <button class="danger" data-act="restart-yes">Restart</button>
+            <button class="soft" data-act="restart-no">${esc(tr('pause.keep'))}</button>
+            <button class="danger" data-act="restart-yes">${esc(tr('pause.restartYes'))}</button>
           </div>
         </div>
       </div>
     </div>
-    <div class="scrim over-scrim" role="dialog" aria-modal="true" aria-label="Game over">
+    <div class="scrim over-scrim" role="dialog" aria-modal="true" aria-label="${esc(tr('over.name'))}">
       <div class="card over-card">
-        <h2 class="over-title">Overrun!</h2>
+        <h2 class="over-title">${esc(tr('over.title'))}</h2>
         <p class="sub over-sub"></p>
         <div class="badge-slot"></div>
         <div class="stats">
-          <div class="stat"><div class="label">Wave</div><div class="val go-day">1</div></div>
-          <div class="stat"><div class="label">Score</div><div class="val go-score">0</div></div>
-          <div class="stat"><div class="label">Top block</div><div class="go-top"></div></div>
-          <div class="stat"><div class="label">Kills</div><div class="val go-kills">0</div></div>
-          <div class="stat"><div class="label">Bosses</div><div class="val go-bosses">0</div></div>
-          <div class="stat"><div class="label">Time</div><div class="val go-time">0:00</div></div>
+          <div class="stat"><div class="label">${esc(tr('over.wave'))}</div><div class="val go-day">1</div></div>
+          <div class="stat"><div class="label">${esc(tr('over.score'))}</div><div class="val go-score">0</div></div>
+          <div class="stat"><div class="label">${esc(tr('over.top'))}</div><div class="go-top"></div></div>
+          <div class="stat"><div class="label">${esc(tr('over.kills'))}</div><div class="val go-kills">0</div></div>
+          <div class="stat"><div class="label">${esc(tr('over.bosses'))}</div><div class="val go-bosses">0</div></div>
+          <div class="stat"><div class="label">${esc(tr('over.time'))}</div><div class="val go-time">0:00</div></div>
         </div>
         <p class="go-extra"></p>
         <div class="over-actions">
-          <button class="primary" data-act="again">Play again</button>
-          <button class="soft" data-act="share">Share</button>
+          <button class="primary" data-act="again">${esc(tr('over.again'))}</button>
+          <button class="soft" data-act="share">${esc(tr('share.button'))}</button>
         </div>
-        <label class="share-box" hidden>Copy this to share:<textarea class="share-line" readonly rows="3"></textarea></label>
+        <label class="share-box" hidden>${esc(tr('share.copyThis'))}<textarea class="share-line" readonly rows="3"></textarea></label>
       </div>
     </div>`;
 
@@ -314,7 +317,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   // it), the rest of the HUD is inert.
   let inerted = [];
   let page = 'closed';
-  let pauseHead = 'Paused'; // the pause card's title off the settings page ('Welcome back' after a resume)
+  let pauseHead = tr('pause.title'); // the pause card's title off the settings page ('Welcome back' after a resume)
   /**
    * Draw a page of the pause menu (src/ux/pause.js). 'closed' and 'help' hide the
    * card; 'confirm' asks before a restart (one stray tap must not end a long run).
@@ -337,11 +340,11 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       return;
     }
     if (info) {
-      pauseHead = info.title ?? 'Paused';
-      $('.pause-sub').textContent = `Wave ${info.wave} · ${info.score.toLocaleString()} points · ${info.blocks} block${info.blocks === 1 ? '' : 's'}`;
+      pauseHead = info.title ?? tr('pause.title');
+      $('.pause-sub').textContent = tr('pause.sub', { wave: info.wave, score: num(info.score), blocks: info.blocks, count: info.blocks });
     }
     // the settings page is a sheet of its own (T24): its own title, and no run line
-    $('.pause-card h2').textContent = next === 'settings' ? 'Settings' : pauseHead;
+    $('.pause-card h2').textContent = next === 'settings' ? tr('pause.settings') : pauseHead;
     $('.pause-sub').hidden = next === 'settings';
     pauseCard.classList.toggle('confirming', next === 'confirm');
     pauseCard.classList.toggle('settings', next === 'settings');
@@ -493,10 +496,10 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
    * else the two element badges), its name, the two elements and what it does.
    */
   function showFusionPick(choice) {
-    choiceScrim.setAttribute('aria-label', 'Choose a fusion');
+    choiceScrim.setAttribute('aria-label', tr('fusionPick.name'));
     $('.choice-chip').innerHTML = chipHtml(choice.tier);
-    $('.choice-title').textContent = 'Choose your fusion';
-    $('.choice-sub').textContent = `Your ${tierValue(choice.tier).toLocaleString()} fuses two of the elements that went into it.`;
+    $('.choice-title').textContent = tr('fusionPick.title');
+    $('.choice-sub').textContent = tr('fusionPick.sub', { value: num(tierValue(choice.tier)) });
     $('.options').innerHTML = choice.offers
       .map((o, i) => {
         const a = ELEMENTS[o.element];
@@ -509,7 +512,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
           <span class="opt-text">
             <b>${esc(o.name)}</b>
             <em>${esc(a.name)} + ${esc(b.name)} · ${esc(petName(o.element, o.fusion))}</em>
-            <small>${esc(o.tags)}, both stronger. Attacks like ${esc(a.name)}: ${esc(a.attack)}.</small>
+            <small>${esc(tr('fusionPick.line', { tags: o.tags, el: a.name, attack: a.attack }))}</small>
           </span>
           <kbd>${i + 1}</kbd>
         </button>`;
@@ -536,11 +539,11 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     setScore(score, best) {
       if (score !== shownScore) {
         if (score > shownScore && shownScore >= 0) restartAnim(scoreEl, 'bump');
-        scoreEl.textContent = score.toLocaleString();
+        scoreEl.textContent = num(score);
         shownScore = score;
       }
       if (best !== shownBest) {
-        bestEl.textContent = `Best ${best.toLocaleString()}`;
+        bestEl.textContent = tr('hud.best', { n: num(best) });
         shownBest = best;
       }
     },
@@ -551,8 +554,8 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       const v = tierValue(tier);
       const digits = String(v).length;
       // three digits and more do not fit the disc's inner ring at a readable size: the disc stretches into a pill
-      nextSlot.innerHTML = `<div class="top-chip pop${digits >= 3 ? ' wide' : ''}" style="--c:${TIER_COLORS[tier] ?? '#c39bff'}"><b>${v}</b><small aria-hidden="true">Top</small></div>`;
-      nextSlot.parentElement.setAttribute('aria-label', `Top block ${v}`);
+      nextSlot.innerHTML = `<div class="top-chip pop${digits >= 3 ? ' wide' : ''}" style="--c:${TIER_COLORS[tier] ?? '#c39bff'}"><b>${v}</b><small aria-hidden="true">${esc(tr('hud.topChip'))}</small></div>`;
+      nextSlot.parentElement.setAttribute('aria-label', tr('hud.topN', { n: v }));
     },
     /**
      * The lintel. total: foes in this wave (optional: else the most seen left), bossHp: the boss's
@@ -577,7 +580,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       // only what changed is written (the boss's health changes the description many times a wave)
       setText($('.day-num'), String(wave));
       // the record to beat (the main record: the best wave reached)
-      setText($('.best-wave'), bestWave > 0 ? `best ${bestWave}` : '');
+      setText($('.best-wave'), bestWave > 0 ? tr('hud.bestWave', { n: bestWave }) : '');
       setText($('.chapter'), typeof chapter === 'string' ? chapter : chapter?.name ?? '');
       setAttr(meterEl, 'data-phase', phase);
       setAttr(meterEl, 'data-mode', m.mode);
@@ -606,7 +609,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       setText(castleHp, String(blocks));
       const lit = keepGridCells(blocks);
       gridCells.forEach((c, i) => c.classList.toggle('on', lit[i]));
-      setAttr(castleEl, 'aria-label', `${blocks} block${blocks === 1 ? '' : 's'} left`);
+      setAttr(castleEl, 'aria-label', tr('hud.blocksLeftN', { n: blocks }));
       castleEl.classList.toggle('low', blocks <= 3 && phase === 'wave');
       const waiting = phase === 'prep' || phase === 'break';
       // hidden during a wave, it also leaves the tab order (visibility, hud.css)
@@ -625,14 +628,14 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       shownCoins = coins;
       shownCost = cost;
       shownSwipes = swipes;
-      coinsEl.textContent = coins.toLocaleString();
+      coinsEl.textContent = num(coins);
       costEl.textContent = String(cost);
       coinbar.classList.toggle('poor', coins < cost);
       if (swipes != null) {
         const st = priceStep(swipes);
         costStep.style.transform = `scaleY(${Math.max(0.08, st.share)})`;
         costBox.classList.toggle('soon', st.left <= 3);
-        costBox.title = `Price of the next swipe: ${cost}. It rises to ${st.next} in ${st.left} swipe${st.left === 1 ? '' : 's'}.`;
+        costBox.title = tr('coin.priceStep', { cost, next: st.next, left: st.left, count: st.left });
         costBox.setAttribute('aria-label', costBox.title);
       }
       costBox.classList.toggle('stepped', swipes != null);
@@ -672,12 +675,12 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     },
     /** A combo: a tally on the left tower (never over a lane). */
     combo(n) {
-      comboEl.innerHTML = `<small>Combo</small><b>×${n}</b>`;
+      comboEl.innerHTML = `<small>${esc(tr('hud.combo'))}</small><b>×${n}</b>`;
       restartAnim(comboEl, 'show');
     },
     /** A new top block (2048+): its number over the head of the screen, not over the lanes. */
     milestone(tier) {
-      milestoneEl.textContent = tierValue(tier).toLocaleString();
+      milestoneEl.textContent = num(tierValue(tier));
       restartAnim(milestoneEl, 'show');
     },
     /** Queue a banner on the news ribbon; it shows when the one on screen has had its reading time. */
@@ -713,10 +716,10 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
         showFusionPick(choice);
         return;
       }
-      choiceScrim.setAttribute('aria-label', 'Choose a new die');
+      choiceScrim.setAttribute('aria-label', tr('die.name'));
       $('.choice-chip').innerHTML = chipHtml(choice.tier);
-      $('.choice-title').textContent = 'New die unlocked!';
-      $('.choice-sub').textContent = `Your first ${tierValue(choice.tier).toLocaleString()}. Pick a die for your deck: blocks reaching 16 can roll it.`;
+      $('.choice-title').textContent = tr('die.title');
+      $('.choice-sub').textContent = tr('die.sub', { value: num(tierValue(choice.tier)) });
       // each die: its baby pet with the element's badge (the badge alone without the art), its name and
       // attack on one line, and what it does in one short line (src/sim/classes.js ELEMENTS line); the
       // long description shows on a mouse's hover (title), and on the block's full card once it hatches
@@ -752,24 +755,24 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
      * stats: { kills, bosses, time (s), lost, combo, fusions, punches, keepsakes: [names unlocked] }
      */
     showGameOver({ score, wave, maxTier, isBest, isBestWave = false, cause = null, stats = {} }) {
-      $('.over-sub').textContent = cause ?? `Your last block fell on wave ${wave}.`;
-      $('.go-score').textContent = score.toLocaleString();
+      $('.over-sub').textContent = cause ?? tr('over.cause', { wave });
+      $('.go-score').textContent = num(score);
       $('.go-day').textContent = String(wave);
       $('.go-top').innerHTML = chipHtml(maxTier);
-      $('.go-kills').textContent = (stats.kills ?? 0).toLocaleString();
+      $('.go-kills').textContent = num(stats.kills ?? 0);
       $('.go-bosses').textContent = String(stats.bosses ?? 0);
       $('.go-time').textContent = mmss(stats.time ?? 0);
       const extra = [];
-      if (stats.keepsakes?.length) extra.push(`New keepsake: ${stats.keepsakes.join(', ')}!`);
-      if (stats.combo >= 2) extra.push(`Best combo ×${stats.combo}`);
-      if (stats.fusions) extra.push(`${stats.fusions} fusion${stats.fusions === 1 ? '' : 's'}`);
-      if (stats.lost) extra.push(`${stats.lost} block${stats.lost === 1 ? '' : 's'} lost`);
-      if (stats.punches) extra.push(`${stats.punches} punch${stats.punches === 1 ? '' : 'es'}`);
+      if (stats.keepsakes?.length) extra.push(tr('over.newKeepsake', { names: stats.keepsakes.join(', ') }));
+      if (stats.combo >= 2) extra.push(tr('over.bestCombo', { n: stats.combo }));
+      if (stats.fusions) extra.push(tr('over.fusions', { n: stats.fusions }));
+      if (stats.lost) extra.push(tr('over.lost', { n: stats.lost }));
+      if (stats.punches) extra.push(tr('over.punches', { n: stats.punches }));
       $('.go-extra').textContent = extra.join(' · ');
       // the best wave is the main record; a best score alone gets its own badge
-      const badge = isBestWave ? 'New best wave!' : isBest ? 'New best score!' : '';
+      const badge = isBestWave ? tr('over.bestWave') : isBest ? tr('over.bestScore') : '';
       $('.badge-slot').innerHTML = badge ? `<div class="new-best">${badge}</div>` : '';
-      shareBtn.textContent = 'Share';
+      shareBtn.textContent = tr('share.button');
       shareBox.hidden = true;
       overScrim.inert = false;
       overScrim.classList.add('open');
@@ -787,18 +790,18 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       const btn = $('[data-act="speed"]');
       btn.textContent = `x${n}`;
       btn.classList.toggle('fast', n > 1);
-      btn.setAttribute('aria-label', `Game speed x${n}`);
+      btn.setAttribute('aria-label', tr('hud.speed', { n }));
     },
     /** Share feedback on the button ("Copied!"), then back to "Share". */
     shareDone(label) {
       shareBtn.textContent = label;
-      setTimeout(() => (shareBtn.textContent = 'Share'), 1800);
+      setTimeout(() => (shareBtn.textContent = tr('share.button')), 1800);
     },
     /** The browser refused every copy: show the line, selected and in view, to copy by hand. */
     shareShow(line) {
       shareText.value = line;
       shareBox.hidden = false;
-      shareBtn.textContent = 'Copy it below';
+      shareBtn.textContent = tr('share.copyBelow');
       shareText.focus({ preventScroll: true });
       shareText.setSelectionRange(0, line.length); // iOS: select() alone selects nothing
       shareBox.scrollIntoView({ block: 'nearest' }); // a short card scrolls; focusing a textarea does not scroll it

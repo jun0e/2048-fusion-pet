@@ -19,6 +19,7 @@ import { spriteId, portraitId } from '../art/sprite-ids.js';
 import { generatedUrl } from '../render/textures.js';
 import { growthWords, meterOf } from '../art/plaque.js';
 import { ARMED_LABEL, actState, shortCardSpot } from './short-card.js';
+import { tr } from '../i18n/index.js';
 
 /** The narrow short card's sizes (px), as inspect.css sets them: the buttons' side padding, the row's gap and side padding. */
 const NARROW = { button: 10, gap: 6, row: 8 };
@@ -44,14 +45,14 @@ function tilePicture(tile, art) {
 }
 
 /** Where a den's pet is: it roams the field (src/sim/roam.js); '' when the block has none. */
-const petWhere = (tile) => (!tile.roam ? '' : tile.roam.hatch >= 1 ? ', out on the field' : ', hopping out');
+const petWhere = (tile) => (!tile.roam ? '' : tr(tile.roam.hatch >= 1 ? 'card.pet.out' : 'card.pet.hopping'));
 
 export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
   const el = document.createElement('div');
   el.className = 'inspect';
   el.hidden = true;
   el.setAttribute('role', 'dialog');
-  el.setAttribute('aria-label', 'Block info');
+  el.setAttribute('aria-label', tr('card.name'));
   root.appendChild(el);
   // the screen's foot line (--foot-y, the coin bar's bottom): the short card reaches no lower
   const foot = document.createElement('i');
@@ -116,7 +117,7 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
         <span class="inspect-label"><span>${esc(a.label)}</span><span class="inspect-ghost" aria-hidden="true">${esc(ARMED_LABEL)}</span></span>
         ${a.coin ? `<b><span class="inspect-coin"></span>${esc(a.coin)}</b>` : ''}
       </button>
-      ${full ? '' : `<button class="inspect-more" aria-label="Details"><span class="inspect-more-word">Details</span>${INFO_ICON}</button>`}
+      ${full ? '' : `<button class="inspect-more" aria-label="${esc(tr('card.details'))}"><span class="inspect-more-word">${esc(tr('card.details'))}</span>${INFO_ICON}</button>`}
       ${a.note ? `<span class="inspect-note">${esc(a.note)}</span>` : ''}`;
     if (focus) refocus(focus);
   }
@@ -273,18 +274,18 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
       // the name gives way first ("…"), the value never: a legend's name runs to 22 letters
       const value = info.kind === 'egg' ? '' : `<span class="inspect-value">${info.value}</span>`;
       el.innerHTML = `
-      <button class="inspect-x" aria-label="Close">×</button>
+      <button class="inspect-x" aria-label="${esc(tr('ui.close'))}">×</button>
       <div class="inspect-head">${picture}<div class="inspect-titles"><h3><span class="inspect-name">${esc(info.title)}</span>${value}</h3></div></div>
       <div class="inspect-act"></div>`;
     } else
       el.innerHTML = `
-      <button class="inspect-x" aria-label="Close">×</button>
+      <button class="inspect-x" aria-label="${esc(tr('ui.close'))}">×</button>
       <div class="inspect-head">
         ${picture}
         <div class="inspect-titles">
           <h3>${esc(info.title)}</h3>
           <div class="inspect-sub">${chips}<span class="inspect-value">${info.value}</span></div>
-          ${info.petName ? `<div class="inspect-pet">Pet: <b>${esc(info.petName)}</b>${petWhere(tile)}</div>` : ''}
+          ${info.petName ? `<div class="inspect-pet">${esc(tr('card.pet'))} <b>${esc(info.petName)}</b>${esc(petWhere(tile))}</div>` : ''}
         </div>
       </div>
       ${grow ? `<div class="inspect-grow"><span class="inspect-meter${m.goal === 'legend' ? ' rose' : ''}" aria-hidden="true">${[0, 1, 2, 3].map((i) => `<i${i < m.lit ? ' class="lit"' : ''}></i>`).join('')}</span><span>${esc(grow)}</span></div>` : ''}

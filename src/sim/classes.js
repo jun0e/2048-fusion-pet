@@ -11,6 +11,7 @@
 // with its own name and colour. 4096 adds a third element: the ultimate.
 // Pure data + functions; no rendering.
 
+import { tr } from '../i18n/index.js';
 import { DEFENSE } from '../config.js';
 
 // The basic attacks (redesign, src/art/attack-design.js): each element animal attacks the
@@ -23,11 +24,7 @@ import { DEFENSE } from '../config.js';
 // tile plates, badges, the die pick, the tile card, namecards and attack tints all use it.
 export const ELEMENTS = {
   fire: {
-    name: 'Fire',
-    attack: 'Ember Breath',
     color: '#f2662d',
-    desc: 'Breathes a short cone of fire up its lane that hits every foe in it. Burns: damage over time that stacks.',
-    line: 'Burns every foe in a cone.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 1.0,
     dmg: 0.23, // to every foe in the cone
     shoot: { pattern: 'cone', reach: 4, lanes: 0, target: 'front' }, // 2 cells, widening to half a lane each side
@@ -36,11 +33,7 @@ export const ELEMENTS = {
     grow: (s) => ({ shoot: { reach: 4 + (2 * s) / 3 } }), // the breath grows; the burn cap stays at 3
   },
   ice: {
-    name: 'Ice',
-    attack: 'Echo Harpoon',
     color: '#9be7f5',
-    desc: 'A sonar ping finds the toughest foe up to 5 cells along its lane and an ice harpoon follows. Slows; every 4th hit on the same foe freezes it.',
-    line: 'Slows and freezes big foes.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.6,
     dmg: 0.91, // the Hunter leads on single tough foes
     shoot: { pattern: 'lance', speed: 0.75, reach: 10, lanes: 0, target: 'strongest' },
@@ -50,11 +43,7 @@ export const ELEMENTS = {
     grow: (s) => ({ chill: { slow: 0.35 + s / 30 }, freeze: { every: s >= 3 ? 3 : 4 }, shoot: { lanes: s >= 2 ? 1 : 0 } }),
   },
   lightning: {
-    name: 'Lightning',
-    attack: 'Horn Arc',
     color: '#3d8bff',
-    desc: 'An instant bolt from the horn to the nearest foe that leaps to more foes close by, across lanes. Each jump hits a little less and may stun.',
-    line: 'Chains foe to foe; stuns.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.85,
     dmg: 0.37,
     shoot: { pattern: 'chain', radius: 7, target: 'nearest' }, // 3.5 cells
@@ -64,11 +53,7 @@ export const ELEMENTS = {
     grow: (s) => ({ chain: { jumps: 2 + s } }), // 3 → 6 foes
   },
   poison: {
-    name: 'Poison',
-    attack: 'Venom Spit',
     color: '#a35cf0',
-    desc: 'Spits a venom glob that leaves a puddle on the path. Foes in it gain poison stacks; at full stacks they are weakened and hit blocks 30% softer.',
-    line: 'Poison puddles weaken foes.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.9,
     dmg: 0.16,
     shoot: { pattern: 'spit', flight: 0.6, radius: 6, target: 'front' }, // 3 cells
@@ -78,11 +63,7 @@ export const ELEMENTS = {
     grow: (s) => ({ puddle: { dur: 3 + (2 * s) / 3, radius: 2 + s / 3 } }),
   },
   earth: {
-    name: 'Earth',
-    attack: 'Quake Stomp',
     color: '#9c8268',
-    desc: 'Stomps a shockwave across its lane and both neighbours: a heavy hit that knocks foes back and stuns them.',
-    line: 'Knocks back 3 lanes; stuns.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.45,
     dmg: 0.82,
     shoot: { pattern: 'quake', reach: 3, lanes: 1, target: 'front' }, // 1.5 cells deep, 3 lanes wide
@@ -92,11 +73,7 @@ export const ELEMENTS = {
     grow: (s) => ({ shoot: { reach: 3 + (2 * s) / 3 }, stun: { dur: 0.3 + 0.1 * s } }),
   },
   wind: {
-    name: 'Wind',
-    attack: 'Wing Gust',
     color: '#56b8a8',
-    desc: 'A wingbeat sends a gust 5 cells up its lane: every foe in it is hit and pushed back.',
-    line: 'Blows foes back up its lane.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.8,
     dmg: 0.27,
     shoot: { pattern: 'gust', reach: 10, lanes: 0, target: 'front' },
@@ -105,11 +82,7 @@ export const ELEMENTS = {
     grow: (s) => ({ knockback: 1 + s / 3, shoot: { lanes: s >= 3 ? 1 : 0 } }),
   },
   metal: {
-    name: 'Metal',
-    attack: 'Pride Pounce',
     color: '#f7be1e',
-    desc: 'The cub leaps onto the weakest foe nearby. A killing bite on wounded foes, and its prey drops bonus coins.',
-    line: 'Kills the weak for coins.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 1.0,
     dmg: 0.45,
     shoot: { pattern: 'pounce', radius: 6, target: 'weakest' }, // 3 cells
@@ -119,11 +92,7 @@ export const ELEMENTS = {
     grow: (s) => ({ bite: { chance: 0.25 + 0.05 * s }, loot: { pct: 0.6 + (0.4 * s) / 3 } }),
   },
   nature: {
-    name: 'Nature',
-    attack: 'Bramble Shell',
     color: '#7cd15a',
-    desc: 'A thorny ring pulses around the block: it roots foes, hurts anything that bites the block, and regrows the block and its neighbours.',
-    line: 'Roots foes, regrows blocks.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.5,
     dmg: 0.54,
     shoot: { pattern: 'pulse', radius: 2, target: 'front' }, // 1 cell around the block
@@ -134,6 +103,9 @@ export const ELEMENTS = {
     grow: (s) => ({ shoot: { radius: 2 + s / 3 }, regrow: { pct: 0.03 + 0.01 * s }, thorns: { pct: 0.25 + 0.05 * s } }),
   },
 };
+// each element's words come from the language's table (src/i18n): its name, its attack's name, what
+// the attack does, and the die pick's one line (src/ui/hud.js: it fits a 360 px phone)
+for (const [k, e] of Object.entries(ELEMENTS)) Object.assign(e, { name: tr(`el.${k}`), attack: tr(`el.${k}.attack`), desc: tr(`el.${k}.desc`), line: tr(`el.${k}.line`) });
 export const ELEMENT_KEYS = Object.keys(ELEMENTS);
 
 /** Growth stage of a class: 0 at 16 … 3 at 128; fusions and ultimates are fully grown. */
@@ -180,34 +152,34 @@ export const fusionKey = (a, b) => {
 // Glacier, Blizzard, Storm, Swamp, Sandstorm, Brimstone); the rest are new.
 // Keys are in ELEMENT_KEYS order (see fusionKey).
 export const FUSIONS = {
-  'fire+ice': { name: 'Frostnova' },
-  'fire+lightning': { name: 'Plasma' },
-  'fire+poison': { name: 'Brimstone' },
-  'fire+earth': { name: 'Magma' },
-  'fire+wind': { name: 'Inferno' },
-  'ice+lightning': { name: 'Cryo Arc' },
-  'ice+poison': { name: 'Venom' },
-  'ice+earth': { name: 'Glacier' },
-  'ice+wind': { name: 'Blizzard' },
-  'lightning+poison': { name: 'Toxic Shock' },
-  'lightning+earth': { name: 'Thunderquake' },
-  'lightning+wind': { name: 'Storm' },
-  'poison+earth': { name: 'Swamp' },
-  'poison+wind': { name: 'Miasma' },
-  'earth+wind': { name: 'Sandstorm' },
-  'fire+metal': { name: 'Forge' },
-  'ice+metal': { name: 'Cold Iron' },
-  'lightning+metal': { name: 'Railgun' },
-  'poison+metal': { name: 'Corrosion' },
-  'earth+metal': { name: 'Ironstone' },
-  'wind+metal': { name: 'Bladewind' },
-  'fire+nature': { name: 'Wildfire' },
-  'ice+nature': { name: 'Frostbloom' },
-  'lightning+nature': { name: 'Thunderbloom' },
-  'poison+nature': { name: 'Nightshade' },
-  'earth+nature': { name: 'Overgrowth' },
-  'wind+nature': { name: 'Pollenstorm' },
-  'metal+nature': { name: 'Harvest' },
+  'fire+ice': {},
+  'fire+lightning': {},
+  'fire+poison': {},
+  'fire+earth': {},
+  'fire+wind': {},
+  'ice+lightning': {},
+  'ice+poison': {},
+  'ice+earth': {},
+  'ice+wind': {},
+  'lightning+poison': {},
+  'lightning+earth': {},
+  'lightning+wind': {},
+  'poison+earth': {},
+  'poison+wind': {},
+  'earth+wind': {},
+  'fire+metal': {},
+  'ice+metal': {},
+  'lightning+metal': {},
+  'poison+metal': {},
+  'earth+metal': {},
+  'wind+metal': {},
+  'fire+nature': {},
+  'ice+nature': {},
+  'lightning+nature': {},
+  'poison+nature': {},
+  'earth+nature': {},
+  'wind+nature': {},
+  'metal+nature': {},
 };
 
 // Each fusion is its own element with a colour of its own, picked to stand apart
@@ -244,6 +216,7 @@ const FUSION_COLORS = {
   'metal+nature': '#f4a261', // Harvest: amber
 };
 for (const [key, f] of Object.entries(FUSIONS)) {
+  f.name = tr(`fusion.${key}`); // the skill's name (src/i18n); its pet keeps a name of its own
   f.color = FUSION_COLORS[key];
   f.parts = key.split('+');
 }
@@ -261,27 +234,19 @@ export const fusionOf = (cls) => (cls.element && cls.fusion ? FUSIONS[fusionKey(
 // Ultimate signatures, keyed by the apex (third) element. Periodic, field-wide,
 // like BALL x PIT's top tier (Sun, Timestop, Storm, Virus …).
 export const APEX = {
-  fire: { name: 'Sun', effect: 'globalBurn', period: 2, desc: 'Every 2 s, burns every foe on the field.' },
-  ice: { name: 'Timestop', effect: 'globalFreeze', period: 10, dur: 2.5, desc: 'Every 10 s, freezes every foe for 2.5 s.' },
-  lightning: { name: 'Tempest', effect: 'strikes', period: 1.5, count: 3, pct: 1.2, desc: 'Every 1.5 s, lightning strikes 3 random foes.' },
-  poison: { name: 'Plague', effect: 'contagion', period: 1, radius: 1.6, desc: 'Every second, poison jumps to nearby foes.' },
-  earth: { name: 'Meteor', effect: 'meteor', period: 5, radius: 2.2, pct: 4, desc: 'Every 5 s, a meteor hits the biggest crowd.' },
-  wind: { name: 'Vortex', effect: 'vortex', period: 8, push: 3, desc: 'Every 8 s, blows every non-boss foe 3 steps back up its lane.' },
-  metal: { name: 'Midas', effect: 'gild', period: 4, dur: 4, desc: 'Every 4 s, gilds every foe on the field: each drops bonus coins.' },
-  nature: { name: 'Lifebloom', effect: 'bloom', period: 6, pct: 0.25, desc: 'Every 6 s, repairs every damaged block by 25%.' },
+  fire: { effect: 'globalBurn', period: 2 },
+  ice: { effect: 'globalFreeze', period: 10, dur: 2.5 },
+  lightning: { effect: 'strikes', period: 1.5, count: 3, pct: 1.2 },
+  poison: { effect: 'contagion', period: 1, radius: 1.6 },
+  earth: { effect: 'meteor', period: 5, radius: 2.2, pct: 4 },
+  wind: { effect: 'vortex', period: 8, push: 3 },
+  metal: { effect: 'gild', period: 4, dur: 4 },
+  nature: { effect: 'bloom', period: 6, pct: 0.25 },
 };
+for (const [k, a] of Object.entries(APEX)) Object.assign(a, { name: tr(`apex.${k}`), desc: tr(`apex.${k}.desc`) });
 
 /** Short effect tags per element, for announcements and cards. */
-export const TAGS = {
-  fire: 'Burn',
-  ice: 'Slow + Freeze',
-  lightning: 'Chain + Stun',
-  poison: 'Poison + Weaken',
-  earth: 'Knockback + Stun',
-  wind: 'Knockback',
-  metal: 'Killing bite + Coins',
-  nature: 'Root + Thorns + Regrow',
-};
+export const TAGS = Object.fromEntries(Object.keys(ELEMENTS).map((k) => [k, tr(`tag.${k}`)]));
 
 // --- stages -----------------------------------------------------------------
 

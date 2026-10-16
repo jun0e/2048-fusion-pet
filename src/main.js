@@ -33,6 +33,7 @@ import { nextSpeed } from './ux/speed.js';
 import { createPause } from './ux/pause.js';
 import { inFrame, shareLine, shareRun } from './ux/share.js';
 import { createBossIntro } from './ui/boss-intro.js';
+import { LANGS, getLang, num, setLang, tr } from './i18n/index.js';
 import { recordRun, restoreRun, loadSaved, saveRun, clearSaved } from './ux/resume.js';
 import { SIGNATURE_TINT, TEXT, popupFont, textInk } from './ux/photosafe.js';
 import { loadStore } from './ux/coach.js';
@@ -108,6 +109,7 @@ async function waitForFonts() {
 // The loading screen in index.html (#boot): a message while loading, hidden after the first frame.
 const boot = document.getElementById('boot');
 const bootSay = (text) => boot && (boot.querySelector('.boot-msg').textContent = text);
+bootSay(tr('boot.loading')); // the page itself says it in English until the game's words load
 let failed = false; // after a failure: no more saves, and the loading screen stays up
 /** Loading failed, or a frame broke: the loading screen comes back with "Try again" and "New run". */
 function bootFail(err) {
@@ -116,7 +118,7 @@ function bootFail(err) {
   boot?.classList.remove('done');
   boot?.classList.add('failed');
   // the message changes once the screen shows again: a hidden live region announces nothing
-  setTimeout(() => bootSay('Something went wrong. Try again to reload the game.'), 100);
+  setTimeout(() => bootSay(tr('boot.failed')), 100);
 }
 
 async function start() {
@@ -191,7 +193,7 @@ async function start() {
   // a run whose pets roam resumes only where pets are drawn (not under ?style=classic), and back
   const saved = found && !!found.log.roaming === roaming ? found : null;
   if (saved) {
-    bootSay('Restoring your run…');
+    bootSay(tr('boot.restoring'));
     // let the message paint first (a replay can take a moment on a slow phone); a hidden tab has no frames
     await Promise.race([new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))), new Promise((r) => setTimeout(r, 100))]);
     const back = restoreRun(createRun, saved, { onEvents: (list) => list.forEach(tally) });
@@ -255,6 +257,15 @@ async function start() {
     onRestart: () => restart(),
     onMenu: (page) => (page === 'main' && pause.menu === 'closed' ? openMenu() : pause.show(page)),
     onSetting: (name) => {
+      if (name === 'lang') {
+        // the next language: saved as the player's choice; the page reloads in it (every screen and
+        // table is built in the language as it loads), and the run restores itself (src/ux/resume.js)
+        const langs = Object.keys(LANGS);
+        setLang(langs[(langs.indexOf(getLang()) + 1) % langs.length], true);
+        saveNow();
+        location.reload();
+        return;
+      }
       if (name === 'sound') sfx.toggle();
       if (name === 'haptics') haptics.set(!haptics.on);
       if (name === 'motion') {
@@ -309,7 +320,7 @@ async function start() {
     const framed = inFrame();
     const s = shareLine(lastSummary, { origin: location.origin, pathname: location.pathname, protocol: location.protocol, framed });
     const how = await shareRun(s, { framed });
-    if (how === 'copied') hud.shareDone('Copied!');
+    if (how === 'copied') hud.shareDone(tr('share.copied'));
     else if (how === 'shown') hud.shareShow(s.line); // the browser refused every copy: the player copies it
   }
 
@@ -371,7 +382,7 @@ async function start() {
     pause.show('closed');
     clearTimeout(overTimer); // a card still on its way from the last run must not cover this one
     clearSaved(); // the old run is over; this one saves itself from its first input
-    pauseTitle = 'Paused';
+    pauseTitle = tr('pause.title');
     stats = freshStats();
     resetSpeed();
     hud.clearBanners();
@@ -460,13 +471,13 @@ async function start() {
   });
 
   // Pause (src/ux/pause.js): the menu and its pages, and a phone held sideways.
-  let pauseTitle = 'Paused'; // 'Welcome back' after a resume
+  let pauseTitle = tr('pause.title'); // 'Welcome back' after a resume
   const pause = createPause({
     onChange: (s) => {
       paused = s.paused;
       hudEl.classList.toggle('paused', paused); // banners stop with the game
       if (s.menu === 'main') syncSettings();
-      if (s.menu === 'closed') pauseTitle = 'Paused';
+      if (s.menu === 'closed') pauseTitle = tr('pause.title');
       if (s.menu !== 'closed') saveNow(); // the phone may close the tab next
       // the help sheet first: the pause view then knows which dialog keeps the focus
       if ((s.menu === 'help') !== tutorial.helpOpen) tutorial.openHelp(s.menu === 'help');
@@ -494,11 +505,11 @@ async function start() {
   else tutorial.setMuted(true); // the showcase has no tips
   // a returning player (opening done) gets a goal: their best wave; a resumed run, the pause menu
   if (resumed) {
-    pauseTitle = 'Welcome back';
+    pauseTitle = tr('pause.welcome');
     openMenu();
   } else if (!kv && !tutorial.active) {
     // a player who learned the game before keepsakes existed: name the one they bring
-    if (firstRun) tutorial.note('New: keepsakes! You bring the Iron Fist.', 'keepsake');
+    if (firstRun) tutorial.note(tr('note.keepsakes'), 'keepsake');
     tutorial.note(returnGoal(bestWave));
   }
   // a returning player picks a keepsake before the first swipe (the run waits)
@@ -541,7 +552,7 @@ async function start() {
           sfx.merge(e.tier, e.combo);
           haptics.play('merge');
           const p = client(e.x, e.y + 0.9);
-          popup(p.x, p.y, `+${e.value.toLocaleString()}`, e.tier);
+          popup(p.x, p.y, `+${num(e.value)}`, e.tier);
           if (e.combo >= 2 && fx.flashAll((TEXT.peak * TEXT.comboPx) / stage.view.U ** 2, TEXT.life)) hud.combo(e.combo);
           break;
         }
@@ -556,7 +567,7 @@ async function start() {
             fx.coinDrop(e.x, e.y, Math.min(6, 1 + Math.floor(e.amount / 12)), coinTarget, coinPulse);
           } else if (e.reason === 'combo') {
             const p = client(e.x, e.y + 1.2);
-            popup(p.x, p.y, 'Free swipe!', 6, '#ffd34a');
+            popup(p.x, p.y, tr('pop.freeSwipe'), 6, '#ffd34a');
             fx.coinDrop(e.x, e.y, 3, coinTarget, coinPulse);
           } else if (e.reason === 'clear') {
             fx.coinDrop(0, 4, 10, coinTarget, coinPulse);
@@ -569,12 +580,12 @@ async function start() {
           if (e.kind === 'sell') {
             fx.burst(e.x, e.y, [0xffd34a, 0xffffff], 18, { speed: 4, size: 0.24, life: 0.5, gravity: -6 });
             fx.coinDrop(e.x, e.y, Math.min(6, 2 + Math.floor(e.amount / 5)), coinTarget, coinPulse);
-            popup(p.x, p.y, `Sold +${e.amount}`, 4, '#ffd34a');
+            popup(p.x, p.y, tr('pop.sold', { n: e.amount }), 4, '#ffd34a');
             sfx.coin();
           } else {
             fx.burst(e.x, e.y, [0xc9b08a, 0x8a7462, 0xffffff], 22, { speed: 5, size: 0.26, life: 0.5, gravity: -9 });
             stage.shake(4);
-            popup(p.x, p.y, `Broken −${-e.amount}`, 3, '#ef6060');
+            popup(p.x, p.y, tr('pop.broken', { n: -e.amount }), 3, '#ef6060');
             sfx.deny();
           }
           break;
@@ -584,7 +595,7 @@ async function start() {
           sfx.deny();
           haptics.play('deny');
           const c = hud.coinTarget();
-          popup(c.x + 60, c.y - 28, `Need ${e.cost}`, 2, '#ef6060');
+          popup(c.x + 60, c.y - 28, tr('pop.need', { n: e.cost }), 2, '#ef6060');
           break;
         }
         case 'promote': {
@@ -599,8 +610,8 @@ async function start() {
           sfx.milestone();
           haptics.play('boss');
           hud.banner(
-            `${e.boss ?? 'Boss'} defeated!`,
-            e.x2s ? `Your blocks got ${e.x2s} x2${e.x2s === 1 ? '' : 's'}.${e.pairs > 0 ? ' Merge the new pairs!' : ''}` : 'No other block had room to grow.',
+            tr('ban.bossDown', { name: e.boss ?? tr('ban.boss') }),
+            e.x2s ? `${tr('ban.bossX2s', { n: e.x2s })}${e.pairs > 0 ? ` ${tr('ban.mergePairs')}` : ''}` : tr('ban.noRoom'),
             'good',
           );
           if (maxSpeed < 4) {
@@ -608,7 +619,7 @@ async function start() {
             try {
               localStorage.setItem(X4_KEY, '1');
             } catch {}
-            hud.banner('x4 speed unlocked', 'The speed button now goes x1 · x2 · x4.', 'good');
+            hud.banner(tr('ban.x4'), tr('ban.x4.sub'), 'good');
           }
           break;
         case 'classed': {
@@ -624,13 +635,13 @@ async function start() {
         case 'override': {
           // the sliding block's colour wins: show who took over
           const p = client(e.x, e.y + 1.6);
-          popup(p.x, p.y, `${ELEMENTS[e.winner].name} over ${ELEMENTS[e.loser].name}`, 3, ELEMENTS[e.winner].color);
+          popup(p.x, p.y, tr('pop.over', { a: ELEMENTS[e.winner].name, b: ELEMENTS[e.loser].name }), 3, ELEMENTS[e.winner].color);
           break;
         }
         case 'resist': {
           // a boss got used to pushback (DEFENSE.bossPushResist, steps I–III): say so over its head
           const p = client(e.x, e.y + 1.6);
-          popup(p.x, p.y, `${e.name} resists pushback`, 3, '#4f6b86');
+          popup(p.x, p.y, tr('pop.resists', { name: e.name }), 3, '#4f6b86');
           fx.ring(e.x, e.y + 0.4, 0xdfe8f2, 0.35, 1.6, 0.35);
           break;
         }
@@ -638,16 +649,16 @@ async function start() {
           // the spawn level rose (src/sim/levels.js): the disc pops; the ribbon says the new odds
           badges.levelUp();
           sfx.choose(1);
-          hud.banner(`Level ${e.level}!`, `New blocks: ${e.odds.map((o) => `${o.value} ${o.pct}%`).join(' · ')}`, 'good');
+          hud.banner(tr('ban.level', { n: e.level }), tr('ban.level.sub', { odds: e.odds.map((o) => `${o.value} ${o.pct}%`).join(' · ') }), 'good');
           break;
         }
         case 'no2':
-          hud.banner('No more 2s!', 'Your first 512: new blocks start at 4.', 'good');
+          hud.banner(tr('ban.no2s'), tr('ban.no2s.sub'), 'good');
           break;
         case 'buyXp': {
           sfx.coin();
           const c = badges.center('level');
-          popup(c.x + 26, c.y - 26, `+${e.xp} XP`, 3, '#ffcf4a');
+          popup(c.x + 26, c.y - 26, tr('pop.xp', { n: e.xp }), 3, '#ffcf4a');
           break;
         }
         case 'punch': {
@@ -675,11 +686,11 @@ async function start() {
           fx.burst(e.x, e.y, [0xff8a3d, 0xffd36b, 0xffffff], 40, { speed: 7, size: 0.32, life: 0.7, gravity: 0 });
           stage.shake(10);
           sfx.milestone();
-          hud.banner('Phoenix Feather!', 'Your last block rose again and blasted the monsters away.', 'good');
+          hud.banner(tr('ban.phoenix'), tr('ban.phoenix.sub'), 'good');
           badges.pulseKeepsake();
           break;
         case 'dieGained':
-          hud.banner(`New die: ${e.offer.name}`, 'Added to your deck: blocks reaching 16 can now roll it.', 'good');
+          hud.banner(tr('ban.newDie', { name: e.offer.name }), tr('ban.newDie.sub'), 'good');
           sfx.milestone();
           break;
         case 'tileHeal':
@@ -702,29 +713,30 @@ async function start() {
             haptics.play('lost');
             hud.castleHit(inDanger() && stage.takeFlash()); // the edge pulse shows only in danger; then it takes the one-a-second flash budget
             const p = client(e.x, e.y + 0.9);
-            popup(p.x, p.y, 'Block lost!', 4, '#ef6060');
+            popup(p.x, p.y, tr('pop.lost'), 4, '#ef6060');
           }
           break;
         case 'tilesRestored':
           for (const t of run.tiles) fx.burst(t.x, t.y, [0x9dff9d, 0xffffff], 4, { speed: 1.5, size: 0.16, life: 0.4, gravity: -3 });
           break;
         case 'locked':
-          hud.banner('Board locked!', 'No swipe can move a block until one is destroyed or boss x2s make a pair.', 'boss');
+          hud.banner(tr('ban.locked'), tr('ban.locked.sub'), 'boss');
           break;
         case 'waveStart':
           sfx.battle(!!e.boss);
           if (e.boss) resetSpeed(); // a boss is worth watching at full detail
-          if (e.boss) hud.banner(`${ENEMY_TYPES[e.boss].name} approaches!`, ENEMY_TYPES[e.boss].intro, 'boss');
-          if (e.boss) bossIntro.show(e.boss); // the boss's portrait over the field (the ribbon speaks it)
-          else hud.banner(`Wave ${e.wave}`, `${e.chapter} · ${e.count} foes`);
+          if (e.boss) {
+            hud.banner(tr('ban.bossComes', { name: ENEMY_TYPES[e.boss].name }), ENEMY_TYPES[e.boss].intro, 'boss');
+            bossIntro.show(e.boss); // the boss's portrait over the field (the ribbon speaks it)
+          } else hud.banner(tr('ban.wave', { n: e.wave }), tr('ban.wave.sub', { chapter: e.chapter, foes: tr('meter.foes', { n: e.count }) }));
           break;
         case 'waveClear':
           clearBonus = e.bonus;
           break;
         case 'waveIncoming':
           hud.banner(
-            `Wave ${e.wave - 1} cleared! +${clearBonus}`,
-            e.boss ? `Boss next: ${ENEMY_TYPES[e.boss].name}. Line up your blocks under the gate with red banners.` : `Next: ${e.count} foes in ${e.lanes.length} lanes`,
+            tr('ban.cleared', { n: e.wave - 1, bonus: clearBonus }),
+            e.boss ? tr('ban.bossNext', { name: ENEMY_TYPES[e.boss].name }) : tr('ban.next', { foes: tr('meter.foes', { n: e.count }), lanes: tr('unit.lanes', { n: e.lanes.length }) }),
             e.boss ? 'boss' : 'good',
           );
           break;
@@ -839,7 +851,7 @@ async function start() {
     if (canSave && run.maxTier > meta.bestTier) {
       for (const k of recordBest(meta, run.maxTier)) {
         runUnlocks.push(k);
-        hud.banner(`Keepsake unlocked: ${k.name}!`, `${k.short} Pick it before your next run.`, 'good');
+        hud.banner(tr('ban.ksUnlocked', { name: k.name }), tr('ban.ksUnlocked.sub', { short: k.short }), 'good');
         sfx.milestone();
       }
       saveMeta(meta);

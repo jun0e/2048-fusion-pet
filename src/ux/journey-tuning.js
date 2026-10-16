@@ -1,6 +1,7 @@
 // Journey timing and copy shared by the game (main.js), the coach and the
 // journey log (src/ux), and the journey probe (tools/journey-probe.mjs), so the
-// probe measures what ships.
+// probe measures what ships. The words come from the language's table (src/i18n).
+import { tr } from '../i18n/index.js';
 
 /** Seconds between the last block falling and the game-over card. */
 export const GAME_OVER_DELAY = 0.7;
@@ -13,7 +14,7 @@ export const FLASH_SECONDS = 1;
 
 /** The game-over card's cause line: what broke the last block. */
 export function causeLine({ wave, by = null }) {
-  return by ? `A ${by} broke your last block on wave ${wave}.` : `Your last block fell on wave ${wave}.`;
+  return by ? tr('over.causeBy', { by, wave }) : tr('over.cause', { wave });
 }
 
 /** Words on the game-over card: title, cause line, stat labels, button. */
@@ -24,10 +25,10 @@ export const gameOverWords = (cause = causeLine({ wave: 1, by: 'Pixie' })) => 1 
  * first tip of the retry, when the player can act on it (not on the card).
  */
 export function lossHint({ wave, maxTier }) {
-  if (maxTier < 4) return 'Merge to 16: only blocks of 16 or more shoot.';
-  if (wave <= 3) return 'Build 16s under the lit braziers, then tap Wave now.';
-  return 'Spread turrets over the lanes and keep spare blocks.';
+  if (maxTier < 4) return tr('hint.merge16');
+  if (wave <= 3) return tr('hint.braziers');
+  return tr('hint.spread');
 }
 
 /** The return-visit goal, shown once when a returning player starts. */
-export const returnGoal = (bestWave) => (bestWave > 0 ? `Your best is wave ${bestWave}. Beat it!` : null);
+export const returnGoal = (bestWave) => (bestWave > 0 ? tr('goal.best', { wave: bestWave }) : null);

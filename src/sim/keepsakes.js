@@ -6,13 +6,11 @@
 // Unlock steps from tools/level-probe.mjs (48 bot games): 128 comes in 90% of
 // games, 256 in 73%, 512 in 54%, 1024 in 38%, 2048 in 10%. So a new player gets
 // a second keepsake in the first run or two, and the last one is a real feat.
+import { tr } from '../i18n/index.js';
 export const KEEPSAKES = [
   {
     id: 'ironFist',
-    name: 'Iron Fist',
     unlockTier: 0, // the starter: the first run equips it, with a tutorial
-    short: 'Blocks punch the monsters they slide into.',
-    desc: 'A block that moves in a swipe punches every monster in its way, as hard as its base hit. Bigger blocks punch harder.',
     // the punch: mult × the block's base hit (turretDamage); it reaches `reach` past the
     // block's new cell (a monster biting the block stands 1.15 from its centre) and
     // `width` to each side of its path (under half a cell: the next column is safe)
@@ -20,35 +18,23 @@ export const KEEPSAKES = [
   },
   {
     id: 'coinPurse',
-    name: 'Coin Purse',
     unlockTier: 7, // 128
-    short: '+60 coins at the start. Kills pay 20% more.',
-    desc: 'Start the run with 60 more coins, and every kill drops 20% more coins.',
     startCoins: 60,
     killPct: 0.2,
   },
   {
     id: 'spikedCollar',
-    name: 'Spiked Collar',
     unlockTier: 8, // 256
-    short: 'Blocks have 30% more health.',
-    desc: 'Every block has 30% more hidden health, so monsters take longer to break it.',
     blockHp: 0.3,
   },
   {
     id: 'luckyClover',
-    name: 'Lucky Clover',
     unlockTier: 9, // 512
-    short: 'New blocks spawn as if 2 levels higher.',
-    desc: 'New blocks use the spawn odds of 2 levels above yours (up to the top level).',
     levels: 2,
   },
   {
     id: 'phoenixFeather',
-    name: 'Phoenix Feather',
     unlockTier: 10, // 1024
-    short: 'Once a run, your last block rises again.',
-    desc: 'Once a run, when your last block falls, it rises as the biggest block you lost this run, at full health. The monsters on the board are thrown back to the gates, and you get 4 swipes of coins to rebuild.',
     // a plain rescue never changed a bot run's last wave: the last block is usually a small one,
     // and it fell again seconds later. Rising as the run's biggest lost block makes it a comeback.
     reviveHp: 1,
@@ -56,15 +42,14 @@ export const KEEPSAKES = [
   },
   {
     id: 'quakeBoots',
-    name: 'Quake Boots',
     unlockTier: 11, // 2048
-    short: 'A swipe with 2+ merges stomps the board.',
-    desc: 'A swipe that makes 2 or more merges stomps: every monster on the board takes your top block\'s base hit and is stunned for 1.5 s.',
     merges: 2,
     stun: 1.5,
     stomp: 1, // × the top block's base hit (turretDamage)
   },
 ];
+// each keepsake's name, its one line and its card's words come from the language's table (src/i18n)
+for (const k of KEEPSAKES) Object.assign(k, { name: tr(`ks.${k.id}`), short: tr(`ks.${k.id}.short`), desc: tr(`ks.${k.id}.desc`) });
 
 export const STARTER_KEEPSAKE = 'ironFist';
 

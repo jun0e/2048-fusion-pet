@@ -3,10 +3,11 @@
 // share sheet is refused, and asking for it spends the tap, so the copy after it is refused too:
 // there the line is copied straight away, inside the tap. Apart from main.js so a test holds the
 // order to that.
+import { num, tr } from '../i18n/index.js';
 
 /** The line to share, with the game's address when it has one a friend can open. */
 export function shareLine({ wave, score }, { origin = '', pathname = '', protocol = '', framed = false } = {}) {
-  const text = `I held the siege to wave ${wave} in 2048 Siege (${score.toLocaleString()} points). Can you beat it?`;
+  const text = tr('share.line', { wave, score: num(score) });
   // a frame's own address (the viewer's sandbox) and a file on disk are no link to send
   const url = !framed && /^https?:$/.test(protocol) ? `${origin}${pathname}` : '';
   return { text, url, line: url ? `${text} ${url}` : text };

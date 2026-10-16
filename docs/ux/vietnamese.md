@@ -1,0 +1,80 @@
+# Vietnamese (T14)
+
+The game's words live in one plain-text table per language: `src/i18n/en.js` and `src/i18n/vi.js`. They are read through `tr(key, vars)` in `src/i18n/index.js`. The name is `tr`, not `t`, because `t` is the code's usual name for a tile, a time and an interpolation.
+
+- **Another language** is one more table.
+- **No HTML in a table:** the Nibble copy of the game reads the same tables, so each screen builds its markup around the words.
+- **Placeholders and plurals:** `{name}` is filled in by `tr()`. A plural is `{ one, other }`, picked by `vars.count`, else `vars.n`.
+- **A missing key** falls back to English. `test/i18n.test.js` holds Vietnamese to every English key, with the same placeholders.
+
+- **First launch:** the game starts in Vietnamese when the phone lists Vietnamese among its languages, and in English otherwise.
+- **Changing it:** the Language row in Settings shows the language in its own words (English, Tiếng Việt). A tap moves to the next one and keeps the choice (`siege:lang`).
+- **Why a reload:** the page reloads in the new language, and the run restores itself (`src/ux/resume.js`). The language is settled as `src/i18n/index.js` loads, so every screen and table is built in it, with no screen left half-switched.
+- **Pet names stay as they are.** Fusion pets (Mistmaw, Frostjelly …) keep their names in both languages.
+
+## Glossary
+
+One word for each thing, everywhere.
+
+| English | Tiếng Việt | Notes |
+| --- | --- | --- |
+| 2048 Siege | 2048 Siege | The game's name stays. |
+| run | ván | "Chơi lại ván", "Bắt đầu ván". |
+| Wave now | Vào đợt | The button: "Vào đợt ▶ 12"; on a boss, "Đánh trùm ▶". |
+| best | kỷ lục | "Kỷ lục 161", "Đợt kỷ lục mới!". |
+| turret | tháp bắn | A block of 16 or more. |
+| Sell, Break | Bán, Đập | "Tap again" is "Chạm lại", shorter than the English, which the narrow card is sized for. |
+| Details | Chi tiết | |
+| wave | đợt | "Đợt 5", "Qua đợt 4!" |
+| block | khối | A numbered block on the board. |
+| board | bàn | |
+| merge | gộp | |
+| swipe | vuốt | "Vuốt 5" on the coin bar: the price of a swipe. |
+| coins | xu | |
+| foe | quái | Short, and what players say. |
+| boss | trùm | |
+| lane | làn | |
+| gate | cổng | |
+| keep | thành | |
+| pet | thú cưng | |
+| fusion | dung hợp | The 256 step: two elements in one pet. |
+| legend | huyền thoại | The 4096 step. |
+| element | hệ | "hệ Lửa", as in creature games. |
+| die, dice | xúc xắc | A die adds an element to the deck. |
+| deck | bộ xúc xắc | |
+| keepsake | bảo vật | |
+| level | cấp | The spawn level. The disc's "Lv" is "Cấp". |
+| XP | KN | kinh nghiệm |
+| skill | kỹ năng | |
+| ready | sẵn | The namecard pill (42 px at 14 px): "SẴN". |
+| top block | khối đỉnh | The chip says "Đỉnh". |
+| Overrun! | Thất thủ! | The game-over title. |
+
+### The elements
+
+| English | Tiếng Việt |
+| --- | --- |
+| Fire | Lửa |
+| Ice | Băng |
+| Lightning | Sét |
+| Poison | Độc |
+| Earth | Đất |
+| Wind | Gió |
+| Metal | Kim |
+| Nature | Mộc |
+
+Kim and Mộc are the five-element words (Kim, Mộc, Thủy, Hỏa, Thổ). Both are one syllable, so all eight elements fit a chip.
+
+## Style
+
+- **Address the player as "bạn".** Keep it friendly and short, as the English is. Use no honorifics.
+- **Buttons say what they do:** Bán, Đập, Chi tiết, Chơi lại, Chia sẻ, Tiếp tục, Xong.
+- **Numbers:** Vietnamese writes 1.234 for one thousand two hundred and thirty-four (`num()` in `src/i18n/index.js`).
+- **Length:** Vietnamese is about a quarter longer than English. Every screen was checked at 360 × 640 (the die pick, both tile cards, pause, settings, How to play, the level and keepsake cards, game over).
+- **Tight spaces:** `test/i18n.test.js` holds the words in tight spaces to their room:
+  - each die's one line, 30 characters;
+  - the READY pill, 4;
+  - Sell / Break and its labels, 10;
+  - the top-block chip's caption, 4;
+  - one word per element.
+- **Fonts:** Baloo 2 and Nunito both have the Vietnamese letters, and Google Fonts serves that subset by itself. Offline, the single-file game falls back to the phone's system font, which has them too.

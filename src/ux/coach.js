@@ -12,6 +12,7 @@ import { stageFor } from '../sim/classes.js';
 import { keepsakeById } from '../sim/keepsakes.js';
 import { punchTargets, punchingSwipes, slidePaths } from '../sim/punch.js';
 import { FLASH_SECONDS } from './journey-tuning.js';
+import { tr } from '../i18n/index.js';
 
 export const TIPS_BASELINE = {
   merge: 'Merged! A bigger block is a stronger turret.',
@@ -54,29 +55,12 @@ export const COACH_BASELINE = {
 // a timer; `swipes: n` waits for n more swipes, `after: s` moves on after s seconds.
 // Tips (pass 2): ≤ 12 words, shown for their reading time, 15 s apart, and the
 // urgent ones (a block hit or lost, out of coins) jump the queue.
-export const TIPS = {
-  merge: 'Merged! Bigger blocks shoot harder.',
-  lanes: 'Enemies come down the lanes with lit braziers.',
-  attacked: 'Enemies break your blocks for good. Lose them all, you lose.',
-  lost: 'That block is gone for good. Keep spares.',
-  coins: 'Kills drop coins for more swipes.',
-  broke: 'Out of coins. Kills and cleared waves pay more.',
-  break: 'Break: swipe to grow, or tap Wave now.',
-  colour: 'The block that slides in keeps its element.',
-  awaken: 'Your 16 rolled an element! Light 4 growth marks: fusion at 256.',
-  unlock: 'New die! New 16s can roll it.',
-  fusion: 'Fusion! Two elements, both effects. Next stop: 4096.',
-  ultimate: 'Ultimate! It hits the whole field.',
-  boss: 'Boss through the bannered gate! Kill it: x2s for your blocks.',
-  milestone: '2048! Reach 4096 for an ultimate.',
-  // keepsakes and the spawn level (src/sim/keepsakes.js, src/sim/levels.js)
-  fist: 'Iron Fist: slide a block into the monster to punch it!',
-  fistDone: 'Punch! Bigger blocks punch harder.',
-  level: 'Level up! Bigger new blocks. Tap Lv for the odds.',
-};
+// the words come from the language's table (src/i18n, the tip.* keys)
+const TIP_IDS = ['merge', 'lanes', 'attacked', 'lost', 'coins', 'broke', 'break', 'colour', 'awaken', 'unlock', 'fusion', 'ultimate', 'boss', 'milestone', 'fist', 'fistDone', 'level'];
+export const TIPS = Object.fromEntries(TIP_IDS.map((id) => [id, tr(`tip.${id}`)]));
 
 /** The Iron Fist tip names the swipe that punches now: "Iron Fist: swipe up to punch it!" */
-export const fistText = (dir) => (dir ? `Iron Fist: swipe ${dir} to punch the monster!` : TIPS.fist);
+export const fistText = (dir) => (dir ? tr('tip.fistDir', { dir: tr(`dir.${dir}`) }) : TIPS.fist);
 
 /**
  * The swipe that would punch a monster now (the most monsters hit; ties go up, left, right, down),
@@ -110,12 +94,12 @@ export const COACH = {
   name: 'tuned',
   guided: [
     // the first step ends on the first 16 (a swipe that only moves the 8s does not count)
-    { id: 'swipe', text: 'Swipe to merge the two 8s.', target: 'board', hand: true, skip: true, doneOn: 'turret' },
-    { id: 'turret', text: '16+ blocks shoot enemies in their column.', target: 'top', doneOn: 'swipe', after: 4 },
-    { id: 'grow', text: 'Keep merging. Each swipe costs coins.', target: 'coins', swipes: 3, after: 12 },
+    { id: 'swipe', text: tr('guide.swipe'), target: 'board', hand: true, skip: true, doneOn: 'turret' },
+    { id: 'turret', text: tr('guide.turret'), target: 'top', doneOn: 'swipe', after: 4 },
+    { id: 'grow', text: tr('guide.grow'), target: 'coins', swipes: 3, after: 12 },
     // the first run brings Iron Fist (src/sim/keepsakes.js): it is named here, taught when a monster first bites
-    { id: 'keepsake', text: 'Your keepsake: Iron Fist. Blocks punch monsters.', target: 'keepsake', doneOn: 'swipe', after: 5, when: (run) => run.keepsake === 'ironFist' },
-    { id: 'start', text: 'Tap Wave now when you are ready.', target: 'wave', doneOn: 'waveStart', release: true },
+    { id: 'keepsake', text: tr('guide.keepsake'), target: 'keepsake', doneOn: 'swipe', after: 5, when: (run) => run.keepsake === 'ironFist' },
+    { id: 'start', text: tr('guide.start'), target: 'wave', doneOn: 'waveStart', release: true },
   ],
   tips: TIPS,
   tipSeconds: readSeconds,
@@ -151,18 +135,8 @@ export const COACH = {
   hold: { fist: FIST_SECONDS }, // these tips stay up this long (or until done)
 };
 
-export const HELP = [
-  ['Swipe', 'Every block slides; equal neighbours merge. Each swipe costs coins and adds a block.'],
-  ['Turrets', 'Blocks of 16 or more shoot enemies along their column; smaller ones only soak up hits. Tap a block to see its range.'],
-  ['Siege', 'Enemies on the board attack your blocks. Hidden health refills each wave; destroyed blocks are gone. No blocks left = game over.'],
-  ['Elements', 'A block reaching 16 rolls a random element from your deck. When two elemental blocks merge, the one that slides in keeps its element.'],
-  ['Upgrades', 'Each merge lights one of a block’s four growth marks. All four at 256: fusion, a unique element with both effects (Fire + Ice = Frostnova). A block remembers every element merged into it, and at 256 you pick its fusion from those (tap a block to see its options). All four again at 4096: ultimate.'],
-  ['Unlocks', 'You start with 2 dice. Your first 64, 256 and 512 each add a new die to the deck.'],
-  ['Coins', 'Kills and cleared waves pay coins. Three merges in one swipe refund it.'],
-  ['Level', 'The Lv disc shows your spawn level. Each level makes bigger new blocks likelier; tap it for the odds. Cleared waves give XP, and Buy XP turns coins into more. Your biggest block caps the level. After your first 512, no more 2s spawn.'],
-  ['Keepsakes', 'Bring one keepsake into each run (tap its disc to read it). Your biggest block ever unlocks more: a 128, 256, 512, 1024 and 2048 each unlock one. Iron Fist: blocks punch the monsters they slide into.'],
-  ['Bosses', 'Every 5th wave, through the gate with red banners. Killing one gives your other blocks x2s, one for each doubling in your biggest block (256 = eight x2s), aimed to make pairs. No block grows past the biggest.'],
-];
+// How to play's rules: [title, words], from the language's table (src/i18n, the help.* keys)
+export const HELP = ['swipe', 'turrets', 'siege', 'elements', 'upgrades', 'unlocks', 'coins', 'level', 'keepsakes', 'bosses'].map((k) => [tr(`help.${k}.title`), tr(`help.${k}`)]);
 
 export const STORE_KEY = 'siege:tutorial';
 export const wordCount = (text) => (text ? text.trim().split(/\s+/).length : 0);

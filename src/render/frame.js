@@ -19,6 +19,7 @@ import { DECOR, FRAME_GEOM as G, FRAME_INK, FRAME_CREAM, brazierState, deckRow, 
 import { mix, tone } from '../art/tokens.js';
 import { PLAQUE } from '../art/plaque.js';
 import { enemyTex, portalTex } from './textures.js';
+import { num, tr } from '../i18n/index.js';
 import { farTex, frameTex, ridgeTex } from './frame-art.js';
 
 const hex = (c) => parseInt(String(c).replace('#', ''), 16);
@@ -437,7 +438,7 @@ function drawDeck(p, g, text, deck) {
   edge(sx0, sy0 + sh - inset, sx0, sy0 + inset);
   g.stroke({ width: Math.max(1.5, L(0.05)), color: CREAM, cap: 'round' });
   const fontPx = Math.max(MIN_TEXT, Math.round(0.36 * U));
-  text.text = `at ${deck.nextAt.toLocaleString()}`;
+  text.text = tr('deck.at', { n: num(deck.nextAt) });
   text.style.fontSize = fontPx;
   text.style.stroke = { color: INK, width: Math.max(3, fontPx * 0.24), join: 'round' };
   // the slot is wide enough for "at 512" at 14 px on a 360 px phone; only a smaller window squeezes it

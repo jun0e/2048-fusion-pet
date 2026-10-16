@@ -2023,6 +2023,14 @@ body {
   display: none;
 }
 
+/* the Language row (T14): the language the game speaks, in its own words; a tap moves to the next
+   one (main.js onSetting 'lang': the page reloads in it, and the run restores itself) */
+.lang-row b {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--ink-soft);
+}
+
 .switch i {
   position: relative;
   width: 46px;

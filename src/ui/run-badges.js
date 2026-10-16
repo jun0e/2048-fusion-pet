@@ -5,6 +5,7 @@
 // odds now and at the next level, how XP comes, and Buy XP; the keepsake card says what the
 // keepsake does and which one unlocks next. Pure presentation; main.js feeds it every frame.
 // All markup is built from constants and numbers (no user input), so innerHTML is safe.
+import { num, tr } from '../i18n/index.js';
 import { GRID, GRID_TOP, TIER_COLORS, cellX, tierValue } from '../config.js';
 import { LEVELS, spawnOdds } from '../sim/levels.js';
 import { keepsakeById, nextKeepsake } from '../sim/keepsakes.js';
@@ -28,21 +29,21 @@ export function levelCard({ level, xp, need, cap = LEVELS.max, spawnLevel = leve
   const bonus = keepsakeById(keepsake)?.levels ?? 0; // Lucky Clover
   const nextLevel = Math.min(LEVELS.max, level + 1); // the player's next level, as the disc counts
   const nextSpawn = Math.min(LEVELS.max, nextLevel + bonus);
-  const raise = tierValue(cap + (LEVELS.capBelowTop ?? 0) + 1).toLocaleString(); // the block that lifts the cap a level
+  const raise = num(tierValue(cap + (LEVELS.capBelowTop ?? 0) + 1)); // the block that lifts the cap a level
   const oddsTop = spawnLevel >= LEVELS.max;
   const notes = [];
-  if (spawnLevel > level) notes.push(`${keepsakeById(keepsake)?.name ?? 'Your keepsake'}: new blocks use level ${spawnLevel}'s odds.`);
-  if (atCap) notes.push(`Your top block caps the level at ${cap}: a ${raise} raises it.`);
-  notes.push(no2 ? 'You made a 512: 2s no longer spawn.' : 'After your first 512, 2s stop spawning.');
-  const label = `Buy ${LEVELS.buy.xp} XP`;
+  if (spawnLevel > level) notes.push(tr('lv.noteKs', { name: keepsakeById(keepsake)?.name ?? tr('lv.yourKeepsake'), level: spawnLevel }));
+  if (atCap) notes.push(tr('lv.noteCap', { cap, raise }));
+  notes.push(tr(no2 ? 'lv.no2' : 'lv.no2Soon'));
+  const label = tr('lv.buy', { xp: LEVELS.buy.xp });
   let buy;
-  if (top || oddsTop) buy = { ok: false, label: 'Top odds', price: null, note: 'Your spawns are as good as they get.' };
-  else if (price == null) buy = { ok: false, label, price: null, note: `Make a ${raise} to raise the cap.` };
-  else if (coins < price) buy = { ok: false, label, price, note: `Need ${price} coins.` };
-  else buy = { ok: true, label, price, note: `${LEVELS.buy.xp} XP for the price of ${LEVELS.buy.swipes} swipes.` };
+  if (top || oddsTop) buy = { ok: false, label: tr('lv.topOdds'), price: null, note: tr('lv.topOdds.note') };
+  else if (price == null) buy = { ok: false, label, price: null, note: tr('lv.raise', { raise }) };
+  else if (coins < price) buy = { ok: false, label, price, note: tr('lv.need', { price }) };
+  else buy = { ok: true, label, price, note: tr('lv.buyNote', { xp: LEVELS.buy.xp, swipes: LEVELS.buy.swipes }) };
   return {
-    title: `Spawn level ${level}`,
-    xpText: top ? 'Top level' : `${xp} / ${need} XP`,
+    title: tr('lv.title', { level }),
+    xpText: top ? tr('lv.top') : tr('lv.xp', { xp, need }),
     share: top ? 1 : Math.max(0, Math.min(1, xp / need)),
     now: spawnOdds(spawnLevel, maxTier),
     next: !top && nextSpawn > spawnLevel ? spawnOdds(nextSpawn, maxTier) : null,
@@ -54,7 +55,7 @@ export function levelCard({ level, xp, need, cap = LEVELS.max, spawnLevel = leve
 
 /** Where XP comes from, in words (the numbers in src/sim/levels.js). */
 export const xpSources = () =>
-  `XP: +${LEVELS.xp.waveClear} for each cleared wave${LEVELS.xp.merge ? `, +${LEVELS.xp.merge} for each merge` : ''}, or buy it.`;
+  tr(LEVELS.xp.merge ? 'lv.sourcesMerge' : 'lv.sources', { wave: LEVELS.xp.waveClear, merge: LEVELS.xp.merge });
 
 export function createRunBadges(root, { stage, onBuyXp, onOpen }) {
   const lv = document.createElement('button');
@@ -62,7 +63,7 @@ export function createRunBadges(root, { stage, onBuyXp, onOpen }) {
   lv.dataset.badge = 'level';
   lv.innerHTML = `
     <svg class="lv-ring" viewBox="0 0 44 44" aria-hidden="true"><circle class="lv-track" cx="22" cy="22" r="19"/><circle class="lv-fill" cx="22" cy="22" r="19" stroke-dasharray="${RING}" stroke-dashoffset="${RING}"/></svg>
-    <span class="lv-face"><small>Lv</small><b>1</b></span>`;
+    <span class="lv-face"><small>${tr('lv.disc')}</small><b>1</b></span>`;
   const ks = document.createElement('button');
   ks.className = 'run-badge ks-badge';
   ks.dataset.badge = 'keepsake';
@@ -129,9 +130,9 @@ export function createRunBadges(root, { stage, onBuyXp, onOpen }) {
     const refocus = card.contains(document.activeElement) && document.activeElement.classList.contains('lv-buy'); // a keyboard buyer keeps the button
     card.style.setProperty('--c', '#ffcf4a');
     card.innerHTML = `
-      <button class="inspect-x" aria-label="Close">×</button>
+      <button class="inspect-x" aria-label="${tr('ui.close')}">×</button>
       <div class="inspect-head">
-        <div class="inspect-pic lv-pic"><small>Lv</small><b>${n.level}</b></div>
+        <div class="inspect-pic lv-pic"><small>${tr('lv.disc')}</small><b>${n.level}</b></div>
         <div class="inspect-titles">
           <h3>${c.title}</h3>
           <div class="inspect-sub"><span class="inspect-value">${c.xpText}</span></div>
@@ -142,8 +143,8 @@ export function createRunBadges(root, { stage, onBuyXp, onOpen }) {
         <button class="inspect-sell is-sell lv-buy" ${c.buy.ok ? '' : 'disabled'}>${c.buy.label}${c.buy.price != null ? ` <b><span class="inspect-coin"></span>−${c.buy.price}</b>` : ''}</button>
         <span class="inspect-note">${c.buy.note}</span>
       </div>
-      <div class="lv-odds"><span class="lv-odds-label">New blocks</span><div class="odds">${oddsHtml(c.now)}</div></div>
-      ${c.next ? `<div class="lv-odds next"><span class="lv-odds-label">At Lv ${c.nextLevel}</span><div class="odds">${oddsHtml(c.next)}</div></div>` : ''}
+      <div class="lv-odds"><span class="lv-odds-label">${tr('lv.newBlocks')}</span><div class="odds">${oddsHtml(c.now)}</div></div>
+      ${c.next ? `<div class="lv-odds next"><span class="lv-odds-label">${tr('lv.atLv', { n: c.nextLevel })}</span><div class="odds">${oddsHtml(c.next)}</div></div>` : ''}
       <p class="inspect-next">${xpSources()} ${c.notes.join(' ')}</p>`;
     if (refocus) card.querySelector('.lv-buy')?.focus({ preventScroll: true });
   }
@@ -155,27 +156,27 @@ export function createRunBadges(root, { stage, onBuyXp, onOpen }) {
     if (key === cardKey || !k) return;
     cardKey = key;
     card.style.setProperty('--c', '#c9b8a4');
-    const used = k.reviveHp != null ? `<p class="inspect-special">${n.phoenixReady ? 'Ready: it has not been used this run.' : 'Used this run. It comes back next run.'}</p>` : '';
-    const next = nk ? `Next keepsake: ${nk.name}, unlocked by your first ${tierValue(nk.unlockTier).toLocaleString()} (your best: ${n.bestTier ? tierValue(n.bestTier).toLocaleString() : 'none yet'}).` : 'You own every keepsake.';
+    const used = k.reviveHp != null ? `<p class="inspect-special">${tr(n.phoenixReady ? 'ks.ready' : 'ks.used')}</p>` : '';
+    const next = nk ? tr('ks.next', { name: nk.name, value: num(tierValue(nk.unlockTier)), best: n.bestTier ? num(tierValue(n.bestTier)) : tr('ks.noneYet') }) : tr('ks.all');
     card.innerHTML = `
-      <button class="inspect-x" aria-label="Close">×</button>
+      <button class="inspect-x" aria-label="${tr('ui.close')}">×</button>
       <div class="inspect-head">
         <div class="inspect-pic ks-pic">${keepsakeIcon(k.id)}</div>
         <div class="inspect-titles">
           <h3>${k.name}</h3>
-          <div class="inspect-sub"><span class="inspect-chip">Keepsake</span></div>
+          <div class="inspect-sub"><span class="inspect-chip">${tr('ks.chip')}</span></div>
         </div>
       </div>
       <p class="inspect-desc">${k.desc}</p>
       ${used}
-      <p class="inspect-next">Brought into this run. Pick another before your next run. ${next}</p>`;
+      <p class="inspect-next">${tr('ks.brought')} ${next}</p>`;
   }
 
   function render() {
     if (!open || !last) return;
     if (open === 'level') renderLevel(last);
     else renderKeepsake(last);
-    card.setAttribute('aria-label', open === 'level' ? 'Spawn level' : 'Keepsake');
+    card.setAttribute('aria-label', open === 'level' ? tr('lv.cardName') : tr('ks.chip'));
     card.hidden = false;
     const screen = `${stage.view.U}|${stage.view.w}|${stage.view.h}`;
     if (screen !== placedFor) {
@@ -197,7 +198,7 @@ export function createRunBadges(root, { stage, onBuyXp, onOpen }) {
       if (n.level !== shown.level) {
         shown.level = n.level;
         lvNum.textContent = String(n.level);
-        lv.setAttribute('aria-label', `Spawn level ${n.level}: tap for the odds`);
+        lv.setAttribute('aria-label', tr('lv.discName', { n: n.level }));
         lv.classList.toggle('top', n.level >= LEVELS.max);
       }
       const share = n.level >= LEVELS.max ? 1 : Math.max(0, Math.min(1, n.xp / n.need));
@@ -209,7 +210,7 @@ export function createRunBadges(root, { stage, onBuyXp, onOpen }) {
         shown.keepsake = n.keepsake;
         const k = keepsakeById(n.keepsake);
         ks.firstElementChild.innerHTML = k ? keepsakeIcon(k.id) : '';
-        ks.setAttribute('aria-label', k ? `Keepsake: ${k.name}. Tap to see what it does.` : 'No keepsake');
+        ks.setAttribute('aria-label', k ? tr('ks.discName', { name: k.name }) : tr('ks.none'));
       }
       const spent = n.keepsake === 'phoenixFeather' && !n.phoenixReady;
       if (spent !== shown.spent) {
