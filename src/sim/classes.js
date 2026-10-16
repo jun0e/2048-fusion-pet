@@ -27,6 +27,7 @@ export const ELEMENTS = {
     attack: 'Ember Breath',
     color: '#f2662d',
     desc: 'Breathes a short cone of fire up its lane that hits every foe in it. Burns: damage over time that stacks.',
+    line: 'Burns every foe in a cone.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 1.0,
     dmg: 0.23, // to every foe in the cone
     shoot: { pattern: 'cone', reach: 4, lanes: 0, target: 'front' }, // 2 cells, widening to half a lane each side
@@ -39,6 +40,7 @@ export const ELEMENTS = {
     attack: 'Echo Harpoon',
     color: '#9be7f5',
     desc: 'A sonar ping finds the toughest foe up to 5 cells along its lane and an ice harpoon follows. Slows; every 4th hit on the same foe freezes it.',
+    line: 'Slows and freezes big foes.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.6,
     dmg: 0.91, // the Hunter leads on single tough foes
     shoot: { pattern: 'lance', speed: 0.75, reach: 10, lanes: 0, target: 'strongest' },
@@ -52,6 +54,7 @@ export const ELEMENTS = {
     attack: 'Horn Arc',
     color: '#3d8bff',
     desc: 'An instant bolt from the horn to the nearest foe that leaps to more foes close by, across lanes. Each jump hits a little less and may stun.',
+    line: 'Chains foe to foe; stuns.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.85,
     dmg: 0.37,
     shoot: { pattern: 'chain', radius: 7, target: 'nearest' }, // 3.5 cells
@@ -65,6 +68,7 @@ export const ELEMENTS = {
     attack: 'Venom Spit',
     color: '#a35cf0',
     desc: 'Spits a venom glob that leaves a puddle on the path. Foes in it gain poison stacks; at full stacks they are weakened and hit blocks 30% softer.',
+    line: 'Poison puddles weaken foes.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.9,
     dmg: 0.16,
     shoot: { pattern: 'spit', flight: 0.6, radius: 6, target: 'front' }, // 3 cells
@@ -78,6 +82,7 @@ export const ELEMENTS = {
     attack: 'Quake Stomp',
     color: '#9c8268',
     desc: 'Stomps a shockwave across its lane and both neighbours: a heavy hit that knocks foes back and stuns them.',
+    line: 'Knocks back 3 lanes; stuns.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.45,
     dmg: 0.82,
     shoot: { pattern: 'quake', reach: 3, lanes: 1, target: 'front' }, // 1.5 cells deep, 3 lanes wide
@@ -91,6 +96,7 @@ export const ELEMENTS = {
     attack: 'Wing Gust',
     color: '#56b8a8',
     desc: 'A wingbeat sends a gust 5 cells up its lane: every foe in it is hit and pushed back.',
+    line: 'Blows foes back up its lane.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.8,
     dmg: 0.27,
     shoot: { pattern: 'gust', reach: 10, lanes: 0, target: 'front' },
@@ -103,6 +109,7 @@ export const ELEMENTS = {
     attack: 'Pride Pounce',
     color: '#f7be1e',
     desc: 'The cub leaps onto the weakest foe nearby. A killing bite on wounded foes, and its prey drops bonus coins.',
+    line: 'Kills the weak for coins.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 1.0,
     dmg: 0.45,
     shoot: { pattern: 'pounce', radius: 6, target: 'weakest' }, // 3 cells
@@ -116,6 +123,7 @@ export const ELEMENTS = {
     attack: 'Bramble Shell',
     color: '#7cd15a',
     desc: 'A thorny ring pulses around the block: it roots foes, hurts anything that bites the block, and regrows the block and its neighbours.',
+    line: 'Roots foes, regrows blocks.', // the die pick's one line (src/ui/hud.js): fits a 360 px phone
     rate: 0.5,
     dmg: 0.54,
     shoot: { pattern: 'pulse', radius: 2, target: 'front' }, // 1 cell around the block
@@ -389,7 +397,7 @@ export function dieOffers(owned, rng) {
     const j = Math.floor(rng.next() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return pool.slice(0, 3).map((e) => ({ element: e, name: ELEMENTS[e].name, attack: ELEMENTS[e].attack, desc: ELEMENTS[e].desc, colors: [ELEMENTS[e].color] }));
+  return pool.slice(0, 3).map((e) => ({ element: e, name: ELEMENTS[e].name, attack: ELEMENTS[e].attack, line: ELEMENTS[e].line, desc: ELEMENTS[e].desc, colors: [ELEMENTS[e].color] }));
 }
 
 // --- attack profile -----------------------------------------------------------

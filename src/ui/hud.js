@@ -14,7 +14,7 @@ import { TEXT, popupFont } from '../ux/photosafe.js';
 import { chapterKeyFor, skinFor } from '../art/frame-kit.js';
 import { generatedUrl } from '../render/textures.js';
 import { ELEMENTS } from '../sim/classes.js';
-import { portraitId } from '../art/sprite-ids.js';
+import { portraitId, spriteId } from '../art/sprite-ids.js';
 import { petName } from '../art/tokens.js';
 
 const STAGE_LABEL = { 1: 'Awakened', 2: 'Fusion', 3: 'Ultimate' };
@@ -713,19 +713,24 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       $('.choice-chip').innerHTML = chipHtml(choice.tier);
       $('.choice-title').textContent = 'New die unlocked!';
       $('.choice-sub').textContent = `Your first ${tierValue(choice.tier).toLocaleString()}. Pick a die for your deck: blocks reaching 16 can roll it.`;
+      // each die: its baby pet with the element's badge (the badge alone without the art), its name and
+      // attack on one line, and what it does in one short line (src/sim/classes.js ELEMENTS line)
       $('.options').innerHTML = choice.offers
-        .map(
-          (o, i) => `
-        <button class="option" data-act="pick" data-i="${i}">
-          <span class="swatches">${o.colors.map((c) => `<i style="--c:${c}">${badgeImg(o.element)}</i>`).join('')}</span>
+        .map((o, i) => {
+          const baby = generatedUrl(spriteId({ kind: 'baby', el: o.element, stage: 0 }));
+          const art = baby
+            ? `<i class="pet" style="--c:${o.colors[0]}"><img alt="" src="${esc(baby)}" /><span class="pet-badge">${badgeImg(o.element)}</span></i>`
+            : `<i style="--c:${o.colors[0]}">${badgeImg(o.element)}</i>`;
+          return `
+        <button class="option die-option" data-act="pick" data-i="${i}">
+          <span class="swatches">${art}</span>
           <span class="opt-text">
-            <b>${o.name}</b>
-            <em>${o.attack}</em>
-            <small>${o.desc}</small>
+            <span class="opt-head"><b>${esc(o.name)}</b> <em>${esc(o.attack)}</em></span>
+            <small>${esc(o.line)}</small>
           </span>
           <kbd>${i + 1}</kbd>
-        </button>`,
-        )
+        </button>`;
+        })
         .join('');
       choiceScrim.inert = false;
       choiceScrim.classList.add('open');

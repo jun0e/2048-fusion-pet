@@ -2036,6 +2036,46 @@ body {
 }
 
 
+/* the die pick (T8): each die's baby pet on its colour with the element's badge in its corner, its
+   name and attack on one line, and one short line of what it does (src/ui/hud.js setChoice) */
+.die-option .swatches i.pet {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c) 35%, var(--cream));
+  overflow: visible;
+}
+.die-option .swatches i.pet > img {
+  border-radius: 14px;
+}
+.die-option .pet-badge {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--cream);
+  overflow: hidden;
+}
+.die-option .pet-badge img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.die-option .opt-head {
+  display: block;
+  line-height: 1.15;
+}
+.die-option .opt-head b,
+.die-option .opt-head em {
+  display: inline;
+}
+.die-option .opt-head em {
+  margin-left: 4px;
+}
+
 /* the fusion pick: the pet's portrait on its colour, bigger than a die's swatch (src/ui/hud.js showFusionPick) */
 .fusion-option .swatches i.pet {
   width: 52px;

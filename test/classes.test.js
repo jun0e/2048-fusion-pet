@@ -118,6 +118,14 @@ test('new-die offers only show dice you do not own', () => {
   assert.equal(dieOffers(ELEMENT_KEYS, createRng(1)).length, 0);
 });
 
+test("the die pick says each die in one short line (it fits one line of a 360 px phone's card)", () => {
+  for (const k of ELEMENT_KEYS) {
+    const { line } = ELEMENTS[k];
+    assert.ok(line && line.length <= 28 && line.endsWith('.'), `${k}: "${line}"`);
+  }
+  for (const o of dieOffers([], createRng(5))) assert.equal(o.line, ELEMENTS[o.element].line);
+});
+
 test('profiles combine element effects: Frostnova burns and slows; Metal loots; Nature heals', () => {
   const fire = profileFor(block(4, { element: 'fire' }));
   assert.ok(fire.burn && !fire.chill);

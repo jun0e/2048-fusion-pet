@@ -111,6 +111,12 @@ Buttons:
 
 - Every button is 48 px tall.
 - The die pick's attack names and descriptions are 14 px, and the line under its title is 14 px. The keyboard hints are hidden on a touch screen.
+- Each die in the pick (T8) shows:
+  - its baby pet (52 px) on the element's colour, with the element's badge in the corner;
+  - its name and attack on one line;
+  - what it does in one short line (`ELEMENTS[k].line`, 28 characters at most).
+
+  The short line fits one line on a 360 px phone, and wraps to two on a 320 px one. The long description stays on the block's full card (Details).
 - The game-over captions are 13 px in sentence case ("Top block" fits a third of a 360 px phone's card; spaced capitals at 13 px did not). The top block is a pill at 16 px. "New best wave!" and the run summary are 14 px.
 - How to play is 15 px, its headings 17 px. It scrolls inside, as before.
 - The tier chips (the die pick's head, the game-over top block) draw their white number in an ink outline, as the board's blocks do. White on a pale tier colour was 1.4:1.
