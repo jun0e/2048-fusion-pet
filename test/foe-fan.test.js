@@ -26,3 +26,23 @@ test('foes apart keep their own place, and a crowd keeps its order frame to fram
   const chain = fanOffsets([1, 2, 3].map((id) => ({ id, x: 0, y: 10 + id * (FAN.spot * 0.9) })));
   assert.ok(near(chain.get(1), -FAN.spread) && near(chain.get(3), FAN.spread));
 });
+
+test("a crowd's HP bars sit side by side across the lane in the fan's order, each readable on its own (T41)", async () => {
+  const { barSlot, fanLayout } = await import('../src/render/foes.js');
+  const U = 23.78; // a 360 px phone
+  const barW = 1.05 * U;
+  const span = 1.8 * U; // the lane, less a margin
+  assert.deepEqual(barSlot(0, 1, barW, span), { x: 0, w: barW }, 'a foe on its own keeps its full bar');
+  for (const k of [2, 3, 4, 6]) {
+    const slots = Array.from({ length: k }, (_, i) => barSlot(i, k, barW, span));
+    for (let i = 1; i < k; i++) assert.ok(slots[i].x - slots[i].w / 2 > slots[i - 1].x + slots[i - 1].w / 2, `${k}: bar ${i} clears bar ${i - 1}`);
+    assert.ok(slots[0].x - slots[0].w / 2 >= -span / 2 - 1e-9 && slots[k - 1].x + slots[k - 1].w / 2 <= span / 2 + 1e-9, `${k}: inside the lane`);
+    const least = k <= 3 ? 0.5 * U : k === 4 ? 0.38 * U : 0;
+    assert.ok(slots[0].w >= least, `${k}: each bar ${slots[0].w.toFixed(1)} px, at least ${least.toFixed(1)}`);
+  }
+  // the layout carries each foe's place in its crowd and the crowd's centre
+  const lay = fanLayout([{ id: 5, x: 1, y: 12 }, { id: 2, x: 1.1, y: 12.1 }, { id: 9, x: 0.9, y: 12 }, { id: 4, x: -3, y: 12 }]);
+  assert.deepEqual([9, 5, 2].map((id) => [lay.get(id).i, lay.get(id).k]), [[0, 3], [1, 3], [2, 3]], 'left to right');
+  assert.ok(Math.abs(lay.get(5).cx - 1) < 1e-9, 'the crowd centre');
+  assert.deepEqual([lay.get(4).i, lay.get(4).k, lay.get(4).dx], [0, 1, 0]);
+});
