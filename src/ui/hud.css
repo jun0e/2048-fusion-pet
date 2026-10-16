@@ -2084,3 +2084,99 @@ body {
   border-radius: 14px;
   background: color-mix(in srgb, var(--c) 35%, var(--cream));
 }
+
+/* --- the boss intro card (T6, src/ui/boss-intro.js) ---------------------------------------
+   The boss's portrait, its name and what it does, over the field for 2.6 s as a boss wave
+   starts; it never takes a tap. A large panel (docs/ux/photosafe.md): it slides in only with the
+   flash budget and Reduce motion off, else it fades in over 0.6 s; it always fades out. */
+.boss-intro {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.boss-intro[hidden] {
+  display: none;
+}
+
+.boss-intro-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(360px, calc(100vw - 24px));
+  padding: 8px 14px 8px 8px;
+  border: 3px solid var(--ink);
+  border-radius: var(--r-plate, 18px);
+  background: var(--cream);
+  box-shadow:
+    inset 0 0 0 3px color-mix(in srgb, var(--c) 60%, transparent),
+    0 12px 30px #0007;
+}
+
+.boss-intro-card img {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 96px;
+  border-radius: 14px;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.boss-intro-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.boss-intro-kicker {
+  justify-self: start;
+  padding: 1px 10px 0;
+  border-radius: 999px;
+  background: #ef6060; /* ink on it, 5.3:1 */
+  color: var(--ink);
+  font: 800 14px/1.45 var(--font-display);
+}
+
+.boss-intro-text b {
+  font: 800 24px/1.05 var(--font-display);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.boss-intro-line {
+  font: 700 14px/1.3 var(--font-body);
+  color: var(--ink-soft);
+}
+
+.boss-intro.slide {
+  animation: boss-in 0.35s ease-out both;
+}
+
+.boss-intro.fade {
+  animation: boss-fade 0.6s ease-out both;
+}
+
+.boss-intro.out {
+  animation: boss-out 0.45s ease-in forwards;
+}
+
+@keyframes boss-in {
+  from {
+    transform: translateX(-110%);
+  }
+}
+
+@keyframes boss-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes boss-out {
+  to {
+    opacity: 0;
+  }
+}

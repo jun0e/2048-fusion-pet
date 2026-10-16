@@ -32,6 +32,7 @@ import { createHaptics } from './haptics.js';
 import { nextSpeed } from './ux/speed.js';
 import { createPause } from './ux/pause.js';
 import { inFrame, shareLine, shareRun } from './ux/share.js';
+import { createBossIntro } from './ui/boss-intro.js';
 import { recordRun, restoreRun, loadSaved, saveRun, clearSaved } from './ux/resume.js';
 import { SIGNATURE_TINT, TEXT, popupFont, textInk } from './ux/photosafe.js';
 import { loadStore } from './ux/coach.js';
@@ -357,6 +358,8 @@ async function start() {
     onDiscard: (id) => run.discard(id).ok && select(null), // sell a turret / break a dormant block
     onArm: (id, on) => blocks.arm(id, on), // the tile's brackets turn red and dashed while the tap is armed
   });
+  // a boss wave's intro card: the boss's portrait over the field for a moment (T6)
+  const bossIntro = createBossIntro(document.getElementById('hud'), { stage });
 
   /** New run: the keepsake picker first (every run after the first), then the run. */
   function restart() {
@@ -381,6 +384,7 @@ async function start() {
     fx.reset();
     kv?.reset();
     pets?.reset();
+    bossIntro.hide();
     hud.hideGameOver();
     gameOverShown = false;
     select(null);
@@ -711,6 +715,7 @@ async function start() {
           sfx.battle(!!e.boss);
           if (e.boss) resetSpeed(); // a boss is worth watching at full detail
           if (e.boss) hud.banner(`${ENEMY_TYPES[e.boss].name} approaches!`, ENEMY_TYPES[e.boss].intro, 'boss');
+          if (e.boss) bossIntro.show(e.boss); // the boss's portrait over the field (the ribbon speaks it)
           else hud.banner(`Wave ${e.wave}`, `${e.chapter} · ${e.count} foes`);
           break;
         case 'waveClear':
