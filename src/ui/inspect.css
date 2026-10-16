@@ -344,9 +344,20 @@
   right: 8px;
 }
 .inspect.short h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.inspect.short .inspect-name {
   overflow: hidden;
   white-space: nowrap; /* one line: a long name ends in "…" rather than growing the card */
   text-overflow: ellipsis;
+  min-width: 0;
+}
+.inspect.short h3 .inspect-value {
+  flex: none;
+  margin: 0;
 }
 .inspect.short .inspect-act {
   flex-wrap: nowrap;
@@ -372,6 +383,22 @@
   justify-content: center;
   width: 48px;
   padding: 0;
+}
+/* and its row tighter, so Sell and the icon fit beside the rail on a 320 px phone (inspect.js NARROW) */
+.inspect.short.narrow {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.inspect.short.narrow .inspect-act {
+  column-gap: 6px;
+  margin-left: -8px;
+  margin-right: -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.inspect.short.narrow .inspect-sell {
+  padding-left: 10px;
+  padding-right: 10px;
 }
 .inspect.short.narrow .inspect-more-word {
   display: none;

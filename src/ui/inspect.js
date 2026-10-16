@@ -20,6 +20,9 @@ import { generatedUrl } from '../render/textures.js';
 import { growthWords, meterOf } from '../art/plaque.js';
 import { ARMED_LABEL, actState, shortCardSpot } from './short-card.js';
 
+/** The narrow short card's sizes (px), as inspect.css sets them: the buttons' side padding, the row's gap and side padding. */
+const NARROW = { button: 10, gap: 6, row: 8 };
+
 /** Details as an icon, where the short card narrows to keep off the namecard rail (24 px, as the HUD's icons). */
 const INFO_ICON = '<svg class="inspect-more-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><path d="M12 11v6M12 7.2v.1" /></svg>';
 
@@ -80,6 +83,9 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
     if (e.target.closest('.inspect-more')) {
       full = true; // show() renders the full card on the next frame
       setArmed(0);
+      // a tap or a click leaves no focus behind (Space would reach the full card's Sell); a keyboard
+      // player's focus moves to the × as the card turns over (render)
+      if (e.detail > 0) document.activeElement?.blur();
     }
     const btn = e.target.closest('.inspect-sell');
     if (btn && !btn.disabled) {
@@ -115,9 +121,12 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
     if (focus) refocus(focus);
   }
 
-  /** Put the focus back on the card's `sel` button after a rebuild (else Sell, else the ×). */
+  /**
+   * Put the focus back on the card's `sel` button after a rebuild, else on the ×: never on Sell
+   * unless it had it (Space or Enter there would arm and then sell a block the player never chose to).
+   */
   function refocus(sel) {
-    (el.querySelector(`${sel}:not(:disabled)`) ?? el.querySelector('.inspect-sell:not(:disabled)') ?? el.querySelector('.inspect-x'))?.focus({ preventScroll: true });
+    (el.querySelector(`${sel}:not(:disabled)`) ?? el.querySelector('.inspect-x'))?.focus({ preventScroll: true });
   }
 
   let placed = ''; // the layout the card was last placed for (it is shown, so offsetTop is real)
@@ -156,15 +165,16 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
     return null;
   }
 
-  /** The namecard rail's cards (a pet's skill buttons) in root px, or null while there are none. */
+  /**
+   * The namecard rail (a pet's skill buttons) in root px, or null while it has no card: the strip's
+   * box, which a card's bob, nudge or fall never moves (the cards' own boxes do, and the card would
+   * flicker between its two widths).
+   */
   function railBox(box) {
-    let r = null;
-    for (const c of root.querySelectorAll('.kv-cards .kv-card')) {
-      const b = c.getBoundingClientRect();
-      if (!b.width) continue;
-      r = r ? { left: Math.min(r.left, b.left), top: Math.min(r.top, b.top), bottom: Math.max(r.bottom, b.bottom) } : { left: b.left, top: b.top, bottom: b.bottom };
-    }
-    return r && { left: r.left - box.left, top: r.top - box.top, bottom: r.bottom - box.top };
+    const strip = root.querySelector('.kv-cards');
+    const b = strip?.querySelector('.kv-card') && strip.getBoundingClientRect();
+    if (!b || b.height < 1) return null;
+    return { left: b.left - box.left, top: b.top - box.top, bottom: b.bottom - box.top };
   }
 
   /**
@@ -196,9 +206,10 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
     if (rail && rail.top < spot.top + Math.min(h, spot.maxH) && rail.bottom > spot.top && left + w > rail.left - 4) {
       const fit = Math.floor(rail.left - 4 - left);
       const sell = el.querySelector('.inspect-sell');
-      const act = getComputedStyle(el.querySelector('.inspect-act'));
-      // Sell (always as wide as its armed label), the 48 px Details icon, the gap, the row's padding, the borders
-      const need = (sell?.offsetWidth ?? 0) + 48 + parseFloat(act.columnGap) + parseFloat(act.paddingLeft) + parseFloat(act.paddingRight) + el.offsetWidth - el.clientWidth;
+      // Sell (always as wide as its armed label) at the narrow row's padding, the 48 px Details icon, the
+      // narrow row's gap and padding, the card's borders
+      const pad = sell ? parseFloat(getComputedStyle(sell).paddingLeft) : 0;
+      const need = (sell?.offsetWidth ?? 0) - 2 * (pad - NARROW.button) + 48 + NARROW.gap + 2 * NARROW.row + el.offsetWidth - el.clientWidth;
       if (fit >= need) [w, narrow] = [fit, true]; // else it covers the rail: a phone too narrow for both
     }
     const k = `short|${w}|${left}|${spot.top}|${spot.maxH}|${narrow}`;
@@ -259,10 +270,11 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
     const picture = `<div class="inspect-pic${pic ? ' inspect-pic-tile' : ''}">${pic ? '' : img ? `<img alt="" src="${esc(img)}" />` : `<b>${info.value}</b>`}</div>`;
     if (!full) {
       // the short card: the picture, the name and value (an egg's name already says it), the buttons
-      const value = info.kind === 'egg' ? '' : ` <span class="inspect-value">${info.value}</span>`;
+      // the name gives way first ("…"), the value never: a legend's name runs to 22 letters
+      const value = info.kind === 'egg' ? '' : `<span class="inspect-value">${info.value}</span>`;
       el.innerHTML = `
       <button class="inspect-x" aria-label="Close">×</button>
-      <div class="inspect-head">${picture}<div class="inspect-titles"><h3>${esc(info.title)}${value}</h3></div></div>
+      <div class="inspect-head">${picture}<div class="inspect-titles"><h3><span class="inspect-name">${esc(info.title)}</span>${value}</h3></div></div>
       <div class="inspect-act"></div>`;
     } else
       el.innerHTML = `
@@ -291,16 +303,20 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
 
   return {
     /**
-     * Show the popup for `tile`, or hide it with null. Re-renders only when the block
-     * changes; `context` = { price, coins, last } keeps the sell / break row current.
+     * Show the popup for `tile`, or hide it with null (`kept`: the block is still picked, the card
+     * only hidden). Re-renders only when the block changes; `context` = { price, coins, last } keeps
+     * the sell / break row current.
      */
-    show(tile, context = {}, dt = 0) {
+    show(tile, context = {}, dt = 0, { kept = false } = {}) {
       if (!tile) {
         if (!el.hidden) el.hidden = true; // no write per frame while nothing is picked
         key = '';
         placed = '';
         pinned = null;
-        setArmed(0); // `full` stays: a pause, or a die card, hides the card it asked for, not its choice
+        setArmed(0);
+        // kept: the block is still picked, the card only hidden (a pause, the tutorial): it comes
+        // back as it was; closed (×, a swipe, another tap, a die card), it opens short next time
+        if (!kept) full = false;
         return;
       }
       ctx = context;

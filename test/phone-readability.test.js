@@ -24,7 +24,8 @@ function rules(text) {
       const i = d.indexOf(':');
       if (i > 0) decls[d.slice(0, i).trim()] = d.slice(i + 1).trim();
     }
-    out.push({ sel: m[1].split(',').map((s) => s.trim().replace(/\s+/g, ' ')), decls, body: m[2] });
+    // split a selector list at its own commas, not those inside :is(…) or :where(…)
+    out.push({ sel: m[1].split(/,(?![^(]*\))/).map((s) => s.trim().replace(/\s+/g, ' ')), decls, body: m[2] });
   }
   return out;
 }

@@ -889,7 +889,7 @@ async function start() {
     if (selected != null && (!picked || run.pendingChoice)) select(null);
     scenery.showRange(picked ? { x: picked.x, y: picked.y, shoot: profileFor(picked).shoot } : null);
     // no card in the guided opening (its Break would undo the first lesson's 8s)
-    inspect.show(picked && !run.pendingChoice && !gameOverShown && !pause.paused && !tutorial.active ? picked : null, picked ? { price: run.discardPrice(picked.id), coins: run.coins, last: run.tiles.length <= 1 } : {}, dt);
+    inspect.show(picked && !run.pendingChoice && !gameOverShown && !pause.paused && !tutorial.active ? picked : null, picked ? { price: run.discardPrice(picked.id), coins: run.coins, last: run.tiles.length <= 1 } : {}, dt, { kept: !!picked });
 
     const perLane = [0, 0, 0, 0];
     for (const e of run.enemies) if (!e.dead && !e.gone) perLane[e.lane] += 1;
