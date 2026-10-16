@@ -134,8 +134,11 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     el.title = `${petName(t.cls.element, t.cls.fusion)}: ${skill}`;
     el.style.pointerEvents = 'auto';
     const card = { el, id: t.id, charge: CHARGE * 0.55, max: legend ? CHARGE_LEGEND : CHARGE, skill, name: petName(t.cls.element, t.cls.fusion), legend, cls: { ...t.cls }, lost: false, ready: null, role: 'own', more: 0, slot: '', castAt: -Infinity };
-    // a nudge plays once: left on, its class would hold the card's ready bob off for good
-    el.addEventListener('animationend', (ev) => ev.animationName === 'kvNudge' && el.classList.remove('nudge'));
+    // a nudge plays once: left on, its class would hold the card's ready bob off for good (and a
+    // card hidden mid-nudge cancels it rather than ending it)
+    const unNudge = (ev) => ev.animationName === 'kvNudge' && el.classList.remove('nudge');
+    el.addEventListener('animationend', unNudge);
+    el.addEventListener('animationcancel', unNudge);
     // a press casts at once (no wait for the click); Enter and Space on a focused card do the same
     const press = () => {
       if (card.lost || card.charge < card.max) {
@@ -200,6 +203,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     card.role = role;
     card.more = more;
     card.el.classList.toggle('stacked', role === 'behind');
+    if (role === 'behind') card.el.classList.remove('nudge'); // hidden mid-shake: no shake when it shows again
     card.el.classList.toggle('stack-face', role === 'face');
     card.el.querySelector('.kv-more').textContent = role === 'face' ? `+${more}` : '';
     label(card);
@@ -258,6 +262,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
       }
     }
     // fusions gone: their cards fall where they hang (one behind the stack, never seen, just goes)
+    let dropped = false; // the card that had the focus fell: the focus moves on (below)
     for (const [id, card] of cards) {
       if (live.has(id) || card.lost) continue;
       card.lost = true;
@@ -268,6 +273,10 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
       }
       slot(card, 'own'); // a lost face falls as a card of its own: no pill, no hold on the stack
       card.el.classList.add('lost');
+      if (card.el === document.activeElement) {
+        card.el.blur();
+        dropped = true;
+      }
       setTimeout(() => {
         card.el.remove();
         cards.delete(id);
@@ -285,16 +294,19 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     const focused = [...cards.values()].find((c) => c.el === document.activeElement);
     for (const id of slots.shown) slot(cards.get(id), 'own');
     slots.stack.forEach((id, i) => slot(cards.get(id), i === 0 ? 'face' : 'behind', slots.stack.length - 1));
-    if (focused?.role === 'behind') cards.get(face)?.el.focus({ preventScroll: true });
+    if (focused?.role === 'behind' || dropped) (cards.get(face) ?? cards.get(slots.shown[0]))?.el.focus({ preventScroll: true });
     // the DOM in the rail's order, so Tab reads the cards top to bottom (moved only when it changed);
     // a falling card keeps its place
     const onRail = [...slots.shown, ...slots.stack].map((id) => cards.get(id));
     onRail.forEach((c, i) => (c.index = i));
     const order = onRail.map((c) => c.el);
-    for (const c of cards.values()) if (c.lost) order.splice(Math.min(c.index ?? order.length, order.length), 0, c.el);
+    const falling = [...cards.values()].filter((c) => c.lost).sort((a, b) => (a.index ?? Infinity) - (b.index ?? Infinity));
+    for (const c of falling) order.splice(Math.min(c.index ?? order.length, order.length), 0, c.el);
+    // only the cards out of place move: a node taken out of the page restarts its animations (the
+    // ready bob, the shine, a fall), and loses its focus
     if (order.some((el, i) => strip.children[i] !== el)) {
       const had = document.activeElement;
-      for (const el of order) strip.appendChild(el);
+      for (let i = 0; i < order.length; i++) if (strip.children[i] !== order[i]) strip.insertBefore(order[i], strip.children[i] ?? null);
       if (had && had !== document.activeElement && strip.contains(had)) had.focus({ preventScroll: true });
     }
   }

@@ -88,7 +88,8 @@ Buttons:
 - 48 px tall. Pause and Speed are 48 px discs; the pause icon is 24 px and "x1" 20 px.
 - The score is 24 px; "Best" is 13 px.
 - The top-block chip is a 48 px disc for one or two digits (20 px). From three digits it stretches into a pill, at 18 px; it was a disc up to four digits at 12.6 px.
-- The chip is captioned "Top" under its number, at 13 px (T22). It fits the top bar on a 320 px phone even at 65536.
+- The chip is captioned "Top" under its number, at 13 px (T22). Its spoken name is "Top block 65536" (`role="img"`).
+- At five digits the pill tightens to 4 px a side, and under 340 px wide the top bar's gaps shrink to 6 px. So the chip fits the top bar on a 320 px phone even at 65536, in English and in Vietnamese.
 
 **The lintel**
 
@@ -121,7 +122,7 @@ Buttons:
 - The game-over captions are 13 px in sentence case ("Top block" fits a third of a 360 px phone's card; spaced capitals at 13 px did not). The top block is a pill at 16 px. "New best wave!" and the run summary are 14 px.
 - How to play is 15 px, its headings 17 px. It scrolls inside, as before.
 - The pause menu's settings page is a sheet of its own (T24). It is titled "Settings", not "Paused", and has no run line under the title.
-- The settings sheet keeps room for one more 48 px row (T14's Language). With it, the sheet is 354 px tall, so it still fits a 375 × 548 phone without scrolling.
+- The settings sheet has room for T14's Language row. With Vibration shown it is 318 px tall without that row and 376 px with it, so it fits a 375 × 548 phone with 86 px to spare.
 - The tier chips (the die pick's head, the game-over top block) draw their white number in an ink outline, as the board's blocks do. White on a pale tier colour was 1.4:1.
 
 **Block card** (`src/ui/inspect.css`)

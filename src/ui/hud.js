@@ -188,7 +188,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
         <div class="best">${esc(tr('hud.best', { n: 0 }))}</div>
       </div>
       <div class="top-right">
-        <div class="next-card" aria-label="${esc(tr('hud.top'))}"><div class="next-slot"></div></div>
+        <div class="next-card" role="img" aria-label="${esc(tr('hud.top'))}"><div class="next-slot"></div></div>
       </div>
     </div>
     <div class="statusbar">
@@ -554,7 +554,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       const v = tierValue(tier);
       const digits = String(v).length;
       // three digits and more do not fit the disc's inner ring at a readable size: the disc stretches into a pill
-      nextSlot.innerHTML = `<div class="top-chip pop${digits >= 3 ? ' wide' : ''}" style="--c:${TIER_COLORS[tier] ?? '#c39bff'}"><b>${v}</b><small aria-hidden="true">${esc(tr('hud.topChip'))}</small></div>`;
+      nextSlot.innerHTML = `<div class="top-chip pop${digits >= 3 ? ' wide' : ''}${digits >= 5 ? ' wider' : ''}" style="--c:${TIER_COLORS[tier] ?? '#c39bff'}"><b>${v}</b><small aria-hidden="true">${esc(tr('hud.topChip'))}</small></div>`;
       nextSlot.parentElement.setAttribute('aria-label', tr('hud.topN', { n: v }));
     },
     /**

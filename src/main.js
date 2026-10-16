@@ -282,7 +282,7 @@ async function start() {
       speed = nextSpeed(speed, maxSpeed);
       hud.setSpeed(speed);
     },
-    onNextWave: () => !paused && run.nextWave(),
+    onNextWave: () => !paused && !run.pendingChoice && run.nextWave(), // never behind a die card
     onAuto: () => {
       // autoplay: the bot plays; the tutorial steps aside while it does
       const on = auto.toggle();
@@ -350,6 +350,7 @@ async function start() {
       });
   function openPicker(why) {
     pickerFor = why;
+    bossIntro.hide();
     pause.show('closed');
     if (why === 'restart') hud.hideGameOver();
     const fresh = unseenKeepsakes(meta).map((k) => k.id);
@@ -528,7 +529,7 @@ async function start() {
       select(tile.id === selected ? null : tile.id);
     },
     choose: (i) => !paused && i < (run.pendingChoice?.offers.length ?? 0) && run.choose(i), // a key beyond the cards does nothing
-    nextWave: () => !paused && run.nextWave(),
+    nextWave: () => !paused && !run.pendingChoice && run.nextWave(),
     pause: () => (picker?.isOpen ? null : pause.menu === 'closed' ? openMenu() : pause.back()), // Escape / P: one step back (the keepsake picker already holds the game)
   });
   // swipes on the HUD area outside buttons should also work
@@ -800,6 +801,7 @@ async function start() {
           hud.nudgeWave(); // no swipe possible: the break shrinks and Wave now pulses
           break;
         case 'gameover': {
+          bossIntro.hide(); // the game-over card comes next
           const isBest = e.score > best;
           if (isBest) {
             best = e.score;
@@ -893,6 +895,7 @@ async function start() {
     });
     if (!picker?.isOpen) tutorial.update(live ? dt : 0); // no tip opens behind the keepsake picker
     hud.update(live && !run.pendingChoice ? dt : 0); // banners wait behind a die card, too
+    bossIntro.update(live && !run.pendingChoice ? dt : 0); // and so does the boss's card
     if (live && !gameOverShown) auto.tick(run, dt, doSwipe);
     hud.setDanger(inDanger() ? 0.5 : 0);
 

@@ -66,7 +66,7 @@ test('the primary numbers are 20 px or more in every rule, in Baloo 2 ExtraBold'
 });
 
 test('labels and body text are 14 px or more, secondary text 13 px, button labels 16 px', () => {
-  floor(['.cost', '.banner-sub', '.meter-label', '.day-n', '.announce .part', '.announce i', '.announce b', '.opt-text em', '.opt-text small', '.choice-head p', '.new-best', '.go-extra', '.help-card dl', '.coach-text', '.kv-card.ready .kv-bar b', '.kv-cutin-text span', '.rotate-card span'], 14, 'label');
+  floor(['.boss-intro-kicker', '.boss-intro-line', '.cost', '.banner-sub', '.meter-label', '.day-n', '.announce .part', '.announce i', '.announce b', '.opt-text em', '.opt-text small', '.choice-head p', '.new-best', '.go-extra', '.help-card dl', '.coach-text', '.kv-card.ready .kv-bar b', '.kv-cutin-text span', '.rotate-card span'], 14, 'label');
   floor(['.score-card .best', '.best-wave', '.chapter', '.stat .label', '.combo small', '.announce-kicker', '.option kbd', '.top-chip small'], 13, 'secondary');
   floor(['.coach-ok', '.coach-skip', '.switch', '.primary', '.soft', '.danger', '.fight', '.banner-title'], 16, 'button label');
 });

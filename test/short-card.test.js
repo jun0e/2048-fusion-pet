@@ -93,3 +93,16 @@ test('Sell / Break: the price on the button, "Tap again" while armed, and why it
   assert.equal(rich.note, 'A block below 16 costs three swipes to break.');
   assert.equal(actState({ ...sell, short: false }).note, 'A turret sells for the price of one swipe.');
 });
+
+test('the narrow card’s sizes in inspect.js are the ones inspect.css sets (the rail fit is measured from them)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const js = readFileSync(new URL('../src/ui/inspect.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/ui/inspect.css', import.meta.url), 'utf8');
+  const m = js.match(/const NARROW = \{ button: (\d+), gap: (\d+), row: (\d+) \}/);
+  assert.ok(m, 'NARROW in inspect.js');
+  const [, button, gap, row] = m.map(Number);
+  const rule = (sel) => css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
+  assert.match(rule('.inspect.short.narrow .inspect-sell'), new RegExp(`padding-left: ${button}px;\\s*padding-right: ${button}px`));
+  assert.match(rule('.inspect.short.narrow .inspect-act'), new RegExp(`column-gap: ${gap}px`));
+  assert.match(rule('.inspect.short.narrow .inspect-act'), new RegExp(`padding-left: ${row}px;\\s*padding-right: ${row}px`));
+});

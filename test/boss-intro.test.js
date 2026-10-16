@@ -17,11 +17,15 @@ test('every boss has a portrait for its intro card, a name and a line of what it
   }
 });
 
-test('the card never takes a tap, and its large slide waits for the flash budget (photosafe)', () => {
+test('the card never takes a tap, sits under the dialogs, waits behind a die card, and only fades (no flash)', () => {
   const css = read('src/ui/hud.css');
   const rule = css.slice(css.indexOf('.boss-intro {'), css.indexOf('}', css.indexOf('.boss-intro {')));
   assert.match(rule, /pointer-events: none/);
+  assert.match(rule, /z-index: 5;/, 'under the dialogs (6)');
+  assert.match(css, /#hud\.choosing \.boss-intro \{\s*visibility: hidden;/);
+  assert.ok(!/@keyframes boss-in/.test(css), 'no slide: a panel that fades is no flash, and takes no flash budget');
   const js = read('src/ui/boss-intro.js');
-  assert.match(js, /const slide = !calm && stage\.takeFlash\(\)/, 'slides only with the flash budget and Reduce motion off');
+  assert.ok(!/takeFlash/.test(js), 'the pets\' cut-ins keep the flash budget');
   assert.match(js, /aria-hidden/, 'out of the accessibility tree: the news ribbon speaks it');
+  assert.match(read('src/main.js'), /bossIntro\.update\(live && !run\.pendingChoice \? dt : 0\)/, 'its time is play time');
 });
