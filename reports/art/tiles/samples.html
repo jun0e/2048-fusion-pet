@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2048 Siege · tile states, current vs proposed</title>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/ui/inspect.css" />
+    <style>
+      :root {
+        --cream: #fffaf2;
+        --cream-2: #f6ead8;
+        --ink: #2b1d2e;
+        --ink-soft: #6b5868;
+        --butter: #f8e3a0;
+        --peach: #f7c4a8;
+        --gold: #ffcf4a;
+        --r-plate: 18px;
+        --font-display: 'Baloo 2', 'Nunito', system-ui, sans-serif;
+        --font-body: 'Nunito', system-ui, sans-serif;
+        --clay-drop: 0 5px 0 #2b1d2e33, 0 14px 26px #2b1d2e29;
+        --clay-hi: inset 0 2px 0 #fffc, inset 0 -3px 0 #7850320f;
+        --page: #171427;
+        --panel: #221e38;
+        --line: #3a3556;
+        --text: #efe9f5;
+        --muted: #b7afc9;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--text);
+        font: 600 13px/1.45 var(--font-body);
+        width: 1440px;
+      }
+      header {
+        padding: 26px 28px 10px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font: 800 30px/1.1 var(--font-display);
+      }
+      header p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 1200px;
+      }
+      header .legend {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        margin-top: 10px;
+        font-size: 12.5px;
+      }
+      header .legend b {
+        color: var(--gold);
+        font-family: var(--font-display);
+      }
+      header label {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        cursor: pointer;
+      }
+      .group {
+        padding: 10px 28px 18px;
+      }
+      h2 {
+        margin: 14px 0 4px;
+        font: 800 20px/1.15 var(--font-display);
+        color: var(--gold);
+      }
+      .note {
+        margin: 0 0 12px;
+        color: var(--muted);
+        max-width: 1200px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .sample {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 10px 12px 12px;
+      }
+      .pair {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+      }
+      .cell {
+        position: relative;
+        display: grid;
+        gap: 4px;
+        justify-items: center;
+      }
+      .cell canvas {
+        border-radius: 8px;
+        display: block;
+      }
+      .tag {
+        font: 800 11px/1 var(--font-display);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .cap h3 {
+        margin: 10px 0 2px;
+        font: 800 15px/1.2 var(--font-display);
+      }
+      .cap h3 b {
+        display: inline-block;
+        min-width: 22px;
+        margin-right: 4px;
+        padding: 0 5px;
+        border-radius: 7px;
+        background: var(--gold);
+        color: var(--ink);
+        text-align: center;
+        font-size: 12px;
+        line-height: 18px;
+      }
+      .cap p {
+        margin: 3px 0 0;
+        font-size: 12px;
+      }
+      .cap .src {
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+      }
+      .cap i {
+        font-style: normal;
+        font-family: var(--font-display);
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        margin-right: 4px;
+        padding: 1px 5px;
+        border-radius: 5px;
+        background: var(--line);
+      }
+      .cap .pro i {
+        background: #6a4fa0;
+      }
+      .strip {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin: 6px 0;
+      }
+      .strip canvas {
+        border-radius: 4px;
+      }
+      .striplabel {
+        width: 170px;
+        font: 800 12px var(--font-display);
+        color: var(--muted);
+      }
+      table.contrast {
+        border-collapse: collapse;
+        font-size: 12px;
+        margin-top: 6px;
+      }
+      table.contrast th,
+      table.contrast td {
+        padding: 3px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        font-variant-numeric: tabular-nums;
+      }
+      table.contrast th {
+        color: var(--muted);
+        font-weight: 700;
+        vertical-align: bottom;
+      }
+      table.contrast .low {
+        color: #ff8b8b;
+      }
+      table.contrast b.low {
+        color: #ff8b8b;
+      }
+      .sw {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        vertical-align: -3px;
+        margin-right: 6px;
+        border: 1px solid #0006;
+      }
+      .inspectpair {
+        display: flex;
+        gap: 22px;
+        align-items: flex-start;
+      }
+      .inspectcol {
+        display: grid;
+        gap: 6px;
+      }
+      .inspectpair .inspect {
+        position: static;
+        width: 340px;
+        max-height: none;
+      }
+      .inspect-pic-tile {
+        flex-basis: 72px !important;
+        height: 72px !important;
+        background: #3e3c58;
+      }
+      .inspect-grow {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 5px;
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+      .inspect-meter {
+        display: inline-flex;
+        gap: 3px;
+        padding: 3px;
+        border-radius: 999px;
+        background: #2b1d2e55;
+      }
+      .inspect-meter i {
+        width: 14px;
+        height: 7px;
+        border-radius: 3px;
+        background: #2b1d2e44;
+        box-shadow: inset 0 0 0 1px #2b1d2e99;
+      }
+      .inspect-meter i.lit {
+        background: var(--gold);
+      }
+      footer {
+        padding: 10px 28px 40px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .err {
+        color: #ff8b8b;
+        white-space: pre-wrap;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>2048 Siege · every tile state, current vs proposed <span id="count" style="color:#b7afc9;font-size:18px"></span></h1>
+      <p>
+        Review sheet for the tile overhaul (reports/art/tiles/tile-spec.md). Every sample is drawn with the real generated sprites at 2× a 390 px phone (cell 140 px, tile 0.9 cell). <b>current</b> is a 1:1 port of today’s src/art/index.js plate and src/render/blocks.js rules, drawn sharp at this size instead of blown up from the 160 px texture; <b>proposed</b> is the clay plaque seated in the keep’s flagstone pit. Keyframes are static; the Play toggle replays the motion states.
+      </p>
+      <div class="legend">
+        <span><b>Kept:</b> number first (Baloo 2 ExtraBold, ink + cream stroke), plate tint tone(colour, 0.42), creature over the sill, glyph badge, egg → baby → den → roamer.</span>
+        <label><input type="checkbox" id="play" /> Play motion</label>
+      </div>
+    </header>
+    <div id="sheet"></div>
+    <footer>Generated by reports/art/tiles/samples.js from the live code (no game file changed). Export: node reports/art/tiles/tools/capture.mjs → samples.png.</footer>
+    <script type="module" src="./samples.js"></script>
+  </body>
+</html>

@@ -3,8 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Container, Texture, TextureSource } from 'pixi.js';
-import { createRoamers } from '../src/kv/roam.js';
-import { ROAMER_CELLS, createArt } from '../src/art/index.js';
+import { GAITS, createRoamers, gaitAt } from '../src/kv/roam.js';
+import { ROAMER_CELLS, ROAMER_MAX_W, createArt, generatedRoamerFit } from '../src/art/index.js';
+import { FUSION_ROSTER } from '../src/art/fusion-roster.js';
 import { foeDrawSize } from '../src/art/foe-roster.js';
 import { ENEMY_TYPES } from '../src/sim/enemies.js';
 import { GRID } from '../src/config.js';
@@ -12,12 +13,12 @@ import { GRID } from '../src/config.js';
 const U = 35;
 const tex = (w, h) => new Texture({ source: new TextureSource({ width: w, height: h }) });
 
-function scene({ legend = false, reduced = false } = {}) {
+function scene({ legend = false, reduced = false, fit = null, size = [200, 210] } = {}) {
   const stage = { reduced, layers: { enemies: new Container() }, sx: (x) => x * U, sy: (y) => 900 - y * U, view: { U } };
   const art = {
     style: 'sticker',
-    roamer: () => tex(200, 210),
-    roamerFit: (cls) => ({ feet: 0.97, height: cls.ultimate ? ROAMER_CELLS.legend : ROAMER_CELLS.fusion, maxW: 1.4 }),
+    roamer: () => tex(...size),
+    roamerFit: (cls) => fit ?? { feet: 0.97, height: cls.ultimate ? ROAMER_CELLS.legend : ROAMER_CELLS.fusion, maxW: 1.4 },
     halo: () => tex(120, 120),
   };
   const fx = { burst() {}, ring() {} };
@@ -84,4 +85,96 @@ test('Reduce motion: a pet that fires does not lunge, nor does a legend’s halo
     if (legend) assert.ok(moving.halo > pose(false, false).halo, 'with motion, the halo swells as it fires');
     else assert.notEqual(moving.y, pose(false, false).y, 'with motion, the fusion lunges at its target');
   }
+});
+
+test('a generated pet stands 1.0 cell tall and up to 1.6 cells wide, with its roster view and move', () => {
+  assert.equal(ROAMER_MAX_W, 1.6);
+  const croc = generatedRoamerFit({ element: 'fire', fusion: 'metal' });
+  assert.deepEqual(croc, { feet: 0.97, height: 1, maxW: 1.6, view: 'profile', move: 'crawl' });
+  assert.deepEqual(generatedRoamerFit({ element: 'metal', fusion: 'fire' }), croc, 'either merge order');
+  const legend = generatedRoamerFit({ element: 'ice', fusion: 'poison', ultimate: 'wind' });
+  assert.equal(legend.height, 1.15);
+  assert.ok(Math.abs(legend.maxW - 1.15 * 1.6) < 1e-9);
+  assert.equal(legend.view, 'front', 'the jellyfish is drawn from the front');
+  // a long low animal 2.5× wider than tall is capped by its width: 1.6 cells wide, 0.64 tall
+  const { roam, run, stage } = scene({ fit: croc, size: [500, 200] });
+  roam.sync(run, 1 / 60);
+  const body = stage.layers.enemies.children.find((c) => c.children.length === 5).children[4];
+  const cells = (px) => px / (GRID.cell * U);
+  assert.ok(Math.abs(cells(500 * Math.abs(body.scale.x)) - 1.6) < 0.08, `width ${cells(500 * Math.abs(body.scale.x)).toFixed(2)} cells`);
+  assert.ok(Math.abs(cells(200 * Math.abs(body.scale.y)) - 0.64) < 0.04, `height ${cells(200 * Math.abs(body.scale.y)).toFixed(2)} cells`);
+});
+
+test('each pet roams its own way: hoverers ride over a detached shadow, crawlers never lift, leapers hop higher than walkers', () => {
+  const peak = (move, moving, view = 'profile') => {
+    let lift = 0;
+    let lowest = Infinity;
+    for (let t = 0; t < 4; t += 0.01) {
+      const g = gaitAt(move, t, moving, view);
+      lift = Math.max(lift, g.lift);
+      lowest = Math.min(lowest, g.lift);
+    }
+    return { lift, lowest };
+  };
+  assert.equal(peak('crawl', true).lift, 0, 'a crawler stays on the ground');
+  assert.equal(peak('walk', false).lift, 0, 'a walker standing still does not bob');
+  assert.ok(peak('walk', true).lift <= 0.121);
+  assert.ok(peak('leap', true).lift > 2 * peak('walk', true).lift, 'a leaper hops');
+  for (const m of ['hover', 'float', 'swim']) assert.ok(peak(m, false).lowest > 0.15, `${m}: off the ground even when still`);
+  assert.ok(gaitAt('swim', 1, false).dx !== 0, 'a swimmer drifts');
+  assert.ok([...Array(40)].some((_, i) => gaitAt('hover', i * 0.05, false, 'spread').wide < 0.95), 'wings seen from above beat');
+  assert.equal(gaitAt('hover', 0.3, false, 'profile').wide, 1);
+  // in the scene: a hovering pet lifts its body and leaves a smaller shadow on the ground
+  const at = (move, view = 'profile', reduced = false) => {
+    const { roam, run, stage } = scene({ fit: { feet: 0.97, height: 1, maxW: 1.6, view, move }, reduced });
+    run.tiles[0].roam.facing = 1; // walking right
+    roam.sync(run, 1 / 60);
+    const pet = stage.layers.enemies.children.find((c) => c.children.length === 5);
+    return { body: pet.children[4], shadow: pet.children[0] };
+  };
+  const walker = at('walk');
+  const hoverer = at('hover');
+  assert.ok(hoverer.body.position.y < walker.body.position.y - 0.25 * U, 'the hoverer rides higher');
+  assert.ok(hoverer.shadow.width < walker.shadow.width, 'its shadow, left on the ground, is smaller');
+  // only a side view turns to face where it goes; a front or top view keeps its light from the upper left
+  assert.ok(walker.body.scale.x < 0, 'a profile walking right is flipped');
+  assert.ok(at('hover', 'front').body.scale.x > 0, 'a front view is never flipped');
+  assert.ok(at('swim', 'spread').body.scale.x > 0, 'nor a top view');
+  // Reduce motion: a leaper walks
+  const calm = scene({ fit: { feet: 0.97, height: 1, maxW: 1.6, view: 'profile', move: 'leap' }, reduced: true });
+  calm.run.tiles[0].roam.moving = true;
+  let high = 0;
+  for (let i = 0; i < 120; i++) {
+    calm.roam.sync(calm.run, 1 / 60);
+    calm.run.tiles[0].roam.x += 0.01; // keep it walking
+    const body = calm.stage.layers.enemies.children.find((c) => c.children.length === 5).children[4];
+    high = Math.max(high, -body.position.y);
+  }
+  assert.ok(high <= 0.121 * U + 1e-6, `under Reduce motion the jackrabbit walks (${(high / U).toFixed(3)} U)`);
+  assert.ok(high > 0.05 * U, `but it does walk: it steps (${(high / U).toFixed(3)} U)`);
+});
+
+test('a pet eases into its stride and out of it, and never squashes past 5 %', () => {
+  // the first frame on the move barely lifts a leaper; a second later it hops at full height
+  const { roam, run, stage } = scene({ fit: { feet: 0.97, height: 1, maxW: 1.6, view: 'profile', move: 'leap' } });
+  const body = () => stage.layers.enemies.children.find((c) => c.children.length === 5).children[4];
+  roam.sync(run, 1 / 60);
+  run.tiles[0].roam.moving = true;
+  let first = null;
+  let high = 0;
+  for (let i = 0; i < 90; i++) {
+    run.tiles[0].roam.x += 0.01;
+    roam.sync(run, 1 / 60);
+    if (first == null) first = -body().position.y;
+    high = Math.max(high, -body().position.y);
+  }
+  assert.ok(first < 0.05 * U, `the first moving frame lifts ${(first / U).toFixed(3)} U, not a jump`);
+  assert.ok(high > 0.25 * U, `then it hops (${(high / U).toFixed(3)} U)`);
+  for (const move of GAITS)
+    for (let t = 0; t < 3; t += 0.01) for (const go of [0, 0.5, 1]) assert.ok(Math.abs(gaitAt(move, t, go, 'profile').squash) <= 0.05 + 1e-9, `${move} at ${t}`);
+});
+
+test('every roster move is a gait the roamer draws', () => {
+  assert.deepEqual(GAITS, ['walk', 'crawl', 'leap', 'hover', 'swim', 'float']);
+  for (const [k, r] of Object.entries(FUSION_ROSTER)) assert.ok(GAITS.includes(r.move), `${k}: ${r.move}`);
 });

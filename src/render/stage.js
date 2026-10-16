@@ -18,8 +18,10 @@ const LAYERS = ['bg', 'path', 'board', 'tiles', 'enemies', 'shots', 'fx', 'numbe
 /**
  * The narrowest namecard rail (px): 44 px cards, RAIL_PX.margin each side. The rail hangs on the
  * right tower, right of x = FRAME_GEOM.towerIn. The world is sized first and keeps the tower at
- * least this wide; the cards then take the width the tower has, up to 44 px on a 360 px phone and
- * 48–52 px on wider ones (src/kv/namecards.js railLayout).
+ * least this wide; the cards then take the width the tower has, up to 48 px on a phone up to 400 px
+ * wide and 52 px on a wider one (src/kv/namecards.js railLayout). A 360 or 375 px phone's full
+ * height gives them 48 px; with its browser toolbars showing (360 × 560, 375 × 548) its tower is
+ * narrower and they keep 44.
  */
 export const RAIL_MIN = RAIL_PX.card + 2 * RAIL_PX.margin;
 

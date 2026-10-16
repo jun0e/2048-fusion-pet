@@ -44,7 +44,7 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
-import { plan, MODEL_FAST } from './pipeline-jobs.mjs';
+import { plan, MODEL_FAST, HERO_RIM } from './pipeline-jobs.mjs';
 import { PRICES, costOf, checkBudget, loadLimits, loadLedger, appendLedger, weeklyUsage } from './gemini-budget.mjs';
 import { classify429 } from './gemini-errors.mjs';
 import { postJson } from './curl-post.mjs';
@@ -57,7 +57,7 @@ const cache = join(root, 'tools', '.cache', 'pipeline');
 const rawDir = join(cache, mock ? 'mock-raw' : 'raw');
 const assetsDir = join(root, 'public', 'assets', ...(mock ? ['_mock'] : []));
 const outDir = join(assetsDir, 'gen');
-const candDir = join(cache, mock ? 'mock-cand' : 'cand'); // candidates of gated jobs (foes)
+const candDir = join(cache, mock ? 'mock-cand' : 'cand'); // candidates of gated jobs (foes, fusion pets)
 const manifestFile = join(assetsDir, 'manifest.json');
 const ledgerFile = join(root, 'tools', '.cache', 'gemini-usage.json');
 const limitsFile = join(root, 'tools', 'gemini-budget.json');
@@ -329,23 +329,37 @@ function postProcess(job, src = rawOf(job.id), dst = outOf(job.id)) {
   return JSON.parse(outStr.trim().split('\n').pop());
 }
 
-/** A gated job's spec for tools/silhouette-check.py: a foe already made under its contract stands in for its sketch. */
-function gateSpec(job, manifest, candidates) {
+/** A hero sprite (a base pet, a fusion) carries the cream sticker rim, which is not its silhouette. */
+const isHero = (id) => id.startsWith('pet.') || id.startsWith('fusion.');
+
+/**
+ * A gated job's spec for tools/silhouette-check.py: a sprite already made under its contract stands
+ * in for its sketch. `pick.allies` is an id prefix ('fusion.': every sprite it starts) or a list of
+ * ids (the ones made so far); with no chapter (the pets) the marching-chapter pool is empty. A pet's
+ * rim (`pick.rim`) is stripped from it and from the pets made so far, and every hero ally's from it.
+ */
+export function gateSpec(job, manifest, candidates, dir = outDir) {
   const p = job.pick;
-  const made = (id) => manifest.meta?.[id]?.gate && existsSync(outOf(id));
+  const file = (id) => join(dir, `${id}.png`);
+  const made = (id) => manifest.meta?.[id]?.gate && existsSync(file(id));
+  const chaptersOf = (o) => o.chapters ?? (o.chapter ? [o.chapter] : []);
+  const allyIds = typeof p.allies === 'string'
+    ? readdirSync(dir).filter((f) => f.startsWith(p.allies) && f.endsWith('.png')).map((f) => f.slice(0, -4))
+    : (p.allies ?? []).filter((id) => existsSync(file(id)));
   return {
     contract: join(root, p.contract),
     view: p.view,
-    chapter: p.chapter,
-    chapters: p.chapters ?? [p.chapter],
+    ...(p.chapter ? { chapter: p.chapter } : {}),
+    chapters: chaptersOf(p),
     grounds: p.grounds,
+    ...(p.band ? { band: p.band } : {}),
+    ...(p.rim ? { rim: p.rim } : {}),
     others: p.others.map((o) => ({
       id: o.id,
-      chapter: o.chapter,
-      chapters: o.chapters ?? [o.chapter],
-      ...(made(o.id) ? { path: outOf(o.id), mask: 'alpha' } : { path: join(root, o.sil), mask: 'dark' }),
+      chapters: chaptersOf(o),
+      ...(made(o.id) ? { path: file(o.id), mask: 'alpha', ...(p.rim ? { rim: p.rim } : {}) } : { path: join(root, o.sil), mask: 'dark' }),
     })),
-    allies: readdirSync(outDir).filter((f) => f.startsWith(p.allies) && f.endsWith('.png')).map((f) => join(outDir, f)),
+    allies: allyIds.map((id) => ({ id, path: file(id), ...(isHero(id) ? { rim: HERO_RIM } : {}) })),
     candidates,
   };
 }
@@ -393,6 +407,13 @@ function askHash(ask) {
 }
 
 const firstLine = (e) => String(e?.message ?? e).split('\n')[0];
+
+/**
+ * Whether a gated job's cached pick still answers today's ask: its sidecar records the ask it was
+ * picked for (`base`, the first round's hash); a sidecar from before that record counts as current.
+ */
+export const sidecarCurrent = (side, hash) => side?.base == null || side.base === hash;
+const pickCurrent = (job) => sidecarCurrent(readSidecar(job.id), askHash(job));
 
 /**
  * Make `pick.n` candidates of a gated job, post-process and score each (contract, twin, ally,
@@ -475,6 +496,7 @@ async function pickCandidate(job, key, backend, manifest, { fresh = false } = {}
   if (b.mirror) execFileSync('python3', ['-c', 'import sys; from PIL import Image; Image.open(sys.argv[1]).transpose(Image.FLIP_LEFT_RIGHT).save(sys.argv[2])', b.raw, rawOf(job.id)]);
   else copyFileSync(b.raw, rawOf(job.id));
   side.picked = b.n;
+  side.base = askHash(job); // the ask it answers (before any strict lead): a changed ask makes the pick stale
   save();
   log({ id: job.id, picked: b.n, candidates: scored.map(gateBrief) });
   return gateBrief(b);
@@ -508,12 +530,14 @@ function writeSheet(jobs, manifest) {
       const gate = j.pick ? manifest.meta?.[j.id]?.gate : null;
       const out = gate && !insideTolerance(gate);
       const verdict = !gate ? '' : out ? `<em>GATES ✗ ${gateMisses(gate)}</em>` : gate.pass ? ' · gates ✓' : ' · gates ✓ (within 0.03)';
-      return `<figure class="${[done ? '' : 'miss', out ? 'gate' : ''].join(' ').trim()}">${done ? `<img src="../../public/assets/${mock ? '_mock/' : ''}gen/${j.id}.png" onerror="this.onerror=null;this.src='/assets/${mock ? '_mock/' : ''}gen/${j.id}.png'" loading="lazy">` : '<div class="todo">not yet</div>'}<figcaption><b>${j.id}</b><span>${qa ? `cov ${qa.coverage}${qa.in_palette != null ? ` · palette ${Math.round(qa.in_palette * 100)}%` : ''}${qa.ok ? '' : ' · CHECK'}` : ''}${verdict}</span></figcaption></figure>`;
+      // a hero whose cream rim measured 0 px was compared with its rim on: worth a look
+      const rim = j.pick?.rim && gate?.rimPx === 0 ? '<em>rim measured 0 px</em>' : '';
+      return `<figure class="${[done ? '' : 'miss', out ? 'gate' : ''].join(' ').trim()}">${done ? `<img src="../../public/assets/${mock ? '_mock/' : ''}gen/${j.id}.png" onerror="this.onerror=null;this.src='/assets/${mock ? '_mock/' : ''}gen/${j.id}.png'" loading="lazy">` : '<div class="todo">not yet</div>'}<figcaption><b>${j.id}</b><span>${qa ? `cov ${qa.coverage}${qa.in_palette != null ? ` · palette ${Math.round(qa.in_palette * 100)}%` : ''}${qa.ok ? '' : ' · CHECK'}` : ''}${verdict}${rim}</span></figcaption></figure>`;
     })
     .join('');
   writeFileSync(
     sheetFile,
-    `<!doctype html><meta charset="utf-8"><title>Pipeline sheet</title><style>body{margin:0;background:#17203f;color:#fffaf2;font:600 13px Nunito,system-ui,sans-serif;padding:18px}h1{font:800 24px 'Baloo 2',sans-serif}h1 small{font-size:15px;color:#ff9a9a}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}figure{margin:0;background:#1f2a55;border-radius:12px;padding:8px;background-image:repeating-conic-gradient(#2a3566 0% 25%,#253060 0% 50%);background-size:14px 14px}figure img{width:100%;height:130px;object-fit:contain}figcaption b{display:block;font-size:11px}figcaption span{color:#c9d3ff;font-size:11px}figcaption em{display:block;font-style:normal;color:#ff9a9a}.gate{outline:3px solid #ef5a5a;outline-offset:-3px}.miss{opacity:.45}.todo{height:130px;display:grid;place-items:center;color:#93a0d6}</style><h1>Asset pipeline: ${jobs.filter((j) => existsSync(outOf(j.id))).length} / ${jobs.length} done${red.length ? ` <small>· ${red.length} outside the foe gates (red)</small>` : ''}</h1><div class="g">${cards}</div>`,
+    `<!doctype html><meta charset="utf-8"><title>Pipeline sheet</title><style>body{margin:0;background:#17203f;color:#fffaf2;font:600 13px Nunito,system-ui,sans-serif;padding:18px}h1{font:800 24px 'Baloo 2',sans-serif}h1 small{font-size:15px;color:#ff9a9a}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}figure{margin:0;background:#1f2a55;border-radius:12px;padding:8px;background-image:repeating-conic-gradient(#2a3566 0% 25%,#253060 0% 50%);background-size:14px 14px}figure img{width:100%;height:130px;object-fit:contain}figcaption b{display:block;font-size:11px}figcaption span{color:#c9d3ff;font-size:11px}figcaption em{display:block;font-style:normal;color:#ff9a9a}.gate{outline:3px solid #ef5a5a;outline-offset:-3px}.miss{opacity:.45}.todo{height:130px;display:grid;place-items:center;color:#93a0d6}</style><h1>Asset pipeline: ${jobs.filter((j) => existsSync(outOf(j.id))).length} / ${jobs.length} done${red.length ? ` <small>· ${red.length} outside their gates (red)</small>` : ''}</h1><div class="g">${cards}</div>`,
   );
 }
 
@@ -647,7 +671,8 @@ async function main() {
     state.set(job.id, 'running');
     for (let attempt = 1; attempt <= 2; attempt++) {
       const t = Date.now();
-      const reuse = attempt === 1 && !force && existsSync(rawOf(job.id)); // paid for already: post-process only
+      // paid for already: post-process only, unless a gated job's words changed since its pick
+      const reuse = attempt === 1 && !force && existsSync(rawOf(job.id)) && (!job.pick || pickCurrent(job));
       let picked = null;
       try {
         if (!reuse && job.pick) picked = await pickCandidate(job, key, backend, manifest, { fresh: attempt > 1 });

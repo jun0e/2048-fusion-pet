@@ -17,23 +17,27 @@
 // - the big milestone number (it takes the flash budget).
 // WCAG 2.3.1 allows at most 3 in any second. A block's red hit tint is counted per block.
 //
-//   node tools/flash-audit.mjs [--seeds=12] [--minutes=15] [--ladder=150]
+//   node tools/flash-audit.mjs [--seeds=12] [--minutes=15] [--ladder=150] [--u=32]
 import { pathToFileURL } from 'node:url';
 import { createRun } from '../src/sim/run.js';
 import { bestDir } from '../src/autoplay.js';
 import { FIELD, PHYSICS } from '../src/config.js';
-import { BURST, COIN, DOT, FOE_FLASH, HIT_TINT, HURT_PULSE, LINE, NUMBER, POINT, SIGNATURE_TINT, TEXT, boomLit, createFlashGuard, createLightBudget, fitBoom, fitRing, isSaturatedRed, popupFont, ringLit, textInk, washAlpha } from '../src/ux/photosafe.js';
+import { BURST, COIN, DOT, FOE_FLASH, HIT_TINT, HURT_PULSE, LINE, NUMBER, POINT, SIGNATURE_TINT, TEXT, boomLit, createFlashGuard, createLightBudget, fitBoom, fitRing, isSaturatedRed, numberLight, numberScale, numberText, popupFont, ringLit, textInk, washAlpha } from '../src/ux/photosafe.js';
 import { ELEMENTS, ELEMENT_KEYS } from '../src/sim/classes.js';
 import { STAGES, attackLight, attackOf } from '../src/art/attack-vfx.js';
 import { foeDrawSize } from '../src/art/foe-roster.js';
 
 const TAP_GAP = 0.2; // seconds of real time between taps on cards that are ready together
-const PHONE_U = 32; // px per world unit on a small phone: text over the canvas is biggest there
+const PHONE_U = 32; // px per world unit on a phone (the default): text over the canvas is bigger the smaller it is
+// the U this audit runs at (audit({ U }), --u=): a 360 × 640 phone is 23.78, where the damage
+// numbers sit at their px floors (photosafe.js numberScale) and the popups are biggest
+let phoneU = PHONE_U;
 const MERGE = 0.1; // large flashes closer than this (real time) read as one
 const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 
 // The effects before the photosafe pass, as main.js, pets.js, fx.js and blocks.js had them.
-const OLD = { signatureAlpha: 0.28, skillAlpha: 0.22, hurtAlpha: 0.53, dotScale: 1.3, dotLife: 0.16, dotShare: 0.647, hitHold: 0, hitDecay: 4 };
+const OLD = { signatureAlpha: 0.28, skillAlpha: 0.22, hurtAlpha: 0.53, dotScale: 1.3, dotLife: 0.16, dotShare: 0.647, hitHold: 0, hitDecay: 4, numberLit: 0.12 };
+// (a damage number before: its world scale alone, NUMBER.scales, with the old 0.16 em stroke)
 // the old flash dot: 64.7% of its texture lit to 10% or more at alpha 1 (measured), growing by 0.6 over its life
 
 /** The explosion size src/render/shots.js gives an impact (world units). */
@@ -52,10 +56,11 @@ const polyline = (pts) => pts.slice(1).reduce((sum, q, i) => sum + dist(pts[i], 
  */
 function pointEffects(e) {
   const fx = (p) => ({ rings: [], lines: [], bursts: [], ...p });
-  const text = (t, tier) => [textInk(t, popupFont(tier), PHONE_U), TEXT.life]; // a popup (main.js)
+  // a popup (main.js): [lit, life, the least share it is drawn at (no smaller than TEXT.minPx, or not at all)]
+  const text = (t, tier) => [textInk(t, popupFont(tier), phoneU), TEXT.life, Math.max(TEXT.minScale, TEXT.minPx / popupFont(tier)) ** 2];
   switch (e.type) {
     case 'merge':
-      return fx({ rings: [[0.6, 1.6, 0.3]], bursts: [[10 + (e.tier ?? 1) * 2, 0.24, 0.45]], texts: [text(`+${e.value.toLocaleString()}`, e.tier), ...(e.combo >= 2 ? [[(TEXT.peak * TEXT.comboPx) / PHONE_U ** 2, TEXT.life]] : [])] });
+      return fx({ rings: [[0.6, 1.6, 0.3]], bursts: [[10 + (e.tier ?? 1) * 2, 0.24, 0.45]], texts: [text(`+${e.value.toLocaleString()}`, e.tier), ...(e.combo >= 2 ? [[(TEXT.peak * TEXT.comboPx) / phoneU ** 2, TEXT.life, 1]] : [])] });
     case 'promote':
       return fx({ rings: [[0.6, 2.4, 0.5]], bursts: [[30, 0.3, 0.6]], texts: [text(`x${2 ** (e.by ?? 1)}`, e.tier)] });
     case 'override':
@@ -123,9 +128,9 @@ function pointEffects(e) {
     case 'foeFlash': // enemies hit this step (play() adds these): before, each run of hits flashed its sprite once
       return e.starts.length ? fx({ foes: e.starts }) : null;
     case 'hit':
-      return e.amount >= 0.5 ? fx({ numbers: [0.36] }) : null;
+      return e.amount >= 0.5 ? fx({ numbers: [['hit', numberText(e.amount)]] }) : null; // [kind, the text fx.js draws]
     case 'coins':
-      if (e.reason === 'kill') return fx({ numbers: [0.3], coins: Math.min(6, 1 + Math.floor(e.amount / 12)) });
+      if (e.reason === 'kill') return fx({ numbers: [['small', numberText(e.amount, { prefix: '+' })]], coins: Math.min(6, 1 + Math.floor(e.amount / 12)) });
       if (e.reason === 'combo') return fx({ coins: 3, texts: [text('Free swipe!', 6)] });
       return e.reason === 'clear' ? fx({ coins: 10 }) : null;
     case 'embers': // status particles and DoT numbers (play() adds these, as foes.js emits them)
@@ -196,15 +201,16 @@ function pointLight(items, safe) {
         count('burst', m < n, m / n);
       }
       for (const lit of p.foes ?? []) count('enemy hit flash', !budget.bookAll(lit, FOE_FLASH.life));
-      for (const scale of p.numbers ?? []) count('number', !budget.bookAll(NUMBER.lit * (scale / NUMBER.scale) ** 2, NUMBER.life));
+      for (const [kind, text] of p.numbers ?? []) count('number', !budget.bookAll(numberLight(numberScale(kind, phoneU), text), NUMBER.life)); // as fx.js books it
       if (p.coins) {
         const m = Math.round(p.coins * budget.book(p.coins * COIN.lit, COIN.life(p.coins)));
         count('coin', m < p.coins, m / p.coins);
       }
       for (const [lit, life] of p.embers ?? []) count('ember', !budget.bookAll(lit, life));
-      for (const [lit, life] of p.texts ?? []) {
-        const k = budget.book(lit, life, TEXT.minScale ** 2); // drawn smaller (font × √k), or not at all
-        count('text', k < 1, k);
+      for (const [lit, life, least] of p.texts ?? []) {
+        // drawn smaller (font × √k), or not at all; the combo pill whole or not at all (main.js flashAll)
+        const k = least >= 1 ? (budget.bookAll(lit, life) ? 1 : 0) : budget.book(lit, life, least);
+        count(least >= 1 ? 'combo' : 'text', k < 1, k);
       }
       for (const it of p.sprites ?? []) {
         // the sprite attacks: whole or not at all, or smaller, thinner, fewer (as attacks.js bookPlan), each from its delay on
@@ -233,7 +239,7 @@ function pointLight(items, safe) {
       for (const [lit, life] of p.lines) add(lit, life);
       for (const [n, size, life] of p.bursts) add(n * BURST.perSize2 * size * size, life * 1.2);
       for (const lit of p.foes ?? []) add(lit, FOE_FLASH.life);
-      for (const scale of p.numbers ?? []) add(NUMBER.lit * (scale / NUMBER.scale) ** 2, NUMBER.life);
+      for (const [kind] of p.numbers ?? []) add(OLD.numberLit * (NUMBER.scales[kind] / NUMBER.scale) ** 2, NUMBER.life);
       if (p.coins) add(p.coins * COIN.lit, COIN.life(p.coins));
       for (const [lit, life] of p.embers ?? []) add(lit, life);
       for (const [lit, life] of p.texts ?? []) add(lit, life);
@@ -303,7 +309,7 @@ function play(run, { seconds, bot }) {
     const numbers = [];
     for (const f of run.enemies) {
       if (f.dead) continue;
-      const tm = emit.get(f.id) ?? { e: 0, d: 0 };
+      const tm = emit.get(f.id) ?? { e: 0, d: 0, burn: f.dot?.burn ?? 0, poison: f.dot?.poison ?? 0 }; // as foes.js: the DoT totals seen so far
       tm.e -= PHYSICS.dt;
       tm.d += PHYSICS.dt;
       if (tm.e <= 0) {
@@ -314,9 +320,14 @@ function play(run, { seconds, bot }) {
         if (f.chillT > 0 && !(f.freezeT > 0)) embers.push([0.4 * DOT.share * 0.1 * 0.1, 0.5]);
       }
       if (tm.d >= 0.5) {
+        // foes.js: twice a second, the damage burn and poison did since the last numbers, as text
         tm.d = 0;
-        if (f.burn.stacks > 0) numbers.push(0.3);
-        if (f.poison.stacks > 0) numbers.push(0.3);
+        const burn = (f.dot?.burn ?? 0) - tm.burn;
+        const poison = (f.dot?.poison ?? 0) - tm.poison;
+        tm.burn = f.dot?.burn ?? 0;
+        tm.poison = f.dot?.poison ?? 0;
+        if (burn >= 1) numbers.push(['small', numberText(burn)]);
+        if (poison >= 1) numbers.push(['small', numberText(poison)]);
       }
       emit.set(f.id, tm);
     }
@@ -514,7 +525,8 @@ function rowsFor(scenarios, speeds) {
  * in any 1 s. With `ladderSeconds`, the 40 ladder boards are measured too, on their own
  * (rows.ladder), and rows.coverage counts each element's attacks at each stage.
  */
-export function audit({ seeds = 12, minutes = 15, stressSeconds = 180, speeds = [1, 2, 4], stress = true, ladderSeconds = 0 } = {}) {
+export function audit({ seeds = 12, minutes = 15, stressSeconds = 180, speeds = [1, 2, 4], stress = true, ladderSeconds = 0, U = PHONE_U } = {}) {
+  phoneU = U;
   const scenarios = [];
   for (let seed = 1; seed <= seeds; seed++) scenarios.push({ name: `bot ${seed}`, events: play(createRun({ seed, autoChoose: true, roaming: true }), { seconds: minutes * 60, bot: true }) });
   if (stress) scenarios.push({ name: 'stress', events: play(stressRun(), { seconds: stressSeconds, bot: false }) });
@@ -532,7 +544,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const seeds = arg('seeds', 12);
   const minutes = arg('minutes', 15);
   const ladderSeconds = arg('ladder', 60);
-  const rows = audit({ seeds, minutes, ladderSeconds });
+  const U = arg('u', PHONE_U);
+  const rows = audit({ seeds, minutes, ladderSeconds, U });
+  console.log(`at U ${U} (px per world unit; a 360 × 640 phone is 23.78): damage numbers at ${['hit', 'small'].map((k) => `${k} ${numberScale(k, U).toFixed(3)}`).join(', ')} world units`);
   console.log(`${seeds} bot games (up to ${minutes} min, pets roaming, namecards tapped when ready) + a stress board of 4 legendaries + 40 ladder boards (each element at each attack stage, ${ladderSeconds} s each)`);
   console.log(`a large local flash: the local effects on screen light ${POINT.large} units² or more to 10%; photosafe keeps them under ${POINT.cap}\n`);
   const table = (list) => {

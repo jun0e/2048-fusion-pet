@@ -4,6 +4,8 @@ import { meterState, keepGridCells, priceStep, pageBanner, bossHealth } from '..
 import {
   BRAZIER_HOLD,
   CHAPTER_SKINS,
+  DECOR,
+  FAR,
   FRAME_ASSETS,
   FRAME_GEOM,
   RAIL_PX,
@@ -13,13 +15,16 @@ import {
   decorSpots,
   dueByLane,
   hedgeStrips,
+  hedgeTones,
   holdBrazier,
   laneTicks,
   laneTones,
   litTicks,
   nextDieAt,
   previewChips,
+  ridgeFlat,
   skinFor,
+  softenBackdrop,
 } from '../src/art/frame-kit.js';
 import { fitU, RAIL_MIN, WORLD } from '../src/render/stage.js';
 import { cardWidth, railLayout } from '../src/kv/namecards.js';
@@ -128,6 +133,11 @@ test('the value plan: light lanes with a calm centre, dark hedges and keep floor
     assert.ok(lane >= 78 && lane <= 86, `${key} lane L* ${lane.toFixed(1)}`);
     for (const p of [t.patchLight, t.patchDark]) assert.ok(Math.abs(lstar(p) - lane) <= 4, `${key} calm patch within 4 L*: ${lstar(p).toFixed(1)} vs ${lane.toFixed(1)}`);
     assert.ok(lstar(s.hedge) <= 40, `${key} hedge dark`);
+    // the hedge's one lit scallop is a calm cel tone: the hedge stays a dark ground
+    const scallop = lstar(hedgeTones(s).scallop) - lstar(s.hedge);
+    assert.ok(scallop > 0 && scallop <= 6 && lstar(hedgeTones(s).scallop) <= 42, `${key} hedge scallop +${scallop.toFixed(1)} L*`);
+    // the cobble bands: the setts within 5 L* of their grout
+    assert.ok(Math.abs(lstar(t.cobble) - lstar(t.grout)) <= 5, `${key} cobbles low in contrast`);
     assert.ok(Math.abs(lstar(s.floor) - 27) <= 2, `${key} keep floor L* ≈ 27`);
     // cream text on the HUD's stone: at least 4.5:1
     const lum = (c) => ((lstar(c) + 16) / 116) ** 3;
@@ -284,37 +294,86 @@ test('the deck row: the dice and the next die\'s slot are centred together, betw
       else assert.equal(r.slotX, null);
     }
   }
-  // the slot holds "at 256" at 12 px on the smallest phone, unscaled: Baloo 2 ExtraBold measures it at
-  // 33 px (0.46 em a glyph); with 0.5 em a glyph and its 3 px stroke, inside the slot's 2 px dashes
-  const U360 = fitU(360, 640, { top: 106, bottom: 54 });
-  assert.ok(slot * U360 - 4 >= 6 * 12 * 0.5 + 3, `slot ${(slot * U360).toFixed(1)} px at U ${U360.toFixed(2)}`);
+  // the slot holds "at 512" at 14 px (the text floor) on the smallest phone, unscaled: Baloo 2
+  // ExtraBold measures it at 41.4 px (0.49 em a glyph); with 0.5 em a glyph and its 3.4 px stroke,
+  // inside the slot's 2 px dashes
+  const U360 = fitU(360, 640, { top: 110, bottom: 58 });
+  assert.ok(slot * U360 - 4 >= 6 * 14 * 0.5 + 3.4, `slot ${(slot * U360).toFixed(1)} px at U ${U360.toFixed(2)}`);
 });
 
-test('hedge decor is placed by hash: the same every build, on the hedges', () => {
+test('hedge decor is a whisper: placed by hash, small, faint, beside the towers and never between two lanes', () => {
   const strips = hedgeStrips();
   assert.equal(strips.length, 5);
   for (const key of Object.keys(CHAPTER_SKINS)) {
     const a = decorSpots(key);
     assert.deepEqual(a, decorSpots(key), 'deterministic');
-    assert.ok(a.length >= 5);
+    assert.ok(a.length >= 1 && a.length <= 2, `${key}: ${a.length} props`);
     for (const d of a) {
       assert.ok(CHAPTER_SKINS[key].decor.includes(d.id));
       const st = strips[d.strip];
-      assert.ok(d.x > st.x0 && d.x < st.x1, 'on its hedge');
+      assert.ok(st.outer, 'on an outer hedge, beside a tower');
+      assert.ok(d.x - d.s / 2 >= st.x0 && d.x + d.s / 2 <= st.x1, 'inside its hedge: never over a lane');
       assert.ok(d.y > FRAME_GEOM.parapet.wall && d.y < FRAME_GEOM.gate.sill, 'between the parapet and the gates');
+      assert.ok(d.s <= 0.32, 'small: 0.32 world units across at most');
     }
   }
+  assert.ok(DECOR.alpha <= 0.6, 'drawn faint, in the hedge’s tint');
+});
+
+test('the far layers keep only their largest shapes and colour mood: soft, dim, and never as light as a lane', () => {
+  const w = 64;
+  const h = 96;
+  const lumAt = (px, i) => 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+  const hexAt = (px, i) => '#' + [0, 1, 2].map((c) => px[i + c].toString(16).padStart(2, '0')).join('');
+  for (const [key, s] of Object.entries(CHAPTER_SKINS)) {
+    // the busiest painting there is: black and white squares 8 px across over saturated green and red ones
+    const px = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const on = ((x >> 3) + (y >> 3)) % 2;
+        px.set(y < h / 2 ? [on * 255, on * 255, on * 255, 255] : [on * 255, (1 - on) * 255, 0, 255], (y * w + x) * 4);
+      }
+    }
+    const out = softenBackdrop(px.slice(), w, h, s);
+    let lightest = 0;
+    let chroma = 0;
+    for (let i = 0; i < out.length; i += 4) {
+      lightest = Math.max(lightest, lstar(hexAt(out, i)));
+      if (i >= out.length / 2) chroma = Math.max(chroma, Math.max(out[i], out[i + 1], out[i + 2]) - Math.min(out[i], out[i + 1], out[i + 2]));
+      assert.equal(out[i + 3], 255, 'opaque');
+    }
+    assert.ok(lightest <= lstar(s.lane) - 25, `${key}: the far layer's lightest L* ${lightest.toFixed(1)} vs the lane's ${lstar(s.lane).toFixed(1)}`);
+    assert.ok(chroma <= 255 / 4, `${key}: a saturated colour keeps under a quarter of its chroma (${chroma})`);
+    // in any row, at most (1 − flatten)(1 − dim) of the painting's contrast is left
+    for (let y = 0; y < h; y++) {
+      let lo = 255;
+      let hi = 0;
+      for (let x = 0; x < w; x++) {
+        const v = lumAt(out, (y * w + x) * 4);
+        lo = Math.min(lo, v);
+        hi = Math.max(hi, v);
+      }
+      assert.ok(hi - lo <= (1 - FAR.flatten) * (1 - FAR.dim) * 255 + 1, `${key} row ${y}: ${(hi - lo).toFixed(1)}`);
+    }
+    // a flat sky stays flat
+    const sky = new Uint8ClampedArray(w * 4).fill(128);
+    const flat = softenBackdrop(sky, w, 1, s);
+    assert.ok(flat.every((v, i) => v === flat[i % 4]), `${key}: a flat painting stays flat`);
+    // the ridge strip: one flat tone, close to the sky's middle
+    assert.ok(Math.abs(lstar(ridgeFlat(s)) - lstar(s.sky[1])) <= 5, `${key}: ridge L* ${lstar(ridgeFlat(s)).toFixed(1)} vs the sky's ${lstar(s.sky[1]).toFixed(1)}`);
+  }
+  assert.ok(FAR.shrink >= 6 && FAR.shrink <= 8, 'drawn from 1/6 to 1/8 of its size, back up with linear filtering');
 });
 
 // the five phone sizes the proposal checks, with the HUD bands at no safe area (top: top bar,
 // lintel and ribbon; bottom: the bottom bar) and with an iPhone's safe areas
 const PHONES = [
-  [360, 640, 106, 54],
-  [375, 667, 104, 54],
-  [390, 844, 120, 56],
-  [390, 844, 167, 90],
-  [412, 915, 120, 56],
-  [430, 932, 179, 90],
+  [360, 640, 110, 58],
+  [375, 667, 110, 58],
+  [390, 844, 124, 60],
+  [390, 844, 171, 94],
+  [412, 915, 124, 60],
+  [430, 932, 183, 94],
 ];
 
 test('the layout keeps the right tower wide enough for the rail: a card never covers lane 4', () => {

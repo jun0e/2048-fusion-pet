@@ -9,6 +9,9 @@
 // its whole body at the target; a legendary never squashes, its halo swells and turns
 // faster as a charge dial. A Pride Pounce pet leaps onto its prey with an afterimage.
 // Reduce motion: no wind-up, no lunge, no leap and no halo swell.
+// Each generated fusion roams its own way (its roster `move`, gaitAt): walkers step, crawlers
+// stretch along the ground, leapers hop, hoverers and floaters ride over a detached shadow, the
+// swimmer drifts in an S; only a side view (`view` profile) is flipped to face where it goes.
 //
 // Pets never hide the fight (proposal W4): a fusion stands about 1.0 cell tall and a
 // legend 1.15 under its halo (src/art/index.js roamerFit), smaller than the bosses, and
@@ -20,6 +23,8 @@ import { fusionOf } from '../sim/classes.js';
 import { LADDER, createSimRate, has, leapAt, petPose, windUpAt } from '../art/attack-vfx.js';
 import { shadowTex, softDot } from '../render/textures.js';
 import { createAfterimage } from '../render/trails.js';
+import { BRACKET_CORNERS, drawBracket } from '../render/brackets.js';
+import { PLAQUE, bracketOffset } from '../art/plaque.js';
 import { createRng } from '../sim/rng.js';
 
 const hex = (c) => parseInt(c.replace('#', ''), 16);
@@ -30,6 +35,56 @@ const hex = (c) => parseInt(c.replace('#', ''), 16);
 const FOE_FEET = 0.34;
 /** The pets' ground marks, in cells: a shadow and a ring sized to a 1.0-cell fusion, a halo over a 1.15-cell legend. */
 const MARK = { shadow: 0.76, shadowH: 0.22, legendShadow: 0.54, legendShadowH: 0.16, ring: 0.27, ringH: 0.085, halo: 0.95, haloY: 1.15, glow: 1.9, glowY: 0.78 };
+
+/** The ways a fusion roams (src/art/fusion-roster.js `move`); anything else walks. */
+export const GAITS = ['walk', 'crawl', 'leap', 'hover', 'swim', 'float'];
+/** 1/s: how fast a pet eases into and out of its stride, so starting and stopping never pop. */
+const SETTLE = 8;
+
+/**
+ * A fusion's idle and walking motion by its roster `move` (src/art/fusion-roster.js), at time `t`
+ * (its own phase added), as the foes move (src/render/foes.js): `go` is how far into its stride it
+ * is (0 standing, 1 on the move; eased by the caller, a boolean works). → `lift` (U, up), `dx`
+ * (U), `sway` (radians), `squash` (+ = wider and shorter, never past 5 %: the style brief) and
+ * `wide` (a span seen from above beats by narrowing). A legend glides instead (sync); under Reduce
+ * motion a leaper walks.
+ */
+export function gaitAt(move, t, go, view) {
+  const k = Math.max(0, Math.min(1, +go || 0));
+  const breathe = 0.02 * Math.sin(t * 4.2);
+  let lift = 0;
+  let dx = 0;
+  let sway = 0;
+  let squash = breathe;
+  let wide = 1;
+  if (move === 'hover') {
+    lift = 0.36 + Math.sin(t * 2.6) * 0.06;
+    sway = Math.sin(t * 1.3) * 0.05;
+    squash = view === 'front' ? 0.03 * Math.sin(t * 3) : 0; // a bell pulses
+  } else if (move === 'float') {
+    lift = 0.28 + Math.sin(t * 2) * 0.08;
+    squash = 0;
+  } else if (move === 'swim') {
+    lift = 0.24;
+    dx = Math.sin(t * 2.4) * 0.12;
+    sway = Math.cos(t * 2.4) * 0.1;
+    squash = 0;
+  } else if (move === 'crawl') {
+    squash = breathe * (1 - k) + 0.05 * Math.sin(t * 6) * k; // stretches along the ground, never lifts
+  } else if (move === 'leap') {
+    const h = Math.abs(Math.sin(t * 5));
+    lift = h * 0.32 * k;
+    squash = breathe * (1 - k) + (0.05 * (1 - h) - 0.03 * h) * k; // squat on landing, stretched at the top
+    sway = Math.sin(t * 5) * 0.04 * k;
+  } else {
+    const step = Math.abs(Math.sin(t * 9));
+    lift = step * 0.12 * k;
+    squash = breathe * (1 - k) + 0.05 * (1 - step) * k;
+    sway = Math.sin(t * 9) * 0.05 * k;
+  }
+  if (view === 'spread' && move === 'hover') wide = 1 - 0.12 * Math.abs(Math.sin(t * 8)); // wings beat
+  return { lift, dx, sway, squash, wide };
+}
 
 /** The textures the pets' marks use (tests pass stand-ins). */
 const ROAM_TEXTURES = { shadowTex, softDot };
@@ -50,6 +105,16 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
   const echoLayer = new Container(); // a leaping pet's afterimage, over them all
   echoLayer.zIndex = 1e9;
   layer.addChild(echoLayer);
+  // a den picked on the board (blocks.select) marks its pet with the pick's cream corner brackets,
+  // their gap breathing in position, never in brightness (still under Reduce motion)
+  let marked = null;
+  let markCell = 0;
+  const mark = new Container();
+  mark.zIndex = 1e9 - 1;
+  mark.visible = false;
+  const markCorners = [0, 1, 2, 3].map(() => new Graphics());
+  mark.addChild(...markCorners);
+  layer.addChild(mark);
 
   function make(t) {
     const c = new Container();
@@ -79,6 +144,7 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
       walkFacing: t.roam.facing, // the sim's facing as last seen: a turn there overrides a punch's
       punch: 0,
       still: 0, // seconds since the sim last moved it
+      go: 0, // how far into its stride it is (0 standing, 1 on the move), eased
       phase: rand() * 6,
       key: '',
       ringU: 0, // the U its ring was drawn at
@@ -157,13 +223,16 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
       const sy = stage.sy(v.y);
       v.c.position.set(sx, sy);
       v.c.zIndex = stage.sy(v.y + FOE_FEET); // its feet, as a foe's container would stand there
-      const step = moving ? Math.abs(Math.sin(time * 9 + v.phase)) : 0;
-      const breathe = Math.sin(time * (legend ? 1.9 : 4.2) + v.phase);
-      const hover = legend ? (0.32 + 0.1 * breathe) * U : step * 0.12 * U;
-      const squash = legend ? 0 : (moving ? 0.05 * (1 - step) : 0.02 * breathe) + v.punch * 0.06;
-      v.body.position.set(0, -hover);
-      v.body.scale.set(s * (1 + squash * 0.6) * -v.facing, s * (1 - squash));
-      v.body.rotation = moving && !legend ? Math.sin(time * 9 + v.phase) * 0.05 : 0;
+      const breathe = Math.sin(time * 1.9 + v.phase);
+      v.go += ((moving ? 1 : 0) - v.go) * (1 - Math.exp(-SETTLE * dt)); // eases into and out of its stride
+      const g = legend ? null : gaitAt(reduced && v.fit.move === 'leap' ? 'walk' : v.fit.move, time + v.phase, v.go, v.fit.view);
+      const hover = legend ? (0.32 + 0.1 * breathe) * U : g.lift * U;
+      const squash = legend ? 0 : g.squash + v.punch * 0.06;
+      // a side view faces where it goes; a front or top view is symmetric and keeps its light from the upper left
+      const flip = !v.fit.view || v.fit.view === 'profile' ? -v.facing : 1;
+      v.body.position.set(legend ? 0 : g.dx * U, -hover);
+      v.body.scale.set(s * (1 + squash * 0.6) * flip * (legend ? 1 : g.wide), s * (1 - squash));
+      v.body.rotation = legend ? 0 : g.sway;
       // the attack's wind-up (WIND_UP s of real time before a shot, from the sim's cooldown, read
       // only) and follow-through; none under Reduce motion: no lunge, no halo swell
       if (!reduced) {
@@ -194,8 +263,9 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
         v.echo.push(dt, sx + v.body.position.x, sy + v.body.position.y, v.body.scale.x, v.body.scale.y, v.body.rotation);
         v.echo.draw(n, v.body.texture, 0xffffff, 0.5, v.fit.feet);
       }
-      v.shadow.width = cell * (legend ? MARK.legendShadow : MARK.shadow);
-      v.shadow.height = cell * (legend ? MARK.legendShadowH : MARK.shadowH);
+      const air = legend ? 1 : Math.max(0.6, 1 - g.lift * 0.8); // a shadow left on the ground shrinks under a hovering pet
+      v.shadow.width = cell * (legend ? MARK.legendShadow : MARK.shadow) * air;
+      v.shadow.height = cell * (legend ? MARK.legendShadowH : MARK.shadowH) * air;
       v.shadow.alpha = legend ? 0.55 : 0.85;
       v.ring.alpha = 0.55 + 0.25 * Math.sin(time * 3 + v.phase);
       v.glow.visible = legend;
@@ -220,8 +290,47 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
       v.echo?.destroy();
       views.delete(id);
     }
+    markAt(cell, reduced);
     // the foes stand by depth too: their containers sit at their sim positions (src/render/foes.js)
-    for (const c of layer.children) if (c !== echoLayer && !pets.has(c)) c.zIndex = c.position.y;
+    for (const c of layer.children) if (c !== echoLayer && c !== mark && !pets.has(c)) c.zIndex = c.position.y;
+  }
+
+  /**
+   * The marked pet's brackets: round the box its body is drawn in (and a legend's halo over it),
+   * 0.06 cell out, following a leap or a hover; their gap breathes in position (still under Reduce
+   * motion).
+   */
+  function markAt(cell, reduced) {
+    const v = marked != null ? views.get(marked) : null;
+    mark.visible = !!v;
+    if (!v) return;
+    if (markCell !== cell) {
+      markCell = cell;
+      markCorners.forEach((g, i) => drawBracket(g, BRACKET_CORNERS[i][0], BRACKET_CORNERS[i][1], cell));
+    }
+    const tex = v.body.texture;
+    const tw = tex.width || 1;
+    const th = tex.height || 1;
+    const s = Math.min((cell * v.fit.height) / th, (cell * v.fit.maxW) / tw);
+    const bx = v.body.position.x;
+    const by = v.body.position.y;
+    let x0 = bx - (tw * s) / 2;
+    let x1 = bx + (tw * s) / 2;
+    let y0 = by - th * s * v.fit.feet;
+    const y1 = by + th * s * (1 - v.fit.feet);
+    if (v.halo.visible) {
+      const hw = ((v.halo.texture.width || 1) * Math.abs(v.halo.scale.x)) / 2;
+      const hh = ((v.halo.texture.height || 1) * Math.abs(v.halo.scale.y)) / 2;
+      x0 = Math.min(x0, v.halo.position.x - hw);
+      x1 = Math.max(x1, v.halo.position.x + hw);
+      y0 = Math.min(y0, v.halo.position.y - hh);
+    }
+    const out = (0.06 + bracketOffset(time, reduced) - PLAQUE.bracket.offset) * cell;
+    mark.position.copyFrom(v.c.position);
+    markCorners[0].position.set(x0 - out, y0 - out);
+    markCorners[1].position.set(x1 + out, y0 - out);
+    markCorners[2].position.set(x1 + out, y1 + out);
+    markCorners[3].position.set(x0 - out, y1 + out);
   }
 
   function onEvent(e) {
@@ -247,6 +356,14 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
   return {
     sync,
     onEvent,
+    /** Mark the pet of the den picked on the board (its tile id), or none (null). */
+    highlight(id) {
+      marked = id ?? null;
+    },
+    /** The mark (for tests and checks): shown, where, its corners. */
+    get mark() {
+      return { id: marked, visible: mark.visible, x: mark.position.x, y: mark.position.y, z: mark.zIndex, corners: markCorners.map((g) => ({ x: g.position.x, y: g.position.y })) };
+    },
     /** Screen position of a tile's roaming creature (for namecard ribbons). */
     where(id) {
       const v = views.get(id);
@@ -261,6 +378,8 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
         v.echo?.destroy();
       }
       views.clear();
+      marked = null;
+      mark.visible = false;
     },
   };
 }

@@ -17,6 +17,25 @@ const LIFT_AT = { hover: 0.46, float: 0.4, swim: 0.3, crawl: 0, walk: 0.12 };
 /** However big the foe, it lifts at most MAX_LIFT (a flyer, a swimmer) and bobs at most MAX_BOB (a walker), world units: big foes stay readable and inside the field. */
 const MAX_LIFT = 0.45;
 const MAX_BOB = 0.15;
+/** The smallest the boss's health number and a status badge's count are drawn (CSS px, font size): a phone's scale alone would draw them at 7–13 px. */
+export const FOE_TEXT_MIN_PX = { hp: 16, badge: 14 };
+/** A bitmap number's half-height drawn, as a share of its font size (the 'Dmg' glyph quads measure 1.055 em). */
+export const NUMBER_HALF = 0.53;
+
+/**
+ * Where a foe's numbers go, from the sizes drawn (CSS px). The boss's health number and the status
+ * counts are held at their px floors on a phone, so the badge row sits 2 px above what is drawn
+ * under it (the health number on a boss, else the bar), never at an offset scaled by U alone, and a
+ * badge's icon is never smaller than its count. barY, barH: the bar's centre and its fill's height.
+ * → { hpPx, badgePx, bs (the icon's size), y (the badge row's centre) }
+ */
+export function foeLabels({ U, boss = false, barY, barH }) {
+  const hpPx = Math.max(0.36 * U, FOE_TEXT_MIN_PX.hp);
+  const badgePx = Math.max(0.28 * U, FOE_TEXT_MIN_PX.badge);
+  const bs = Math.max(0.42 * U, badgePx + 2);
+  const under = boss ? Math.max(hpPx * NUMBER_HALF, (barH + 0.06 * U) / 2) : (barH + 0.06 * U) / 2;
+  return { hpPx, badgePx, bs, y: barY - under - Math.max(bs / 2, badgePx * NUMBER_HALF) - 2 };
+}
 
 const whites = new WeakMap(); // texture → its white silhouette (or null when it cannot be read back)
 const WHITE_PX = 256; // a silhouette's longest side: a flash is drawn at most ~340 device px wide, for 0.12 s
@@ -239,9 +258,10 @@ export function createFoes(stage, fx) {
       v.barFg.width = Math.max(0, (barW - 0.06 * U) * ratio);
       v.barFg.height = barH;
       v.barFg.tint = ratio > 0.5 ? 0x7be36a : ratio > 0.25 ? 0xf2c14e : 0xef5a5a;
+      const lab = foeLabels({ U, boss: e.boss, barY, barH });
       if (e.boss) {
         v.hpText.text = Math.ceil(e.hp).toLocaleString('en-US');
-        v.hpText.scale.set((0.36 * U) / 44);
+        v.hpText.scale.set(lab.hpPx / 44);
         v.hpText.position.set(0, barY);
       }
 
@@ -254,19 +274,19 @@ export function createFoes(stage, fx) {
         loot: e.lootT > 0 ? Math.round(e.lootPct * 100) : 0, // Metal's mark: +% coins on death
       };
       let bx = 0;
-      const bs = 0.42 * U;
+      const bs = lab.bs;
       for (const bv of v.badgeViews) {
         const val = statuses[bv.k];
         bv.b.visible = !!val;
         if (!val) continue;
         bv.icon.width = bv.icon.height = bs;
         bv.n.text = bv.k === 'freeze' ? `${val.toFixed(1)}` : bv.k === 'chill' ? `-${val}` : bv.k === 'loot' ? `+${val}` : `×${val}`;
-        bv.n.scale.set((0.28 * U) / 44);
+        bv.n.scale.set(lab.badgePx / 44);
         bv.n.position.set(bs * 0.42, 0);
         bv.b.position.set(bx, 0);
         bx += bs + bv.n.width + 0.06 * U;
       }
-      v.badges.position.set(-bx / 2 + bs / 2, barY - 0.36 * U);
+      v.badges.position.set(-bx / 2 + bs / 2, lab.y);
 
       // status visuals over time
       v.emitT -= dt;

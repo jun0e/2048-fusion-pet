@@ -10,7 +10,7 @@
 import { ECONOMY, TIER_COLORS, tierValue } from '../config.js';
 import { ENEMY_TYPES } from '../sim/enemies.js';
 import { createBannerQueue, bannerTimes } from '../ux/banners.js';
-import { popupFont } from '../ux/photosafe.js';
+import { TEXT, popupFont } from '../ux/photosafe.js';
 import { chapterKeyFor, skinFor } from '../art/frame-kit.js';
 import { generatedUrl } from '../render/textures.js';
 import { ELEMENTS } from '../sim/classes.js';
@@ -150,6 +150,18 @@ export function statusKey({ wave, phase, timer = 0, holding = false, left, block
   return `${wave}|${phase}|${Math.ceil(timer)}|${holding}|${left}|${blocks}|${boss}|${bestWave}|${m.mode}|${m.label}|${m.say}`;
 }
 
+/** The meter's label as markup: its numbers ("In 14s", "12 left") in their own spans, drawn as primary numerals. */
+export const meterLabelHtml = (label) => esc(label).replace(/\d+/g, '<b class="meter-num">$&</b>');
+
+/** The smallest a floating text is drawn (px): below it, a popup is not drawn at all (a phone at arm's length). main.js books it no smaller. */
+export const POPUP_MIN_PX = TEXT.minPx;
+
+/** A popup's font size: popupFont(tier) × its photosafe scale, or 0 when that is under POPUP_MIN_PX (not drawn). */
+export function popupPx(tier, scale = 1) {
+  const px = popupFont(tier) * scale;
+  return px < POPUP_MIN_PX - 1e-6 ? 0 : px; // (a share booked at the floor comes back as √share, to rounding)
+}
+
 /** Wave now's label: "Wave 7 now ▶ 12". The wave's number (in its own span) gives way on a narrow phone. */
 export function fightLabel({ wave, boss = null, timer = 0, holding = false }) {
   const what = boss ? 'Boss' : `Wave<span class="fight-n"> ${wave}</span>`;
@@ -179,7 +191,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     </div>
     <div class="statusbar">
       <div class="lintel">
-        <div class="day"><i class="crest" aria-hidden="true"></i><b class="day-n">Wave 1</b><span class="best-wave"></span><span class="chapter">Eternal Forest</span></div>
+        <div class="day"><i class="crest" aria-hidden="true"></i><b class="day-n"><span class="day-word">Wave</span> <span class="day-num">1</span></b><span class="best-wave"></span><span class="chapter">Eternal Forest</span></div>
         <div class="phase meter" data-phase="prep" data-mode="incoming" role="img" aria-label="First wave: when ready">
           <span class="meter-face" hidden><img alt="" /></span>
           <span class="meter-bar"><i class="meter-fill"></i></span>
@@ -277,6 +289,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   const meterFace = $('.meter-face');
   const castleHp = $('.castle-hp');
   const castleEl = $('.castle');
+  const lintelEl = $('.lintel');
   const gridCells = [...root.querySelectorAll('.keep-grid i')];
   const ribbon = $('.ribbon');
   const ribbonLine = $('.ribbon-line');
@@ -344,10 +357,12 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     const cs = getComputedStyle(el);
     return `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
   };
+  // The title's digits are tabular (every one as wide as "0"), which a canvas does not draw: it is
+  // measured with its digits as "0", or a line it judged to fit by a few px would end in an ellipsis.
   function measure(text, part) {
     if (!measureCtx) return text.length * 7;
     measureCtx.font = fontOf(part === 'title' ? ribbonTitle : ribbonSub);
-    return measureCtx.measureText(text).width;
+    return measureCtx.measureText(part === 'title' ? text.replace(/[0-9]/g, '0') : text).width;
   }
   /** The line's width for text: the ribbon's inner width less its padding. */
   function lineWidth() {
@@ -448,6 +463,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   let shownChapter = '';
   let shownFill = -1;
   let shownFight = '';
+  let shownLabel = '';
   let waveSeen = 0;
   let waveTotal = 0; // the most foes seen left this wave: the meter's full mark when main.js gives no total
 
@@ -527,8 +543,8 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       shownNext = tier;
       const v = tierValue(tier);
       const digits = String(v).length;
-      // five digits do not fit the disc's inner ring at 12 px: the disc stretches into a pill
-      nextSlot.innerHTML = `<div class="top-chip pop${digits >= 5 ? ' wide' : ''}" style="--c:${TIER_COLORS[tier] ?? '#c39bff'};--d:${digits}"><b>${v}</b></div>`;
+      // three digits and more do not fit the disc's inner ring at a readable size: the disc stretches into a pill
+      nextSlot.innerHTML = `<div class="top-chip pop${digits >= 3 ? ' wide' : ''}" style="--c:${TIER_COLORS[tier] ?? '#c39bff'}"><b>${v}</b></div>`;
       nextSlot.parentElement.setAttribute('aria-label', `Top block ${v}`);
     },
     /**
@@ -552,7 +568,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       if (key === shownStatus) return;
       shownStatus = key;
       // only what changed is written (the boss's health changes the description many times a wave)
-      setText($('.day-n'), `Wave ${wave}`);
+      setText($('.day-num'), String(wave));
       // the record to beat (the main record: the best wave reached)
       setText($('.best-wave'), bestWave > 0 ? `best ${bestWave}` : '');
       setText($('.chapter'), typeof chapter === 'string' ? chapter : chapter?.name ?? '');
@@ -562,10 +578,17 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       // not a live region: the countdown is read when the player gets to it, never every second; the
       // phase changes (a wave starts, a wave is cleared) are spoken by the news ribbon (aria-live)
       setAttr(meterEl, 'aria-label', m.say);
-      setText(meterLabel, m.label);
+      // its numbers (the countdown, the foes left) are primary numerals, its words labels
+      const labelHtml = meterLabelHtml(m.label);
+      if (labelHtml !== shownLabel) {
+        shownLabel = labelHtml;
+        meterLabel.innerHTML = labelHtml;
+      }
       // the boss's portrait chip: during its break and its wave
       const face = boss && (phase === 'wave' || phase === 'break') ? generatedUrl(`enemy.${boss}`) : null;
       meterFace.hidden = !boss || !(phase === 'wave' || phase === 'break');
+      // with the boss's face in it, a narrow phone's lintel gives the record's room to the boss bar (hud.css)
+      lintelEl.classList.toggle('face', !meterFace.hidden);
       if (!meterFace.hidden) {
         const img = meterFace.querySelector('img');
         if (face && img.getAttribute('src') !== face) img.src = face;
@@ -621,15 +644,21 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       restartAnim(castleEl, 'shake');
       if (pulse) restartAnim(vignette, 'hurt');
     },
-    /** A floating text: its font is popupFont(tier) × scale (photosafe: smaller when the screen is lit up). */
+    /**
+     * A floating text: its font is popupFont(tier) × scale (photosafe: smaller when the screen is lit
+     * up). One the light budget would shrink below POPUP_MIN_PX is not drawn: unreadable at arm's
+     * length, and drawing nothing lights less than what was booked.
+     */
     popup(x, y, text, tier, color, scale = 1) {
+      const px = popupPx(tier, scale);
+      if (!px) return;
       const el = document.createElement('div');
       el.className = 'popup';
       el.textContent = text;
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
       el.style.setProperty('--c', color ?? TIER_COLORS[tier]);
-      el.style.fontSize = `${popupFont(tier) * scale}px`;
+      el.style.fontSize = `${px}px`;
       root.appendChild(el);
       el.addEventListener('animationend', () => el.remove());
       setTimeout(() => el.remove(), 1500); // animations pause in hidden tabs; don't let popups pile up

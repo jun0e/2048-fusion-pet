@@ -82,7 +82,7 @@ The design is `proposal.md`, Revision 2. This file is the execution plan and the
 
 ### P-F Pets (W4, W5)
 - [x] Fusions at 1.0 cell and legends at 1.15; z-sort so foes are drawn above pets.
-- [ ] Fusion silhouette pass: assign body plans across the whole roster (`src/art/bodyplans.js`) and regenerate the 28 fusions with the twin gate. Regenerate the portraits that changed.
+- [x] Fusion silhouette pass (2026-10-16, PvZ item T27): body plans could not separate the 28 fusions, so each became its own animal with its own silhouette contract (`reports/art/fusion-matrix/`, approved by the user with six renames and a 1.6-cell width cap; `src/art/fusion-roster.js`). Generated with the pro model, three gated candidates each (gate version 3: the heroes' cream rim stripped, lanes and hedges as grounds), seven redone with clearer words: 17 pass, 4 within 0.03, 7 reviewed near-misses (`gateAccepted`). Closest pet pair 0.65 (median 0.56), closest foe or base pet 0.69 (median 0.58). All 56 portraits regenerated from the new sprites. Pets roam by their animal (`gaitAt`: walk, crawl, leap, hover, swim, float; only side views flip).
 
 ### P-G Ship
 - [ ] Flash audit, all tests, diagnostics (`?dev`) and the perf probe.
@@ -196,3 +196,27 @@ The design is `proposal.md`, Revision 2. This file is the execution plan and the
     - The frame is drawn in code with generated props, backdrops and ridges, not generated kit sheets.
     - Foe state frames (poses) are not generated: the code drives the motion per roster `move`.
     - The fusion silhouette pass (P-F) is deferred (see the P-F finding).
+
+## Round 2 (2026-10-16, after shipping)
+
+The user's next requests, refined:
+
+1. **Calm the field.** Drop detail from everything with no gameplay function: the backdrop, ridges, decor props, stonework, cobbles. Keep the functional cues crisp: lanes, gates and chips, braziers, hedges, keep and pits. This goes straight into the game.
+2. **Tile overhaul.** A state inventory and a sample tile in every state (`reports/art/tiles/`) for the user's review **before** any game change.
+3. **Fusion rework.** An 8×8 element matrix: a unique animal per fusion, a body plan, a silhouette contract and a palette (`reports/art/fusion-matrix/`). The user checks it **first**; then the pipeline runs (3 candidates and gates, plus portraits).
+4. **Mood board.** All assets new and old (old from git `8c50a1e`) at `reports/art/moodboard/index.html`, opened in the browser.
+5. **Phone readability.** Text sizes, fonts, contrast and buttons, measured and fixed at 5 sizes, then checked after.
+
+Agents running in parallel:
+- mood board (`reports/art/moodboard`);
+- field calm (`frame`, `frame-art`, `frame-kit`, `scenery`);
+- tile study (reports only, Fable);
+- fusion matrix (reports only, Fable);
+- readability (`ui/*`, `kv` `namecards`, `fx`/`foes` text sizes, `deck.js`; field-file changes are reported for the coordinator).
+
+Round 2 results (2026-10-16; PvZ items in brackets):
+- **Field calm [T31]:** the backdrop downsampled and desaturated, a flat ridge, two props, larger stones, quieter cobbles; the towers' detail from 45 % to 17 % of their area, the lane field's from 35 % to 15 %.
+- **Tiles [T29, T20]:** the user chose an altar for the den ("hole is weird, use altar or tower instead"); built in the game from `reports/art/tiles/tile-spec.md`: plaques seated in their pits, a 4-segment meter, egg nests, altar dens with paw prints while the pet roams, the legend's apex badge on its altar inside its halo, cream brackets for the pick and red dashed ones when armed, physical arrivals and departures, the scared face and blink on the 16s, a refused-swipe nudge, a picked den highlighting its pet.
+- **Fusion pets [T27]:** see P-F.
+- **Phone readability [T30]:** labels ≥ 14 px, key numbers ≥ 20 px, buttons 48 px, contrast ≥ 4.5:1, canvas number floors with tabular digits, the boss's badge row clear of its health number; the bigger numbers are booked in the light budget by their real text (real peak 10.0, no large flash at U 32 and 23.78), so a busy moment on a small phone shows fewer numbers, never smaller ones (`docs/ux/phone-readability.md`, `docs/ux/photosafe.md`).
+- **Mood board:** `reports/art/moodboard/index.html`.

@@ -19,7 +19,7 @@
     var(--clay-hi),
     inset 0 0 0 3px color-mix(in srgb, var(--c) 55%, transparent);
   pointer-events: auto;
-  font: 600 13px/1.4 var(--font-body);
+  font: 700 14px/1.4 var(--font-body); /* body text at the phone floor: 14 px, 700 */
 }
 .inspect.pop {
   animation: inspect-pop 0.18s ease-out;
@@ -41,19 +41,20 @@
 .inspect-x {
   position: absolute;
   top: 6px;
-  right: 8px;
-  width: 30px;
-  height: 30px;
+  right: 6px;
+  width: 40px;
+  height: 40px;
   border: 0;
   border-radius: 50%;
   background: var(--cream-2);
   color: var(--ink);
-  cursor: pointer; /* its font is the card's (as it has always rendered) */
+  font: 800 24px/1 var(--font-body); /* the × glyph at the 24 px icon floor */
+  cursor: pointer;
 }
 .inspect-x::before {
   content: '';
   position: absolute;
-  inset: -7px; /* a 44 px target around the 30 px circle */
+  inset: -4px; /* a 48 px target around the 40 px circle */
 }
 .inspect-x:focus-visible {
   outline: 2px solid var(--ink);
@@ -63,7 +64,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  padding-right: 30px;
+  padding-right: 38px;
 }
 .inspect-pic {
   flex: 0 0 56px;
@@ -81,6 +82,17 @@
 }
 .inspect-pic b {
   font: 800 22px var(--font-display);
+}
+/* the picture is the tile itself in its pit (art.tileCanvas), so the board and the card agree */
+.inspect-pic-tile {
+  flex-basis: 72px;
+  height: 72px;
+  background: none;
+}
+.inspect-pic-tile canvas {
+  display: block;
+  width: 72px;
+  height: 72px;
 }
 .inspect-titles {
   min-width: 0;
@@ -104,17 +116,48 @@
   padding: 1px 8px 0;
   border-radius: 999px;
   background: color-mix(in srgb, var(--c) 55%, white);
-  font: 800 11px/1.6 var(--font-display);
+  font: 800 14px/1.45 var(--font-display);
   color: #2b1d2e;
 }
 .inspect-value {
-  font: 800 12px var(--font-display);
+  font: 800 14px var(--font-display);
   color: var(--ink-soft);
   margin-left: 2px;
 }
+/* the growth row: the tile's 4-segment meter, and the same in words (at 48 px the meter is at its
+   limit): the card's main progress line, at the body floor (14 px, 700) */
+.inspect-grow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: center;
+  margin-top: 8px;
+  font: 700 14px/1.3 var(--font-body);
+  color: var(--ink-soft);
+}
+.inspect-meter {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #2b1d2e55;
+}
+.inspect-meter i {
+  width: 14px;
+  height: 7px;
+  border-radius: 3px;
+  background: #2b1d2e44;
+  box-shadow: inset 0 0 0 1px #2b1d2e99;
+}
+.inspect-meter i.lit {
+  background: var(--gold);
+}
+.inspect-meter.rose i.lit {
+  background: #ff8fa3; /* toward the legend at 4096, as on the tile */
+}
 .inspect-pet {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-soft);
 }
 .inspect-desc {
@@ -130,21 +173,20 @@
   grid-column: span 2; /* damage · attacks · DPS */
   background: var(--cream-2);
   border-radius: 10px;
-  padding: 4px 7px;
+  padding: 4px 6px;
   min-width: 0;
 }
 .inspect-stats div:nth-child(n + 4) {
   grid-column: span 3; /* range · targets */
 }
+/* the captions in sentence case: at 13 px "Damage" fits a third of the narrowest card (240 px) */
 .inspect-stats dt {
-  font: 800 10px var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font: 800 13px/1.2 var(--font-display);
   color: var(--ink-soft);
 }
 .inspect-stats dd {
   margin: 0;
-  font: 800 14px/1.25 var(--font-display);
+  font: 800 16px/1.25 var(--font-display);
   font-variant-numeric: tabular-nums;
 }
 .inspect-fx {
@@ -177,28 +219,42 @@
 }
 .inspect-next {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-soft);
 }
 
+/* the Sell / Break row stays in view at the card's foot while the rest scrolls (a 360 px phone has
+   room for the head and a few lines only); the note goes under the button when they do not fit side
+   by side */
 .inspect-act {
+  position: sticky;
+  bottom: -12px; /* a sticky box keeps clear of the card's padding: this lets it reach the card's edge */
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-  padding-top: 10px;
+  gap: 6px 10px;
+  margin: 8px -14px -12px; /* out to the card's edges, over its bottom padding */
+  padding: 8px 14px 10px;
   border-top: 2px dashed var(--cream-2);
+  border-radius: 0 0 16px 16px;
+  background: var(--cream);
+  /* the card's element ring, where the row covers it */
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--c) 55%, transparent),
+    inset -3px 0 0 color-mix(in srgb, var(--c) 55%, transparent),
+    inset 0 -3px 0 color-mix(in srgb, var(--c) 55%, transparent);
 }
 .inspect-sell {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 6px 14px;
+  min-height: 48px;
+  padding: 6px 16px;
   border: 0;
   border-radius: 14px;
-  color: var(--ink); /* its font is the card's (as it has always rendered) */
+  color: var(--ink);
+  font: 800 16px var(--font-body); /* a button label at the 16 px floor */
   cursor: pointer;
   box-shadow: 0 3px 0 #96785a55;
 }
@@ -227,21 +283,23 @@
   outline-offset: 2px;
 }
 .inspect-coin {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #ffe98a, #f2b51f 60%, #c98a0f);
   box-shadow: 0 0 0 1.5px #8a5a0f;
 }
 .inspect-note {
+  flex: 1 1 80px; /* beside the button while it has 80 px, under it otherwise */
   min-width: 0;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.3;
   color: var(--ink-soft);
 }
 
 .inspect-chip img {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   margin-left: -4px;
   object-fit: contain;
 }

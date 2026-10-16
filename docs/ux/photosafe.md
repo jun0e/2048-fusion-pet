@@ -136,6 +136,8 @@ The rules live in `src/ux/photosafe.js`.
 | Booked as drawn (2026-10-16, review fixes) | x1 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
 | Booked as drawn (2026-10-16, review fixes) | x2 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
 | Booked as drawn (2026-10-16, review fixes) | x4 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Readability floors (2026-10-16), U 32 | x1, x2, x4 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
+| Readability floors (2026-10-16), U 23.78 (a 360 × 640 phone) | x1, x2, x4 | 2 | 1 | 0 | 1 | 0.08 | 10.0 | 2 |
 
 The sprite attacks change nothing in these counts: every flash column is the same as before them, and the local effects still never make a large flash.
 
@@ -190,6 +192,62 @@ Booked as drawn (the review fixes), a little more is cut: 22% at x1 and 53% at x
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | x1 | 79% | 67% | 75% | 80% | 87% | 78% | 88% | 70% | 55% | 81% | 62% | 65% | 90% |
 | x4 | 48% | 37% | 39% | 46% | 58% | 54% | 53% | 38% | 19% | 47% | 29% | 21% | 64% |
+
+**The readability floors** (2026-10-16, `docs/ux/phone-readability.md`) make the canvas numbers bigger on a phone, and every number now books what it draws:
+
+- A damage number is never drawn under 15 px (a hit) or 14 px (a damage-over-time or coin tick): `numberScale(kind, U)` in `src/ux/photosafe.js`. On a 360 × 640 phone (U 23.78) a hit is 0.63 world units, not 0.36: 3.1 times the light.
+- A number books the light of every glyph in its text (`numberLit(scale, text)`), not one digit's. Before, every number booked one digit (0.12 units² at 0.36), whatever its length, and 88% of numbers have 2 or 3 characters. The glyphs' light was measured on the bitmap font with its 0.2 em ink stroke, as it pops in (1.45×), the pixels at alpha 10% or more (`NUMBER.glyphLit`):
+  - every digit books the widest digit's, 0.143 units² ("1" lights 0.095), so the booking does not depend on which digits show;
+  - "." 0.037, "k" 0.14, "+" 0.094, "M" 0.184.
+  
+  The sum is never under what the glyphs light together: they overlap at their strokes, by 0–8% on 20 numbers from "1" to "+8.8k".
+- `fx.js` formats the text before it books (`numberText`), so it books exactly what it then draws.
+- A number books its light over time (`numberLight`): the pop's peak for the first 15% of its life, then its settled size, 1.45² smaller. Before, it booked the peak for its whole life.
+- A popup is never drawn under 14 px (`TEXT.minPx`). It asks the budget for at least the share that keeps it there, or books nothing.
+- The audit:
+  - runs at any U (`--u=`, 32 by default);
+  - books the real texts: the hit's amount, "+" and the coins of a kill, and the burn and poison a foe took since its last numbers (from `f.dot`, twice a second, as `foes.js` does);
+  - books the combo pill whole or not at all (`bookAll`), as `main.js` does. Before, the audit asked `book` for a share of 1 and never got it, so the pill never counted.
+
+**The light, booked and real.** The flash columns are unchanged at both U, on the bot games and on the 40 ladder boards: no large flash from local effects, and never more than 10.0 units² booked at once. `test/phone-readability.test.js` runs a short audit at U 23.78 to hold it.
+
+Booking one digit per number had hidden real light above the cap. A second, uncapped tally adds each number's real light to every booking (`ro/fa/real.mjs` in the session's scratchpad, after the review's own script). It counts the real light two ways: by the glyphs, and by the review's measured light per length (0.142, 0.213, 0.342, 0.361 units² for 1 to 4 characters).
+
+| | Real peak (units², cap 10) | Frames over 11 (a large flash) | Large flashes in any 1 s |
+|---|---|---|---|
+| Before the readability pass: one digit per number, U 32 (the review's tally) | 12.13 | 347 | 6 |
+| The floors, one digit per number, U 32 (the review's tally) | 13.99 | 1,520 | 5 |
+| The floors, one digit per number, U 23.78 (the review's tally) | 15.7 | 3,515 | 6 |
+| Now (by glyph, over time), U 32 | 10.0 | 0 | 0 |
+| Now, U 23.78 | 10.0 | 0 | 0 |
+
+Both ways of counting the real light give the same result now: 10.0, no frame over 11 and no large flash, at both U, over 12 bot games, the stress board and the 40 ladder boards at x1, x2 and x4.
+
+**The cost.** Busy moments trim more. In the table below:
+
+- "before" is the old booking: one digit per number, no floors;
+- "by text" books every glyph, but without the floors;
+- "now" has both.
+
+| U | Speed | Local effects drawn smaller or not at all: before / by text / now | Damage numbers' light kept | Enemy hit flashes' light kept |
+|---|---|---|---|---|
+| 32 | x1 | 21.7% / 23.2% / 26.0% | 81% / 78% / 72% | 55% / 51% / 45% |
+| 32 | x4 | 52.7% / 53.1% / 55.7% | 47% / 43% / 36% | 19% / 16% / 13% |
+| 23.78 | x1 | 22.7% / 24.0% / 30.8% | 80% / 77% / 63% | 54% / 50% / 37% |
+| 23.78 | x4 | 53.1% / 53.5% / 59.2% | 47% / 43% / 27% | 18% / 16% / 9% |
+
+On a small phone, then, a busy x1 moment shows fewer numbers and fewer hit flashes, never smaller numbers.
+
+The combo pill books 1.25 × 2600 px² / U² whole (5.7 units² at U 23.78). It comes with a multi-merge swipe, when the merges' bursts, rings and popups already hold the budget. At U 32 it fits 292 times of 2,046 (14%). On a 360 × 640 phone it never fits (0 of 2,046), so the pill never shows there. A smaller pill or a lighter book would let it show; this pass leaves it.
+
+Light kept on average now:
+
+| U | Speed | Attack sprites | Attack bits | Decals | Links | Pings | Rings | Explosions | Bursts | Enemy hit flashes | Damage numbers | Text popups | Combo pill | Coins | Embers |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 32 | x1 | 75% | 63% | 68% | 76% | 87% | 79% | 87% | 69% | 45% | 72% | 64% | 27% | 59% | 90% |
+| 32 | x4 | 44% | 34% | 31% | 41% | 57% | 55% | 54% | 38% | 13% | 36% | 32% | 3% | 17% | 67% |
+| 23.78 | x1 | 70% | 57% | 61% | 72% | 85% | 77% | 84% | 66% | 37% | 63% | 57% | 0% | 53% | 88% |
+| 23.78 | x4 | 42% | 31% | 28% | 39% | 56% | 53% | 52% | 36% | 9% | 27% | 26% | 0% | 15% | 65% |
 
 I also checked the renderer in the browser:
 

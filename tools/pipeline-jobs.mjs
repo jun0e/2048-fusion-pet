@@ -2,15 +2,15 @@
 // that is generated with Gemini. A job = prompt + references (other assets, or the
 // approved images in reports/kv/approved/) + model + aspect + background + post-process.
 // The design decisions live here: the element animals, simple smooth babies that grow
-// one feature per stage, the palette hard limit, fusions = parent A's body + one part of
-// parent B's animal, soft-vinyl portraits, apex halo kits, original foes.
+// one feature per stage, the palette hard limit, fusions = one animal each filling its own
+// silhouette contract (src/art/fusion-roster.js), soft-vinyl portraits, apex halo kits, original foes.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ELEMENTS, FUSIONS, APEX } from '../src/sim/classes.js';
+import { ELEMENTS, ELEMENT_KEYS, FUSIONS, APEX } from '../src/sim/classes.js';
 import { ENEMY_TYPES } from '../src/sim/enemies.js';
 import { ELEMENT_PALETTES, UNIVERSAL } from '../src/art/palettes.js';
-import { petName } from '../src/art/tokens.js';
 import { FOE_ROSTER, CHAPTER_GOLDEN, foeChapters } from '../src/art/foe-roster.js';
+import { FUSION_ROSTER } from '../src/art/fusion-roster.js';
 import { VFX_PIECES } from '../src/art/attack-vfx.js';
 import { FRAME_ASSETS, CHAPTER_GROUNDS } from '../src/art/frame-kit.js';
 
@@ -69,6 +69,70 @@ function groundsOf(chapters) {
 const bgLine = (bg) =>
   `Background: the entire background is a perfectly flat, uniform solid ${bg === 'magenta' ? 'magenta #FF00FF' : 'pure green #00FF00'}, no gradient, texture, vignette or shadow. One subject only, centred, whole body visible with margin.`;
 
+// Fusions (the fusion silhouette pass, reports/art/fusion-matrix/): each is one animal filling its
+// own silhouette contract (image 1), the foes' method with the heroes' cues (the cream rim, a light
+// palette). The parents enter in words and in the palette's accents, never as images: given the
+// two parent sprites, the model drew every fusion as "dragon plus an orca part". Gated like the
+// foes: no twin among the 28, no outline of a foe or a base pet, readable on the lanes and the
+// hedges, where pets roam.
+const FUSION_RENDER_REF = 'tools/refs/fusions/render-ref.png'; // a frozen copy of the first set's fire+ice raw
+const fusionSil = (key) => `tools/refs/fusions/sil-${key}.png`;
+const PET_VIEW = {
+  ...FOE_VIEW,
+  spread: 'VIEW RULE: seen from directly above, symmetrical, the wings or limbs spread out evenly on both sides, no three-quarter turn, no perspective. ',
+};
+const PET_RENDER =
+  'Image 2 shows the required rendering (outline weight, cel shading, eye style, the cream sticker rim): match it, but not its species, colours or pose. ' +
+  'An original creature that does not copy any existing game or franchise character. ';
+/**
+ * The grounds a roaming pet must read on: every chapter's lanes and the hedges between them (the
+ * first chapter's by name, the others where they differ). Pets stand on the field above the parapet
+ * (src/sim/roam.js Y_MIN), so the keep floor is behind one only while it hops out of its den; a pet
+ * 1.0 cell tall and up to 1.6 wide covers its lane and the hedges beside it.
+ */
+export const PET_GROUNDS = (() => {
+  const out = {};
+  for (const [c, g] of Object.entries(CHAPTER_GROUNDS))
+    for (const name of ['lane', 'hedge'])
+      if (!Object.values(out).includes(g[name])) out[name in out ? `${c}.${name}` : name] = g[name];
+  return out;
+})();
+/** The cream rim plus the outline round a 320 px pet (10–11 px, a share of its longest side): not body, for the ground gate. */
+export const PET_BAND = 0.035;
+/**
+ * A hero's cream sticker rim, as a share of the creature's longest side (17 px of 819 on the render
+ * reference): not part of its silhouette, so the gates strip it from a pet, from the pets made so far
+ * and from the base pets before comparing outlines (tools/silhouette-check.py `rim`).
+ */
+export const HERO_RIM = 0.02;
+/** Where each zone of a pet is, by how it is drawn. */
+const ZONES = {
+  profile: { dark: 'the back, the head and the limbs', light: 'the belly, the chest, the face', marks: 'the back, stripes, a saddle or the limbs' },
+  front: { dark: 'the head, the sides and the limbs', light: 'the face, the chest and the belly', marks: 'the head, the sides, stripes or the limbs' },
+  spread: { dark: 'the body and the limbs', light: 'the wings or the sail, the face', marks: 'the body, stripes, the wing or sail edges' },
+};
+/**
+ * A pet's value rule, so it reads on the pale sand and on the dark hedges: its cel tone over a
+ * third of it, drawn as large markings when the cel tone is not the shade (a pale pet); a pet too
+ * dark for the hedges (`lift`) gets a light zone of a third, where its record puts it (`liftAt`).
+ * The other zones are named for its view.
+ */
+export function petValues(r) {
+  const [dom, shade, light] = r.pal;
+  const z = ZONES[r.view] ?? ZONES.profile;
+  if (r.lift)
+    return `VALUE RULE: ${dom} covers ${z.dark}, with one crisp cel-shade tone in ${shade}${r.lift === light ? '' : ` and a highlight in ${light}`}; a large light zone in ${r.lift} (${r.liftAt ?? z.light}) covers at least a third of the creature, so it reads on dark hedges. `;
+  if (r.cel === shade) return `VALUE RULE: ${dom} covers most of the body, with one crisp cel-shade tone in ${shade} over at least a third of it and a highlight in ${light}. `;
+  return `VALUE RULE: ${dom} is the main body colour, with ${shade} as its cel-shade tone and a highlight in ${light}; large markings in the darker ${r.cel} (${z.marks}) cover at least a third of the creature, so it reads on pale sand. `;
+}
+/** The sticker line for a pet: a prop its silhouette includes (the mole's molehill, the loris's branch) is part of the sticker, not a ground. */
+export function petSticker(r) {
+  if (!r.prop) return STICKER;
+  const rule = 'no frame, no ground, no cast shadow.';
+  if (!STICKER.endsWith(rule)) throw new Error('petSticker: the sticker line changed');
+  return `${STICKER.slice(0, -rule.length)}no frame, no cast shadow, and no ground except ${r.prop}, which is part of the sticker.`;
+}
+
 // green screen unless the palette itself has greens (then magenta)
 export const BG_FOR = { fire: 'green', wind: 'magenta', nature: 'magenta', ice: 'green', poison: 'magenta', lightning: 'green', metal: 'green', earth: 'green' };
 
@@ -95,27 +159,6 @@ export const STAGES = {
   earth: ['the horn nubs grow into small horns', 'a rocky patch grows on its back', 'the horns curve upward and rock plates cover its hump'],
 };
 
-// grown forms (fusions): parent A's adult body + one signature part from parent B's animal
-const ADULT = {
-  fire: 'a young dragon: strong lizard body on four legs, small wings, a row of sharp spikes down its back, curved horns, fierce and cool',
-  wind: 'a sleek bird of prey: wide feathered wings, a three-plume crest, a fan tail, proud pose',
-  nature: 'a sturdy turtle with a high domed shell grown with leaves and a small flowering bush, calm and strong',
-  ice: 'an orca: powerful streamlined body, tall dorsal fin rimmed with frost crystals, floating, confident',
-  poison: 'a long coiled snake with an open hood frill and fangs, sly and dangerous',
-  lightning: 'a unicorn: tall slender horse body, long spiral horn, zigzag lightning mane and a bolt-shaped tail, noble',
-  metal: 'a lion: muscular body, a big mane made of coin-shaped gold plates with diamond holes, tufted tail, regal',
-  earth: 'an ox: massive shoulders, big curved horns, rocky plates on its hump, unstoppable',
-};
-const PART = {
-  fire: 'a row of dragon spikes and small dragon wings',
-  wind: 'a pair of feathered bird wings',
-  nature: 'a leafy shell on its back',
-  ice: 'an orca dorsal fin rimmed with frost crystals',
-  poison: 'a long serpent tail with acid-green diamond markings',
-  lightning: 'a single spiral unicorn horn',
-  metal: 'a mane of coin-shaped gold plates with diamond holes',
-  earth: 'big curved ox horns and rock plates',
-};
 const APEX_MOTIF = {
   fire: 'small sun rays and flames',
   ice: 'ice crystals, with clock-face ticks around the ring',
@@ -202,21 +245,29 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
 
   if ((m = id.match(/^fusion\.([a-z]+)\+([a-z]+)$/))) {
     const [, a, b] = m;
-    const golden = 'fusion.fire+ice';
-    const refs = [`pet.${a}.128`, `pet.${b}.128`, ...(id === golden ? [] : [golden])];
-    const palette = [...hexes(a), ...hexes(b), ...UNI];
-    const bg = BG_FOR[a] === 'magenta' || BG_FOR[b] === 'magenta' ? 'magenta' : 'green';
-    return { ...base, bg, refs, deps: refs, post: { ...base.post, palette, snap: true },
+    const key = `${a}+${b}`;
+    const r = FUSION_ROSTER[key];
+    if (!r) return null;
+    const refs = [fusionSil(key), FUSION_RENDER_REF];
+    // the twin pool: the other 27 (their contracts, then their sprites as they are made);
+    // the ally pool: every foe and the base pets at 128, so no fusion reads as either
+    const others = Object.keys(FUSION_ROSTER)
+      .filter((k) => k !== key)
+      .map((k) => ({ id: `fusion.${k}`, sil: fusionSil(k) }));
+    const allies = [...Object.keys(FOE_ROSTER).map((k) => `enemy.${k}`), ...ELEMENT_KEYS.map((el) => `pet.${el}.128`)];
+    return { ...base, model: models.best, bg: r.bg, refs, deps: [],
+      post: { fit: 'trim', size: 320, palette: [...r.pal, ...UNI], snap: true }, // keeps the cream rim: the heroes' cue
+      pick: { n: 3, side: 'pet', contract: fusionSil(key), view: r.view, grounds: PET_GROUNDS, band: PET_BAND, rim: HERO_RIM, others, allies, animal: r.animal, pose: r.pose, cel: r.cel, lift: r.lift, light: r.pal[2], accepted: r.gateAccepted },
       prompt:
-        `Image 1 is a baby ${ELEMENTS[a].name.toLowerCase()} creature and image 2 a baby ${ELEMENTS[b].name.toLowerCase()} creature from the same game. ` +
-        `${id === golden ? '' : 'Image 3 shows the required rendering for grown creatures: match its outline weight, shading and proportions. '}` +
-        `Create ONE new grown-up creature named ${petName(a, b)}: the body of ${ADULT[a]}, plus ${PART[b]} taken from the second creature. ` +
-        `It keeps the eyes and the main colour of image 1 but looks cool, powerful and a bit majestic, about three heads tall, full body, three-quarter view facing left. ` +
-        `HARD COLOUR RULE: body colours only from ${list(hexes(a))}; at most two accent colours from ${list(hexes(b))}; outline ${UNI[0]}, cream rim ${UNI[1]}. ${STICKER} ${bgLine(bg)}` };
+        `${FOE_SIL}${PET_VIEW[r.view]}${PET_RENDER}` +
+        `The creature: ${r.desc}, a hero pet named ${r.name}, born of ${ELEMENTS[a].name.toLowerCase()} and ${ELEMENTS[b].name.toLowerCase()}: ${r.from[a]}; ${r.from[b]}. Pose: ${r.pose}. ` +
+        `${petValues(r)}HARD COLOUR RULE: use only these colours: ${list(r.pal)}, plus the outline ${UNI[0]}, the cream rim ${UNI[1]} and black/white for the eyes. ${petSticker(r)} ${bgLine(r.bg)}` };
   }
 
   if ((m = id.match(/^portrait\.([a-z]+)\+([a-z]+)(\.ascended)?$/))) {
     const [, a, b, asc] = m;
+    const r = FUSION_ROSTER[`${a}+${b}`];
+    if (!r) return null;
     const sprite = `fusion.${a}+${b}`;
     // no golden portrait as a reference: given one, the model drew the golden's dragon on every
     // card. Each portrait sees only its own fusion sprite, and the text names the creature.
@@ -226,8 +277,8 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
     return { ...base, model: models.best, bg: 'none', refs, deps: refs, post: { fit: 'cover', size: 512 },
       prompt: asc
         ? `Same portrait as the input image, same creature and framing, now ascended to legendary: lower camera, chin up, a glowing halo of backlight, gold trim, magical sparkles. Keep the face identical. Square.`
-        : `${VINYL} A portrait of the creature in image 1 (${petName(a, b)}: ${ADULT[a]}, with ${PART[b]}), keeping its exact silhouette, colours, markings and face. Draw this creature only, not any other animal. ` +
-          `Head-and-shoulders bust, three-quarter view facing left, eye-level camera, the face about 60% of the frame height. Rim light colour ${keyB}. ` +
+        : `${VINYL} A portrait of the creature in image 1 (${r.name}: ${r.desc}), keeping its exact silhouette, colours, markings and face. Draw this creature only, not any other animal. ` +
+          `Head-and-shoulders bust (the face and upper body), three-quarter view facing left, eye-level camera, the face about 60% of the frame height. Rim light colour ${keyB}. ` +
           `Background: a simple radial gradient plate in ${keyA} with soft light rays behind the head, no scenery. Square 1:1.` };
   }
 
@@ -321,7 +372,7 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
 
 /**
  * Jobs for the requested priorities, plus every asset they reference (transitively),
- * whatever its own priority: the Frostnova fusion needs both parents' 128 sprites.
+ * whatever its own priority: a portrait needs its fusion sprite, an apex halo the hero fusion.
  */
 export function plan(rows, root, priorities, models) {
   const all = new Map();
