@@ -26,10 +26,10 @@ export const PLAQUE = {
   numberEm: [0, 0.3875, 0.3875, 0.3125, 0.2625, 0.225], // its size by digit count (62 / 62 / 50 / 42 of 160)
   numberMaxW: 0.8, // the widest a numeral is drawn, its stroke included: inside the outline with a margin
   stroke: 0.26, // em: the cream stroke under the ink numeral
-  badgeR: 0.10625, // 17 / 160; the generated badge is drawn 2.35 r wide
-  badgeAt: 0.33125, // the collar tag, bottom right
-  denBadgeAt: 0.31875, // a den's two badges, both bottom corners
-  apexR: 0.9, // × badgeR: a legend's apex badge, seated on its altar
+  // the generated badge is drawn 2.35 r wide: 0.32 cell, 15 px on a 360 px phone (T21: 0.25 cell, 12 px, read badly)
+  badgeR: 0.135,
+  badgeAt: 0.34, // the collar tag, bottom right, on every tile (a den's is split between its two elements)
+  apexR: 0.708, // × badgeR: a legend's apex badge, seated on its altar (0.096 cell, as before T21)
   meter: { y: 0.075, w: 0.5, h: 0.045, gap: 0.02, pad: 0.012 }, // of the plaque: the top rail
   eggLift: 0.04, // an egg sits up in its nest
   nest: { y: 0.4, rx: 0.31, ry: 0.085, straw: 0.022 }, // of the plaque (the straw's width in cells)
@@ -162,23 +162,24 @@ export function numberBox(tier, { stroke = true, cellPx = Infinity } = {}) {
   return { x0: -half, x1: half, y0: cy - (NUMERAL_EM.up + s) * em, y1: cy + (NUMERAL_EM.down + s) * em };
 }
 
-/** Where the glyph badges sit: [{ el, x, y, r }] in cells (an egg has none; a legend's apex is on its altar). */
+/**
+ * Where the glyph badges sit: [{ el, el2?, x, y, r }] in cells. One badge per tile, in the collar spot:
+ * an element's own, a den's split between the element it attacks with (el) and its partner (el2). An egg
+ * has none; a legend's apex is on its altar.
+ */
 export function badgeSpots(t) {
   const cls = t.cls ?? {};
   const r = PLAQUE.badgeR;
+  const at = PLAQUE.badgeAt;
   if (isDen(t)) {
-    const d = PLAQUE.denBadgeAt;
-    const out = [
-      { el: cls.element, x: -d, y: d, r },
-      { el: cls.fusion, x: d, y: d, r },
-    ];
+    const out = [{ el: cls.element, el2: cls.fusion, x: at, y: at, r }];
     if (cls.ultimate) {
       const a = altarParts();
       out.push({ el: cls.ultimate, x: a.seat.x, y: a.seat.y, r: r * PLAQUE.apexR, apex: true });
     }
     return out;
   }
-  if (t.tier >= 4 && cls.element) return [{ el: cls.element, x: PLAQUE.badgeAt, y: PLAQUE.badgeAt, r }];
+  if (t.tier >= 4 && cls.element) return [{ el: cls.element, x: at, y: at, r }];
   return [];
 }
 

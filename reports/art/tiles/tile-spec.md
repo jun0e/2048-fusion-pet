@@ -100,9 +100,9 @@ Not tile states (owned elsewhere, unchanged): the range band and lit ticks (`sce
 | Number centre | 0.335 of the cell from the top (33.5 %; the guide's 33 % moved by half a point to clear the meter) | | | |
 | Number size | 0.3875 / 0.3125 / 0.2625 of the cell (1–2 / 3 / 4 digits), stroke 0.26 em | 18.6 / 15 / 12.6 px | 27 / 22 / 18 | 54 / 44 / 37 |
 | Creature | as today: height 0.56–0.68 of the cell, width ≤ 0.9, anchored 0.43 below the centre; eggs 0.5–0.6, lifted 0.04 | | | |
-| Badge | r 0.10625 of the cell (the generated badge drawn 2.35 r wide), centre 0.331 from the centre; dens ± 0.319; apex (0, −0.331) × 0.9 | 10 px | 15 | 30 |
+| Badge | r 0.135 of the cell (the generated badge drawn 2.35 r wide), centre 0.34 from the centre on every tile: one badge, an element's own or a den's split between its two elements (T21, 2026-10-16; it was r 0.10625 and two badges on a den, 12 px drawn on a 360 px phone) | 13 px | 19 | 38 |
 | Altar | of the plaque, below its centre (half-width, top, height): plinth 0.235 / 0.35 / 0.055, body 0.19 / 0.22 / 0.135 (the parents' studs r 0.042 at ± 0.085), slab 0.215 / 0.175 / 0.05; ink 0.02 cell; stone = the chapter skin's stone (base, cel tone on the lower third, light band on the top fifth) | 20 × 13 px | 29 × 19 | 58 × 38 |
-| Crystal (den) / apex badge (legend) | the seat 0.075 of the plaque below its centre: crystal 0.17 × 0.21 of the plaque (light fusion colour, its right facet the fusion colour, the lower facets shaded, a cream glint); a legend's apex badge there at 0.9 badge radius | 7 × 9 px | 10 × 13 | 20 × 25 |
+| Crystal (den) / apex badge (legend) | the seat 0.075 of the plaque below its centre: crystal 0.17 × 0.21 of the plaque (light fusion colour, its right facet the fusion colour, the lower facets shaded, a cream glint); a legend's apex badge there at r 0.096 of the cell | 7 × 9 px | 10 × 13 | 20 × 25 |
 | Halo (legend) | 0.42 of the plaque wide, centred on the seat | 17 px | 25 | 51 |
 | Nest | ellipse 0.31 × 0.085 of the plaque at 0.4 below the centre; 4 + 4 straw strokes 0.022 cell wide | | | |
 | Gold frame (legend) | 0.045 cell gold + 0.014 ink hairline 0.022 outside | | | |
