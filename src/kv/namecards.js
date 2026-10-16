@@ -1,7 +1,7 @@
 // Namecards: one card per fusion, on the rail that hangs on the right tower (proposal 4.1): never
-// over lane 4. The rail has four slots; from a fifth fusion on, the fourth slot is a stack whose face
-// is the card to tap (railSlots), so every fusion's skill can be cast and the rail never grows. The portrait uses the second art style, a soft-vinyl toy render, so the card reads
-// as a reward. States follow the style brief: charging (dimmed; a fill bar under the portrait),
+// over lane 4. The rail has four slots; from a fifth fusion on, the fourth slot is a stack whose
+// face is the card to tap (railSlots), so every fusion's skill can be cast and the rail never grows.
+// The portrait uses the second art style, a soft-vinyl toy render, so the card reads as a reward. States follow the style brief: charging (dimmed; a fill bar under the portrait),
 // ready (full colour, an element rim, the bar turns into an inverted READY pill, a shine sweep, a
 // small bob), activating (a 0.9 s cut-in that never blocks play), lost (grey, falls away).
 import { ELEMENTS, fusionOf, APEX } from '../sim/classes.js';
@@ -19,20 +19,30 @@ const RAIL = { gap: 6, bar: 14, margin: RAIL_PX.margin };
 const MIN = RAIL_PX.card; // a card is never narrower (the touch-target floor)
 
 /**
+ * The rail's order: the biggest fusion first, and between equals the older one (tile ids only grow),
+ * so a swipe that moves blocks around never reshuffles the cards.
+ */
+export const railOrder = (fusions) => [...fusions].sort((a, b) => b.tier - a.tier || a.id - b.id);
+
+/**
  * Which fusions show on the rail's slots: the three first (the highest) on slots of their own, and
  * from a fifth on, the rest in a stack on the fourth slot. The stack's face, the one card of it shown
- * and tapped, is the one already there while it is ready, else the first that is ready, else the one
- * already there (or the first): a ready skill always comes to the front, and the face never flickers.
+ * and tapped, stays while it is ready or `hold` (just cast: a second quick tap must not cast the next
+ * card's skill); else the first ready card comes up; else the face stays (or the first): the face
+ * never flickers between charging cards.
  * ids: the fusions' tile ids in rail order; ready: the ids whose skill is ready; face: last frame's.
  * → { shown: ids on slots of their own, stack: the stack's ids, face first, face: its face or null }
  */
-export function railSlots(ids, ready, face) {
+export function railSlots(ids, ready, face, hold = false) {
   if (ids.length <= SLOTS) return { shown: ids, stack: [], face: null };
   const rest = ids.slice(SLOTS - 1);
   const keep = rest.includes(face) ? face : null;
-  const next = keep != null && ready.has(keep) ? keep : (rest.find((id) => ready.has(id)) ?? keep ?? rest[0]);
+  const next = keep != null && (hold || ready.has(keep)) ? keep : (rest.find((id) => ready.has(id)) ?? keep ?? rest[0]);
   return { shown: ids.slice(0, SLOTS - 1), stack: [next, ...rest.filter((id) => id !== next)], face: next };
 }
+
+/** How long a just-cast face holds the stack's slot (ms): a quick second tap nudges it instead. */
+export const FACE_HOLD_MS = 600;
 
 /** The card width a screen `vw` px wide would like: 48 on a phone up to 400 px wide (the touch-target size), 52 on wider ones (proposal 4.1). */
 export const cardWidth = (vw) => (vw <= 400 ? 48 : 52);
@@ -122,7 +132,9 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
       <div class="kv-bar"><i></i><b>READY</b></div>`;
     el.title = `${petName(t.cls.element, t.cls.fusion)}: ${skill}`;
     el.style.pointerEvents = 'auto';
-    const card = { el, id: t.id, charge: CHARGE * 0.55, max: legend ? CHARGE_LEGEND : CHARGE, skill, name: petName(t.cls.element, t.cls.fusion), legend, cls: { ...t.cls }, lost: false, ready: null, more: 0, slot: '' };
+    const card = { el, id: t.id, charge: CHARGE * 0.55, max: legend ? CHARGE_LEGEND : CHARGE, skill, name: petName(t.cls.element, t.cls.fusion), legend, cls: { ...t.cls }, lost: false, ready: null, role: 'own', more: 0, slot: '', castAt: -Infinity };
+    // a nudge plays once: left on, its class would hold the card's ready bob off for good
+    el.addEventListener('animationend', (ev) => ev.animationName === 'kvNudge' && el.classList.remove('nudge'));
     // a press casts at once (no wait for the click); Enter and Space on a focused card do the same
     const press = () => {
       if (card.lost || card.charge < card.max) {
@@ -132,6 +144,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
         return;
       }
       card.charge = 0;
+      card.castAt = performance.now(); // the stack's face holds a moment (FACE_HOLD_MS)
       onCast(card);
       play(card);
     };
@@ -169,21 +182,28 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
 
   /** A card's name for a screen reader: its pet, its skill, its charge, and the cards behind it. */
   function label(card) {
-    const behind = card.more > 0 ? ` ${card.more} more pet${card.more === 1 ? ' waits' : 's wait'} behind this card.` : '';
+    const behind = card.role === 'face' ? ` ${card.more} more pet${card.more === 1 ? ' waits' : 's wait'} behind this card.` : '';
     card.el.setAttribute('aria-label', `${card.name}: ${card.skill}. ${card.ready ? 'Ready: tap to cast.' : 'Charging.'}${behind}`);
   }
 
-  /** A card on its slot: on its own (more 0), the stack's face (more: how many wait behind it), or behind it (−1). */
-  function slot(card, order, more) {
-    const k = `${order}:${more}`;
+  /**
+   * A card's role on the rail: on a slot of its own ('own'), the stack's face ('face', `more` cards
+   * waiting behind it), or behind it ('behind', hidden). A new face slides in once (a one-off
+   * animation: a class's would hold the card's ready bob, nudge and fall off).
+   */
+  function slot(card, role, more = 0) {
+    const k = `${role}:${more}`;
     if (card.slot === k) return;
+    const turned = role === 'face' && card.role !== 'face';
     card.slot = k;
+    card.role = role;
     card.more = more;
-    card.el.style.order = String(order);
-    card.el.classList.toggle('stacked', more < 0);
-    card.el.classList.toggle('stack-face', more > 0);
-    card.el.querySelector('.kv-more').textContent = more > 0 ? `+${more}` : '';
+    card.el.classList.toggle('stacked', role === 'behind');
+    card.el.classList.toggle('stack-face', role === 'face');
+    card.el.querySelector('.kv-more').textContent = role === 'face' ? `+${more}` : '';
     label(card);
+    const calm = document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (turned && !calm) card.el.animate?.([{ transform: 'translateY(6px) scale(0.92)', opacity: 0.5 }, { transform: 'none', opacity: 1 }], { duration: 250, easing: 'ease-out' });
   }
 
   let placed = '';
@@ -213,8 +233,8 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     if (!strip.isConnected) root.appendChild(strip);
     if (!cutin.isConnected) root.appendChild(cutin);
     layout();
-    // every fusion gets a card and charges; the rail shows four slots (railSlots)
-    const fusions = run.tiles.filter((t) => t.tier >= 8 && t.cls.fusion).sort((a, b) => b.tier - a.tier);
+    // every fusion gets a card and charges; the rail shows four slots (railSlots), in railOrder
+    const fusions = railOrder(run.tiles.filter((t) => t.tier >= 8 && t.cls.fusion));
     const live = new Set(fusions.map((t) => t.id));
     for (const t of fusions) {
       let card = cards.get(t.id);
@@ -236,22 +256,45 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
         label(card);
       }
     }
-    const slots = railSlots(
-      fusions.map((t) => t.id),
-      new Set(fusions.filter((t) => cards.get(t.id).ready).map((t) => t.id)),
-      face,
-    );
-    face = slots.face;
-    slots.shown.forEach((id, i) => slot(cards.get(id), i, 0));
-    slots.stack.forEach((id, i) => slot(cards.get(id), SLOTS - 1, i === 0 ? slots.stack.length - 1 : -1));
+    // fusions gone: their cards fall where they hang (one behind the stack, never seen, just goes)
     for (const [id, card] of cards) {
       if (live.has(id) || card.lost) continue;
       card.lost = true;
+      if (card.role === 'behind') {
+        card.el.remove();
+        cards.delete(id);
+        continue;
+      }
+      slot(card, 'own'); // a lost face falls as a card of its own: no pill, no hold on the stack
       card.el.classList.add('lost');
       setTimeout(() => {
         card.el.remove();
         cards.delete(id);
       }, 1400);
+    }
+    const held = face != null && performance.now() - (cards.get(face)?.castAt ?? -Infinity) < FACE_HOLD_MS;
+    const slots = railSlots(
+      fusions.map((t) => t.id),
+      new Set(fusions.filter((t) => cards.get(t.id).ready).map((t) => t.id)),
+      face,
+      held,
+    );
+    face = slots.face;
+    // a keyboard player's focus follows the stack: the card it was on went behind the new face
+    const focused = [...cards.values()].find((c) => c.el === document.activeElement);
+    for (const id of slots.shown) slot(cards.get(id), 'own');
+    slots.stack.forEach((id, i) => slot(cards.get(id), i === 0 ? 'face' : 'behind', slots.stack.length - 1));
+    if (focused?.role === 'behind') cards.get(face)?.el.focus({ preventScroll: true });
+    // the DOM in the rail's order, so Tab reads the cards top to bottom (moved only when it changed);
+    // a falling card keeps its place
+    const onRail = [...slots.shown, ...slots.stack].map((id) => cards.get(id));
+    onRail.forEach((c, i) => (c.index = i));
+    const order = onRail.map((c) => c.el);
+    for (const c of cards.values()) if (c.lost) order.splice(Math.min(c.index ?? order.length, order.length), 0, c.el);
+    if (order.some((el, i) => strip.children[i] !== el)) {
+      const had = document.activeElement;
+      for (const el of order) strip.appendChild(el);
+      if (had && had !== document.activeElement && strip.contains(had)) had.focus({ preventScroll: true });
     }
   }
 

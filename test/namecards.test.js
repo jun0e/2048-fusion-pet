@@ -42,3 +42,29 @@ test('every fusion is on the rail: on a slot, or in the stack, exactly once', ()
     assert.ok(s.shown.length <= 4 && (s.stack.length === 0 || s.shown.length === 3), `${n} fusions: at most four slots`);
   }
 });
+
+test('the rail’s order: the biggest first, the older between equals, so a swipe never reshuffles it', async () => {
+  const { railOrder } = await import('../src/kv/namecards.js');
+  const at = (id, tier) => ({ id, tier });
+  // board order (where the blocks sit) changes with every swipe; the rail's does not
+  const a = railOrder([at(9, 8), at(4, 8), at(7, 10), at(2, 8)]).map((t) => t.id);
+  const b = railOrder([at(2, 8), at(7, 10), at(9, 8), at(4, 8)]).map((t) => t.id);
+  assert.deepEqual(a, [7, 2, 4, 9]);
+  assert.deepEqual(b, a);
+});
+
+test('a just-cast face holds the stack, so a quick second tap cannot cast the next card', async () => {
+  const { railSlots } = await import('../src/kv/namecards.js');
+  const ids = [1, 2, 3, 4, 5, 6];
+  assert.equal(railSlots(ids, new Set([6]), 4, true).face, 4, 'held: the cast face stays');
+  assert.equal(railSlots(ids, new Set([6]), 4, false).face, 6, 'then the ready one comes up');
+});
+
+test('the stack’s slide-in is a one-off animation, never a class rule that would hold off the ready bob, nudge and fall', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../src/kv/kv.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) => /stack-face/.test(m[1]));
+  for (const m of rules) assert.ok(!/animation/.test(m[2]), `${m[1].trim()}: no animation on the face's class`);
+  const js = readFileSync(new URL('../src/kv/namecards.js', import.meta.url), 'utf8');
+  assert.match(js, /card\.el\.animate\?\.\(/);
+});

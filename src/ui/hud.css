@@ -1839,8 +1839,7 @@ body {
    does not play at all under it (namecards.js asks stage.takeFlash). */
 .reduce-motion .kv-card.ready,
 .reduce-motion .kv-card.ready .kv-shine,
-.reduce-motion .kv-card.nudge,
-.reduce-motion .kv-card.stack-face {
+.reduce-motion .kv-card.nudge {
   animation: none;
 }
 .reduce-motion .kv-card.lost {
@@ -2059,11 +2058,7 @@ body {
    name and attack on one line, and one short line of what it does (src/ui/hud.js setChoice) */
 .die-option .swatches i.pet {
   position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--c) 35%, var(--cream));
-  overflow: visible;
+  overflow: visible; /* the badge sits on the corner (the size and colour: with the fusion pick's, below) */
 }
 .die-option .swatches i.pet > img {
   border-radius: 14px;
@@ -2075,6 +2070,7 @@ body {
   width: 24px;
   height: 24px;
   border-radius: 50%;
+  background: var(--c); /* a colour dot, where the badge's art is missing */
   box-shadow: 0 0 0 2px var(--cream);
   overflow: hidden;
 }
@@ -2093,10 +2089,17 @@ body {
 }
 .die-option .opt-head em {
   margin-left: 4px;
+  white-space: nowrap; /* "Pride Pounce" never breaks in two */
 }
 
-/* the fusion pick: the pet's portrait on its colour, bigger than a die's swatch (src/ui/hud.js showFusionPick) */
-.fusion-option .swatches i.pet {
+.die-option .opt-text small {
+  text-wrap: pretty; /* where the line wraps (a 320 px phone, a mouse's 1-2-3 column), no word alone */
+}
+
+/* the fusion pick's pet portrait and the die pick's baby pet: on their colour, bigger than a swatch
+   (src/ui/hud.js showFusionPick, setChoice) */
+.fusion-option .swatches i.pet,
+.die-option .swatches i.pet {
   width: 52px;
   height: 52px;
   border-radius: 14px;

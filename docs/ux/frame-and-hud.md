@@ -113,7 +113,8 @@ Every fusion gets a card (T18), but the rail has four slots. From a fifth fusion
 
 - **The face:** only the stack's top card shows, and it is the one to tap. A "+N" pill in its portrait's corner counts the cards waiting behind it.
 - **Charging:** every card keeps charging behind the stack.
-- **Ready:** a ready skill always comes to the front, so every fusion's skill can be cast. After a cast, the next ready card comes up. While no card is ready, the face holds still.
+- **Ready:** the face stays while it is ready. When it is not, the first ready card behind it comes up, so every fusion's skill can be cast. After a cast the face holds its place for 0.6 s, so a quick second tap nudges it instead of casting the next card's skill. Then the next ready card comes up. While no card is ready, the face holds still.
+- **Order:** the rail is ordered by tier, and between equals by age, older first. A swipe that moves the blocks never reshuffles the cards, and Tab reads them top to bottom.
 - **Screen readers:** the face's name says how many pets wait behind it.
 
 ## Other details

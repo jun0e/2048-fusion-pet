@@ -718,7 +718,8 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       $('.choice-title').textContent = 'New die unlocked!';
       $('.choice-sub').textContent = `Your first ${tierValue(choice.tier).toLocaleString()}. Pick a die for your deck: blocks reaching 16 can roll it.`;
       // each die: its baby pet with the element's badge (the badge alone without the art), its name and
-      // attack on one line, and what it does in one short line (src/sim/classes.js ELEMENTS line)
+      // attack on one line, and what it does in one short line (src/sim/classes.js ELEMENTS line); the
+      // long description shows on a mouse's hover (title), and on the block's full card once it hatches
       $('.options').innerHTML = choice.offers
         .map((o, i) => {
           const baby = generatedUrl(spriteId({ kind: 'baby', el: o.element, stage: 0 }));
@@ -726,7 +727,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
             ? `<i class="pet" style="--c:${o.colors[0]}"><img alt="" src="${esc(baby)}" /><span class="pet-badge">${badgeImg(o.element)}</span></i>`
             : `<i style="--c:${o.colors[0]}">${badgeImg(o.element)}</i>`;
           return `
-        <button class="option die-option" data-act="pick" data-i="${i}">
+        <button class="option die-option" data-act="pick" data-i="${i}" title="${esc(o.desc)}">
           <span class="swatches">${art}</span>
           <span class="opt-text">
             <span class="opt-head"><b>${esc(o.name)}</b> <em>${esc(o.attack)}</em></span>
