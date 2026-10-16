@@ -931,6 +931,49 @@ export function createDefense({ rng }) {
     return caught.length;
   }
 
+  /**
+   * Quake Boots (src/sim/keepsakes.js): every monster on the board takes `dmg` and is stunned for
+   * `dur` s, bosses half as long. It braces like the attacks' holds: a monster held in the last 1.5 s
+   * is held 40% as long.
+   */
+  function stunBoard(dur, dmg = 0) {
+    let n = 0;
+    for (const e of alive()) {
+      if (e.mode !== 'hunt') continue;
+      if (dmg > 0) {
+        events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: damage(e, dmg, ['earth']), colors: ['#c9a582'], crit: false });
+        if (e.dead) {
+          n += 1;
+          continue;
+        }
+      }
+      const d = dur * (e.boss ? 0.5 : 1) * (e.holdBraceT > 0 ? 0.4 : 1);
+      e.holdBraceT = Math.max(e.holdBraceT, d + 1.5);
+      if (e.stunT <= 0) events.push({ type: 'stun', id: e.id, x: e.x, y: e.y });
+      e.stunT = Math.max(e.stunT, d);
+      n += 1;
+    }
+    return n;
+  }
+
+  /** Phoenix Feather: every monster on the board is blown back up its lane, to the gates. */
+  function blastBoard() {
+    let n = 0;
+    for (const e of alive()) {
+      if (e.mode !== 'hunt') continue;
+      const from = { x: e.x, y: e.y };
+      e.mode = 'lane';
+      e.lane = laneOfX(e.x);
+      e.s = 1; // just out of the portal: the walk back takes about 10 s
+      e.braceT = 1.5;
+      e.attacking = false;
+      place(e);
+      events.push({ type: 'pushed', id: e.id, x: e.x, y: e.y, from, by: null, colors: ['#ff8a3d', '#ffd36b'] });
+      n += 1;
+    }
+    return n;
+  }
+
   return {
     enemies,
     shots,
@@ -939,6 +982,8 @@ export function createDefense({ rng }) {
     damage,
     step,
     cast,
+    stunBoard,
+    blastBoard,
     sigCharge: (id) => sig.get(id) ?? 0,
     /** Seconds until a block may fire again (0: ready, waiting for a target). Read-only: the renderer's wind-up. */
     cooldownLeft: (id) => cool.get(id) ?? 0,

@@ -18,7 +18,7 @@ const DIRS = {
  * @param spawnTable [[tier, weight]…] or a function returning one
  * @param onMerge    (child, mover, stayer) hook: `mover` is the tile that slid into `stayer`
  *                   (the one coming from the side the swipe starts from)
- * @param onSpawn    (tile) hook for every new tile (random spawns and debug spawns)
+ * @param onSpawn    (tile, { random }) hook for every new tile (random spawns and debug spawns)
  */
 export function createGrid({ seed = (Math.random() * 2 ** 32) >>> 0, spawn = true, spawnTable = null, onMerge = null, onSpawn = null } = {}) {
   const n = GRID.size;
@@ -76,7 +76,7 @@ export function createGrid({ seed = (Math.random() * 2 ** 32) >>> 0, spawn = tru
     if (!free.length) return null;
     const [col, row] = free[Math.floor(rng.next() * free.length)];
     const t = place(rng.weighted(table()), col, row);
-    onSpawn?.(t);
+    onSpawn?.(t, { random: true });
     events.push({ type: 'spawn', id: t.id, tier: t.tier, col, row, x: t.x, y: t.y });
     return t;
   }

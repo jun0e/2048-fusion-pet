@@ -85,6 +85,8 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, 
       return r && r.width ? r : null;
     }
     if (target === 'deck') return worldRect(-3.6, -0.55, 3.6, -1.55);
+    if (target === 'keepsake') return domRect('.ks-badge:not([hidden])'); // the keepsake disc (src/ui/run-badges.js)
+    if (target === 'level') return domRect('.lv-badge:not([hidden])');
     if (target.tile != null) return tileRect(target.tile);
     if (target.lane != null) return worldRect(laneX(target.lane) - 0.9, FIELD.spawnY + 1.2, laneX(target.lane) + 0.9, FIELD.spawnY - 0.4);
     return null;
@@ -101,6 +103,7 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, 
     skipBtn.style.display = v.skip ? '' : 'none';
     actions.style.display = v.ok || v.skip ? '' : 'none';
     hand.style.display = v.hand ? '' : 'none';
+    hand.dataset.dir = v.dir ?? ''; // the Iron Fist tip swipes the way that punches
     aim(v.target);
     place();
   }
@@ -208,6 +211,14 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, 
     },
     get active() {
       return coach.active;
+    },
+    /** The guided opening is over (done or skipped): the store the coach plays from. */
+    get openingDone() {
+      return !!coach.store.guided;
+    },
+    /** The game's speed while a tip teaches in slow motion (1 = normal). */
+    get slowmo() {
+      return coach.slowmo;
     },
     /** The "How to play" sheet (it pauses the game while open). */
     openHelp(open = true) {

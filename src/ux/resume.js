@@ -1,4 +1,4 @@
-// Run resume. A run is its seed (and whether its pets roam) plus the inputs that changed
+// Run resume. A run is its seed (whether its pets roam, and its keepsake) plus the inputs that changed
 // it, each with the sim step it came at. The sim is deterministic, so replaying the inputs rebuilds
 // the run exactly. The game saves this log; after a reload it replays the log and
 // shows the pause menu, so the player continues or restarts.
@@ -11,9 +11,9 @@
 /** Also in index.html: New run on the failure screen removes this key itself (it must work without main.js). */
 export const RESUME_KEY = 'siege:run';
 /** Bump when a change makes old logs replay differently (renamed inputs, sim rules). */
-export const SAVE_VERSION = 3; // 2: the basic attacks and sell / break (art fork merge); 3: roaming pets are sim state
+export const SAVE_VERSION = 5; // 2: the basic attacks and sell / break (art fork merge); 3: roaming pets are sim state; 4: spawn levels and keepsakes; 5: fusion picks from a block's material
 /** Run methods that change the sim from outside (debug helpers are not saved). */
-export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave', 'discard', 'castSkill'];
+export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave', 'discard', 'castSkill', 'buyXp'];
 
 /** localStorage, or null where reading it throws. */
 function local() {
@@ -29,7 +29,7 @@ function local() {
  * changes nothing, e.g. a swipe that moves no block or a refused sell, is not recorded).
  * `log` continues an earlier log after a resume.
  */
-export function recordRun(run, log = { seed: run.seed, roaming: !!run.roaming, steps: 0, inputs: [] }) {
+export function recordRun(run, log = { seed: run.seed, roaming: !!run.roaming, keepsake: run.keepsake ?? null, steps: 0, inputs: [] }) {
   const step = run.step;
   run.step = () => {
     step();
@@ -48,7 +48,7 @@ export function recordRun(run, log = { seed: run.seed, roaming: !!run.roaming, s
 
 /** Rebuild a run from its log. `onEvents` gets the events the replay makes (for counters). */
 export function replayRun(createRun, log, { onEvents = () => {} } = {}) {
-  const run = createRun({ seed: log.seed, roaming: !!log.roaming });
+  const run = createRun({ seed: log.seed, roaming: !!log.roaming, keepsake: log.keepsake ?? null });
   let i = 0;
   for (let s = 0; s <= log.steps; s++) {
     while (i < log.inputs.length && log.inputs[i][0] === s) {
@@ -61,7 +61,7 @@ export function replayRun(createRun, log, { onEvents = () => {} } = {}) {
   return run;
 }
 
-/** What must match after a replay: the board (with classes, health and roaming pets), the economy, the deck. */
+/** What must match after a replay: the board (with classes, health and roaming pets), the economy, the deck, the spawn level. */
 export const fingerprint = (run) =>
   [
     run.waveNo,
@@ -71,7 +71,8 @@ export const fingerprint = (run) =>
     run.swipeCost,
     run.kills,
     run.owned.join('+'),
-    run.tiles.map((t) => `${t.id}:${t.tier}:${t.cls.element ?? ''}${t.cls.fusion ?? ''}${t.cls.ultimate ?? ''}:${Math.round(t.hp)}${t.roam ? `@${t.roam.x.toFixed(2)},${t.roam.y.toFixed(2)}` : ''}`).join(','),
+    `${run.keepsake ?? ''}L${run.level ?? 1}:${run.xp ?? 0}`,
+    run.tiles.map((t) => `${t.id}:${t.tier}:${t.cls.element ?? ''}${t.cls.fusion ?? ''}${t.cls.ultimate ?? ''}/${(t.mats ?? []).join('')}:${Math.round(t.hp)}${t.roam ? `@${t.roam.x.toFixed(2)},${t.roam.y.toFixed(2)}` : ''}`).join(','),
   ].join('|');
 
 /**
@@ -92,6 +93,7 @@ export function restoreRun(createRun, saved, { onEvents } = {}) {
 function validLog(log) {
   if (!log || !Number.isInteger(log.seed) || !Number.isInteger(log.steps) || log.steps < 0 || log.steps > 4e6 || !Array.isArray(log.inputs)) return false;
   if (log.roaming !== undefined && typeof log.roaming !== 'boolean') return false;
+  if (log.keepsake != null && typeof log.keepsake !== 'string') return false;
   let last = 0;
   for (const input of log.inputs) {
     if (!Array.isArray(input) || !RESUME_INPUTS.includes(input[1])) return false;

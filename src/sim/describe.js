@@ -2,7 +2,7 @@
 // Built from the same data the simulation uses (classes.js + profileFor), so the popup
 // always shows the attack the block really has. Pure data; no rendering.
 import { GRID, tierValue } from '../config.js';
-import { ELEMENTS, FUSIONS, APEX, TAGS, fusionKey, profileFor, stageFor, turretDamage } from './classes.js';
+import { ELEMENTS, FUSIONS, APEX, TAGS, fusionKey, fusionOffers, materialOf, profileFor, stageFor, turretDamage } from './classes.js';
 
 const TARGET = {
   front: 'Nearest foe',
@@ -102,6 +102,11 @@ export function describeTile(tile, petNameFn = null) {
   if (!cls.fusion) {
     const e = ELEMENTS[cls.element];
     const toFuse = Math.log2(256 / value);
+    const merges = `${toFuse} more ${toFuse === 1 ? 'merge' : 'merges'}`;
+    // the fusions its material allows so far (the player picks one at 256 when there are several)
+    const material = materialOf(tile);
+    const can = material.length >= 2 ? fusionOffers(cls, material, 8).map((o) => o.name) : [];
+    const options = can.length > 1 ? `${can.slice(0, -1).join(', ')} or ${can.at(-1)}` : can[0];
     return {
       kind: 'element',
       value,
@@ -110,7 +115,9 @@ export function describeTile(tile, petNameFn = null) {
       desc: e.desc,
       stats,
       effects,
-      next: `Fuses with a second element at 256 (${toFuse} more ${toFuse === 1 ? 'merge' : 'merges'})`,
+      next: can.length
+        ? `Fuses at 256 (${merges}): it can become ${options}, from the elements merged into it${can.length > 1 ? ' (you pick)' : ''}`
+        : `Fuses with a second element at 256 (${merges})`,
       colors: [e.color],
       elements,
     };

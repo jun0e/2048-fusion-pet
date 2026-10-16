@@ -1,0 +1,379 @@
+/* The spawn level and keepsake discs (src/ui/run-badges.js), their cards (which take the block
+   card's look, src/ui/inspect.css) and the keepsake picker (src/ui/keepsake-picker.js). Clay on
+   the HUD's tokens (src/ui/hud.css); 44 px targets; nothing under 12 px. */
+
+/* --- the two discs, above the bottom bar's ends --------------------------------------------- */
+.run-badge {
+  position: absolute;
+  bottom: calc(var(--foot-y) + 52px);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--cream);
+  border: var(--line);
+  box-shadow:
+    inset 0 -3px 0 var(--clay-edge),
+    var(--drop);
+  color: var(--ink);
+}
+
+.run-badge[hidden] {
+  display: none;
+}
+
+.run-badge:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 -3px 0 var(--clay-edge);
+}
+
+.run-badge:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.lv-badge {
+  left: 8px;
+}
+
+.ks-badge {
+  right: 8px;
+}
+
+/* wide screens: the HUD's column (src/ui/hud.css), above its coin plate and Wave now */
+@media (width >= 560px) {
+  .lv-badge {
+    left: calc(50% - 232px);
+  }
+  .ks-badge {
+    right: calc(50% - 232px);
+  }
+}
+
+/* the level: "Lv" over its number, inside the XP ring */
+.lv-ring {
+  position: absolute;
+  inset: -6px;
+  width: 52px;
+  height: 52px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.lv-track {
+  fill: none;
+  stroke: #2b1d2e2e;
+  stroke-width: 4;
+}
+
+.lv-fill {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s ease;
+  filter: drop-shadow(0 0 1px #2b1d2e);
+}
+
+.lv-badge.top .lv-fill {
+  stroke: #ffb020;
+}
+
+.lv-face {
+  display: grid;
+  justify-items: center;
+  line-height: 1;
+}
+
+.lv-face small {
+  font: 800 12px/1 var(--font-display);
+  color: var(--ink-soft);
+}
+
+.lv-face b {
+  font: 800 19px/0.95 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.lv-badge.pop {
+  animation: badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lv-badge.pop .lv-fill {
+  stroke: #fff2b0;
+}
+
+@keyframes badge-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.32);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* the keepsake: its icon on the disc */
+.ks-face {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+}
+
+.ks-face svg {
+  width: 32px;
+  height: 32px;
+}
+
+.ks-badge.spent .ks-face {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.ks-badge.pulse {
+  animation: badge-pulse 0.35s ease-out;
+}
+
+@keyframes badge-pulse {
+  40% {
+    transform: scale(1.18) rotate(-8deg);
+  }
+}
+
+/* a keepsake the tutorial points at glows */
+.ks-badge.glow {
+  box-shadow:
+    inset 0 -3px 0 var(--clay-edge),
+    0 0 0 4px #ffd34a,
+    0 0 18px 4px #ffd34a99;
+}
+
+.reduce-motion .lv-badge.pop,
+.reduce-motion .ks-badge.pulse {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-badge.pop,
+  .ks-badge.pulse {
+    animation: none;
+  }
+}
+
+/* --- their cards (the block card's look) ------------------------------------------------------ */
+.run-card .lv-pic {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  line-height: 1;
+}
+
+.run-card .lv-pic small {
+  font: 800 12px/1 var(--font-display);
+  color: var(--ink-soft);
+}
+
+.run-card .lv-pic b {
+  font: 800 26px/1 var(--font-display);
+}
+
+.run-card .ks-pic svg {
+  width: 44px;
+  height: 44px;
+}
+
+.lv-xpbar {
+  height: 8px;
+  margin: 8px 0 0;
+  border-radius: 999px;
+  background: var(--cream-2);
+  box-shadow: inset 0 0 0 1.5px #2b1d2e33;
+  overflow: hidden;
+}
+
+.lv-xpbar i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform-origin: left;
+}
+
+/* the level card puts Buy XP first (under the bar), then the odds */
+.run-card .lv-act {
+  margin: 8px 0 10px;
+  padding: 0 0 10px;
+  border-top: 0;
+  border-bottom: 2px dashed var(--cream-2);
+}
+
+.lv-odds {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+
+.lv-odds-label {
+  flex: 0 0 52px;
+  font: 800 12px/1.2 var(--font-display);
+  color: var(--ink-soft);
+}
+
+.lv-odds.next .odds {
+  opacity: 0.75;
+}
+
+.odds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* an odd: the value on its tier colour (the number is the colour-blind channel), its share under */
+.odd {
+  display: grid;
+  justify-items: center;
+  min-width: 38px;
+  padding: 2px 3px 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c) 45%, var(--cream));
+  box-shadow: inset 0 0 0 1.5px #2b1d2e40;
+}
+
+.odd b {
+  font: 800 14px/1.1 var(--font-display);
+}
+
+.odd em {
+  font: 800 12px/1.1 var(--font-body);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+/* --- the keepsake picker (before a run) ------------------------------------------------------- */
+.picker-scrim {
+  z-index: 6; /* with the other dialogs: above coach tips and the lintel (src/ui/hud.css) */
+}
+
+.picker {
+  width: min(360px, calc(100vw - 24px));
+  max-height: calc(100% - var(--sa-t) - var(--sa-b) - 24px);
+  overflow-y: auto;
+  padding: 18px 16px 16px;
+  text-align: center;
+}
+
+.picker h2 {
+  font-size: 28px;
+}
+
+.picker .sub {
+  margin-bottom: 12px;
+}
+
+.ks-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ks-opt {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 92px;
+  padding: 8px 4px 6px;
+  border-radius: var(--r-plate);
+  background: var(--cream-2);
+  box-shadow: 0 4px 0 #2b1d2e26;
+  font: 800 12px/1.15 var(--font-display);
+}
+
+.ks-opt svg {
+  width: 40px;
+  height: 40px;
+}
+
+.ks-opt[aria-pressed='true'] {
+  background: var(--butter);
+  box-shadow:
+    0 0 0 3px var(--ink),
+    0 4px 0 #2b1d2e59;
+}
+
+.ks-opt.locked {
+  color: var(--ink-soft);
+}
+
+.ks-opt.locked .ks-art {
+  opacity: 0.25;
+  filter: grayscale(1) brightness(0.4);
+}
+
+.ks-opt .ks-lock {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+}
+
+.ks-opt .ks-lock svg {
+  width: 26px;
+  height: 26px;
+}
+
+.ks-opt small {
+  font: 700 12px/1.1 var(--font-body);
+  color: var(--ink-soft);
+}
+
+.ks-new {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ef6060;
+  color: var(--cream);
+  font: 800 12px/1.3 var(--font-display);
+  box-shadow: var(--drop);
+}
+
+.ks-detail {
+  min-height: 64px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-radius: var(--r-chip);
+  background: var(--cream-2);
+  text-align: left;
+}
+
+.ks-detail b {
+  font: 800 16px/1.2 var(--font-display);
+}
+
+.ks-detail p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ks-opt:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.ks-opt:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}

@@ -9,6 +9,8 @@
 // the autoplay handling (everything that checks `muted`) is shared; the probe
 // never mutes.
 import { stageFor } from '../sim/classes.js';
+import { keepsakeById } from '../sim/keepsakes.js';
+import { punchTargets, punchingSwipes, slidePaths } from '../sim/punch.js';
 import { FLASH_SECONDS } from './journey-tuning.js';
 
 export const TIPS_BASELINE = {
@@ -67,7 +69,33 @@ export const TIPS = {
   ultimate: 'Ultimate! It hits the whole field.',
   boss: 'Boss through the bannered gate! Kill it: x2s for your blocks.',
   milestone: '2048! Reach 4096 for an ultimate.',
+  // keepsakes and the spawn level (src/sim/keepsakes.js, src/sim/levels.js)
+  fist: 'Iron Fist: slide a block into the monster to punch it!',
+  fistDone: 'Punch! Bigger blocks punch harder.',
+  level: 'Level up! Bigger new blocks. Tap Lv for the odds.',
 };
+
+/** The Iron Fist tip names the swipe that punches now: "Iron Fist: swipe up to punch it!" */
+export const fistText = (dir) => (dir ? `Iron Fist: swipe ${dir} to punch the monster!` : TIPS.fist);
+
+/**
+ * The swipe that would punch a monster now (the most monsters hit; ties go up, left, right, down),
+ * as the Iron Fist tip shows it: { text, dir (null when no swipe punches yet), hand, target (the
+ * block that would land the punch) }.
+ */
+export function fistHint(run) {
+  const punch = keepsakeById(run.keepsake)?.punch;
+  const tiles = run.tiles ?? [];
+  const foes = run.enemies ?? [];
+  const hits = punch ? punchingSwipes(tiles, foes, punch) : {};
+  let dir = null;
+  for (const d of ['up', 'left', 'right', 'down']) if (hits[d] && (!dir || hits[d] > hits[dir])) dir = d;
+  const best = dir ? punchTargets(slidePaths(tiles, dir), foes, dir, punch).reduce((b, h) => (!b || h.path.tier > b.path.tier ? h : b), null) : null;
+  return { text: fistText(dir), dir, hand: !!dir, target: best ? { tile: best.path.id } : null };
+}
+
+/** Seconds the Iron Fist tip waits for its punch (the game runs slowly meanwhile: COACH.slowmo). */
+export const FIST_SECONDS = 8;
 
 /**
  * A break tip is out of date once the break it was offered in ends, and too late
@@ -85,6 +113,8 @@ export const COACH = {
     { id: 'swipe', text: 'Swipe to merge the two 8s.', target: 'board', hand: true, skip: true, doneOn: 'turret' },
     { id: 'turret', text: '16+ blocks shoot enemies in their column.', target: 'top', doneOn: 'swipe', after: 4 },
     { id: 'grow', text: 'Keep merging. Each swipe costs coins.', target: 'coins', swipes: 3, after: 12 },
+    // the first run brings Iron Fist (src/sim/keepsakes.js): it is named here, taught when a monster first bites
+    { id: 'keepsake', text: 'Your keepsake: Iron Fist. Blocks punch monsters.', target: 'keepsake', doneOn: 'swipe', after: 5, when: (run) => run.keepsake === 'ironFist' },
     { id: 'start', text: 'Tap Wave now when you are ready.', target: 'wave', doneOn: 'waveStart', release: true },
   ],
   tips: TIPS,
@@ -93,26 +123,32 @@ export const COACH = {
   gapAfterOk: 16,
   urgentGap: 2, // an urgent tip waits only this long after the last one
   queueMax: 3,
-  urgent: ['note', 'attacked', 'lost', 'broke'],
-  // survival first, then the core loop, then depth; ties keep arrival order
-  priority: { note: 4, attacked: 3, lost: 3, broke: 3, lanes: 2, coins: 2, break: 2, merge: 2, boss: 2 },
+  urgent: ['note', 'fist', 'fistDone', 'attacked', 'lost', 'broke'],
+  // survival first, then the core loop, then depth; ties keep arrival order. Iron Fist's tip comes
+  // first: it answers the bite with something to do
+  priority: { fist: 5, fistDone: 4, note: 4, attacked: 3, lost: 3, broke: 3, lanes: 2, coins: 2, break: 2, merge: 2, boss: 2, level: 2 },
   // depth tips are not offered before these waves: the basics land first
   minWave: { colour: 3, unlock: 2 },
   // a tip is offered only when its advice can be followed ("swipe to grow" needs a possible swipe)
   when: { break: (run) => run.coins >= run.swipeCost && !run.locked },
   // a tip whose moment has passed is dropped and offered again next time: the break tip
   // lasts its break; the boss tip lasts until its boss wave is over
-  stale: { break: breakOver, boss: (run, q) => run.waveNo !== q.wave },
+  // the punch tip lasts while a monster is on the board in a wave (else it comes back at the next bite)
+  stale: { break: breakOver, boss: (run, q) => run.waveNo !== q.wave, fist: (run) => run.phase !== 'wave' || !run.enemies?.some((e) => !e.dead && e.mode === 'hunt') },
   reoffer: true, // a tip dropped unseen (queue overflow, stale, game over, a flash) can be offered again
   minSeen: FLASH_SECONDS, // a tip on screen for less than this was not read: a flash counts as unseen
   follow: true, // a tip that points at a block follows it when it merges
-  fallback: { attacked: 'blocks' }, // where a tip points when its block breaks (others go with the block)
+  fallback: { attacked: 'blocks', fist: 'board' }, // where a tip points when its block breaks (others go with the block)
+  // a tip whose words depend on the board when it shows: the Iron Fist tip names the swipe that punches now
+  textFor: { fist: (run) => fistHint(run) },
   seenWithStep: { turret: ['awaken'] }, // a guided step already covers these tips
   seenWithTip: { attacked: ['lost'] }, // a tip that already says what these say
   guidedWave: true, // first run: wave 1 comes down the first turret's column (run.setGuidedWave)
   endOnWave: true, // a wave that starts during the opening ends it (the player chose to start)
   brokeStep: 'start', // out of coins during the opening: skip to this step (Wave now still works)
   clearOnGameOver: true, // a game over clears the bubble; tips still waiting are offered again later
+  slowmo: { fist: 0.25 }, // the game runs at this speed while the tip is up (the first punch is taught in slow motion)
+  hold: { fist: FIST_SECONDS }, // these tips stay up this long (or until done)
 };
 
 export const HELP = [
@@ -120,9 +156,11 @@ export const HELP = [
   ['Turrets', 'Blocks of 16 or more shoot enemies along their column; smaller ones only soak up hits. Tap a block to see its range.'],
   ['Siege', 'Enemies on the board attack your blocks. Hidden health refills each wave; destroyed blocks are gone. No blocks left = game over.'],
   ['Elements', 'A block reaching 16 rolls a random element from your deck. When two elemental blocks merge, the one that slides in keeps its element.'],
-  ['Upgrades', 'The 4-piece border fills one piece per merge. Full at 256: fusion, a unique element with both effects (Fire + Ice = Frostnova). Full again at 4096: ultimate.'],
+  ['Upgrades', 'The 4-piece border fills one piece per merge. Full at 256: fusion, a unique element with both effects (Fire + Ice = Frostnova). A block remembers every element merged into it, and at 256 you pick its fusion from those (tap a block to see its options). Full again at 4096: ultimate.'],
   ['Unlocks', 'You start with 2 dice. Your first 64, 256 and 512 each add a new die to the deck.'],
   ['Coins', 'Kills and cleared waves pay coins. Three merges in one swipe refund it.'],
+  ['Level', 'The Lv disc shows your spawn level. Each level makes bigger new blocks likelier; tap it for the odds. Cleared waves give XP, and Buy XP turns coins into more. Your biggest block caps the level. After your first 512, no more 2s spawn.'],
+  ['Keepsakes', 'Bring one keepsake into each run (tap its disc to read it). Your biggest block ever unlocks more: a 128, 256, 512, 1024 and 2048 each unlock one. Iron Fist: blocks punch the monsters they slide into.'],
   ['Bosses', 'Every 5th wave, through the gate with red banners. Killing one gives your other blocks x2s, one for each doubling in your biggest block (256 = eight x2s), aimed to make pairs. No block grows past the biggest.'],
 ];
 
@@ -175,8 +213,8 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
   }
 
   /** `log: false` re-shows a bubble the player already saw (after autoplay): logged as 'reshow', no new words. */
-  function show(kind, id, text, target, { ok = false, skip = false, hand = false } = {}, log = true) {
-    view = { key: `${kind}:${id}:${++seq}`, kind, id, text, target: resolve(target), ok, skip, hand };
+  function show(kind, id, text, target, { ok = false, skip = false, hand = false, dir = null } = {}, log = true) {
+    view = { key: `${kind}:${id}:${++seq}`, kind, id, text, target: resolve(target), ok, skip, hand, dir };
     if (!muted) onLog(log ? 'show' : 'reshow', { kind, id, words: wordCount(text) });
   }
   function hide() {
@@ -200,6 +238,7 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
       return;
     }
     const g = GUIDED[i];
+    if (g.when && !g.when(run())) return guide(i + 1); // a step for another setup (the first run's keepsake)
     stepT = 0;
     stepSwipes = 0;
     if (g.release) run().setHold?.(false);
@@ -288,7 +327,8 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
 
   /** Put the next tip up; the tips it also covers count as seen and leave the queue. */
   function showTip(next) {
-    const text = next.text ?? TIPS[next.id];
+    const live = config.textFor?.[next.id]?.(run()) ?? null; // words that depend on the board now
+    const text = live?.text ?? next.text ?? TIPS[next.id];
     const covered = new Set(next.covered ?? []);
     for (const id of config.seenWithTip?.[next.id] ?? []) {
       const k = queue.findIndex((q) => q.id === id);
@@ -297,8 +337,9 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
       store.seen.add(id);
     }
     if (covered.size) persist();
-    tip = { ...next, covered: [...covered], t: config.tipSeconds(text), up: 0 };
-    show('tip', next.id, text, next.target, { ok: true }, !next.reshow);
+    const target = live?.target ?? next.target; // the block that would land the punch, when there is one
+    tip = { ...next, target, covered: [...covered], t: config.hold?.[next.id] ?? config.tipSeconds(text), up: 0 };
+    show('tip', next.id, text, target, { ok: true, hand: !!live?.hand, dir: live?.dir ?? null }, !next.reshow);
   }
 
   /**
@@ -389,7 +430,30 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
           offer('lanes', { lane: e.lanes?.[0] ?? 0 });
           break;
         case 'tileHit':
+          // with Iron Fist, the first bite is the moment to teach the punch
+          if (run().keepsake === 'ironFist') offer('fist', { tile: e.id });
           offer('attacked', { tile: e.id });
+          break;
+        case 'punch':
+          if (muted) break; // autoplay's punches are not the player's: the lesson waits
+          // the punch the tip asked for (or found alone): the tip is done, and says so. A quick punch is
+          // not a flash: the tip did its job, so it is not offered again
+          if (tip?.id === 'fist') {
+            tip = null;
+            hide();
+            rest(config.urgentGap);
+          } else {
+            const k = queue.findIndex((q) => q.id === 'fist');
+            if (k >= 0) queue.splice(k, 1);
+            if (!store.seen.has('fist')) {
+              store.seen.add('fist');
+              persist();
+            }
+          }
+          offer('fistDone', 'keepsake');
+          break;
+        case 'levelUp':
+          offer('level', 'level');
           break;
         case 'remove':
           if (e.reason === 'destroyed') offer('lost', 'blocks');
@@ -474,6 +538,10 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     /** What the bubble shows now (null = hidden). */
     get view() {
       return muted ? null : view;
+    },
+    /** The game's speed while a tip teaches in slow motion (1 = normal): the first punch. */
+    get slowmo() {
+      return !muted && tip ? (config.slowmo?.[tip.id] ?? 1) : 1;
     },
     get active() {
       return guided >= 0 && !muted;

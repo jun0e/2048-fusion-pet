@@ -45,7 +45,7 @@ export function createInput(el, { swipe, tap, choose, nextWave, pause }) {
     if (dir) {
       e.preventDefault();
       swipe(dir);
-    } else if (['1', '2', '3'].includes(e.key)) choose(Number(e.key) - 1);
+    } else if (['1', '2', '3', '4'].includes(e.key)) choose(Number(e.key) - 1); // a fusion pick can have 4 cards
     else if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
       e.preventDefault();
       pause?.();

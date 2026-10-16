@@ -179,7 +179,8 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     const live = new Set(fusions.map((t) => t.id));
     for (const t of fusions) {
       let card = cards.get(t.id);
-      if (card && card.cls.ultimate !== t.cls.ultimate) {
+      // a new class (an ultimate, or a fusion picked after the merge): a new card
+      if (card && (card.cls.ultimate !== t.cls.ultimate || card.cls.element !== t.cls.element || card.cls.fusion !== t.cls.fusion)) {
         card.el.remove();
         cards.delete(t.id);
         card = null;
