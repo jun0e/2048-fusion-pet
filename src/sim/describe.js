@@ -21,6 +21,8 @@ const SKILL_LEGEND = { radius: 3.6, mult: 7, charge: 7 };
 const pct = (v) => `${Math.round(v * 100)}%`;
 const num = (v) => (v >= 100 ? Math.round(v).toLocaleString('en-US') : v >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, ''));
 const secs = (v) => `${num(v)} s`;
+// attack speeds are design values with up to two decimals (Horn Arc 0.85, Quake Stomp 0.45): shown exactly
+const perSec = (v) => `${v >= 10 ? num(v) : Math.round(v * 100) / 100} / s`;
 const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 // game distances are world units; a cell (one board square, one lane wide) is GRID.cell of them
 const inCells = (u) => u / GRID.cell;
@@ -91,7 +93,7 @@ export function describeTile(tile, petNameFn = null) {
   const count = p.shoot.count ?? 1;
   const stats = [
     { label: 'Damage', value: count > 1 ? `${num(hit)} × ${count}` : num(hit) },
-    { label: 'Attacks', value: `${num(p.rate)} / s` },
+    { label: 'Attacks', value: perSec(p.rate) },
     { label: 'DPS', value: `≈ ${num(hit * count * p.rate)}` },
     { label: 'Range', value: rangeText(p.shoot) },
     { label: 'Targets', value: AREA[p.shoot.pattern] ?? TARGET[p.shoot.target] ?? 'Nearest foe' },
