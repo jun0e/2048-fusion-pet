@@ -1,0 +1,4 @@
+# Reproducible by `node reports/art/moodboard/build.mjs`: old/ is extracted from git (BASE:public/assets/gen),
+# captures/ is copied from the capture folder (MOODBOARD_CAPTURES).
+old/
+captures/
