@@ -19,11 +19,13 @@ import { DEFENSE } from '../config.js';
 // 16 (s = 0) to 128 (s = 3); fusions use it fully grown. Damage values are the design's
 // ×0.42: area attacks and crowd control made the design's numbers twice as strong as the
 // old attacks, and at ×0.42 autoplay reaches the same wave as before (median ≈ 19).
+// `color` is the element's one identity colour, the `key` of its art palette (src/art/palettes.js):
+// tile plates, badges, the die pick, the tile card, namecards and attack tints all use it.
 export const ELEMENTS = {
   fire: {
     name: 'Fire',
     attack: 'Ember Breath',
-    color: '#ff7a3d',
+    color: '#f2662d',
     desc: 'Breathes a short cone of fire up its lane that hits every foe in it. Burns: damage over time that stacks.',
     rate: 1.0,
     dmg: 0.23, // to every foe in the cone
@@ -35,7 +37,7 @@ export const ELEMENTS = {
   ice: {
     name: 'Ice',
     attack: 'Echo Harpoon',
-    color: '#7fd4ff',
+    color: '#9be7f5',
     desc: 'A sonar ping finds the toughest foe up to 5 cells along its lane and an ice harpoon follows. Slows; every 4th hit on the same foe freezes it.',
     rate: 0.6,
     dmg: 0.91, // the Hunter leads on single tough foes
@@ -48,7 +50,7 @@ export const ELEMENTS = {
   lightning: {
     name: 'Lightning',
     attack: 'Horn Arc',
-    color: '#ffe14d',
+    color: '#3d8bff',
     desc: 'An instant bolt from the horn to the nearest foe that leaps to more foes close by, across lanes. Each jump hits a little less and may stun.',
     rate: 0.85,
     dmg: 0.37,
@@ -61,7 +63,7 @@ export const ELEMENTS = {
   poison: {
     name: 'Poison',
     attack: 'Venom Spit',
-    color: '#b46cff',
+    color: '#a35cf0',
     desc: 'Spits a venom glob that leaves a puddle on the path. Foes in it gain poison stacks; at full stacks they are weakened and hit blocks 30% softer.',
     rate: 0.9,
     dmg: 0.16,
@@ -74,7 +76,7 @@ export const ELEMENTS = {
   earth: {
     name: 'Earth',
     attack: 'Quake Stomp',
-    color: '#c79a62',
+    color: '#9c8268',
     desc: 'Stomps a shockwave across its lane and both neighbours: a heavy hit that knocks foes back and stuns them.',
     rate: 0.45,
     dmg: 0.82,
@@ -87,7 +89,7 @@ export const ELEMENTS = {
   wind: {
     name: 'Wind',
     attack: 'Wing Gust',
-    color: '#bff7e6',
+    color: '#56b8a8',
     desc: 'A wingbeat sends a gust 5 cells up its lane: every foe in it is hit and pushed back.',
     rate: 0.8,
     dmg: 0.27,
@@ -99,7 +101,7 @@ export const ELEMENTS = {
   metal: {
     name: 'Metal',
     attack: 'Pride Pounce',
-    color: '#c9d3df',
+    color: '#f7be1e',
     desc: 'The cub leaps onto the weakest foe nearby. A killing bite on wounded foes, and its prey drops bonus coins.',
     rate: 1.0,
     dmg: 0.45,
@@ -112,7 +114,7 @@ export const ELEMENTS = {
   nature: {
     name: 'Nature',
     attack: 'Bramble Shell',
-    color: '#4cd964',
+    color: '#7cd15a',
     desc: 'A thorny ring pulses around the block: it roots foes, hurts anything that bites the block, and regrows the block and its neighbours.',
     rate: 0.5,
     dmg: 0.54,

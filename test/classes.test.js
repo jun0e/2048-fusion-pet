@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ELEMENTS,
   ELEMENT_KEYS,
   FUSIONS,
   APEX,
@@ -14,6 +15,8 @@ import {
   milestonePieces,
 } from '../src/sim/classes.js';
 import { createRng } from '../src/sim/rng.js';
+import { ELEMENT_PALETTES } from '../src/art/palettes.js';
+import { INK, contrast, tone } from '../src/art/tokens.js';
 
 const block = (tier, cls = {}, id = 1) => ({ id, tier, cls: { ...cls } });
 
@@ -159,4 +162,14 @@ test('the basic attacks grow from 16 to 128 (one step per merge), and fusions ar
 test('the 4-piece border counts merges to the next milestone', () => {
   assert.deepEqual([3, 4, 5, 6, 7].map(milestonePieces), [-1, 0, 1, 2, 3], '16 → 256: one piece per merge');
   assert.deepEqual([8, 9, 10, 11, 12].map(milestonePieces), [0, 1, 2, 3, -1], 'then again to 4096');
+});
+
+test('one colour per element: the UI uses the art palette key, and every tile number stays readable', () => {
+  for (const k of ELEMENT_KEYS) {
+    assert.equal(ELEMENTS[k].color.toLowerCase(), ELEMENT_PALETTES[k].key.toLowerCase(), `${k}: the UI colour is the art's key`);
+    // art-mode tile plate (src/art/index.js plateColor): the element colour toned 42% to white, ink numeral
+    assert.ok(contrast(INK, tone(ELEMENTS[k].color, 0.42)) >= 4.5, `${k}: the tile number reads on its plate`);
+  }
+  // ice and lightning are both blue: they stay apart by lightness (frost cyan vs neon blue)
+  assert.ok(contrast(ELEMENTS.ice.color, ELEMENTS.lightning.color) >= 2, 'ice and lightning read apart');
 });
