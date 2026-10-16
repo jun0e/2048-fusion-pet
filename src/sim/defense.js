@@ -23,6 +23,9 @@ import { profileFor } from './classes.js';
 
 const HIT_RADIUS = 0.35;
 
+/** How many of DEFENSE.bossPushResist's steps a boss has reached after `pushes` pushes (0–3): its shield mark, I–III. */
+export const bossResistLevel = (pushes = 0) => DEFENSE.bossPushResist.filter((r) => pushes >= r.after).length;
+
 export function createDefense({ rng }) {
   const enemies = [];
   const shots = [];
@@ -179,19 +182,16 @@ export function createDefense({ rng }) {
   }
 
   /** `src` ({ by, tier, colors }: who pushed) only goes into the `pushed` event, for the renderer. */
-  /** How many of DEFENSE.bossPushResist's steps a boss has reached after `pushes` pushes (0–3). */
-  const resistLevel = (pushes) => DEFENSE.bossPushResist.filter((r) => pushes >= r.after).length;
-
   function knock(e, amount, src = null) {
     const from = { x: e.x, y: e.y };
     // bosses half as far, and less again as their pushes add up (resistLevel); a foe pushed in the
     // last 1.5 s is braced and slides only 40% as far, so a gust stalls a lane without holding it forever
-    const level = e.boss ? resistLevel(e.pushes) : 0;
+    const level = e.boss ? bossResistLevel(e.pushes) : 0;
     const boss = e.boss ? 0.5 * (1 - (DEFENSE.bossPushResist[level - 1]?.resist ?? 0)) : 1;
     const a = amount * boss * (e.braceT > 0 ? 0.4 : 1);
     e.braceT = 1.5;
     e.pushes += 1;
-    if (e.boss && resistLevel(e.pushes) > level) events.push({ type: 'resist', id: e.id, level: level + 1, name: e.def.name, x: e.x, y: e.y });
+    if (e.boss && bossResistLevel(e.pushes) > level) events.push({ type: 'resist', id: e.id, level: level + 1, name: e.def.name, x: e.x, y: e.y });
     if (e.mode === 'lane') {
       e.s = Math.max(0, e.s - a);
       place(e);

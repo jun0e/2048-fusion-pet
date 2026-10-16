@@ -6,7 +6,8 @@ import { BitmapText, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { DOT, FOE_FLASH, FOE_PATCH } from '../ux/photosafe.js';
 import { FOE_ROSTER, FOE_SIZE_FLOOR, foeDrawSize } from '../art/foe-roster.js';
 import { FRAME_GEOM } from '../art/frame-kit.js';
-import { enemyTex, shadowTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
+import { enemyTex, shadowTex, shieldTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
+import { bossResistLevel } from '../sim/defense.js';
 
 const STATUS_ORDER = ['freeze', 'burn', 'poison', 'chill', 'loot'];
 const GEN_FILL = 1; // a trimmed generated foe fills its box (the overhaul's sizes: 37–54 px, bosses 86–95)
@@ -35,6 +36,30 @@ export function foeLabels({ U, boss = false, barY, barH }) {
   const bs = Math.max(0.42 * U, badgePx + 2);
   const under = boss ? Math.max(hpPx * NUMBER_HALF, (barH + 0.06 * U) / 2) : (barH + 0.06 * U) / 2;
   return { hpPx, badgePx, bs, y: barY - under - Math.max(bs / 2, badgePx * NUMBER_HALF) - 2 };
+}
+
+/** A foe's status row holds at most this many badges (a boss's shield mark counts as one); the rest show as "+N". */
+export const MAX_BADGES = 2;
+
+/**
+ * What a foe's status row shows: a boss's shield mark first (shield: the step of pushback resistance it
+ * reached, 0 = none), then its most telling statuses in STATUS_ORDER, MAX_BADGES in all; `more` counts the
+ * ones left out. A full row of four badges spanned 120–165 px of a 190 px board on a phone.
+ */
+export function badgeRow(statuses, { shield = 0 } = {}) {
+  const live = STATUS_ORDER.filter((k) => statuses[k]);
+  const room = MAX_BADGES - (shield > 0 ? 1 : 0);
+  return { shield: shield > 0, shown: live.slice(0, room), more: Math.max(0, live.length - room) };
+}
+
+/**
+ * How far (px) a foe's bar and the numbers over it move down so its badge row starts 2 px under `top`, where
+ * the HUD's bands end (the news ribbon above the gates); 0 when it already does. cy: the foe's y on the stage;
+ * the rest as foeLabels.
+ */
+export function labelDrop({ U, boss = false, barY, barH, cy, top }) {
+  const lab = foeLabels({ U, boss, barY, barH });
+  return Math.max(0, top + 2 - (cy + lab.y - Math.max(lab.bs / 2, lab.badgePx * NUMBER_HALF)));
 }
 
 const whites = new WeakMap(); // texture → its white silhouette (or null when it cannot be read back)
@@ -109,11 +134,18 @@ export function createFoes(stage, fx) {
       badges.addChild(b);
       return { k, b, icon, n };
     });
+    const shield = new Sprite(Texture.EMPTY); // a boss's shield mark (I–III), from its first step of resistance
+    shield.anchor.set(0.5);
+    shield.visible = false;
+    const more = new BitmapText({ text: '', style: { fontFamily: 'Dmg', fontSize: 44 } }); // "+N": statuses left out
+    more.anchor.set(0, 0.5);
+    more.visible = false;
+    badges.addChild(shield, more);
     c.addChild(shadow, patch, body, flash, ice, barBg, barFg, hpText, badges);
     layer.addChild(c);
     const r = FOE_ROSTER[e.type];
     return {
-      c, shadow, patch, keep: null, body, flash, ice, barBg, barFg, hpText, badges, badgeViews,
+      c, shadow, patch, keep: null, body, flash, ice, barBg, barFg, hpText, badges, badgeViews, shield, more,
       gen: hasGenerated(`enemy.${e.type}`), move: r?.move ?? 'walk', view: r?.view ?? 'front', face: 1,
       white, // the silhouette's scale to the body's, per axis (it is drawn smaller than the body's texture)
       flashKx: white ? body.texture.width / Math.max(1, white.width) : 1,
@@ -250,7 +282,9 @@ export function createFoes(stage, fx) {
       const ratio = Math.max(0, e.hp / e.maxHp);
       const barW = (e.boss ? 2.2 : 1.05) * U;
       const barH = (e.boss ? 0.2 : 0.13) * U;
-      const barY = -size * U * 0.62 - base * U;
+      let barY = -size * U * 0.62 - base * U;
+      // near the gate a foe's labels would reach up behind the news ribbon: they move down under it
+      barY += labelDrop({ U, boss: e.boss, barY, barH, cy: sy, top: stage.view.top ?? -Infinity });
       v.barBg.position.set(-barW / 2, barY);
       v.barBg.width = barW;
       v.barBg.height = barH + 0.06 * U;
@@ -273,18 +307,35 @@ export function createFoes(stage, fx) {
         chill: !frozen && e.chillT > 0 ? Math.round(e.chillSlow * 100) : 0,
         loot: e.lootT > 0 ? Math.round(e.lootPct * 100) : 0, // Metal's mark: +% coins on death
       };
+      // the row: a boss's shield mark, then the most telling statuses and "+N" for the rest (badgeRow)
+      const level = e.boss ? bossResistLevel(e.pushes) : 0;
+      const row = badgeRow(statuses, { shield: level });
       let bx = 0;
       const bs = lab.bs;
+      v.shield.visible = row.shield;
+      if (row.shield) {
+        v.shield.texture = shieldTex(level);
+        v.shield.width = v.shield.height = bs;
+        v.shield.position.set(0, 0);
+        bx += bs + 0.06 * U;
+      }
       for (const bv of v.badgeViews) {
         const val = statuses[bv.k];
-        bv.b.visible = !!val;
-        if (!val) continue;
+        bv.b.visible = row.shown.includes(bv.k);
+        if (!bv.b.visible) continue;
         bv.icon.width = bv.icon.height = bs;
         bv.n.text = bv.k === 'freeze' ? `${val.toFixed(1)}` : bv.k === 'chill' ? `-${val}` : bv.k === 'loot' ? `+${val}` : `×${val}`;
         bv.n.scale.set(lab.badgePx / 44);
         bv.n.position.set(bs * 0.42, 0);
         bv.b.position.set(bx, 0);
         bx += bs + bv.n.width + 0.06 * U;
+      }
+      v.more.visible = row.more > 0;
+      if (row.more) {
+        v.more.text = `+${row.more}`;
+        v.more.scale.set(lab.badgePx / 44);
+        v.more.position.set(bx - bs / 2, 0);
+        bx += v.more.width + 0.06 * U;
       }
       v.badges.position.set(-bx / 2 + bs / 2, lab.y);
 
