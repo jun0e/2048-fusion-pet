@@ -47,6 +47,47 @@ def board(name, w, top, bottom=None):
     d.rectangle([20 + w, 20 + w, 491 - w, 255], fill=top + (255,))
     d.rectangle([20 + w, 256, 491 - w, 491 - w], fill=(bottom or top) + (255,))
     im.save(out + '/' + name + '.png')
+# a thin-limbed animal (4 legs 9 px wide, an antenna 7 px), its sketch, the sprite with a round 2 %
+# cream rim (a disk of 9 px for its 431 px height, as a hero's sticker rim) and without one; and the
+# same animal turned 45 degrees, whose limbs run diagonally
+import numpy as np
+def legs():
+    m = Image.new('L', (W, W), 0); d = ImageDraw.Draw(m)
+    d.ellipse([140, 120, 380, 300], fill=255)
+    for x in (170, 220, 290, 340):
+        d.rectangle([x, 280, x + 8, 470], fill=255)
+    d.rectangle([200, 40, 206, 140], fill=255)
+    return m
+def turned():
+    m = legs().rotate(45, resample=Image.NEAREST, expand=True)
+    return m.resize((W, W), Image.NEAREST)
+def rimmed(m, share=0.02):
+    a = np.asarray(m) > 127
+    ys, xs = np.where(a)
+    r = max(1, round(max(ys.max() - ys.min(), xs.max() - xs.min()) * share))
+    h, w = a.shape
+    pad = np.pad(a, r)
+    o = np.zeros_like(a)
+    for dy in range(-r, r + 1):
+        for dx in range(-r, r + 1):
+            if dy * dy + dx * dx <= r * r:
+                o |= pad[r + dy:r + dy + h, r + dx:r + dx + w]
+    return Image.fromarray((o * 255).astype('uint8'))
+def rim_sprite(m):
+    im = Image.new('RGBA', (W, W), (0, 0, 0, 0))
+    im.paste((255, 250, 242, 255), mask=rimmed(m))  # the cream sticker rim
+    im.paste((58, 52, 54, 255), mask=m)  # the creature, as sprite() draws it
+    return im
+sketch(legs()).save(out + '/legs-sil.png')
+sprite(legs()).save(out + '/legs.png')
+rim_sprite(legs()).save(out + '/legs-rim.png')
+# the same with a 1 px non-cream fringe outside the rim (a despilled key edge)
+fr = rim_sprite(legs())
+edge = rimmed(rimmed(legs()), 0.0023)
+fr2 = Image.new('RGBA', (W, W), (0, 0, 0, 0)); fr2.paste((140, 170, 120, 255), mask=edge); fr2.alpha_composite(fr)
+fr2.save(out + '/legs-fringe.png')
+sketch(turned()).save(out + '/legs45-sil.png')
+rim_sprite(turned()).save(out + '/legs45-rim.png')
 board('band5', 5, CREAM)
 board('band7', 7, CREAM)
 board('mass43', 5, (102, 102, 102), CREAM)
@@ -156,7 +197,7 @@ test('silhouette-check: contract IoU, mirror fitted without an offset, twins per
     candidates: [f('same'), f('flipped'), f('other'), f('missing')],
   };
   const res = gate(spec);
-  assert.equal(res.gateVersion, 2);
+  assert.equal(res.gateVersion, 3);
   const [same, flipped, other, missing] = res.results;
   assert.equal(same.contract40, 1, 'its own silhouette fills the contract');
   assert.equal(same.mirror, false);
@@ -197,6 +238,44 @@ test('silhouette-check: the outline band is about the outline (1%), dark is L* <
   assert.ok(Math.abs(halves.ground.keep - 0.5) < 0.02, `keep ${halves.ground.keep}`);
   assert.ok(Math.abs(halves.ground.lane - 0.5) < 0.02, `lane ${halves.ground.lane}`);
   assert.equal(halves.margins.ground, Math.round((halves.ground.keep - 1 / 3) * 1000) / 1000, 'the ground gate is a third (the prompt: a third cream)');
+});
+
+test('silhouette-check: a hero’s cream rim is not its silhouette (`rim`), for it, for the pets made so far and for hero allies', { skip }, () => {
+  const spec = { contract: f('legs-sil'), view: 'front', chapters: [], grounds: {}, others: [], allies: [] };
+  const [bare] = gate({ ...spec, candidates: [f('legs-rim')] }).results;
+  const [stripped] = gate({ ...spec, rim: 0.02, candidates: [f('legs-rim')] }).results;
+  assert.ok(stripped.contract40 >= 0.95, `a perfect fill plus a round 2 % rim fills its contract once the rim goes (${stripped.contract40})`);
+  assert.ok(bare.contract40 < stripped.contract40 - 0.1, `with the rim counted, thin legs read as thick ones (${bare.contract40})`);
+  // the rim is round and is stripped with a round tool: diagonal limbs keep their width
+  const [turned] = gate({ ...spec, contract: f('legs45-sil'), rim: 0.02, candidates: [f('legs45-rim')] }).results;
+  assert.ok(turned.contract40 >= 0.95, `the same animal turned 45 degrees (${turned.contract40})`);
+  // the rim is measured, not assumed: a sprite drawn without one keeps its own thin legs
+  const [rimless] = gate({ ...spec, rim: 0.02, candidates: [f('legs')] }).results;
+  assert.ok(rimless.contract40 >= 0.95, `a rimless perfect fill is not eroded (${rimless.contract40})`);
+  assert.equal(rimless.rimPx, 0, 'and says so');
+  assert.equal(stripped.rimPx, 9, 'the 9 px rim it carries');
+  const [fringe] = gate({ ...spec, rim: 0.02, candidates: [f('legs-fringe')] }).results;
+  assert.ok(fringe.rimPx >= 9 && fringe.contract40 >= 0.95, `a soft key fringe outside the rim is passed over (${fringe.rimPx} px, ${fringe.contract40})`);
+  // pool entries carry their own rim: a pet made so far and a hero ally are compared without theirs
+  const rimmed = { path: f('legs-rim'), mask: 'alpha', rim: 0.02 };
+  const pools = gate({ ...spec, rim: 0.02, others: [{ id: 'fusion.made', chapters: [], ...rimmed }], allies: [{ id: 'pet.ice.128', ...rimmed }], candidates: [f('legs-rim')] }).results[0];
+  assert.ok(pools.twin[0] >= 0.95 && pools.twin[1] === 'fusion.made', `the same pet, rims stripped on both sides (${pools.twin})`);
+  assert.ok(pools.ally[0] >= 0.95 && pools.ally[1] === 'pet.ice.128', `a hero ally, its rim stripped (${pools.ally})`);
+  const plain = gate({ ...spec, rim: 0.02, allies: [f('legs-rim')], candidates: [f('legs-rim')] }).results[0];
+  assert.ok(plain.ally[0] < 0.9 && plain.ally[1] === 'legs-rim', `an ally given as a bare path keeps what it has (${plain.ally})`);
+});
+
+test('silhouette-check: a pet’s band covers its cream rim and outline; with no chapter its marching pool is empty', { skip }, () => {
+  // band7 at 512 px: a 7 px ink frame; the pets' band (3.5 %, 18 px) takes all of it and 11 px of cream
+  const spec = { contract: f('contract'), view: 'front', chapters: [], grounds: { lane: '#D9C7A3', keep: '#3E3C58' }, allies: [] };
+  const others = [{ id: 'fusion.twin', path: f('same'), mask: 'alpha', chapters: [] }];
+  const [pet] = gate({ ...spec, band: 0.035, others, candidates: [f('band7')] }).results;
+  const [foe] = gate({ ...spec, others, candidates: [f('band7')] }).results;
+  assert.ok(foe.dark > 0.005, `the foes' 1 % band leaves ink in the body (${foe.dark})`);
+  assert.ok(pet.dark < 0.002, `the pets' band does not (${pet.dark})`);
+  assert.deepEqual(pet.twinChapter, [0, null], 'no chapter: nothing marches with it');
+  assert.equal(pet.margins.twinChapter, 0.55);
+  assert.ok(pet.twin[1] === 'fusion.twin', 'the twin gate still sees every other pet');
 });
 
 test('post.py --strip-rim: the rim outside the outline goes, notch and all; a light body inside the outline stays', { skip }, () => {

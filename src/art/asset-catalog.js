@@ -4,6 +4,7 @@
 import { ELEMENTS, ELEMENT_KEYS, FUSIONS, APEX } from '../sim/classes.js';
 import { ENEMY_TYPES, CHAPTERS } from '../sim/enemies.js';
 import { petName } from './tokens.js';
+import { FUSION_ROSTER } from './fusion-roster.js';
 import { VFX_PIECES } from './attack-vfx.js';
 import { FRAME_ASSETS } from './frame-kit.js';
 
@@ -48,20 +49,21 @@ export function buildAssetRows(price = 0.0336) {
   for (const [key, f] of Object.entries(FUSIONS)) {
     const [a, b] = f.parts;
     const hero = key === 'fire+ice';
+    const r = FUSION_ROSTER[key];
     add({
       id: `fusion.${key}`,
       cat: 'Creature',
       layer: 'Roaming',
       name: `${petName(a, b)} (${f.name})`,
-      desc: `Full body, 3/4 facing left. Body/silhouette from ${ELEMENTS[a].name}, crest + tail motif from ${ELEMENTS[b].name}; dominant colour ${f.color}`,
-      style: 'Sticker, 2-tone cel + element rim',
-      src: '300×300',
-      display: '1.42 cell canvas (creature ≈1.05 cell)',
-      method: 'Gemini generate (parents as character refs)',
-      refs: `pet.${a}.128, pet.${b}.128, 2 golden fusions`,
+      desc: `A ${r.animal} filling its own silhouette contract (${r.view === 'profile' ? 'side view facing left' : r.view === 'front' ? 'front view' : 'seen from above'}); ${ELEMENTS[a].name} and ${ELEMENTS[b].name} in its markings; dominant colour ${f.color}`,
+      style: 'Sticker, one cel tone + cream rim',
+      src: '320×320',
+      display: '1.0 cell tall, up to 1.6 cells wide',
+      method: 'Gemini generate (silhouette contract + render ref, 3 gated candidates)',
+      refs: `tools/refs/fusions/sil-${key}.png, render ref`,
       priority: hero ? 'P0' : 'P1',
-      gens: 5,
-      notes: 'Pro model for hard pairs',
+      gens: 3,
+      notes: 'Pro model; gated like the foes (contract, twin, ally, ground)',
     });
   }
   for (const [key, f] of Object.entries(FUSIONS)) {
@@ -76,7 +78,7 @@ export function buildAssetRows(price = 0.0336) {
       src: '512×512',
       display: '56–64 pt card, 132 pt cut-in',
       method: 'Gemini generate (fusion sprite as character ref)',
-      refs: `fusion.${key}, 2 golden portraits`,
+      refs: `fusion.${key}`,
       priority: key === 'fire+ice' ? 'P0' : 'P1',
       gens: 4,
       notes: 'no keying: plate is part of the image',

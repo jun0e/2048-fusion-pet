@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCEPT_SLACK, GATE_TOLERANCE, STRICT, acceptedMiss, failingGates, gateBrief, imagesFor, insideTolerance, needsStrict, rankCandidates, strictText } from '../tools/pick.mjs';
+import { ACCEPT_SLACK, GATE_TOLERANCE, PET_STRICT, STRICT, acceptedMiss, failingGates, gateBrief, imagesFor, insideTolerance, lstar, needsStrict, rankCandidates, strictText } from '../tools/pick.mjs';
 
 const ok = { contract: 0.2, twin: 0.1, twinChapter: 0.05, ally: 0.1, ground: 0.05 };
 const cand = (n, score, margins = ok) => ({ n, score, margins, worst: Math.min(...Object.values(margins)) });
@@ -59,9 +59,38 @@ test('the strict text answers the gates the candidates missed', () => {
   assert.equal(strictText([], pick), STRICT.contract, 'nothing scored: the contract line');
 });
 
+test('a fusion pet’s strict lines: its twins are the other pets, its allies the foes and the base pets, its values its own tones', () => {
+  const grounds = { lane: '#D9C7A3', hedge: '#4A5A52' };
+  const pick = { side: 'pet', animal: 'sugar glider', pose: 'seen from above in a glide', cel: '#8A5A33', light: '#fffbda', grounds };
+  const only = (margins, p = pick, ground) => strictText([{ ...cand(1, 1, { ...ok, ...margins }), ...(ground ? { ground } : {}) }], p);
+  assert.equal(only({ contract: -0.2 }), STRICT.contract, 'the contract line is the same');
+  // blended into the sand: its darker cel tone grows
+  const sand = only({ ground: -0.05 }, pick, { lane: 0.2, hedge: 0.7 });
+  assert.equal(sand, PET_STRICT.values('#8A5A33', null));
+  assert.match(sand, /blended into the pale sand\. Make the darker #8A5A33 zone bigger/);
+  assert.doesNotMatch(sand, /cream zone|dark mass|hedges/, 'not the foes’ rule, not the hedge’s');
+  // blended into the hedges: its light zone grows (its lift, else its light tone), never the dark one
+  const hedge = only({ ground: -0.05 }, { ...pick, cel: '#532b72', lift: '#CDEFA2' }, { lane: 0.6, hedge: 0.2 });
+  assert.match(hedge, /blended into the dark hedges\. Make the light #CDEFA2 zone bigger/);
+  assert.doesNotMatch(hedge, /darker/);
+  assert.match(only({ ground: -0.05 }, pick, { lane: 0.6, hedge: 0.2 }), /light #fffbda zone/);
+  assert.match(only({ ground: -0.05 }, pick, { lane: 0.2, hedge: 0.2 }), /pale sand and the dark hedges\. Make the darker #8A5A33 zone and the light #fffbda zone bigger/);
+  assert.match(only({ ground: -0.05 }), /darker #8A5A33 zone bigger/, 'no shares to read: the sand’s line');
+  assert.ok(lstar('#D9C7A3') > 80 && lstar('#4A5A52') < 40);
+  const twin = only({ twin: -0.04 });
+  assert.equal(twin, PET_STRICT.twin('sugar glider', pick.pose));
+  assert.match(twin, /another of the player’s fusion pets/);
+  assert.doesNotMatch(twin, /army/);
+  const ally = only({ ally: -0.02 });
+  assert.match(ally, /an enemy animal or of a baby pet \(a dragon, a bird/);
+  assert.equal(only({ twin: -0.04, ally: -0.02 }), PET_STRICT.twin('sugar glider', pick.pose) + PET_STRICT.allyToo);
+});
+
 test('gateBrief keeps the version, the verdicts and the margins; imagesFor counts candidates', () => {
-  const b = gateBrief({ ...cand(2, 1.1, { ...ok, ally: -0.02 }), gateVersion: 2, contract40: 0.8, path: '/x', gates: {} });
-  assert.equal(b.gateVersion, 2);
+  const b = gateBrief({ ...cand(2, 1.1, { ...ok, ally: -0.02 }), gateVersion: 3, contract40: 0.8, path: '/x', gates: {} });
+  assert.equal(b.gateVersion, 3);
+  assert.equal(gateBrief({ ...cand(1, 1), rimPx: 6 }).rimPx, 6, 'a pet keeps the rim it was measured with');
+  assert.ok(!('rimPx' in b), 'a foe has none to keep');
   assert.equal(b.n, 2);
   assert.equal(b.pass, false);
   assert.equal(b.inside, true);

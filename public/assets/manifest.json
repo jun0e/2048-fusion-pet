@@ -216,7 +216,7 @@
     "env.fareast.backdrop": "gen/env.fareast.backdrop.png",
     "env.peaks.backdrop": "gen/env.peaks.backdrop.png"
   },
-  "generatedAt": "2026-10-15T22:17:16.995Z",
+  "generatedAt": "2026-10-16T07:45:40.193Z",
   "meta": {
     "pet.fire.16": {
       "qa": {
@@ -1356,23 +1356,64 @@
           1024
         ],
         "key": [
-          17,
-          229,
-          6
+          10,
+          248,
+          5
         ],
-        "coverage": 0.582,
+        "coverage": 0.498,
         "size": [
-          319,
-          320
+          320,
+          292
         ],
-        "in_palette": 0.84,
+        "in_palette": 0.898,
         "snapped": true,
-        "colours_used": 13,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:19:08.976Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T03:50:11.760Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 1,
+        "pass": true,
+        "inside": true,
+        "score": 1.523,
+        "worst": 0.05,
+        "margins": {
+          "contract": 0.299,
+          "twin": 0.05,
+          "twinChapter": 0.55,
+          "ally": 0.057,
+          "ground": 0.332
+        },
+        "contract40": 0.899,
+        "contract120": 0.915,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.55,
+          "fusion.poison+wind"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.593,
+          "pet.earth.128"
+        ],
+        "ground": {
+          "lane": 0.665,
+          "hedge": 0.838,
+          "fareast.hedge": 0.838,
+          "peaks.lane": 0.665,
+          "peaks.hedge": 0.791
+        },
+        "light": 0.249,
+        "dark": 0.049,
+        "rescored": "2026-10-16T06:50:45.980Z"
+      }
     },
     "fusion.fire+lightning": {
       "qa": {
@@ -1382,22 +1423,63 @@
         ],
         "key": [
           12,
-          234,
+          245,
           6
         ],
-        "coverage": 0.561,
+        "coverage": 0.324,
         "size": [
-          308,
-          320
+          320,
+          300
         ],
-        "in_palette": 0.81,
+        "in_palette": 0.829,
         "snapped": true,
-        "colours_used": 11,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:23:53.867Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T03:51:49.003Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 3,
+        "pass": true,
+        "inside": true,
+        "score": 1.4918,
+        "worst": 0.014,
+        "margins": {
+          "contract": 0.335,
+          "twin": 0.154,
+          "twinChapter": 0.55,
+          "ally": 0.13,
+          "ground": 0.014
+        },
+        "contract40": 0.935,
+        "contract120": 0.941,
+        "mirror": false,
+        "rimPx": 5,
+        "twin": [
+          0.446,
+          "fusion.metal+nature"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.52,
+          "enemy.axolotlFairy"
+        ],
+        "ground": {
+          "lane": 0.347,
+          "hedge": 0.757,
+          "fareast.hedge": 0.757,
+          "peaks.lane": 0.347,
+          "peaks.hedge": 0.66
+        },
+        "light": 0.052,
+        "dark": 0.1,
+        "rescored": "2026-10-16T06:50:46.580Z"
+      }
     },
     "fusion.fire+poison": {
       "qa": {
@@ -1406,23 +1488,64 @@
           1024
         ],
         "key": [
-          252,
-          9,
-          249
+          253,
+          8,
+          247
         ],
-        "coverage": 0.558,
+        "coverage": 0.496,
         "size": [
-          302,
-          320
+          320,
+          211
         ],
-        "in_palette": 0.822,
+        "in_palette": 0.828,
         "snapped": true,
-        "colours_used": 11,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:25:15.739Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T04:29:00.321Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 2,
+        "pass": true,
+        "inside": true,
+        "score": 1.5663,
+        "worst": 0.082,
+        "margins": {
+          "contract": 0.359,
+          "twin": 0.082,
+          "twinChapter": 0.55,
+          "ally": 0.088,
+          "ground": 0.165
+        },
+        "contract40": 0.959,
+        "contract120": 0.965,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.518,
+          "fusion.fire+earth"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.562,
+          "enemy.armoredSoldier"
+        ],
+        "ground": {
+          "lane": 0.498,
+          "hedge": 0.586,
+          "fareast.hedge": 0.586,
+          "peaks.lane": 0.498,
+          "peaks.hedge": 0.507
+        },
+        "light": 0.084,
+        "dark": 0.158,
+        "rescored": "2026-10-16T06:50:47.169Z"
+      }
     },
     "fusion.fire+earth": {
       "qa": {
@@ -1431,23 +1554,64 @@
           1024
         ],
         "key": [
-          17,
-          229,
+          6,
+          249,
           6
         ],
-        "coverage": 0.533,
+        "coverage": 0.57,
         "size": [
           320,
-          296
+          242
         ],
-        "in_palette": 0.887,
+        "in_palette": 0.907,
         "snapped": true,
-        "colours_used": 13,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:26:34.353Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T04:05:46.252Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 5,
+        "pass": false,
+        "inside": true,
+        "score": 1.3046,
+        "worst": -0.03,
+        "margins": {
+          "contract": 0.337,
+          "twin": -0.03,
+          "twinChapter": 0.55,
+          "ally": -0.017,
+          "ground": 0.046
+        },
+        "contract40": 0.937,
+        "contract120": 0.921,
+        "mirror": false,
+        "rimPx": 5,
+        "twin": [
+          0.63,
+          "fusion.lightning+earth"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.667,
+          "enemy.elfRuler"
+        ],
+        "ground": {
+          "lane": 0.379,
+          "hedge": 0.787,
+          "fareast.hedge": 0.787,
+          "peaks.lane": 0.379,
+          "peaks.hedge": 0.751
+        },
+        "light": 0.261,
+        "dark": 0.254,
+        "rescored": "2026-10-16T06:50:47.735Z"
+      }
     },
     "fusion.fire+wind": {
       "qa": {
@@ -1456,23 +1620,64 @@
           1024
         ],
         "key": [
-          252,
-          4,
-          249
+          251,
+          7,
+          247
         ],
-        "coverage": 0.628,
+        "coverage": 0.34,
         "size": [
-          302,
-          320
+          320,
+          306
         ],
-        "in_palette": 0.843,
+        "in_palette": 0.871,
         "snapped": true,
-        "colours_used": 13,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:27:16.879Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T04:09:19.710Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 1,
+        "pass": true,
+        "inside": true,
+        "score": 1.4013,
+        "worst": 0.058,
+        "margins": {
+          "contract": 0.283,
+          "twin": 0.122,
+          "twinChapter": 0.55,
+          "ally": 0.225,
+          "ground": 0.058
+        },
+        "contract40": 0.883,
+        "contract120": 0.841,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.478,
+          "fusion.ice+poison"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.425,
+          "enemy.pixie"
+        ],
+        "ground": {
+          "lane": 0.391,
+          "hedge": 0.753,
+          "fareast.hedge": 0.904,
+          "peaks.lane": 0.391,
+          "peaks.hedge": 0.762
+        },
+        "light": 0.449,
+        "dark": 0.24,
+        "rescored": "2026-10-16T06:50:48.341Z"
+      }
     },
     "fusion.ice+lightning": {
       "qa": {
@@ -1481,23 +1686,64 @@
           1024
         ],
         "key": [
-          15,
-          234,
-          7
+          12,
+          241,
+          6
         ],
-        "coverage": 0.549,
+        "coverage": 0.45,
         "size": [
-          320,
-          316
+          176,
+          320
         ],
-        "in_palette": 0.886,
+        "in_palette": 0.725,
         "snapped": true,
-        "colours_used": 9,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:28:34.870Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T04:15:24.067Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 6,
+        "pass": true,
+        "inside": true,
+        "score": 1.2263,
+        "worst": 0.101,
+        "margins": {
+          "contract": 0.157,
+          "twin": 0.124,
+          "twinChapter": 0.55,
+          "ally": 0.178,
+          "ground": 0.101
+        },
+        "contract40": 0.757,
+        "contract120": 0.722,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.476,
+          "fusion.poison+nature"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.472,
+          "pet.lightning.128"
+        ],
+        "ground": {
+          "lane": 0.434,
+          "hedge": 0.666,
+          "fareast.hedge": 0.666,
+          "peaks.lane": 0.434,
+          "peaks.hedge": 0.613
+        },
+        "light": 0.566,
+        "dark": 0.395,
+        "rescored": "2026-10-16T06:50:48.911Z"
+      }
     },
     "fusion.ice+poison": {
       "qa": {
@@ -1507,22 +1753,63 @@
         ],
         "key": [
           253,
-          32,
-          251
+          3,
+          250
         ],
-        "coverage": 0.493,
+        "coverage": 0.622,
         "size": [
-          303,
+          282,
           320
         ],
-        "in_palette": 0.84,
+        "in_palette": 0.848,
         "snapped": true,
-        "colours_used": 11,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:29:53.911Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T04:39:25.053Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 1,
+        "pass": false,
+        "inside": false,
+        "score": 0.7319,
+        "worst": -0.038,
+        "margins": {
+          "contract": -0.006,
+          "twin": -0.027,
+          "twinChapter": 0.55,
+          "ally": -0.038,
+          "ground": 0.176
+        },
+        "contract40": 0.594,
+        "contract120": 0.589,
+        "mirror": false,
+        "rimPx": 5,
+        "twin": [
+          0.627,
+          "fusion.ice+wind"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.688,
+          "pet.metal.128"
+        ],
+        "ground": {
+          "lane": 0.509,
+          "hedge": 0.575,
+          "fareast.hedge": 0.575,
+          "peaks.lane": 0.509,
+          "peaks.hedge": 0.888
+        },
+        "light": 0.491,
+        "dark": 0.115,
+        "rescored": "2026-10-16T06:50:49.493Z"
+      }
     },
     "fusion.ice+earth": {
       "qa": {
@@ -1532,22 +1819,63 @@
         ],
         "key": [
           11,
-          235,
-          5
+          238,
+          4
         ],
-        "coverage": 0.504,
+        "coverage": 0.602,
         "size": [
           320,
-          304
+          289
         ],
-        "in_palette": 0.925,
+        "in_palette": 0.924,
         "snapped": true,
-        "colours_used": 13,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:30:07.262Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T04:48:12.802Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 6,
+        "pass": false,
+        "inside": false,
+        "score": 1.009,
+        "worst": -0.054,
+        "margins": {
+          "contract": 0.223,
+          "twin": -0.054,
+          "twinChapter": 0.55,
+          "ally": -0.031,
+          "ground": 0.161
+        },
+        "contract40": 0.823,
+        "contract120": 0.805,
+        "mirror": false,
+        "rimPx": 5,
+        "twin": [
+          0.654,
+          "fusion.ice+wind"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.681,
+          "pet.nature.128"
+        ],
+        "ground": {
+          "lane": 0.494,
+          "hedge": 0.781,
+          "fareast.hedge": 1,
+          "peaks.lane": 0.494,
+          "peaks.hedge": 0.913
+        },
+        "light": 0.506,
+        "dark": 0.093,
+        "rescored": "2026-10-16T06:50:50.091Z"
+      }
     },
     "fusion.ice+wind": {
       "qa": {
@@ -1556,23 +1884,64 @@
           1024
         ],
         "key": [
-          253,
-          21,
-          249
+          9,
+          249,
+          5
         ],
-        "coverage": 0.654,
+        "coverage": 0.567,
         "size": [
           320,
-          299
+          300
         ],
-        "in_palette": 0.902,
+        "in_palette": 0.926,
         "snapped": true,
-        "colours_used": 12,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:31:28.684Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T04:54:36.171Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 6,
+        "pass": false,
+        "inside": false,
+        "score": 0.8283,
+        "worst": -0.054,
+        "margins": {
+          "contract": 0.228,
+          "twin": -0.054,
+          "twinChapter": 0.55,
+          "ally": -0.037,
+          "ground": -0.03
+        },
+        "contract40": 0.828,
+        "contract120": 0.817,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.654,
+          "fusion.ice+earth"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.687,
+          "pet.fire.128"
+        ],
+        "ground": {
+          "lane": 0.303,
+          "hedge": 0.738,
+          "fareast.hedge": 0.738,
+          "peaks.lane": 0.303,
+          "peaks.hedge": 0.702
+        },
+        "light": 0.697,
+        "dark": 0.041,
+        "rescored": "2026-10-16T06:50:50.691Z"
+      }
     },
     "fusion.lightning+poison": {
       "qa": {
@@ -1581,23 +1950,64 @@
           1024
         ],
         "key": [
-          254,
-          23,
+          252,
+          2,
           249
         ],
-        "coverage": 0.519,
+        "coverage": 0.455,
         "size": [
-          300,
-          320
+          320,
+          215
         ],
-        "in_palette": 0.63,
+        "in_palette": 0.796,
         "snapped": true,
-        "colours_used": 12,
-        "fringe": 0.0014,
+        "colours_used": 10,
+        "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:32:06.152Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:24:36.727Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 2,
+        "pass": true,
+        "inside": true,
+        "score": 1.1758,
+        "worst": 0.016,
+        "margins": {
+          "contract": 0.115,
+          "twin": 0.016,
+          "twinChapter": 0.55,
+          "ally": 0.031,
+          "ground": 0.152
+        },
+        "contract40": 0.715,
+        "contract120": 0.68,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.584,
+          "fusion.earth+metal"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.619,
+          "enemy.armoredSoldier"
+        ],
+        "ground": {
+          "lane": 0.485,
+          "hedge": 0.587,
+          "fareast.hedge": 0.587,
+          "peaks.lane": 0.485,
+          "peaks.hedge": 0.562
+        },
+        "light": 0.419,
+        "dark": 0.459,
+        "rescored": "2026-10-16T06:50:51.270Z"
+      }
     },
     "fusion.lightning+earth": {
       "qa": {
@@ -1606,23 +2016,64 @@
           1024
         ],
         "key": [
-          15,
-          228,
-          8
+          8,
+          247,
+          5
         ],
-        "coverage": 0.481,
+        "coverage": 0.512,
         "size": [
-          269,
-          320
+          320,
+          280
         ],
-        "in_palette": 0.691,
+        "in_palette": 0.899,
         "snapped": true,
-        "colours_used": 14,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:36:05.070Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:27:30.287Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 3,
+        "pass": false,
+        "inside": true,
+        "score": 1.4778,
+        "worst": -0.03,
+        "margins": {
+          "contract": 0.357,
+          "twin": -0.03,
+          "twinChapter": 0.55,
+          "ally": 0.005,
+          "ground": 0.343
+        },
+        "contract40": 0.957,
+        "contract120": 0.943,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.63,
+          "fusion.fire+earth"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.645,
+          "enemy.elfRuler"
+        ],
+        "ground": {
+          "lane": 0.823,
+          "hedge": 0.738,
+          "fareast.hedge": 0.738,
+          "peaks.lane": 0.823,
+          "peaks.hedge": 0.676
+        },
+        "light": 0.177,
+        "dark": 0.155,
+        "rescored": "2026-10-16T06:50:51.864Z"
+      }
     },
     "fusion.lightning+wind": {
       "qa": {
@@ -1632,22 +2083,63 @@
         ],
         "key": [
           253,
-          19,
-          250
+          10,
+          248
         ],
-        "coverage": 0.55,
+        "coverage": 0.424,
         "size": [
-          280,
-          320
+          320,
+          257
         ],
-        "in_palette": 0.569,
+        "in_palette": 0.865,
         "snapped": true,
-        "colours_used": 12,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:36:20.346Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:09:44.196Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 3,
+        "pass": true,
+        "inside": true,
+        "score": 1.0139,
+        "worst": 0.042,
+        "margins": {
+          "contract": 0.046,
+          "twin": 0.042,
+          "twinChapter": 0.55,
+          "ally": 0.065,
+          "ground": 0.05
+        },
+        "contract40": 0.646,
+        "contract120": 0.544,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.558,
+          "fusion.fire+earth"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.585,
+          "enemy.elfRuler"
+        ],
+        "ground": {
+          "lane": 0.383,
+          "hedge": 0.749,
+          "fareast.hedge": 0.749,
+          "peaks.lane": 0.383,
+          "peaks.hedge": 0.736
+        },
+        "light": 0.213,
+        "dark": 0.131,
+        "rescored": "2026-10-16T06:50:52.460Z"
+      }
     },
     "fusion.poison+earth": {
       "qa": {
@@ -1656,23 +2148,64 @@
           1024
         ],
         "key": [
-          253,
-          27,
+          252,
+          7,
           251
         ],
-        "coverage": 0.601,
+        "coverage": 0.507,
         "size": [
-          273,
-          320
+          320,
+          241
         ],
-        "in_palette": 0.691,
+        "in_palette": 0.777,
         "snapped": true,
-        "colours_used": 14,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:38:00.332Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:12:32.023Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 3,
+        "pass": true,
+        "inside": true,
+        "score": 1.3402,
+        "worst": 0.042,
+        "margins": {
+          "contract": 0.211,
+          "twin": 0.042,
+          "twinChapter": 0.55,
+          "ally": 0.101,
+          "ground": 0.21
+        },
+        "contract40": 0.811,
+        "contract120": 0.787,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.558,
+          "fusion.poison+wind"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.549,
+          "enemy.armoredSoldier"
+        ],
+        "ground": {
+          "lane": 0.573,
+          "hedge": 0.543,
+          "fareast.hedge": 0.543,
+          "peaks.lane": 0.573,
+          "peaks.hedge": 0.648
+        },
+        "light": 0.427,
+        "dark": 0.241,
+        "rescored": "2026-10-16T06:50:53.050Z"
+      }
     },
     "fusion.poison+wind": {
       "qa": {
@@ -1681,23 +2214,64 @@
           1024
         ],
         "key": [
-          253,
-          32,
-          251
+          249,
+          12,
+          248
         ],
-        "coverage": 0.627,
+        "coverage": 0.512,
         "size": [
-          309,
-          320
+          320,
+          295
         ],
-        "in_palette": 0.729,
+        "in_palette": 0.844,
         "snapped": true,
-        "colours_used": 13,
-        "fringe": 0.0004,
+        "colours_used": 10,
+        "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:38:16.296Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:33:38.821Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 5,
+        "pass": false,
+        "inside": false,
+        "score": 0.8693,
+        "worst": -0.043,
+        "margins": {
+          "contract": 0.126,
+          "twin": -0.043,
+          "twinChapter": 0.55,
+          "ally": -0.039,
+          "ground": 0.053
+        },
+        "contract40": 0.726,
+        "contract120": 0.75,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.643,
+          "fusion.ice+wind"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.689,
+          "pet.fire.128"
+        ],
+        "ground": {
+          "lane": 0.386,
+          "hedge": 0.788,
+          "fareast.hedge": 0.788,
+          "peaks.lane": 0.386,
+          "peaks.hedge": 0.744
+        },
+        "light": 0.341,
+        "dark": 0.28,
+        "rescored": "2026-10-16T06:50:53.671Z"
+      }
     },
     "fusion.earth+wind": {
       "qa": {
@@ -1706,23 +2280,64 @@
           1024
         ],
         "key": [
-          254,
-          18,
-          250
+          10,
+          244,
+          5
         ],
-        "coverage": 0.586,
+        "coverage": 0.499,
         "size": [
-          320,
-          312
+          308,
+          320
         ],
-        "in_palette": 0.961,
+        "in_palette": 0.905,
         "snapped": true,
-        "colours_used": 11,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:42:03.143Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:21:39.565Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 1,
+        "pass": false,
+        "inside": true,
+        "score": 0.8112,
+        "worst": -0.02,
+        "margins": {
+          "contract": -0.015,
+          "twin": 0.021,
+          "twinChapter": 0.55,
+          "ally": 0.032,
+          "ground": -0.02
+        },
+        "contract40": 0.585,
+        "contract120": 0.576,
+        "mirror": false,
+        "rimPx": 5,
+        "twin": [
+          0.579,
+          "fusion.ice+earth"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.618,
+          "pet.earth.128"
+        ],
+        "ground": {
+          "lane": 0.313,
+          "hedge": 0.747,
+          "fareast.hedge": 0.747,
+          "peaks.lane": 0.313,
+          "peaks.hedge": 0.692
+        },
+        "light": 0.509,
+        "dark": 0.061,
+        "rescored": "2026-10-16T06:50:54.279Z"
+      }
     },
     "fusion.fire+metal": {
       "qa": {
@@ -1731,23 +2346,64 @@
           1024
         ],
         "key": [
-          15,
-          235,
+          12,
+          245,
           7
         ],
-        "coverage": 0.582,
+        "coverage": 0.484,
         "size": [
-          295,
-          320
+          320,
+          160
         ],
-        "in_palette": 0.776,
+        "in_palette": 0.818,
         "snapped": true,
-        "colours_used": 13,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:42:16.278Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:24:09.807Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 2,
+        "pass": true,
+        "inside": true,
+        "score": 1.3625,
+        "worst": 0.025,
+        "margins": {
+          "contract": 0.206,
+          "twin": 0.025,
+          "twinChapter": 0.55,
+          "ally": 0.068,
+          "ground": 0.31
+        },
+        "contract40": 0.806,
+        "contract120": 0.791,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.575,
+          "fusion.fire+nature"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.582,
+          "enemy.kiteMinion"
+        ],
+        "ground": {
+          "lane": 0.837,
+          "hedge": 0.742,
+          "fareast.hedge": 0.742,
+          "peaks.lane": 0.837,
+          "peaks.hedge": 0.643
+        },
+        "light": 0.105,
+        "dark": 0.118,
+        "rescored": "2026-10-16T06:50:54.851Z"
+      }
     },
     "fusion.ice+metal": {
       "qa": {
@@ -1756,23 +2412,64 @@
           1024
         ],
         "key": [
-          17,
-          231,
+          9,
+          250,
           6
         ],
-        "coverage": 0.503,
+        "coverage": 0.516,
         "size": [
           320,
-          310
+          220
         ],
-        "in_palette": 0.864,
+        "in_palette": 0.91,
         "snapped": true,
-        "colours_used": 13,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:43:36.686Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:39:37.329Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 5,
+        "pass": false,
+        "inside": false,
+        "score": 1.1044,
+        "worst": -0.04,
+        "margins": {
+          "contract": 0.266,
+          "twin": -0.013,
+          "twinChapter": 0.55,
+          "ally": -0.015,
+          "ground": -0.04
+        },
+        "contract40": 0.866,
+        "contract120": 0.873,
+        "mirror": false,
+        "rimPx": 5,
+        "twin": [
+          0.613,
+          "fusion.earth+metal"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.665,
+          "enemy.armoredSoldier"
+        ],
+        "ground": {
+          "lane": 0.293,
+          "hedge": 0.824,
+          "fareast.hedge": 0.824,
+          "peaks.lane": 0.293,
+          "peaks.hedge": 0.732
+        },
+        "light": 0.195,
+        "dark": 0.116,
+        "rescored": "2026-10-16T06:50:55.436Z"
+      }
     },
     "fusion.lightning+metal": {
       "qa": {
@@ -1781,23 +2478,64 @@
           1024
         ],
         "key": [
-          16,
-          231,
+          9,
+          241,
           6
         ],
-        "coverage": 0.482,
+        "coverage": 0.364,
         "size": [
-          278,
-          320
+          320,
+          248
         ],
-        "in_palette": 0.658,
+        "in_palette": 0.839,
         "snapped": true,
-        "colours_used": 13,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:44:17.598Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:33:27.635Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 1,
+        "pass": true,
+        "inside": true,
+        "score": 1.2854,
+        "worst": 0.024,
+        "margins": {
+          "contract": 0.196,
+          "twin": 0.052,
+          "twinChapter": 0.55,
+          "ally": 0.119,
+          "ground": 0.024
+        },
+        "contract40": 0.796,
+        "contract120": 0.799,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.548,
+          "fusion.lightning+poison"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.531,
+          "enemy.armoredSoldier"
+        ],
+        "ground": {
+          "lane": 0.357,
+          "hedge": 0.763,
+          "fareast.hedge": 0.763,
+          "peaks.lane": 0.357,
+          "peaks.hedge": 0.668
+        },
+        "light": 0.595,
+        "dark": 0.111,
+        "rescored": "2026-10-16T06:50:56.026Z"
+      }
     },
     "fusion.poison+metal": {
       "qa": {
@@ -1806,23 +2544,64 @@
           1024
         ],
         "key": [
-          253,
-          27,
+          252,
+          3,
           250
         ],
-        "coverage": 0.675,
+        "coverage": 0.408,
         "size": [
-          275,
-          320
+          320,
+          239
         ],
-        "in_palette": 0.779,
+        "in_palette": 0.839,
         "snapped": true,
-        "colours_used": 14,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:45:38.535Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:36:18.574Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 3,
+        "pass": true,
+        "inside": true,
+        "score": 1.3579,
+        "worst": 0.108,
+        "margins": {
+          "contract": 0.214,
+          "twin": 0.108,
+          "twinChapter": 0.55,
+          "ally": 0.121,
+          "ground": 0.235
+        },
+        "contract40": 0.814,
+        "contract120": 0.803,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.492,
+          "fusion.ice+metal"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.529,
+          "enemy.flameSprite"
+        ],
+        "ground": {
+          "lane": 0.568,
+          "hedge": 0.583,
+          "fareast.hedge": 0.827,
+          "peaks.lane": 0.568,
+          "peaks.hedge": 0.696
+        },
+        "light": 0.102,
+        "dark": 0.324,
+        "rescored": "2026-10-16T06:50:56.615Z"
+      }
     },
     "fusion.earth+metal": {
       "qa": {
@@ -1831,23 +2610,64 @@
           1024
         ],
         "key": [
-          13,
-          240,
-          6
+          8,
+          248,
+          7
         ],
-        "coverage": 0.584,
+        "coverage": 0.435,
         "size": [
           320,
-          303
+          252
         ],
-        "in_palette": 0.949,
+        "in_palette": 0.937,
         "snapped": true,
-        "colours_used": 12,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:46:15.434Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:42:40.190Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 6,
+        "pass": false,
+        "inside": true,
+        "score": 1.4559,
+        "worst": -0.013,
+        "margins": {
+          "contract": 0.343,
+          "twin": -0.013,
+          "twinChapter": 0.55,
+          "ally": 0.052,
+          "ground": 0.022
+        },
+        "contract40": 0.943,
+        "contract120": 0.953,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.613,
+          "fusion.ice+metal"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.598,
+          "enemy.elfRuler"
+        ],
+        "ground": {
+          "lane": 0.658,
+          "hedge": 0.418,
+          "fareast.hedge": 0.418,
+          "peaks.lane": 0.658,
+          "peaks.hedge": 0.355
+        },
+        "light": 0.342,
+        "dark": 0.484,
+        "rescored": "2026-10-16T06:50:57.206Z"
+      }
     },
     "fusion.wind+metal": {
       "qa": {
@@ -1856,23 +2676,64 @@
           1024
         ],
         "key": [
-          250,
-          33,
-          248
+          253,
+          4,
+          251
         ],
-        "coverage": 0.563,
+        "coverage": 0.369,
         "size": [
           320,
-          299
+          231
         ],
-        "in_palette": 0.878,
+        "in_palette": 0.872,
         "snapped": true,
-        "colours_used": 11,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:47:37.505Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:45:29.470Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 3,
+        "pass": true,
+        "inside": true,
+        "score": 1.171,
+        "worst": 0.043,
+        "margins": {
+          "contract": 0.118,
+          "twin": 0.238,
+          "twinChapter": 0.55,
+          "ally": 0.31,
+          "ground": 0.043
+        },
+        "contract40": 0.718,
+        "contract120": 0.717,
+        "mirror": false,
+        "rimPx": 5,
+        "twin": [
+          0.362,
+          "fusion.poison+wind"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.34,
+          "pet.nature.128"
+        ],
+        "ground": {
+          "lane": 0.376,
+          "hedge": 0.704,
+          "fareast.hedge": 0.704,
+          "peaks.lane": 0.376,
+          "peaks.hedge": 0.63
+        },
+        "light": 0.505,
+        "dark": 0.08,
+        "rescored": "2026-10-16T06:50:57.786Z"
+      }
     },
     "fusion.fire+nature": {
       "qa": {
@@ -1881,23 +2742,64 @@
           1024
         ],
         "key": [
-          253,
-          11,
-          249
+          251,
+          4,
+          251
         ],
-        "coverage": 0.573,
+        "coverage": 0.427,
         "size": [
           320,
-          303
+          200
         ],
-        "in_palette": 0.786,
+        "in_palette": 0.758,
         "snapped": true,
-        "colours_used": 13,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:48:34.474Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:48:22.640Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 1,
+        "pass": true,
+        "inside": true,
+        "score": 1.2064,
+        "worst": 0.025,
+        "margins": {
+          "contract": 0.138,
+          "twin": 0.025,
+          "twinChapter": 0.55,
+          "ally": 0.115,
+          "ground": 0.071
+        },
+        "contract40": 0.738,
+        "contract120": 0.735,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.575,
+          "fusion.fire+metal"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.535,
+          "enemy.ninja"
+        ],
+        "ground": {
+          "lane": 0.404,
+          "hedge": 1,
+          "fareast.hedge": 1,
+          "peaks.lane": 0.404,
+          "peaks.hedge": 0.848
+        },
+        "light": 0.235,
+        "dark": 0.176,
+        "rescored": "2026-10-16T06:50:58.373Z"
+      }
     },
     "fusion.ice+nature": {
       "qa": {
@@ -1907,22 +2809,63 @@
         ],
         "key": [
           252,
-          26,
-          251
+          2,
+          250
         ],
-        "coverage": 0.53,
+        "coverage": 0.38,
         "size": [
-          320,
-          294
+          230,
+          320
         ],
-        "in_palette": 0.867,
+        "in_palette": 0.787,
         "snapped": true,
-        "colours_used": 12,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:49:32.938Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T05:51:10.620Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 3,
+        "pass": true,
+        "inside": true,
+        "score": 1.2046,
+        "worst": 0.044,
+        "margins": {
+          "contract": 0.153,
+          "twin": 0.166,
+          "twinChapter": 0.55,
+          "ally": 0.224,
+          "ground": 0.044
+        },
+        "contract40": 0.753,
+        "contract120": 0.714,
+        "mirror": false,
+        "rimPx": 5,
+        "twin": [
+          0.434,
+          "fusion.lightning+nature"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.426,
+          "pet.lightning.128"
+        ],
+        "ground": {
+          "lane": 0.377,
+          "hedge": 1,
+          "fareast.hedge": 1,
+          "peaks.lane": 0.377,
+          "peaks.hedge": 0.862
+        },
+        "light": 0.5,
+        "dark": 0.152,
+        "rescored": "2026-10-16T06:50:58.960Z"
+      }
     },
     "fusion.lightning+nature": {
       "qa": {
@@ -1931,23 +2874,64 @@
           1024
         ],
         "key": [
-          252,
-          29,
+          253,
+          35,
           250
         ],
-        "coverage": 0.527,
+        "coverage": 0.396,
         "size": [
-          275,
+          255,
           320
         ],
-        "in_palette": 0.632,
+        "in_palette": 0.825,
         "snapped": true,
-        "colours_used": 13,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:50:12.908Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:42:57.487Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 2,
+        "pass": true,
+        "inside": true,
+        "score": 1.3963,
+        "worst": 0.148,
+        "margins": {
+          "contract": 0.273,
+          "twin": 0.148,
+          "twinChapter": 0.55,
+          "ally": 0.15,
+          "ground": 0.153
+        },
+        "contract40": 0.873,
+        "contract120": 0.804,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.452,
+          "fusion.fire+earth"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.5,
+          "pet.lightning.128"
+        ],
+        "ground": {
+          "lane": 0.52,
+          "hedge": 0.605,
+          "fareast.hedge": 0.605,
+          "peaks.lane": 0.52,
+          "peaks.hedge": 0.486
+        },
+        "light": 0.373,
+        "dark": 0.52,
+        "rescored": "2026-10-16T06:50:59.553Z"
+      }
     },
     "fusion.poison+nature": {
       "qa": {
@@ -1956,23 +2940,64 @@
           1024
         ],
         "key": [
-          253,
-          28,
-          250
+          252,
+          2,
+          249
         ],
-        "coverage": 0.732,
+        "coverage": 0.466,
         "size": [
-          316,
+          214,
           320
         ],
-        "in_palette": 0.799,
+        "in_palette": 0.873,
         "snapped": true,
-        "colours_used": 14,
+        "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:51:37.985Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:00:18.318Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 2,
+        "pass": true,
+        "inside": true,
+        "score": 1.4882,
+        "worst": 0.001,
+        "margins": {
+          "contract": 0.34,
+          "twin": 0.124,
+          "twinChapter": 0.55,
+          "ally": 0.133,
+          "ground": 0.001
+        },
+        "contract40": 0.94,
+        "contract120": 0.93,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.476,
+          "fusion.ice+lightning"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.517,
+          "pet.lightning.128"
+        ],
+        "ground": {
+          "lane": 0.671,
+          "hedge": 0.436,
+          "fareast.hedge": 0.436,
+          "peaks.lane": 0.671,
+          "peaks.hedge": 0.334
+        },
+        "light": 0.329,
+        "dark": 0.483,
+        "rescored": "2026-10-16T06:51:00.139Z"
+      }
     },
     "fusion.earth+nature": {
       "qa": {
@@ -1981,23 +3006,64 @@
           1024
         ],
         "key": [
-          254,
-          30,
-          251
+          252,
+          4,
+          250
         ],
-        "coverage": 0.584,
+        "coverage": 0.554,
         "size": [
           320,
-          308
+          305
         ],
-        "in_palette": 0.936,
+        "in_palette": 0.85,
         "snapped": true,
         "colours_used": 10,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:53:15.965Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:48:40.741Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 3,
+        "pass": false,
+        "inside": false,
+        "score": 1.2017,
+        "worst": -0.064,
+        "margins": {
+          "contract": 0.329,
+          "twin": 0.032,
+          "twinChapter": 0.55,
+          "ally": 0.019,
+          "ground": -0.064
+        },
+        "contract40": 0.929,
+        "contract120": 0.923,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.568,
+          "fusion.ice+earth"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.631,
+          "pet.nature.128"
+        ],
+        "ground": {
+          "lane": 0.751,
+          "hedge": 0.307,
+          "fareast.hedge": 0.307,
+          "peaks.lane": 0.751,
+          "peaks.hedge": 0.269
+        },
+        "light": 0.036,
+        "dark": 0.095,
+        "rescored": "2026-10-16T06:51:00.742Z"
+      }
     },
     "fusion.wind+nature": {
       "qa": {
@@ -2006,23 +3072,64 @@
           1024
         ],
         "key": [
-          252,
-          39,
-          248
+          9,
+          246,
+          6
         ],
-        "coverage": 0.518,
+        "coverage": 0.547,
         "size": [
-          320,
-          312
+          246,
+          320
         ],
-        "in_palette": 0.847,
+        "in_palette": 0.933,
         "snapped": true,
-        "colours_used": 9,
+        "colours_used": 8,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:54:14.874Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:12:21.208Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 1,
+        "pass": false,
+        "inside": false,
+        "score": 1.4186,
+        "worst": -0.036,
+        "margins": {
+          "contract": 0.378,
+          "twin": -0.036,
+          "twinChapter": 0.55,
+          "ally": 0.023,
+          "ground": 0.059
+        },
+        "contract40": 0.978,
+        "contract120": 0.974,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.636,
+          "fusion.poison+wind"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.627,
+          "pet.lightning.128"
+        ],
+        "ground": {
+          "lane": 0.392,
+          "hedge": 0.642,
+          "fareast.hedge": 0.642,
+          "peaks.lane": 0.392,
+          "peaks.hedge": 0.61
+        },
+        "light": 0.547,
+        "dark": 0.035,
+        "rescored": "2026-10-16T06:51:01.335Z"
+      }
     },
     "fusion.metal+nature": {
       "qa": {
@@ -2031,23 +3138,64 @@
           1024
         ],
         "key": [
-          251,
-          23,
+          252,
+          3,
           250
         ],
-        "coverage": 0.637,
+        "coverage": 0.43,
         "size": [
           320,
-          294
+          308
         ],
-        "in_palette": 0.824,
+        "in_palette": 0.797,
         "snapped": true,
-        "colours_used": 14,
+        "colours_used": 9,
         "fringe": 0,
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:55:55.850Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:15:12.538Z",
+      "gate": {
+        "gateVersion": 3,
+        "n": 1,
+        "pass": true,
+        "inside": true,
+        "score": 1.5638,
+        "worst": 0.14,
+        "margins": {
+          "contract": 0.35,
+          "twin": 0.14,
+          "twinChapter": 0.55,
+          "ally": 0.161,
+          "ground": 0.212
+        },
+        "contract40": 0.95,
+        "contract120": 0.955,
+        "mirror": false,
+        "rimPx": 6,
+        "twin": [
+          0.46,
+          "fusion.ice+metal"
+        ],
+        "twinChapter": [
+          0,
+          null
+        ],
+        "ally": [
+          0.489,
+          "pet.poison.128"
+        ],
+        "ground": {
+          "lane": 0.545,
+          "hedge": 0.698,
+          "fareast.hedge": 0.698,
+          "peaks.lane": 0.545,
+          "peaks.hedge": 0.599
+        },
+        "light": 0.12,
+        "dark": 0.102,
+        "rescored": "2026-10-16T06:51:01.937Z"
+      }
     },
     "portrait.fire+ice": {
       "qa": {
@@ -2062,8 +3210,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T08:56:09.433Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:51:34.081Z"
     },
     "portrait.fire+lightning": {
       "qa": {
@@ -2078,8 +3226,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T09:53:15.457Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:52:01.283Z"
     },
     "portrait.fire+poison": {
       "qa": {
@@ -2094,8 +3242,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T09:54:10.235Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:52:45.077Z"
     },
     "portrait.fire+earth": {
       "qa": {
@@ -2110,8 +3258,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T09:54:51.248Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:54:09.092Z"
     },
     "portrait.fire+wind": {
       "qa": {
@@ -2126,8 +3274,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T09:56:07.875Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:54:53.205Z"
     },
     "portrait.ice+lightning": {
       "qa": {
@@ -2142,8 +3290,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T09:57:22.341Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:55:36.626Z"
     },
     "portrait.ice+poison": {
       "qa": {
@@ -2158,8 +3306,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T09:57:55.983Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:57:11.095Z"
     },
     "portrait.ice+earth": {
       "qa": {
@@ -2174,8 +3322,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T09:59:36.678Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:57:34.203Z"
     },
     "portrait.ice+wind": {
       "qa": {
@@ -2190,8 +3338,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T09:59:49.570Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:58:57.741Z"
     },
     "portrait.lightning+poison": {
       "qa": {
@@ -2206,8 +3354,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:01:06.169Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T06:59:43.119Z"
     },
     "portrait.lightning+earth": {
       "qa": {
@@ -2222,8 +3370,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:02:28.977Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:01:16.594Z"
     },
     "portrait.lightning+wind": {
       "qa": {
@@ -2238,8 +3386,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:02:52.378Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:01:38.808Z"
     },
     "portrait.poison+earth": {
       "qa": {
@@ -2254,8 +3402,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:04:08.909Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:03:03.701Z"
     },
     "portrait.poison+wind": {
       "qa": {
@@ -2270,8 +3418,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:04:45.208Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:03:47.969Z"
     },
     "portrait.earth+wind": {
       "qa": {
@@ -2286,8 +3434,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:06:00.503Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:05:12.698Z"
     },
     "portrait.fire+metal": {
       "qa": {
@@ -2302,8 +3450,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:07:15.490Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:05:35.478Z"
     },
     "portrait.ice+metal": {
       "qa": {
@@ -2318,8 +3466,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:07:50.556Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:06:59.660Z"
     },
     "portrait.lightning+metal": {
       "qa": {
@@ -2334,8 +3482,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:09:05.880Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:07:43.767Z"
     },
     "portrait.poison+metal": {
       "qa": {
@@ -2350,8 +3498,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:10:21.456Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:09:08.719Z"
     },
     "portrait.earth+metal": {
       "qa": {
@@ -2366,8 +3514,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:10:56.133Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:09:52.476Z"
     },
     "portrait.wind+metal": {
       "qa": {
@@ -2382,8 +3530,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:12:10.440Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:10:36.933Z"
     },
     "portrait.fire+nature": {
       "qa": {
@@ -2398,8 +3546,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:12:55.547Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:11:59.933Z"
     },
     "portrait.ice+nature": {
       "qa": {
@@ -2414,8 +3562,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:14:15.098Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:12:42.537Z"
     },
     "portrait.lightning+nature": {
       "qa": {
@@ -2430,8 +3578,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:14:49.922Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:14:05.840Z"
     },
     "portrait.poison+nature": {
       "qa": {
@@ -2446,8 +3594,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:16:08.092Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:14:48.780Z"
     },
     "portrait.earth+nature": {
       "qa": {
@@ -2462,8 +3610,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:16:45.090Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:16:10.659Z"
     },
     "portrait.wind+nature": {
       "qa": {
@@ -2478,8 +3626,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:18:06.166Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:16:54.524Z"
     },
     "portrait.metal+nature": {
       "qa": {
@@ -2494,8 +3642,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T10:19:23.913Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:17:38.095Z"
     },
     "halo.fire": {
       "qa": {
@@ -4132,8 +5280,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:10:33.584Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:19:00.459Z"
     },
     "portrait.fire+lightning.ascended": {
       "qa": {
@@ -4148,8 +5296,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:11:49.605Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:19:42.978Z"
     },
     "portrait.fire+poison.ascended": {
       "qa": {
@@ -4164,8 +5312,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:13:03.263Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:21:09.917Z"
     },
     "portrait.fire+earth.ascended": {
       "qa": {
@@ -4180,8 +5328,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:13:37.331Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:21:53.273Z"
     },
     "portrait.fire+wind.ascended": {
       "qa": {
@@ -4196,8 +5344,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:14:52.060Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:22:38.140Z"
     },
     "portrait.ice+lightning.ascended": {
       "qa": {
@@ -4212,8 +5360,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:16:05.728Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:24:01.891Z"
     },
     "portrait.ice+poison.ascended": {
       "qa": {
@@ -4228,8 +5376,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:16:39.277Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:24:45.167Z"
     },
     "portrait.ice+earth.ascended": {
       "qa": {
@@ -4244,8 +5392,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:17:53.707Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:26:08.638Z"
     },
     "portrait.ice+wind.ascended": {
       "qa": {
@@ -4260,8 +5408,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:19:12.085Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:26:55.738Z"
     },
     "portrait.lightning+poison.ascended": {
       "qa": {
@@ -4276,8 +5424,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:19:44.748Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:27:41.305Z"
     },
     "portrait.lightning+earth.ascended": {
       "qa": {
@@ -4292,8 +5440,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:21:00.878Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:29:15.174Z"
     },
     "portrait.lightning+wind.ascended": {
       "qa": {
@@ -4308,8 +5456,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:21:34.345Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:29:36.481Z"
     },
     "portrait.poison+earth.ascended": {
       "qa": {
@@ -4324,8 +5472,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:22:50.010Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:30:58.806Z"
     },
     "portrait.poison+wind.ascended": {
       "qa": {
@@ -4340,8 +5488,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:24:03.057Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:31:40.977Z"
     },
     "portrait.earth+wind.ascended": {
       "qa": {
@@ -4356,8 +5504,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:25:06.013Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:33:07.531Z"
     },
     "portrait.fire+metal.ascended": {
       "qa": {
@@ -4372,8 +5520,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:25:38.330Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:33:51.232Z"
     },
     "portrait.ice+metal.ascended": {
       "qa": {
@@ -4388,8 +5536,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:27:19.655Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:34:34.452Z"
     },
     "portrait.lightning+metal.ascended": {
       "qa": {
@@ -4404,8 +5552,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:27:31.862Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:35:58.614Z"
     },
     "portrait.poison+metal.ascended": {
       "qa": {
@@ -4420,8 +5568,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:28:52.939Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:36:39.142Z"
     },
     "portrait.earth+metal.ascended": {
       "qa": {
@@ -4436,8 +5584,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:30:09.212Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:38:05.165Z"
     },
     "portrait.wind+metal.ascended": {
       "qa": {
@@ -4452,8 +5600,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:30:58.659Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:38:47.889Z"
     },
     "portrait.fire+nature.ascended": {
       "qa": {
@@ -4468,8 +5616,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:31:45.397Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:40:11.279Z"
     },
     "portrait.ice+nature.ascended": {
       "qa": {
@@ -4484,8 +5632,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:33:04.882Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:40:33.662Z"
     },
     "portrait.lightning+nature.ascended": {
       "qa": {
@@ -4500,8 +5648,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:33:40.260Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:41:57.550Z"
     },
     "portrait.poison+nature.ascended": {
       "qa": {
@@ -4516,8 +5664,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:34:35.985Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:42:42.634Z"
     },
     "portrait.earth+nature.ascended": {
       "qa": {
@@ -4532,8 +5680,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:35:49.088Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:44:06.811Z"
     },
     "portrait.wind+nature.ascended": {
       "qa": {
@@ -4548,8 +5696,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:37:03.036Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:44:54.303Z"
     },
     "portrait.metal+nature.ascended": {
       "qa": {
@@ -4564,8 +5712,8 @@
         ],
         "ok": true
       },
-      "model": "gemini-3.1-flash-image",
-      "at": "2026-10-14T15:37:39.861Z"
+      "model": "gemini-3-pro-image",
+      "at": "2026-10-16T07:45:40.193Z"
     },
     "enemy.elfRuler.portrait": {
       "qa": {

@@ -1,0 +1,1191 @@
+{
+ "grounds": {
+  "keep": "#3E3C58",
+  "lane": "#D9C7A3"
+ },
+ "sepDL": 20,
+ "fusions": {
+  "fire+ice": {
+   "dominant": "#5b8cff",
+   "lstar": 60.1,
+   "keep": {
+    "ratio": 3.33,
+    "dL": 33.4,
+    "bestTone": "light",
+    "bestDL": 57.9,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 33.4,
+     "light": 57.9,
+     "accentA": 47.0,
+     "accentB": 68.9,
+     "extra": 59.3
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#DDF7FC",
+     "dL": 68.9
+    }
+   },
+   "lane": {
+    "ratio": 1.9,
+    "dL": -20.8,
+    "bestTone": "shade",
+    "bestDL": -34.6,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -20.8,
+     "shade": -34.6
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#456ac2",
+     "dL": -34.6
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "fire+lightning": {
+   "dominant": "#ff4fb8",
+   "lstar": 61.9,
+   "keep": {
+    "ratio": 3.55,
+    "dL": 35.3,
+    "bestTone": "light",
+    "bestDL": 56.7,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 35.3,
+     "shade": 21.1,
+     "light": 56.7,
+     "accentA": 47.0,
+     "accentB": 63.1,
+     "extra": 32.1
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#FFE14D",
+     "dL": 63.1
+    }
+   },
+   "lane": {
+    "ratio": 1.79,
+    "dL": -19.0,
+    "bestTone": "shade",
+    "bestDL": -33.1,
+    "dominantSeparates": false,
+    "bodySeparates": true,
+    "separating": {
+     "shade": -33.1,
+     "extra": -22.2
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#c23c8c",
+     "dL": -33.1
+    }
+   },
+   "note": "dominant weak on the lane: shade #c23c8c (-33 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "fire+poison": {
+   "dominant": "#d6452f",
+   "lstar": 50.4,
+   "keep": {
+    "ratio": 2.39,
+    "dL": 23.8,
+    "bestTone": "light",
+    "bestDL": 52.9,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 23.8,
+     "light": 52.9,
+     "accentA": 47.0,
+     "accentB": 56.4,
+     "extra": 52.0
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#8FE53A",
+     "dL": 56.4
+    }
+   },
+   "lane": {
+    "ratio": 2.66,
+    "dL": -30.5,
+    "bestTone": "shade",
+    "bestDL": -46.4,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -30.5,
+     "shade": -46.4
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#922f20",
+     "dL": -46.4
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "fire+earth": {
+   "dominant": "#ff9f1c",
+   "lstar": 73.6,
+   "keep": {
+    "ratio": 5.13,
+    "dL": 47.0,
+    "bestTone": "light",
+    "bestDL": 62.7,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 47.0,
+     "shade": 30.6,
+     "light": 62.7,
+     "accentA": 59.3,
+     "extra": 61.3
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#ffdba9",
+     "dL": 62.7
+    }
+   },
+   "lane": {
+    "ratio": 1.24,
+    "dL": -7.2,
+    "bestTone": "shade",
+    "bestDL": -23.6,
+    "dominantSeparates": false,
+    "bodySeparates": true,
+    "separating": {
+     "shade": -23.6,
+     "accentB": -42.0
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#6B5848",
+     "dL": -42.0
+    }
+   },
+   "note": "dominant weak on the lane: accentB #6B5848 (-42 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "fire+wind": {
+   "dominant": "#f24c00",
+   "lstar": 56.1,
+   "keep": {
+    "ratio": 2.92,
+    "dL": 29.5,
+    "bestTone": "light",
+    "bestDL": 54.3,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 29.5,
+     "light": 54.3,
+     "accentA": 59.3,
+     "accentB": 69.1,
+     "extra": 42.2
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#D8FAF0",
+     "dL": 69.1
+    }
+   },
+   "lane": {
+    "ratio": 2.18,
+    "dL": -24.7,
+    "bestTone": "shade",
+    "bestDL": -42.2,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -24.7,
+     "shade": -42.2
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#a53400",
+     "dL": -42.2
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "fire+metal": {
+   "dominant": "#cd7f32",
+   "lstar": 60.2,
+   "keep": {
+    "ratio": 3.35,
+    "dL": 33.6,
+    "bestTone": "light",
+    "bestDL": 57.9,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 33.6,
+     "shade": 20.0,
+     "light": 57.9,
+     "accentA": 47.0,
+     "accentB": 60.8,
+     "extra": 20.6
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#FFD84A",
+     "dL": 60.8
+    }
+   },
+   "lane": {
+    "ratio": 1.89,
+    "dL": -20.6,
+    "bestTone": "shade",
+    "bestDL": -34.2,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -20.6,
+     "shade": -34.2,
+     "extra": -33.6
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#9c6126",
+     "dL": -34.2
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "fire+nature": {
+   "dominant": "#d4e157",
+   "lstar": 86.3,
+   "keep": {
+    "ratio": 7.38,
+    "dL": 59.7,
+    "bestTone": "light",
+    "bestDL": 68.0,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 59.7,
+     "shade": 40.7,
+     "light": 68.0,
+     "accentA": 47.0,
+     "accentB": 30.4,
+     "extra": 63.8
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#eff4bf",
+     "dL": 68.0
+    }
+   },
+   "lane": {
+    "ratio": 1.16,
+    "dL": 5.4,
+    "bestTone": "light",
+    "bestDL": 13.8,
+    "dominantSeparates": false,
+    "bodySeparates": false,
+    "separating": {
+     "accentB": -23.9
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#3E9B47",
+     "dL": -23.9
+    }
+   },
+   "note": "dominant weak on the lane: accentB #3E9B47 (-24 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "ice+lightning": {
+   "dominant": "#00d2ff",
+   "lstar": 78.1,
+   "keep": {
+    "ratio": 5.85,
+    "dL": 51.4,
+    "bestTone": "light",
+    "bestDL": 63.1,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 51.4,
+     "shade": 34.2,
+     "light": 63.1,
+     "accentA": 68.9,
+     "accentB": 63.1
+    },
+    "carrier": {
+     "role": "accentA",
+     "hex": "#DDF7FC",
+     "dL": 68.9
+    }
+   },
+   "lane": {
+    "ratio": 1.08,
+    "dL": -2.8,
+    "bestTone": "shade",
+    "bestDL": -20.1,
+    "dominantSeparates": false,
+    "bodySeparates": true,
+    "separating": {
+     "shade": -20.1,
+     "extra": -43.3
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#3B3FE0",
+     "dL": -43.3
+    }
+   },
+   "note": "dominant weak on the lane: extra #3B3FE0 (-43 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "ice+poison": {
+   "dominant": "#7b61ff",
+   "lstar": 51.8,
+   "keep": {
+    "ratio": 2.51,
+    "dL": 25.2,
+    "bestTone": "light",
+    "bestDL": 54.8,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 25.2,
+     "light": 54.8,
+     "accentA": 60.7,
+     "accentB": 56.4,
+     "extra": 52.0
+    },
+    "carrier": {
+     "role": "accentA",
+     "hex": "#9BE7F5",
+     "dL": 60.7
+    }
+   },
+   "lane": {
+    "ratio": 2.53,
+    "dL": -29.1,
+    "bestTone": "shade",
+    "bestDL": -45.3,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -29.1,
+     "shade": -45.3
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#5442ad",
+     "dL": -45.3
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "ice+earth": {
+   "dominant": "#9fc5e8",
+   "lstar": 78.0,
+   "keep": {
+    "ratio": 5.84,
+    "dL": 51.3,
+    "bestTone": "light",
+    "bestDL": 65.1,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 51.3,
+     "shade": 34.2,
+     "light": 65.1,
+     "accentA": 60.7,
+     "accentB": 29.5,
+     "extra": 61.3
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#dbe9f6",
+     "dL": 65.1
+    }
+   },
+   "lane": {
+    "ratio": 1.09,
+    "dL": -2.9,
+    "bestTone": "shade",
+    "bestDL": -20.1,
+    "dominantSeparates": false,
+    "bodySeparates": true,
+    "separating": {
+     "shade": -20.1,
+     "accentB": -24.8
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#9C8268",
+     "dL": -24.8
+    }
+   },
+   "note": "dominant weak on the lane: accentB #9C8268 (-25 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "ice+wind": {
+   "dominant": "#e0f7ff",
+   "lstar": 95.8,
+   "keep": {
+    "ratio": 9.5,
+    "dL": 69.2,
+    "bestTone": "light",
+    "bestDL": 71.8,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 69.2,
+     "shade": 48.5,
+     "light": 71.8,
+     "accentA": 60.7,
+     "accentB": 58.2,
+     "extra": 20.2
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#f3fcff",
+     "dL": 71.8
+    }
+   },
+   "lane": {
+    "ratio": 1.5,
+    "dL": 15.0,
+    "bestTone": "light",
+    "bestDL": 17.5,
+    "dominantSeparates": false,
+    "bodySeparates": false,
+    "separating": {
+     "extra": -34.1
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#2F7A78",
+     "dL": -34.1
+    }
+   },
+   "note": "dominant weak on the lane: extra #2F7A78 (-34 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "ice+metal": {
+   "dominant": "#7f9cb8",
+   "lstar": 63.1,
+   "keep": {
+    "ratio": 3.69,
+    "dL": 36.5,
+    "bestTone": "light",
+    "bestDL": 59.6,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 36.5,
+     "shade": 22.4,
+     "light": 59.6,
+     "accentA": 68.9,
+     "accentB": 66.6,
+     "extra": 41.3
+    },
+    "carrier": {
+     "role": "accentA",
+     "hex": "#DDF7FC",
+     "dL": 68.9
+    }
+   },
+   "lane": {
+    "ratio": 1.72,
+    "dL": -17.7,
+    "bestTone": "shade",
+    "bestDL": -31.8,
+    "dominantSeparates": false,
+    "bodySeparates": true,
+    "separating": {
+     "shade": -31.8
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#61778c",
+     "dL": -31.8
+    }
+   },
+   "note": "dominant weak on the lane: shade #61778c (-32 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "ice+nature": {
+   "dominant": "#7fffd4",
+   "lstar": 92.0,
+   "keep": {
+    "ratio": 8.61,
+    "dL": 65.4,
+    "bestTone": "light",
+    "bestDL": 69.7,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 65.4,
+     "shade": 45.4,
+     "light": 69.7,
+     "accentA": 68.9,
+     "accentB": 48.7,
+     "extra": 30.4
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#ceffef",
+     "dL": 69.7
+    }
+   },
+   "lane": {
+    "ratio": 1.36,
+    "dL": 11.2,
+    "bestTone": "light",
+    "bestDL": 15.5,
+    "dominantSeparates": false,
+    "bodySeparates": false,
+    "separating": {
+     "extra": -23.9
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#3E9B47",
+     "dL": -23.9
+    }
+   },
+   "note": "dominant weak on the lane: extra #3E9B47 (-24 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "lightning+poison": {
+   "dominant": "#c6ff00",
+   "lstar": 93.2,
+   "keep": {
+    "ratio": 8.89,
+    "dL": 66.6,
+    "bestTone": "light",
+    "bestDL": 69.9,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 66.6,
+     "shade": 46.3,
+     "light": 69.9,
+     "accentA": 63.1,
+     "accentB": 27.1
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#e9ff9e",
+     "dL": 69.9
+    }
+   },
+   "lane": {
+    "ratio": 1.4,
+    "dL": 12.4,
+    "bestTone": "light",
+    "bestDL": 15.7,
+    "dominantSeparates": false,
+    "bodySeparates": false,
+    "separating": {
+     "accentB": -27.1,
+     "extra": -63.8
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#3A1660",
+     "dL": -63.8
+    }
+   },
+   "note": "dominant weak on the lane: extra #3A1660 (-64 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "lightning+earth": {
+   "dominant": "#b8860b",
+   "lstar": 59.2,
+   "keep": {
+    "ratio": 3.24,
+    "dL": 32.6,
+    "bestTone": "light",
+    "bestDL": 57.7,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 32.6,
+     "light": 57.7,
+     "accentA": 63.1,
+     "accentB": 24.9
+    },
+    "carrier": {
+     "role": "accentA",
+     "hex": "#FFE14D",
+     "dL": 63.1
+    }
+   },
+   "lane": {
+    "ratio": 1.96,
+    "dL": -21.7,
+    "bestTone": "shade",
+    "bestDL": -35.1,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -21.7,
+     "shade": -35.1,
+     "accentB": -29.4,
+     "extra": -60.0
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#3B3029",
+     "dL": -60.0
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "lightning+wind": {
+   "dominant": "#9fa8ff",
+   "lstar": 71.3,
+   "keep": {
+    "ratio": 4.78,
+    "dL": 44.7,
+    "bestTone": "light",
+    "bestDL": 62.5,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 44.7,
+     "shade": 28.9,
+     "light": 62.5,
+     "accentA": 63.1,
+     "accentB": 69.1,
+     "extra": 20.2
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#D8FAF0",
+     "dL": 69.1
+    }
+   },
+   "lane": {
+    "ratio": 1.33,
+    "dL": -9.6,
+    "bestTone": "shade",
+    "bestDL": -25.4,
+    "dominantSeparates": false,
+    "bodySeparates": true,
+    "separating": {
+     "shade": -25.4,
+     "extra": -34.1
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#2F7A78",
+     "dL": -34.1
+    }
+   },
+   "note": "dominant weak on the lane: extra #2F7A78 (-34 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "lightning+metal": {
+   "dominant": "#ffd700",
+   "lstar": 86.9,
+   "keep": {
+    "ratio": 7.52,
+    "dL": 60.3,
+    "bestTone": "light",
+    "bestDL": 67.7,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 60.3,
+     "shade": 41.2,
+     "light": 67.7,
+     "accentA": 32.1,
+     "accentB": 20.6,
+     "extra": 70.4
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#FFF7D1",
+     "dL": 70.4
+    }
+   },
+   "lane": {
+    "ratio": 1.18,
+    "dL": 6.1,
+    "bestTone": "light",
+    "bestDL": 13.5,
+    "dominantSeparates": false,
+    "bodySeparates": false,
+    "separating": {
+     "accentA": -22.2,
+     "accentB": -33.6
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#9C6410",
+     "dL": -33.6
+    }
+   },
+   "note": "dominant weak on the lane: accentB #9C6410 (-34 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "lightning+nature": {
+   "dominant": "#a8e063",
+   "lstar": 83.2,
+   "keep": {
+    "ratio": 6.78,
+    "dL": 56.6,
+    "bestTone": "light",
+    "bestDL": 66.7,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 56.6,
+     "shade": 38.2,
+     "light": 66.7,
+     "accentA": 63.1,
+     "accentB": 48.7
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#def3c4",
+     "dL": 66.7
+    }
+   },
+   "lane": {
+    "ratio": 1.07,
+    "dL": 2.3,
+    "bestTone": "shade",
+    "bestDL": -16.0,
+    "dominantSeparates": false,
+    "bodySeparates": false,
+    "separating": {
+     "extra": -47.3
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#1F5A2E",
+     "dL": -47.3
+    }
+   },
+   "note": "dominant weak on the lane: extra #1F5A2E (-47 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "poison+earth": {
+   "dominant": "#6b8e23",
+   "lstar": 54.7,
+   "keep": {
+    "ratio": 2.77,
+    "dL": 28.0,
+    "bestTone": "light",
+    "bestDL": 56.4,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 28.0,
+     "light": 56.4,
+     "accentA": 27.1,
+     "accentB": 24.9,
+     "extra": 56.4
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#8FE53A",
+     "dL": 56.4
+    }
+   },
+   "lane": {
+    "ratio": 2.29,
+    "dL": -26.2,
+    "bestTone": "shade",
+    "bestDL": -43.0,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -26.2,
+     "shade": -43.0,
+     "accentA": -27.1,
+     "accentB": -29.4
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#496118",
+     "dL": -43.0
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "poison+wind": {
+   "dominant": "#c39bd3",
+   "lstar": 69.3,
+   "keep": {
+    "ratio": 4.49,
+    "dL": 42.7,
+    "bestTone": "light",
+    "bestDL": 61.8,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 42.7,
+     "shade": 27.2,
+     "light": 61.8,
+     "accentA": 56.4,
+     "accentB": 69.1
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#D8FAF0",
+     "dL": 69.1
+    }
+   },
+   "lane": {
+    "ratio": 1.41,
+    "dL": -11.6,
+    "bestTone": "shade",
+    "bestDL": -27.1,
+    "dominantSeparates": false,
+    "bodySeparates": true,
+    "separating": {
+     "shade": -27.1,
+     "extra": -45.8
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#6E2DB5",
+     "dL": -45.8
+    }
+   },
+   "note": "dominant weak on the lane: extra #6E2DB5 (-46 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "poison+metal": {
+   "dominant": "#8e7cc3",
+   "lstar": 56.2,
+   "keep": {
+    "ratio": 2.92,
+    "dL": 29.6,
+    "bestTone": "light",
+    "bestDL": 57.1,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 29.6,
+     "light": 57.1,
+     "accentA": 56.4,
+     "accentB": 41.3
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#d4cde8",
+     "dL": 57.1
+    }
+   },
+   "lane": {
+    "ratio": 2.17,
+    "dL": -24.7,
+    "bestTone": "shade",
+    "bestDL": -42.0,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -24.7,
+     "shade": -42.0,
+     "extra": -63.8
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#3A1660",
+     "dL": -63.8
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "poison+nature": {
+   "dominant": "#7a3fa8",
+   "lstar": 38.8,
+   "keep": {
+    "ratio": 1.56,
+    "dL": 12.1,
+    "bestTone": "light",
+    "bestDL": 50.4,
+    "dominantSeparates": false,
+    "bodySeparates": true,
+    "separating": {
+     "light": 50.4,
+     "accentA": 56.4,
+     "extra": 63.8
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#CDEFA2",
+     "dL": 63.8
+    }
+   },
+   "lane": {
+    "ratio": 4.07,
+    "dL": -42.1,
+    "bestTone": "shade",
+    "bestDL": -54.8,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -42.1,
+     "shade": -54.8,
+     "accentB": -38.2
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#532b72",
+     "dL": -54.8
+    }
+   },
+   "note": "dominant weak on the keep: extra #CDEFA2 (+64 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "earth+wind": {
+   "dominant": "#e6c88a",
+   "lstar": 81.8,
+   "keep": {
+    "ratio": 6.52,
+    "dL": 55.2,
+    "bestTone": "light",
+    "bestDL": 66.5,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 55.2,
+     "shade": 37.2,
+     "light": 66.5,
+     "accentA": 24.9,
+     "accentB": 73.4,
+     "extra": 58.2
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#FFFFFF",
+     "dL": 73.4
+    }
+   },
+   "lane": {
+    "ratio": 1.03,
+    "dL": 0.9,
+    "bestTone": "shade",
+    "bestDL": -17.0,
+    "dominantSeparates": false,
+    "bodySeparates": false,
+    "separating": {
+     "accentA": -29.4
+    },
+    "carrier": {
+     "role": "accentA",
+     "hex": "#B8652F",
+     "dL": -29.4
+    }
+   },
+   "note": "dominant weak on the lane: accentA #B8652F (-29 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "earth+metal": {
+   "dominant": "#8d6e63",
+   "lstar": 49.1,
+   "keep": {
+    "ratio": 2.28,
+    "dL": 22.5,
+    "bestTone": "light",
+    "bestDL": 54.8,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 22.5,
+     "light": 54.8,
+     "accentB": 53.4
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#d4c8c4",
+     "dL": 54.8
+    }
+   },
+   "lane": {
+    "ratio": 2.78,
+    "dL": -31.7,
+    "bestTone": "shade",
+    "bestDL": -47.0,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -31.7,
+     "shade": -47.0,
+     "accentA": -42.0,
+     "extra": -60.0
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#3B3029",
+     "dL": -60.0
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "earth+nature": {
+   "dominant": "#2e8b57",
+   "lstar": 51.5,
+   "keep": {
+    "ratio": 2.48,
+    "dL": 24.9,
+    "bestTone": "light",
+    "bestDL": 55.0,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 24.9,
+     "light": 55.0,
+     "accentA": 46.3,
+     "accentB": 63.8
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#CDEFA2",
+     "dL": 63.8
+    }
+   },
+   "lane": {
+    "ratio": 2.56,
+    "dL": -29.3,
+    "bestTone": "shade",
+    "bestDL": -45.3,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": -29.3,
+     "shade": -45.3,
+     "extra": -38.2
+    },
+    "carrier": {
+     "role": "shade",
+     "hex": "#1f5f3b",
+     "dL": -45.3
+    }
+   },
+   "note": "the dominant colour reads on both grounds"
+  },
+  "wind+metal": {
+   "dominant": "#b0e0e6",
+   "lstar": 86.1,
+   "keep": {
+    "ratio": 7.35,
+    "dL": 59.5,
+    "bestTone": "light",
+    "bestDL": 68.0,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 59.5,
+     "shade": 40.6,
+     "light": 68.0,
+     "accentA": 69.1,
+     "accentB": 60.8,
+     "extra": 20.2
+    },
+    "carrier": {
+     "role": "accentA",
+     "hex": "#D8FAF0",
+     "dL": 69.1
+    }
+   },
+   "lane": {
+    "ratio": 1.16,
+    "dL": 5.3,
+    "bestTone": "light",
+    "bestDL": 13.8,
+    "dominantSeparates": false,
+    "bodySeparates": false,
+    "separating": {
+     "extra": -34.1
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#2F7A78",
+     "dL": -34.1
+    }
+   },
+   "note": "dominant weak on the lane: extra #2F7A78 (-34 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "wind+nature": {
+   "dominant": "#fff59d",
+   "lstar": 95.6,
+   "keep": {
+    "ratio": 9.44,
+    "dL": 69.0,
+    "bestTone": "light",
+    "bestDL": 71.5,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 69.0,
+     "shade": 48.2,
+     "light": 71.5,
+     "accentA": 73.4,
+     "accentB": 48.7
+    },
+    "carrier": {
+     "role": "accentA",
+     "hex": "#FFFFFF",
+     "dL": 73.4
+    }
+   },
+   "lane": {
+    "ratio": 1.49,
+    "dL": 14.7,
+    "bestTone": "light",
+    "bestDL": 17.3,
+    "dominantSeparates": false,
+    "bodySeparates": false,
+    "separating": {
+     "extra": -38.2
+    },
+    "carrier": {
+     "role": "extra",
+     "hex": "#8A5A33",
+     "dL": -38.2
+    }
+   },
+   "note": "dominant weak on the lane: extra #8A5A33 (-38 L*) must be the cel tone or a large accent there, with the plum outline"
+  },
+  "metal+nature": {
+   "dominant": "#f4a261",
+   "lstar": 73.5,
+   "keep": {
+    "ratio": 5.11,
+    "dL": 46.9,
+    "bestTone": "light",
+    "bestDL": 63.1,
+    "dominantSeparates": true,
+    "bodySeparates": true,
+    "separating": {
+     "dominant": 46.9,
+     "shade": 30.4,
+     "light": 63.1,
+     "accentA": 60.8,
+     "extra": 49.8
+    },
+    "carrier": {
+     "role": "light",
+     "hex": "#fbdcc3",
+     "dL": 63.1
+    }
+   },
+   "lane": {
+    "ratio": 1.24,
+    "dL": -7.4,
+    "bestTone": "shade",
+    "bestDL": -23.8,
+    "dominantSeparates": false,
+    "bodySeparates": true,
+    "separating": {
+     "shade": -23.8,
+     "accentB": -38.2
+    },
+    "carrier": {
+     "role": "accentB",
+     "hex": "#8A5A33",
+     "dL": -38.2
+    }
+   },
+   "note": "dominant weak on the lane: accentB #8A5A33 (-38 L*) must be the cel tone or a large accent there, with the plum outline"
+  }
+ }
+}

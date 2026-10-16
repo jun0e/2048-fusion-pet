@@ -154,6 +154,18 @@ Metal and Earth, Wind and unclassed blocks deal physical damage (reduced by armo
 
 A fusion carries both elements' effects. The projectile takes the first element's shape in the second element's colour (Fire then Ice fires blue fireballs).
 
+Each fusion is also a hero pet of its own: one animal with its own silhouette, the two parents shown in its markings and colours, not in its body (`src/art/fusion-roster.js`, designed in `reports/art/fusion-matrix/`). The pet's name is on its namecard; the fusion's name above is its skill.
+
+|  | Ice | Lightning | Poison | Earth | Wind | Metal | Nature |
+|---|---|---|---|---|---|---|---|
+| **Fire** | Novakit, red panda | Zapcinder, mantis shrimp | Embertoad, fire-bellied toad | Magmole, mole | Flarewhirl, dragonfly | Anviljaw, crocodile | Emberhopper, locust |
+| **Ice** |  | Sparkfrost, narwhal | Frostjelly, jellyfish | Tundrock, mammoth | Flurrin, snow lamb | Rimeplate, walrus | Frostpetal, reindeer fawn |
+| **Lightning** |  |  | Fizzlebolt, platypus | Rumblebolt, wild boar | Gustbolt, jackrabbit | Voltgild, chameleon | Zaplily, orchid mantis |
+| **Poison** |  |  |  | Bogling, bog spider | Mistmaw, pufferfish | Rustclaw, scorpion | Nightling, slow loris |
+| **Earth** |  |  |  |  | Dunepuff, camel | Ironclod, rhinoceros | Mossbara, capybara |
+| **Wind** |  |  |  |  |  | Whirlblade, sickle weasel | Pollenpuff, sugar glider |
+| **Metal** |  |  |  |  |  |  | Sproutgear, beaver |
+
 ### Ultimates (by third element)
 
 | Third die | Ultimate | Signature |
@@ -169,7 +181,7 @@ A fusion carries both elements' effects. The projectile takes the first element'
 
 ## Enemies: an animal army
 
-Every enemy is one animal with its own silhouette (`src/art/foe-roster.js`). The pipeline generates each one inside its silhouette contract and gates it against look-alikes (`tools/silhouette-check.py`; see `reports/art/visual-overhaul/proposal.md`, section 7).
+Every enemy is one animal with its own silhouette (`src/art/foe-roster.js`). The pipeline generates each one inside its silhouette contract and gates it against look-alikes (`tools/silhouette-check.py`; see `reports/art/visual-overhaul/proposal.md`, section 7). The 28 fusion pets are made the same way, with the heroes' cream rim, and gated against each other, every foe and the base pets (`reports/art/fusion-matrix/pipeline-plan.md`).
 
 | Chapter (10 waves each, then loop) | Enemies | Boss |
 |---|---|---|
@@ -197,7 +209,7 @@ The art direction from `reports/Art style for 2048 Siege pets.md`, running in th
 - `art.html`: every creature in every style (the art sheet).
 - `2048-siege-kv.html` (from `npm run pack`): the demo as one file you can send.
 
-Three art layers, one design per creature: **map tiles** (16 to 128: the number on top, the baby peeking over the bottom edge, one motif piece per merge; 2/4/8 are eggs that crack), **roaming fusions** (at 256 the fusion hops out and roams the field, shooting from where it stands; its tile stays as a den with a split plate and both glyphs), and **namecards** (a soft-vinyl 3D portrait per fusion; tap a ready card to cast its skill: an area hit with all its element effects). Legendaries glide, wear gold and carry their apex halo. The showcase board holds every element at a different stage; blocks don't die and the next wave starts 2 s after a clear.
+Three art layers, one design per creature: **map tiles** (16 to 128: the number on top, the baby peeking over the bottom edge, one motif piece per merge; 2/4/8 are eggs that crack), **roaming fusions** (at 256 the fusion hops out and roams the field its own way, walking, crawling, hopping, hovering, swimming or floating, and shoots from where it stands; its tile stays as a den with a split plate and both glyphs), and **namecards** (a soft-vinyl 3D portrait per fusion; tap a ready card to cast its skill: an area hit with all its element effects). Legendaries glide, wear gold and carry their apex halo. The showcase board holds every element at a different stage; blocks don't die and the next wave starts 2 s after a clear.
 
 All creatures are drawn in code (`src/art/creatures.js`) from the style brief, as stand-ins until generated art replaces them through the same layers (`src/art/index.js`). Code: `src/art/` (tokens, glyphs, creatures, texture provider), `src/kv/` (roaming, namecards, mode setup), plus small hooks in `blocks.js`, `defense.js` (`tile.roam`, `cast`) and `run.js` (`castSkill`).
 

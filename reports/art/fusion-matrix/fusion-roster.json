@@ -1,0 +1,1097 @@
+{
+ "$doc": "The 28 fusion pets redesigned as 28 animals (reports/art/fusion-matrix/matrix.md). Keys are src/sim/classes.js FUSIONS keys. `name` is the proposed pet name (`nameToday` is src/art/tokens.js petName); `skill` is the FUSIONS name the attack keeps. `view` is the flip-safe drawing: profile = side view facing left; front = symmetric facing the camera; spread = seen from above, symmetric. `palette.dominant` is FUSIONS[key].color; shade/light are tokens.js fusionPalette tones; accentA/accentB come from the parents' ELEMENT_PALETTES; `universal` is the outline and the cream sticker rim every pet keeps. `contract` is the silhouette symbol in silhouettes.svg, rasterised to contracts/sil-<key>.png.",
+ "elements": [
+  "fire",
+  "ice",
+  "lightning",
+  "poison",
+  "earth",
+  "wind",
+  "metal",
+  "nature"
+ ],
+ "universal": {
+  "outline": "#2B1D2E",
+  "rim": "#FFFAF2",
+  "eyeDark": "#1A1420",
+  "eyeShine": "#FFFFFF"
+ },
+ "fusions": [
+  {
+   "key": "fire+ice",
+   "skill": "Frostnova",
+   "name": "Novakit",
+   "nameToday": "Novakit",
+   "nameNote": "keep",
+   "animal": "red panda",
+   "species": "Ailurus fulgens",
+   "kind": "real",
+   "bodyPlan": "upright stander",
+   "view": "profile",
+   "move": "walk",
+   "pose": "standing up on its hind legs facing left, both forepaws raised high in the red panda's stand-up display, the big ringed tail curving down and back to the right and ending in a flame-shaped tuft",
+   "desc": "a red panda kit: a plump round body on stubby legs, a round head with big round ears and a white face mask, a huge bushy ringed tail",
+   "why": "The red panda is a flame-coloured animal that lives in Himalayan snow: fire and ice in one body. The ember tail rings are the burn, the frost mask and snow-dusted ears are the chill.",
+   "parents": {
+    "a": {
+     "element": "fire",
+     "feature": "ember-orange tail rings and a flame-shaped tail tuft"
+    },
+    "b": {
+     "element": "ice",
+     "feature": "a frost-white face mask and snow-dusted ears"
+    }
+   },
+   "palette": {
+    "dominant": "#5b8cff",
+    "shade": "#456ac2",
+    "light": "#c1d3ff",
+    "accentA": "#FF9E3D",
+    "accentB": "#DDF7FC",
+    "extra": "#FFD24A"
+   },
+   "ip": "Not the Firefox mark (a red panda curled round a globe) and not Pokémon's Pancham line: cobalt body, upright stand-up pose, no globe, no bandana.",
+   "alt": "sea otter floating on its back cradling an ember-stone"
+  },
+  {
+   "key": "fire+lightning",
+   "skill": "Plasma",
+   "name": "Zapcinder",
+   "nameToday": "Zapcinder",
+   "nameNote": "keep",
+   "animal": "peacock mantis shrimp",
+   "species": "Odontodactylus scyllarus",
+   "kind": "real",
+   "bodyPlan": "boxer",
+   "view": "profile",
+   "move": "walk",
+   "pose": "rearing up in a boxer stance facing left: the wide tail fan flat on the ground at the lower right, the segmented body rising diagonally to the upper left, the two club arms cocked high in front like a boxer's guard, the two eye stalks up",
+   "desc": "a peacock mantis shrimp: a flat segmented armoured body, two folded club arms held up in front, two eyes on stalks, a wide fan tail",
+   "why": "Its punch is so fast the water boils into a flash of light and heat, a real spark of plasma, and the peacock mantis shrimp is the hottest-pink animal alive: fire's heat and lightning's flash in one strike.",
+   "parents": {
+    "a": {
+     "element": "fire",
+     "feature": "ember-orange club tips and cinder spots along the back"
+    },
+    "b": {
+     "element": "lightning",
+     "feature": "spark-yellow stripes on the tail fan and the two eye stalks shaped like bolts"
+    }
+   },
+   "palette": {
+    "dominant": "#ff4fb8",
+    "shade": "#c23c8c",
+    "light": "#ffbce4",
+    "accentA": "#FF9E3D",
+    "accentB": "#FFE14D",
+    "extra": "#3D8BFF"
+   },
+   "ip": "Not a pistol shrimp with one giant claw (Pokémon's Clauncher/Clawitzer): two symmetrical clubs, a flat segmented body, eye stalks.",
+   "alt": "firefly squid"
+  },
+  {
+   "key": "fire+poison",
+   "skill": "Brimstone",
+   "name": "Embertoad",
+   "nameToday": "Smogpup",
+   "nameNote": "proposed (Smogpup names a dog; the animal is a toad)",
+   "animal": "fire-bellied toad",
+   "species": "Bombina orientalis",
+   "kind": "real",
+   "bodyPlan": "splat",
+   "view": "front",
+   "move": "walk",
+   "pose": "a straight front view, symmetrical, in a splat stance: the wide belly low, two big eyes bulging up on top of the head, the hind legs stretched out sideways in a Z on both sides, the front feet planted",
+   "desc": "a fire-bellied toad: a wide squat warty body, big bulging eyes on top, a flat mouth, stubby legs, a belly flashing ember red",
+   "why": "The fire-bellied toad flashes a flame-red belly to warn that its skin is toxic: fire and poison are one display. The burn is the belly, the poison is the warts.",
+   "parents": {
+    "a": {
+     "element": "fire",
+     "feature": "ember belly patches and a flame-red eye ridge"
+    },
+    "b": {
+     "element": "poison",
+     "feature": "acid-green warts and violet toxin spots on the back"
+    }
+   },
+   "palette": {
+    "dominant": "#d6452f",
+    "shade": "#922f20",
+    "light": "#efb8b0",
+    "accentA": "#FF9E3D",
+    "accentB": "#8FE53A",
+    "extra": "#D9B3FF"
+   },
+   "ip": "Not Pokémon's Croagunk/Toxicroak (upright, cheek sacs) nor Politoed (swirl belly): a flat squat four-legged toad with a cream chin.",
+   "alt": "scorpion with an ember stinger",
+   "lift": "#FF9E3D",
+   "liftAt": "the belly and the throat"
+  },
+  {
+   "key": "fire+earth",
+   "skill": "Magma",
+   "name": "Magmole",
+   "nameToday": "Magmole",
+   "nameNote": "keep",
+   "animal": "mole",
+   "species": "Talpa europaea",
+   "kind": "real",
+   "bodyPlan": "molehill pop-up",
+   "view": "front",
+   "move": "crawl",
+   "pose": "popping up out of its molehill, a straight front view, symmetrical: a wide low mound of earth across the bottom, the round head and shoulders rising out of it in the middle with the pointed snout, two huge spade-shaped digging paws spread out sideways at both sides with long claws, two rock-plate points on the crown",
+   "desc": "a mole: a plump velvet body, a pointed pink snout, tiny eyes, two huge spade-shaped digging paws with long claws, a crust of cracked rock plates on its crown, popping out of its molehill",
+   "why": "A mole digs through the earth; this one digs through magma. The rock crust on its back is the earth, the lava seams between the plates and the glowing claw tips are the fire.",
+   "parents": {
+    "a": {
+     "element": "fire",
+     "feature": "lava seams between the rock plates and ember-lit claw tips"
+    },
+    "b": {
+     "element": "earth",
+     "feature": "a crust of stone plates on the crown and a sandstone molehill"
+    }
+   },
+   "palette": {
+    "dominant": "#ff9f1c",
+    "shade": "#c27915",
+    "light": "#ffdba9",
+    "accentA": "#FFD24A",
+    "accentB": "#6B5848",
+    "extra": "#EADBC0"
+   },
+   "ip": "Not Pokémon's Drilbur/Excadrill (drill claws, a steel head): a plump velvet mole with spade paws and no drill.",
+   "alt": "bombardier beetle (beetle is taken by the foes)",
+   "prop": "its molehill"
+  },
+  {
+   "key": "fire+wind",
+   "skill": "Inferno",
+   "name": "Flarewhirl",
+   "nameToday": "Flarewhirl",
+   "nameNote": "keep",
+   "animal": "flame skimmer dragonfly",
+   "species": "Libellula saturata",
+   "kind": "real",
+   "bodyPlan": "thin-bodied four-wing flier",
+   "view": "spread",
+   "move": "hover",
+   "pose": "seen from directly above with all four wings fully and symmetrically spread, the long thin body vertical in the middle, the big round eyes at the top, the tail at the bottom",
+   "desc": "a flame skimmer dragonfly: a long thin segmented body, a round head with two huge eyes, four narrow wings held straight out",
+   "why": "The flame skimmer is a real dragonfly named for its fire colour, and a dragonfly is wind itself: a darter that rides gusts and makes them. The ember wing tips are the burn, the mist-white wing fields are the gust.",
+   "parents": {
+    "a": {
+     "element": "fire",
+     "feature": "flame-yellow tips on the wing edges and an ember body"
+    },
+    "b": {
+     "element": "wind",
+     "feature": "mist-white wing fields with breeze-teal veins"
+    }
+   },
+   "palette": {
+    "dominant": "#f24c00",
+    "shade": "#a53400",
+    "light": "#fabb9e",
+    "accentA": "#FFD24A",
+    "accentB": "#D8FAF0",
+    "extra": "#56B8A8"
+   },
+   "ip": "Not Pokémon's Yanma/Yanmega (green, red eyes, huge wings): flame orange with cream wings and a cute round face.",
+   "alt": "sugar glider (used by wind+nature) or jackrabbit (used by lightning+wind)",
+   "lift": "#D8FAF0",
+   "liftAt": "the four wings"
+  },
+  {
+   "key": "fire+metal",
+   "skill": "Forge",
+   "name": "Anviljaw",
+   "nameToday": "Anvilpup",
+   "nameNote": "proposed (Anvilpup names a dog; the animal is a crocodile)",
+   "animal": "crocodile",
+   "species": "Crocodylus (hatchling)",
+   "kind": "real",
+   "bodyPlan": "long low jaws",
+   "view": "profile",
+   "move": "crawl",
+   "pose": "lying low on the ground facing left, the long jaws open wide at the left, a row of bronze scutes zigzagging down the back, four short legs, the thick ridged tail curving up at the right",
+   "desc": "a crocodile hatchling: a long low body, long flat jaws, a row of raised scutes down the back, short legs, a thick tapering tail",
+   "why": "A crocodile's armour is forge work: bronze scutes baked hot in the sun and jaws that close like an anvil. The plates are the metal, the heat and the glow between the jaws are the fire.",
+   "parents": {
+    "a": {
+     "element": "fire",
+     "feature": "ember-orange eye ridges and a glow between the jaws"
+    },
+    "b": {
+     "element": "metal",
+     "feature": "bright-gold scutes down the back and gold claws"
+    }
+   },
+   "palette": {
+    "dominant": "#cd7f32",
+    "shade": "#9c6126",
+    "light": "#ecceb1",
+    "accentA": "#FF9E3D",
+    "accentB": "#FFD84A",
+    "extra": "#9C6410"
+   },
+   "ip": "Not Pokémon's Totodile/Feraligatr (blue, upright, red spines) nor Krokorok (striped, upright): a four-legged low bronze crocodile with a long snout.",
+   "alt": "rhinoceros beetle (beetle is taken), or a bulldog pup if the dog name must stay"
+  },
+  {
+   "key": "fire+nature",
+   "skill": "Wildfire",
+   "name": "Emberhopper",
+   "nameToday": "Embersprout",
+   "nameNote": "proposed (keep Embersprout if the sprout read matters more than the hop)",
+   "animal": "locust",
+   "species": "Schistocerca gregaria",
+   "kind": "real",
+   "bodyPlan": "chevron-legged hopper",
+   "view": "profile",
+   "move": "leap",
+   "pose": "standing facing left, the body level, the big head at the left with two long antennae swept back, the huge hind legs folded in a chevron with the knees raised above the back, the wings folded along the back",
+   "desc": "a locust: a long body with a big head and two long antennae, folded wings along the back, two enormous jumping hind legs bent in a chevron, small front legs",
+   "why": "A locust swarm crosses a field the way wildfire does, and it is lime-and-ember like a grassfire: nature's field and the fire that races over it. The ember hind legs are the burn, the leaf-green body the thorns and regrowth.",
+   "parents": {
+    "a": {
+     "element": "fire",
+     "feature": "ember-orange hind legs and flame-tipped wing edges"
+    },
+    "b": {
+     "element": "nature",
+     "feature": "a leaf-green body with a new-leaf stripe and leaf-shaped wings"
+    }
+   },
+   "palette": {
+    "dominant": "#d4e157",
+    "shade": "#a1ab42",
+    "light": "#eff4bf",
+    "accentA": "#FF9E3D",
+    "accentB": "#3E9B47",
+    "extra": "#CDEFA2"
+   },
+   "ip": "Not Pokémon's Kricketot/Kricketune (red-black cricket with a moustache) nor Scyther: a plain lime locust with chevron legs.",
+   "alt": "chameleon that flushes ember orange"
+  },
+  {
+   "key": "ice+lightning",
+   "skill": "Cryo Arc",
+   "name": "Sparkfrost",
+   "nameToday": "Sparkfrost",
+   "nameNote": "keep",
+   "animal": "narwhal",
+   "species": "Monodon monoceros",
+   "kind": "real",
+   "bodyPlan": "spy-hop",
+   "view": "front",
+   "move": "float",
+   "pose": "spy-hopping, a straight front view, symmetrical: the body upright and vertical, the round head at the top with the long spiral tusk pointing straight up at the sky, the two small flippers held out at both sides, the crescent tail flukes spread at the bottom",
+   "desc": "a narwhal: a chubby torpedo body with a mottled back and a snow belly, a long spiral tusk, small flippers, crescent tail flukes",
+   "why": "The unicorn of the sea: an arctic whale whose spiral tusk is a unicorn horn. The whale is the ice, the tusk is the lightning rod that the Horn Arc leaps from.",
+   "parents": {
+    "a": {
+     "element": "ice",
+     "feature": "a snow belly and frost crystals on the flippers"
+    },
+    "b": {
+     "element": "lightning",
+     "feature": "a spark-yellow spiral tusk with an arc-light glow and zigzag mottling"
+    }
+   },
+   "palette": {
+    "dominant": "#00d2ff",
+    "shade": "#00a0c2",
+    "light": "#9eeeff",
+    "accentA": "#DDF7FC",
+    "accentB": "#FFE14D",
+    "extra": "#3B3FE0"
+   },
+   "ip": "No franchise narwhal to avoid; keep it chubby with one big eye and no dorsal fin so it is not the orca parent.",
+   "alt": "electric ray (a flat disc seen from above)"
+  },
+  {
+   "key": "ice+poison",
+   "skill": "Venom",
+   "name": "Frostjelly",
+   "nameToday": "Frostfang",
+   "nameNote": "proposed (Frostfang can stay: the stinging tendrils are its fangs)",
+   "animal": "lion's mane jellyfish",
+   "species": "Cyanea capillata",
+   "kind": "real",
+   "bodyPlan": "bell with a fringe",
+   "view": "front",
+   "move": "hover",
+   "pose": "drifting upright, a straight front view, symmetrical: a wide, low, flattened bell about twice as wide as it is tall, the scalloped rim along its bottom edge, and below it eight long thin tendrils hanging straight down, spaced apart with clear gaps between them, no tendril touching another, the middle ones the longest",
+   "desc": "a lion's mane jellyfish: a wide, low, flattened bell with a scalloped rim and a face on it, and below it eight long thin tendrils",
+   "why": "The lion's mane jelly is the biggest jellyfish and lives in cold arctic water; its sting is the venom. A frost cloud with a poison fringe that drifts over the field.",
+   "parents": {
+    "a": {
+     "element": "ice",
+     "feature": "frost-cyan bell highlights and a snow-white scalloped rim"
+    },
+    "b": {
+     "element": "poison",
+     "feature": "acid-green tendril tips and violet spots on the bell"
+    }
+   },
+   "palette": {
+    "dominant": "#7b61ff",
+    "shade": "#5442ad",
+    "light": "#cdc3ff",
+    "accentA": "#9BE7F5",
+    "accentB": "#8FE53A",
+    "extra": "#D9B3FF"
+   },
+   "ip": "Not Pokémon's Tentacool/Tentacruel (red gems, two big tentacles): a scalloped dome, many thin tendrils, no gems.",
+   "alt": "blue-ringed octopus",
+   "lift": "#9BE7F5",
+   "liftAt": "the top of the bell and its scalloped rim",
+   "gateAccepted": {
+    "margins": {
+     "contract": -0.006,
+     "twin": -0.027,
+     "ally": -0.038
+    },
+    "why": "a round bell over eight tendrils, like the lion cub and the lamb's cloud at 40 px; on screen its tendrils and indigo set it apart (2026-10-16)"
+   }
+  },
+  {
+   "key": "ice+earth",
+   "skill": "Glacier",
+   "name": "Tundrock",
+   "nameToday": "Tundrock",
+   "nameNote": "keep",
+   "animal": "woolly mammoth",
+   "species": "Mammuthus primigenius",
+   "kind": "real",
+   "bodyPlan": "domed heavy quadruped with tusks",
+   "view": "profile",
+   "move": "walk",
+   "pose": "standing facing left, the humped body held high on four long pillar legs, the high domed head at the left with the trunk hanging down in a curve in front of it, a big curved tusk sweeping forward, a shaggy coat that leaves the legs showing",
+   "desc": "a woolly mammoth calf: a mountain of shaggy fur with a high domed head, humped shoulders, two big curved tusks, a hanging trunk, four pillar legs",
+   "why": "The mammoth is the ice age itself: a shaggy mountain with tusks of frozen ivory. Earth's heavy stomp in an ice animal; the stone plates on its hump are the quake, the frost tusks the chill.",
+   "parents": {
+    "a": {
+     "element": "ice",
+     "feature": "frost-cyan tusks and a snow-white chest"
+    },
+    "b": {
+     "element": "earth",
+     "feature": "a clay-brown shaggy fringe and stone plates on the hump"
+    }
+   },
+   "palette": {
+    "dominant": "#9fc5e8",
+    "shade": "#7996b0",
+    "light": "#dbe9f6",
+    "accentA": "#9BE7F5",
+    "accentB": "#9C8268",
+    "extra": "#EADBC0"
+   },
+   "ip": "Not Pokémon's Mamoswine (brown, a mask face, pig snout): pale steel blue, a cute domed head, a real trunk.",
+   "alt": "polar bear",
+   "gateAccepted": {
+    "margins": {
+     "twin": -0.054,
+     "ally": -0.031
+    },
+    "why": "the mammoth and the snow lamb are both bodies held high on long legs at 40 px; on screen the trunk, the tusk and the colours set it apart, and from the turtle pet (2026-10-16)"
+   }
+  },
+  {
+   "key": "ice+wind",
+   "skill": "Blizzard",
+   "name": "Flurrin",
+   "nameToday": "Flurrin",
+   "nameNote": "keep",
+   "animal": "snow lamb",
+   "species": "Ovis aries (lamb)",
+   "kind": "real",
+   "bodyPlan": "cloud on stilts",
+   "view": "profile",
+   "move": "walk",
+   "pose": "standing facing left, the big round fleece body scalloped like a cumulus cloud carried high on four long thin stilt legs, the small head low at the left with floppy ears and a fleece tuft on top, a stubby tail",
+   "desc": "a lamb in winter wool: a big round fleece body scalloped like a cloud, four thin legs, a small dark-grey face with floppy ears, a fleece tuft on the head",
+   "why": "A lamb's fleece is a cloud, and in winter wool it is a snow cloud: a blizzard on four legs. The cloud is the wind, the wool is the snow.",
+   "parents": {
+    "a": {
+     "element": "ice",
+     "feature": "frost-cyan shading in the fleece and a snow body"
+    },
+    "b": {
+     "element": "wind",
+     "feature": "sky-haze mist curls in the fleece lobes and mint hooves"
+    }
+   },
+   "palette": {
+    "dominant": "#e0f7ff",
+    "shade": "#aabcc2",
+    "light": "#f3fcff",
+    "accentA": "#9BE7F5",
+    "accentB": "#B9D8F0",
+    "extra": "#2F7A78"
+   },
+   "ip": "Watch Pokémon's Wooloo (a white ball sheep with a dark face and curled horns) and Mareep: ours has no horns, longer legs, a steel-grey face and a cloud-scalloped fleece.",
+   "alt": "ermine in winter white",
+   "gateAccepted": {
+    "margins": {
+     "twin": -0.054,
+     "ally": -0.037,
+     "ground": -0.03
+    },
+    "why": "a fleece cloud on stilt legs, like the mammoth at 40 px; on screen its white cloud and teal swirls set it apart; a reworded redo scored worse (-0.112) (2026-10-16)"
+   }
+  },
+  {
+   "key": "ice+metal",
+   "skill": "Cold Iron",
+   "name": "Rimeplate",
+   "nameToday": "Rimeplate",
+   "nameNote": "keep",
+   "animal": "walrus",
+   "species": "Odobenus rosmarus",
+   "kind": "real",
+   "bodyPlan": "hauled-out blob with tusks",
+   "view": "profile",
+   "move": "crawl",
+   "pose": "hauled out and lying low facing left, the huge sausage body on the ground, the round head raised at the upper left with the two long tusks pointing straight down, a bristly muzzle, one front flipper, the hind flippers fanned at the right",
+   "desc": "a walrus: a huge wrinkled sausage body with a dark slate-blue back and a snow belly, a round head with a bristly moustache and two long tusks pointing down, front flippers, fanned hind flippers",
+   "why": "A walrus hauled out on the ice: its tusks are cold ivory, the game's iron, and its blubber is armour plate. The ice plates on its back are the chill, the gold-tipped tusks the killing bite.",
+   "parents": {
+    "a": {
+     "element": "ice",
+     "feature": "a frost-cyan ice-plate pattern over its dark slate-blue back, and a snow belly"
+    },
+    "b": {
+     "element": "metal",
+     "feature": "pale-gold tusks with bright tips and a gold whisker collar"
+    }
+   },
+   "palette": {
+    "dominant": "#7f9cb8",
+    "shade": "#61778c",
+    "light": "#ced9e4",
+    "accentA": "#DDF7FC",
+    "accentB": "#FFEC94",
+    "extra": "#D99A16"
+   },
+   "ip": "Watch Pokémon's Walrein (big blue walrus with white tusks): ours lies flat, is blue-grey with a snow belly, has a bristly moustache and gold tusk tips, no collar.",
+   "alt": "polar bear in iron plates, or an emperor penguin",
+   "gateAccepted": {
+    "margins": {
+     "twin": -0.013,
+     "ally": -0.015,
+     "ground": -0.04
+    },
+    "why": "its pale blue-grey body reads on the sand by its plum outline and dark slate back; its twin with the rhino and ally with the pangolin are inside a hair (2026-10-16)"
+   }
+  },
+  {
+   "key": "ice+nature",
+   "skill": "Frostbloom",
+   "name": "Frostpetal",
+   "nameToday": "Frostpetal",
+   "nameNote": "keep",
+   "animal": "reindeer fawn",
+   "species": "Rangifer tarandus",
+   "kind": "real",
+   "bodyPlan": "stilt-legged with antlers",
+   "view": "profile",
+   "move": "walk",
+   "pose": "standing facing left on four long thin legs, a long neck rising to a small head at the upper left, two branching antlers rising high above the head with frost-flower buds at every tip, a short tail",
+   "desc": "a reindeer fawn: a slim body on long thin legs, a long neck, a small head, two branching antlers budding with frost flowers at the tips",
+   "why": "The reindeer is the forest's winter animal, and antlers are the branches that grow and shed like a plant; here they bloom with frost flowers. The antlers are the brambles and the regrowth, the frost is the freeze.",
+   "parents": {
+    "a": {
+     "element": "ice",
+     "feature": "frost-cyan antlers with snow crystals at the tips"
+    },
+    "b": {
+     "element": "nature",
+     "feature": "blossom-pink buds on the antler tips and leaf-green saddle spots"
+    }
+   },
+   "palette": {
+    "dominant": "#7fffd4",
+    "shade": "#61c2a1",
+    "light": "#ceffef",
+    "accentA": "#DDF7FC",
+    "accentB": "#FF9DB8",
+    "extra": "#3E9B47"
+   },
+   "ip": "Not Pokémon's Stantler (orb antlers) nor Sawsbuck (seasonal forms): an aquamarine fawn with spindly legs and plain branch antlers.",
+   "alt": "arctic hare"
+  },
+  {
+   "key": "lightning+poison",
+   "skill": "Toxic Shock",
+   "name": "Fizzlebolt",
+   "nameToday": "Fizzlebolt",
+   "nameNote": "keep",
+   "animal": "platypus",
+   "species": "Ornithorhynchus anatinus",
+   "kind": "real",
+   "bodyPlan": "diagonal dive",
+   "view": "profile",
+   "move": "swim",
+   "pose": "diving down to the left on a diagonal: the flat furry body tilted, the wide duck bill at the lower left, the broad flat paddle tail raised at the upper right, the webbed feet spread out below the body",
+   "desc": "a platypus: a flat oval furry body with a deep-violet back and tail and lime sides and belly, a wide flat duck bill, four webbed feet, a broad paddle tail, a venom spur on each hind ankle",
+   "why": "The platypus senses electricity with its bill and carries a venom spur: the one animal that is lightning and poison at once. The bill is the chain, the spur is the puddle.",
+   "parents": {
+    "a": {
+     "element": "lightning",
+     "feature": "a spark-yellow bill rim and a zigzag stripe down the back"
+    },
+    "b": {
+     "element": "poison",
+     "feature": "violet venom spurs and toxic-green webbing between the toes"
+    }
+   },
+   "palette": {
+    "dominant": "#c6ff00",
+    "shade": "#96c200",
+    "light": "#e9ff9e",
+    "accentA": "#FFE14D",
+    "accentB": "#A35CF0",
+    "extra": "#3A1660"
+   },
+   "ip": "Not Pokémon's Psyduck (an upright yellow duck): a flat top-view platypus with a paddle tail and webbed feet, no duck body.",
+   "alt": "blue-ringed octopus (its rings flash before it bites)"
+  },
+  {
+   "key": "lightning+earth",
+   "skill": "Thunderquake",
+   "name": "Rumblebolt",
+   "nameToday": "Rumblebolt",
+   "nameNote": "keep",
+   "animal": "wild boar",
+   "species": "Sus scrofa",
+   "kind": "real",
+   "bodyPlan": "wedge charger with a crest",
+   "view": "profile",
+   "move": "walk",
+   "pose": "charging facing left, the big wedge head low at the left with the snout near the ground and two upturned tusks, a huge crest of tall jagged spikes standing up along the whole spine, taller than the body itself, four short legs, a corkscrew tail at the right",
+   "desc": "a wild boar: a wedge-shaped body with a big low head, a flat snout, two upturned tusks, a tall zigzag ridge of bristles along the spine, short legs, a curly tail",
+   "why": "A boar's charge is an earthquake and its bristle ridge is a bolt; it roots up the earth with lightning tusks. The crest is the chain, the stomp and the mud are the quake.",
+   "parents": {
+    "a": {
+     "element": "lightning",
+     "feature": "a spark-yellow zigzag crest and tusks with flash tips"
+    },
+    "b": {
+     "element": "earth",
+     "feature": "ochre mud on the legs and stone plates on the shoulders"
+    }
+   },
+   "palette": {
+    "dominant": "#b8860b",
+    "shade": "#8c6608",
+    "light": "#e4d1a2",
+    "accentA": "#FFE14D",
+    "accentB": "#B8652F",
+    "extra": "#3B3029"
+   },
+   "ip": "Not Pokémon's Tepig/Emboar (fire pigs) nor Grumpig: a gold boar with a zigzag crest and no flame.",
+   "alt": "rhinoceros (used by earth+metal)"
+  },
+  {
+   "key": "lightning+wind",
+   "skill": "Storm",
+   "name": "Gustbolt",
+   "nameToday": "Gustbolt",
+   "nameNote": "keep",
+   "animal": "jackrabbit",
+   "species": "Lepus californicus",
+   "kind": "real",
+   "bodyPlan": "stretched leaper",
+   "view": "profile",
+   "move": "leap",
+   "pose": "in a full-stretch leap facing left, the body stretched level, the forelegs reaching forward and down to the left, the hind legs trailing back to the right, two very long ears swept straight back along the top like two bolts, a puff tail",
+   "desc": "a jackrabbit: a lean hare with very long ears, a long stretched body, long hind legs, a puff tail",
+   "why": "The jackrabbit bolts across the plain: lightning speed, its ears cutting the wind, kicking up gusts behind it. The zigzag ear edges are the chain, the leap is the gust that pushes foes back.",
+   "parents": {
+    "a": {
+     "element": "lightning",
+     "feature": "spark-yellow ear tips with zigzag ear edges"
+    },
+    "b": {
+     "element": "wind",
+     "feature": "a mist-white belly and breeze-teal speed tufts at the heels"
+    }
+   },
+   "palette": {
+    "dominant": "#9fa8ff",
+    "shade": "#7980c2",
+    "light": "#dbdeff",
+    "accentA": "#FFE14D",
+    "accentB": "#D8FAF0",
+    "extra": "#2F7A78"
+   },
+   "ip": "No red cheeks and no bolt tail (Pikachu); not Pokémon's Buneary/Lopunny (upright, fluffy): a lilac hare in a full horizontal leap with swept-back ears.",
+   "alt": "flying squirrel on a gust"
+  },
+  {
+   "key": "lightning+metal",
+   "skill": "Railgun",
+   "name": "Voltgild",
+   "nameToday": "Voltgild",
+   "nameNote": "keep",
+   "animal": "chameleon",
+   "species": "Chamaeleo calyptratus",
+   "kind": "real",
+   "bodyPlan": "coil-tailed sniper",
+   "view": "profile",
+   "move": "walk",
+   "pose": "standing facing left on four pincer feet, the body level, the casque-crested head at the left, the long tongue shot straight out to the far left with a ball at its tip, the tail curled in a tight spiral at the right",
+   "desc": "a veiled chameleon: a tall casque crest on the head, a turret eye, a long tongue shot out with a sticky ball tip, pincer feet, a tail coiled in a spiral",
+   "why": "A chameleon's tongue fires in a hundredth of a second: a bolt from a railgun. Its skin shifts to a gilded metal sheen. The tongue is the chain to the nearest foe, the gold is the coin bite.",
+   "parents": {
+    "a": {
+     "element": "lightning",
+     "feature": "a neon-blue tongue with a spark-yellow tip and flash eyes"
+    },
+    "b": {
+     "element": "metal",
+     "feature": "a deep-gold casque crest and gold plates down the spine"
+    }
+   },
+   "palette": {
+    "dominant": "#ffd700",
+    "shade": "#c2a300",
+    "light": "#fff09e",
+    "accentA": "#3D8BFF",
+    "accentB": "#9C6410",
+    "extra": "#FFF7D1"
+   },
+   "ip": "Not Pokémon's Kecleon (green with a red zigzag belly): a gold chameleon with a tall casque, the tongue out, a tight spiral tail.",
+   "alt": "hammerhead shark"
+  },
+  {
+   "key": "lightning+nature",
+   "skill": "Thunderbloom",
+   "name": "Zaplily",
+   "nameToday": "Zaplily",
+   "nameNote": "keep",
+   "animal": "orchid mantis",
+   "species": "Hymenopus coronatus",
+   "kind": "real",
+   "bodyPlan": "upright stick insect",
+   "view": "profile",
+   "move": "walk",
+   "pose": "standing tall and upright facing left on four long thin legs, the thin body vertical, the two raptorial forearms folded up in front at the top left, the triangular head with two antennae at the top, the wing cases folded flat and narrow along the back, small petal flares on the legs",
+   "desc": "an orchid mantis: a tall thin insect standing upright, a triangular head with two antennae, two folded raptorial forearms, dark forest-green wing cases folded flat along its back, long legs banded in dark forest green with small petal-shaped flares",
+   "why": "The orchid mantis is an insect disguised as a flower (a bloom) whose strike is the fastest thing in the garden (the lightning). The strike is the bolt, the petals are the brambles.",
+   "parents": {
+    "a": {
+     "element": "lightning",
+     "feature": "spark-yellow forearm blades and flash eyes"
+    },
+    "b": {
+     "element": "nature",
+     "feature": "blossom-pink petal flares on the legs and a leaf-green body"
+    }
+   },
+   "palette": {
+    "dominant": "#a8e063",
+    "shade": "#80aa4b",
+    "light": "#def3c4",
+    "accentA": "#FFE14D",
+    "accentB": "#FF9DB8",
+    "extra": "#1F5A2E"
+   },
+   "ip": "Watch Pokémon's Fomantis/Lurantis (a pink-and-white orchid mantis with petal scythes) and Scyther: ours is spring-green dominant with small pink flares, real folded forearms, four legs on the ground.",
+   "alt": "cicada or grasshopper (locust is used by fire+nature)"
+  },
+  {
+   "key": "poison+earth",
+   "skill": "Swamp",
+   "name": "Bogling",
+   "nameToday": "Bogling",
+   "nameNote": "keep",
+   "animal": "bog spider",
+   "species": "a trapdoor spider with a jumping spider's face (Ctenizidae / Salticidae)",
+   "kind": "real",
+   "bodyPlan": "eight-legged star",
+   "view": "front",
+   "move": "walk",
+   "pose": "front view, symmetrical, facing the camera: a round fuzzy abdomen behind, a wide head with two huge round front eyes and two small ones above, eight legs splayed out symmetrically to both sides, two small pedipalps below the face",
+   "desc": "a fuzzy bog spider with a jumping spider's face: a round abdomen, a square head with two huge front eyes, eight banded legs, small pedipalps",
+   "why": "A trapdoor spider digs its burrow into the bog and bites with venom: the earth's ground and the poison's puddle. The mud bands on the legs are the quake, the fangs the weakening venom.",
+   "parents": {
+    "a": {
+     "element": "poison",
+     "feature": "violet fang tips and toxic-green eye shine"
+    },
+    "b": {
+     "element": "earth",
+     "feature": "ochre mud bands on the legs and sandstone fuzz"
+    }
+   },
+   "palette": {
+    "dominant": "#6b8e23",
+    "shade": "#496118",
+    "light": "#c7d4ab",
+    "accentA": "#A35CF0",
+    "accentB": "#B8652F",
+    "extra": "#8FE53A"
+   },
+   "ip": "Not Pokémon's Spinarak/Ariados (a face pattern on the abdomen) nor Joltik: an olive fuzzy spider with big front eyes and mud bands.",
+   "alt": "toad (used by fire+poison) or a mudskipper",
+   "lift": "#c7d4ab",
+   "liftAt": "the fuzzy abdomen and the bands on the legs"
+  },
+  {
+   "key": "poison+wind",
+   "skill": "Miasma",
+   "name": "Mistmaw",
+   "nameToday": "Mistmaw",
+   "nameNote": "keep",
+   "animal": "pufferfish",
+   "species": "Tetraodontidae",
+   "kind": "real",
+   "bodyPlan": "spiked ball",
+   "view": "profile",
+   "move": "hover",
+   "pose": "fully puffed into a ball, floating facing left, very long sharp spikes standing straight out all round like a star, the pouting mouth at the left, two tiny side fins, a big fan tail sticking far out at the right",
+   "desc": "a pufferfish puffed up into a ball: a round body covered in very long sharp spikes, a pouting mouth, big eyes, tiny fins, a big fan tail",
+   "why": "A puffer gulps air to puff up (the wind) and its body is a toxin (the poison): a floating cloud of miasma with a maw. The puff is the gust that pushes, the spikes carry the venom.",
+   "parents": {
+    "a": {
+     "element": "poison",
+     "feature": "violet spots and acid-green spike tips"
+    },
+    "b": {
+     "element": "wind",
+     "feature": "a mist-white belly and breeze-teal fins"
+    }
+   },
+   "palette": {
+    "dominant": "#c39bd3",
+    "shade": "#9476a0",
+    "light": "#e8d9ee",
+    "accentA": "#8FE53A",
+    "accentB": "#D8FAF0",
+    "extra": "#6E2DB5"
+   },
+   "ip": "Watch Pokémon's Qwilfish (dark teal, a frown, long spikes): ours is mauve with a snow belly, short spikes, a cute pout.",
+   "alt": "skunk (its spray drifts on the wind)",
+   "gateAccepted": {
+    "margins": {
+     "twin": -0.043,
+     "ally": -0.039
+    },
+    "why": "a round ball of spikes fills the same box as the lamb's cloud and the baby dragon at 40 px; on screen its long spikes, fan tail and mauve set it apart (2026-10-16)"
+   }
+  },
+  {
+   "key": "poison+metal",
+   "skill": "Corrosion",
+   "name": "Rustclaw",
+   "nameToday": "Rustgrub",
+   "nameNote": "proposed (Rustgrub names a larva; the animal is a scorpion)",
+   "animal": "scorpion",
+   "species": "Pandinus imperator",
+   "kind": "real",
+   "bodyPlan": "pincers front, tail over the back",
+   "view": "profile",
+   "move": "walk",
+   "pose": "walking facing left, the flat armoured body low, both big pincers held out in front at the left, eight legs, the segmented tail arching up and forward over the back so the stinger hangs above the head",
+   "desc": "a scorpion: a flat armoured body with gold-plated segments, two big pincers held forward, eight legs, a segmented tail arched over the back ending in a stinger",
+   "why": "A scorpion's shell is forged armour and its pincers are tongs; its sting is an acid that eats through anything: corrosion. The gold plates are the metal, the venom drop is the poison.",
+   "parents": {
+    "a": {
+     "element": "poison",
+     "feature": "a toxic-green venom drop at the stinger and violet segment bands"
+    },
+    "b": {
+     "element": "metal",
+     "feature": "antique-gold pincer tips and gold claw plates on the back"
+    }
+   },
+   "palette": {
+    "dominant": "#8e7cc3",
+    "shade": "#615485",
+    "light": "#d4cde8",
+    "accentA": "#8FE53A",
+    "accentB": "#D99A16",
+    "extra": "#3A1660"
+   },
+   "ip": "Watch Pokémon's Skorupi/Drapion (purple scorpions): let the gold armour dominate the back so it reads bronze-purple, realistic pincers, no claws on the tail.",
+   "alt": "soldier ant (its bite injects formic acid)",
+   "lift": "#d4cde8",
+   "liftAt": "the underside and the bands between the armour segments"
+  },
+  {
+   "key": "poison+nature",
+   "skill": "Nightshade",
+   "name": "Nightling",
+   "nameToday": "Nightling",
+   "nameNote": "keep",
+   "animal": "slow loris",
+   "species": "Nycticebus coucang",
+   "kind": "real",
+   "bodyPlan": "branch clinger",
+   "view": "profile",
+   "move": "walk",
+   "pose": "clinging to a vertical branch at the right, the round fuzzy body hugging the branch, both arms and legs wrapped round it, the round head turned to the left with two huge round eyes, a leaf sprouting from the top of the branch",
+   "desc": "a slow loris: a round fuzzy body, a round head with two huge round eyes and small ears, short arms and legs wrapped round a vertical branch with a leaf on top",
+   "why": "The slow loris is the only venomous primate: it licks a toxin gland on its elbow and bites, and it comes out at night in the trees. The elbow glands are the poison, the branch and the leaf are the brambles.",
+   "parents": {
+    "a": {
+     "element": "poison",
+     "feature": "toxic-green eye shine and violet elbow glands"
+    },
+    "b": {
+     "element": "nature",
+     "feature": "a bark-brown branch with a new leaf on top and a new-leaf belly"
+    }
+   },
+   "palette": {
+    "dominant": "#7a3fa8",
+    "shade": "#532b72",
+    "light": "#ccb6de",
+    "accentA": "#8FE53A",
+    "accentB": "#8A5A33",
+    "extra": "#CDEFA2"
+   },
+   "ip": "No franchise loris to avoid; keep a natural loris (round, big eyes) on a plain branch.",
+   "alt": "velvet caterpillar with venom spines",
+   "prop": "its branch",
+   "lift": "#CDEFA2",
+   "liftAt": "the belly, the chest and the face mask"
+  },
+  {
+   "key": "earth+wind",
+   "skill": "Sandstorm",
+   "name": "Dunepuff",
+   "nameToday": "Dunepuff",
+   "nameNote": "keep",
+   "animal": "Bactrian camel",
+   "species": "Camelus bactrianus",
+   "kind": "real",
+   "bodyPlan": "tall two-humped walker",
+   "view": "profile",
+   "move": "walk",
+   "pose": "walking facing left on four long legs with wide pads, two round humps on the back like dunes, the long neck curving up to a small head at the upper left, a shaggy fringe under the neck, a tufted tail",
+   "desc": "a Bactrian camel calf: a tall body with two round humps, a long curved neck, a small head with floppy lips, long legs with wide pads, shaggy neck fringe, a tufted tail",
+   "why": "A camel walks through sandstorms with its nostrils shut: its humps are dunes and its fur is sand blown into tufts. The humps are the quake's weight, the wind tufts are the gust.",
+   "parents": {
+    "a": {
+     "element": "earth",
+     "feature": "ochre humps and sandstone foot pads"
+    },
+    "b": {
+     "element": "wind",
+     "feature": "cloud-white wind tufts at the neck and tail, sky-haze mist"
+    }
+   },
+   "palette": {
+    "dominant": "#e6c88a",
+    "shade": "#af9869",
+    "light": "#f6ead3",
+    "accentA": "#B8652F",
+    "accentB": "#FFFFFF",
+    "extra": "#B9D8F0"
+   },
+   "ip": "Not Pokémon's Numel/Camerupt (fire camels with volcano humps): sand-coloured, two round humps, no volcano.",
+   "alt": "meerkat standing sentry"
+  },
+  {
+   "key": "earth+metal",
+   "skill": "Ironstone",
+   "name": "Ironclod",
+   "nameToday": "Ironclod",
+   "nameNote": "keep",
+   "animal": "rhinoceros",
+   "species": "Diceros bicornis (calf)",
+   "kind": "real",
+   "bodyPlan": "barrel with a nose horn",
+   "view": "profile",
+   "move": "walk",
+   "pose": "standing facing left on four short pillar legs, a long low barrel body in plated skin folds, the heavy head low at the left with a huge horn rising up and forward from the nose and a small second horn behind it, a short tail",
+   "desc": "a rhinoceros calf: a long low barrel body in thick plated skin folds, a heavy low head, a huge nose horn and a small second horn, small ears, short pillar legs",
+   "why": "A rhino is a walking boulder in iron plates with a horn of stone: earth's weight and metal's armour. The plates are the coin bite's armour, the stomp is the quake.",
+   "parents": {
+    "a": {
+     "element": "earth",
+     "feature": "stone-grey plates and clay skin folds"
+    },
+    "b": {
+     "element": "metal",
+     "feature": "an antique-gold horn and gold rivets along the plates"
+    }
+   },
+   "palette": {
+    "dominant": "#8d6e63",
+    "shade": "#604b43",
+    "light": "#d4c8c4",
+    "accentA": "#6B5848",
+    "accentB": "#F7BE1E",
+    "extra": "#3B3029"
+   },
+   "ip": "Not Pokémon's Rhyhorn/Rhydon (grey rock rhino, a drill): a rust-brown calf with a plain upward horn and skin folds.",
+   "alt": "armadillo curled into a ball",
+   "lift": "#d4c8c4",
+   "liftAt": "the armour plates along its side and the belly"
+  },
+  {
+   "key": "earth+nature",
+   "skill": "Overgrowth",
+   "name": "Mossbara",
+   "nameToday": "Mossbun",
+   "nameNote": "proposed (Mossbun can stay: a capybara is a loaf of a bun)",
+   "animal": "capybara",
+   "species": "Hydrochoerus hydrochaeris",
+   "kind": "real",
+   "bodyPlan": "blunt-headed barrel",
+   "view": "profile",
+   "move": "walk",
+   "pose": "standing facing left on four legs long enough to show daylight under the belly, a tall barrel body, the big blunt rectangular head at the left with a flat nose and small ears on top, no tail, a sprout with two leaves and a mushroom growing on its back",
+   "desc": "a capybara: a tall barrel body on sturdy legs with a large sandstone underside from the chin to the tail, a big blunt rectangular head with a flat nose and small ears, no tail, moss and a leaf sprout growing on its back",
+   "why": "The capybara sits in the mud and lets anything grow on it: a mossy hillside that walks. The mud and the stone-still calm are the earth, the overgrowth on its back is the nature.",
+   "parents": {
+    "a": {
+     "element": "earth",
+     "feature": "a large sandstone underside from the chin to the tail, and clay mud boots"
+    },
+    "b": {
+     "element": "nature",
+     "feature": "new-leaf moss and a leaf sprout on the back, a bark-brown nose"
+    }
+   },
+   "palette": {
+    "dominant": "#2e8b57",
+    "shade": "#1f5f3b",
+    "light": "#b0d3bf",
+    "accentA": "#C9AF8C",
+    "accentB": "#CDEFA2",
+    "extra": "#8A5A33"
+   },
+   "ip": "Not Pokémon's Shaymin (a green hedgehog with a flower), which is why this is not a hedgehog: a capybara with a sprout and a mushroom, no flower.",
+   "alt": "beaver (used by metal+nature) or a wombat",
+   "lift": "#C9AF8C",
+   "liftAt": "the whole underside from the chin to the tail, the chest and the snout",
+   "gateAccepted": {
+    "margins": {
+     "ground": -0.064
+    },
+    "why": "its sea-green body sits 20 L* from the darkest hedge (the peaks, L* 31.7), a hair under the separation step; the sandstone underside, the cream rim and the plum outline carry it there (2026-10-16)"
+   }
+  },
+  {
+   "key": "wind+metal",
+   "skill": "Bladewind",
+   "name": "Whirlblade",
+   "nameToday": "Whirlblade",
+   "nameNote": "keep",
+   "animal": "kamaitachi (sickle weasel)",
+   "species": "folklore: a weasel yokai that rides whirlwinds",
+   "kind": "folklore",
+   "bodyPlan": "arched leaper with sickles",
+   "view": "profile",
+   "move": "leap",
+   "pose": "mid-leap facing left, the long tube body arched up like a crescent, the head at the left, the forepaws reaching down and forward ending in two long curved sickle claws, the hind legs trailing, a thin tufted tail curling behind at the right",
+   "desc": "a sickle weasel: a long slender tube body, a small round head with round ears, short legs, two long curved sickle-shaped claws on the forepaws, a thin tufted tail",
+   "why": "The kamaitachi of Japanese folklore is a weasel that rides whirlwinds and cuts with sickle claws: wind and blade in one creature, and a folk animal rather than a franchise design. The whirl is the gust, the sickles are the killing bite.",
+   "parents": {
+    "a": {
+     "element": "wind",
+     "feature": "a mist-white belly and breeze-teal wind curls at the heels"
+    },
+    "b": {
+     "element": "metal",
+     "feature": "bright-gold sickle claws and a gold collar"
+    }
+   },
+   "palette": {
+    "dominant": "#b0e0e6",
+    "shade": "#86aaaf",
+    "light": "#e1f3f6",
+    "accentA": "#D8FAF0",
+    "accentB": "#FFD84A",
+    "extra": "#2F7A78"
+   },
+   "ip": "Not Pokémon's Sneasel/Weavile (black-and-red bipedal with feather ears): a powder-blue quadruped weasel in a leap with gold sickles.",
+   "alt": "a kite-tailed swift (bird is taken by the base pets)"
+  },
+  {
+   "key": "wind+nature",
+   "skill": "Pollenstorm",
+   "name": "Pollenpuff",
+   "nameToday": "Pollenpuff",
+   "nameNote": "keep",
+   "animal": "sugar glider",
+   "species": "Petaurus breviceps",
+   "kind": "real",
+   "bodyPlan": "square-sailed glider",
+   "view": "spread",
+   "move": "hover",
+   "pose": "seen from directly above in a glide, symmetrical: the skin sail stretched into a square between the four spread limbs, the round head with big eyes and round ears at the top, the long bushy tail trailing straight down below",
+   "desc": "a sugar glider: a small furry body with a skin membrane stretched between all four limbs into a square sail, a round head with huge eyes and big round ears, a long bushy tail",
+   "why": "A sugar glider sails between blossoms on a skin sail and carries pollen in its fur: a flying pollinator. The sail is the gust, the pollen dust is the bloom's regrowth.",
+   "parents": {
+    "a": {
+     "element": "wind",
+     "feature": "a cloud-white sail edge and sky-haze membrane"
+    },
+    "b": {
+     "element": "nature",
+     "feature": "blossom-pink pollen dots and a bark-brown dorsal stripe"
+    }
+   },
+   "palette": {
+    "dominant": "#fff59d",
+    "shade": "#c2ba77",
+    "light": "#fffbda",
+    "accentA": "#FFFFFF",
+    "accentB": "#FF9DB8",
+    "extra": "#8A5A33"
+   },
+   "ip": "Watch Pokémon's Emolga (a white flying squirrel with yellow cheeks and black wing edges): ours is pollen-yellow with a bark stripe, big round ears, a bushy tail and no cheeks.",
+   "alt": "bumblebee (bee is taken by the foes), or a hummingbird hawk-moth (moth is taken)",
+   "gateAccepted": {
+    "margins": {
+     "twin": -0.036
+    },
+    "why": "a square sail and the pufferfish's ball of spikes fill the same box at 40 px; on screen the sail, the tail and the pollen yellow set it apart (2026-10-16)"
+   }
+  },
+  {
+   "key": "metal+nature",
+   "skill": "Harvest",
+   "name": "Sproutgear",
+   "nameToday": "Sproutgear",
+   "nameNote": "keep",
+   "animal": "beaver",
+   "species": "Castor canadensis",
+   "kind": "real",
+   "bodyPlan": "round sitter with a paddle",
+   "view": "profile",
+   "move": "walk",
+   "pose": "sitting up facing left, a round body, the head at the upper left with two big front teeth showing, the forepaws together at the chest, the broad flat paddle tail lying on the ground behind at the right, a sprout with two leaves growing from the top of its head",
+   "desc": "a beaver: a round furry body sitting up, a head with small ears and two big gold front teeth, small forepaws, a broad flat scaly paddle tail, a leaf sprout on its head",
+   "why": "The beaver is nature's engineer: it harvests timber with chisel teeth and builds with wood and mud. The gold teeth and the amber coat are the coin bite, the sprout and the timber are the regrowth.",
+   "parents": {
+    "a": {
+     "element": "metal",
+     "feature": "bright-gold front teeth and a gold coin medallion on the chest"
+    },
+    "b": {
+     "element": "nature",
+     "feature": "a leaf sprout on the head and a bark-brown paddle tail"
+    }
+   },
+   "palette": {
+    "dominant": "#f4a261",
+    "shade": "#b97b4a",
+    "light": "#fbdcc3",
+    "accentA": "#FFD84A",
+    "accentB": "#8A5A33",
+    "extra": "#7CD15A"
+   },
+   "ip": "Watch Pokémon's Bidoof/Bibarel (brown buck-toothed beavers): ours is amber, sits upright with a sprout on its head, a sticker face, gold teeth.",
+   "alt": "squirrel hoarding acorns"
+  }
+ ]
+}

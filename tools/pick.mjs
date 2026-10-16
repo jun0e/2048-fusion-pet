@@ -1,4 +1,4 @@
-// How tools/pipeline.mjs chooses among a gated job's candidates (the foes): small pure rules,
+// How tools/pipeline.mjs chooses among a gated job's candidates (the foes, the fusion pets): small pure rules,
 // unit-tested in test/pick.test.js. tools/silhouette-check.py scores each candidate; a candidate
 // whose worst gate margin is at least GATE_TOLERANCE is inside the gates, give or take a hair.
 //
@@ -7,8 +7,8 @@
 //   strictText      the strict round's lead, built from the gates the candidates failed
 //   gateBrief       what the manifest and the run log keep of a candidate's scores
 
-/** The rules' version, as tools/silhouette-check.py stamps it (2: outline by distance, flips fitted, marching chapters). */
-export const GATE_VERSION = 2;
+/** The rules' version, as tools/silhouette-check.py stamps it (2: outline by distance, flips fitted, marching chapters; 3: heroes' rims stripped, pets judged on the hedges). */
+export const GATE_VERSION = 3;
 /** A candidate inside every gate but for a hair (each margin >= this) counts as inside. */
 export const GATE_TOLERANCE = -0.03;
 
@@ -66,28 +66,71 @@ export const STRICT = {
   allyToo: `Its outline must not look like any of the player’s pets either (${PET_ANIMALS}). `,
 };
 
+/** CIE L* of a #rrggbb colour: a ground at L* >= 50 is light (the sand), below it dark (the hedges). */
+export function lstar(hex) {
+  const lin = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const [r, g, b] = [1, 3, 5].map((i) => lin(parseInt(hex.slice(i, i + 2), 16) / 255));
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 116 * (y > 216 / 24389 ? Math.cbrt(y) : ((24389 / 27) * y + 16) / 116) - 16;
+}
+
+/**
+ * A fusion pet's strict lines (pick.side 'pet'): its twins are the other fusions, its allies the
+ * foes and the base pets. Its values answer the grounds it blended into: on the pale sand its
+ * darker cel tone (pick.cel) grows, on the dark hedges its light zone (pick.lift, else pick.light).
+ */
+export const PET_STRICT = {
+  values: (darker = null, lighter = null) => {
+    const grow = [darker && `the darker ${darker} zone`, lighter && `the light ${lighter} zone`].filter(Boolean);
+    const where = [darker && 'the pale sand', lighter && 'the dark hedges'].filter(Boolean).join(' and ');
+    return `STRICT VALUES: earlier attempts blended into ${where || 'the ground'}. Make ${grow.join(' and ') || 'both values'} bigger (at least two fifths of the creature each): two clear values, few mid tones. `;
+  },
+  twin: (animal = 'creature', features = '') =>
+    `STRICT SHAPE: earlier attempts looked too much like another of the player’s fusion pets. Exaggerate this ${animal}’s own distinctive features${features ? ` (${features})` : ''} inside the silhouette, so the outline reads as a ${animal} at a glance. `,
+  ally: (animal = 'creature', features = '') =>
+    `STRICT SHAPE: earlier attempts had the outline of an enemy animal or of a baby pet (${PET_ANIMALS}). Exaggerate this ${animal}’s own distinctive features${features ? ` (${features})` : ''} inside the silhouette, so the outline cannot be mistaken for any of them. `,
+  allyToo: `Its outline must not look like an enemy animal or a baby pet (${PET_ANIMALS}) either. `,
+};
+
 /**
  * The strict round's lead text, from the gates the scored candidates missed (all of them, so the
  * round answers every way the first one failed): the contract → fill the silhouette exactly; a
  * ground (lane, hedge or keep) → a bigger cream zone and a darker mass; a twin (any foe, or one of
  * its chapters) → exaggerate its own features; an ally (a pet's outline) → the same, away from the
  * pets' animals; both twin and ally → one shape line plus the pets. With nothing
- * scored, or nothing named, the contract line. `job` gives the foe's animal and pose (its features).
+ * scored, or nothing named, the contract line. `job` gives the animal and pose (its features); a
+ * pet (`job.side` 'pet') gets PET_STRICT's lines, which name its cel tone and light zone.
  */
 export function strictText(cands, job = {}) {
   const missed = new Set(cands.flatMap((c) => failingGates(c.margins)));
   const twin = missed.has('twin') || missed.has('twinChapter');
+  const pet = job.side === 'pet';
+  const S = pet ? PET_STRICT : STRICT;
   const parts = [];
   if (missed.has('contract') || !(missed.has('ground') || twin || missed.has('ally'))) parts.push(STRICT.contract);
-  if (missed.has('ground')) parts.push(STRICT.values);
-  if (twin) parts.push(STRICT.twin(job.animal, job.pose));
-  if (missed.has('ally')) parts.push(twin ? STRICT.allyToo : STRICT.ally(job.animal, job.pose));
+  if (missed.has('ground')) parts.push(pet ? petValuesLine(cands, job) : STRICT.values);
+  if (twin) parts.push(S.twin(job.animal, job.pose));
+  if (missed.has('ally')) parts.push(twin ? S.allyToo : S.ally(job.animal, job.pose));
   return parts.join('');
+}
+
+/**
+ * A pet's strict values line from the grounds its candidates blended into (each candidate's
+ * `ground` shares under a third, light or dark by the ground's L*); with no shares to read, the
+ * sand's (the cel tone grows).
+ */
+function petValuesLine(cands, job) {
+  const grounds = job.grounds ?? {};
+  const failed = cands.flatMap((c) => Object.entries(c.ground ?? {}).filter(([k, v]) => v < 1 / 3 && grounds[k]).map(([k]) => grounds[k]));
+  const light = failed.some((h) => lstar(h) >= 50);
+  const dark = failed.some((h) => lstar(h) < 50);
+  const cel = job.cel ?? 'cel-shade';
+  return PET_STRICT.values(light || !dark ? cel : null, dark ? (job.lift ?? job.light ?? 'light') : null);
 }
 
 /** What the manifest (meta.gate) and the run log keep of a scored candidate, with its version and verdicts. */
 export function gateBrief(c) {
-  const { n, score, worst, margins, contract40, contract120, mirror, twin, twinChapter, ally, ground, light, dark } = c;
+  const { n, score, worst, margins, contract40, contract120, mirror, rimPx, twin, twinChapter, ally, ground, light, dark } = c;
   return {
     gateVersion: c.gateVersion ?? GATE_VERSION,
     n,
@@ -99,6 +142,7 @@ export function gateBrief(c) {
     contract40,
     contract120,
     mirror,
+    ...(rimPx != null ? { rimPx } : {}),
     twin,
     twinChapter,
     ally,

@@ -1,16 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
-import { plan, jobFor, BG_FOR, MODEL_FAST } from '../tools/pipeline-jobs.mjs';
+import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues } from '../tools/pipeline-jobs.mjs';
 import { classify429 } from '../tools/gemini-errors.mjs';
 import { checkBudget, MONTH_MS } from '../tools/gemini-budget.mjs';
 import { spriteId, portraitId } from '../src/art/sprite-ids.js';
 import { ELEMENT_PALETTES, UNIVERSAL } from '../src/art/palettes.js';
 import { FUSIONS } from '../src/sim/classes.js';
 import { FOE_ROSTER } from '../src/art/foe-roster.js';
+import { FUSION_ROSTER } from '../src/art/fusion-roster.js';
 import { VFX_IDS, VFX_PIECES } from '../src/art/attack-vfx.js';
 import { CHAPTER_GROUNDS, FRAME_ASSETS } from '../src/art/frame-kit.js';
-import { commitManifest, onlyMatcher, readManifest, withLock } from '../tools/pipeline.mjs';
+import { commitManifest, gateSpec, onlyMatcher, readManifest, sidecarCurrent, withLock } from '../tools/pipeline.mjs';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -52,19 +53,77 @@ test('every reference is a planned dependency (or an approved file), and the ord
   }
 });
 
-test('a priority slice pulls in what it references: the P0 fusion needs the ice line', () => {
+test('a priority slice pulls in what it references: the P0 portrait needs its fusion, the halo the hero fusion', () => {
   const p0 = plan(rows, root, ['P0']);
   const ids = p0.jobs.map((j) => j.id);
-  for (const id of ['pet.ice.16', 'pet.ice.32', 'pet.ice.64', 'pet.ice.128', 'fusion.fire+ice', 'portrait.fire+ice']) assert.ok(ids.includes(id), id);
-  assert.equal(p0.jobs.length, 14);
+  for (const id of ['fusion.fire+ice', 'portrait.fire+ice', 'halo.ice']) assert.ok(ids.includes(id), id);
+  assert.ok(!ids.includes('pet.ice.128'), 'a fusion no longer needs its parents’ sprites');
+  for (const j of p0.jobs) for (const d of j.deps) assert.ok(ids.includes(d), `${j.id} → ${d}`);
 });
 
-test('stages are edits of the previous stage; fusions see both parents and the golden fusion', () => {
+test('stages are edits of the previous stage; a fusion fills its own contract in the frozen render, with no parent images', () => {
   assert.deepEqual(byId.get('pet.fire.32').refs, ['pet.fire.16']);
   assert.deepEqual(byId.get('pet.fire.128').refs, ['pet.fire.64', 'pet.fire.16'], 'later stages are anchored to the original baby');
-  assert.deepEqual(byId.get('fusion.fire+ice').refs, ['pet.fire.128', 'pet.ice.128']);
-  assert.deepEqual(byId.get('fusion.wind+metal').refs, ['pet.wind.128', 'pet.metal.128', 'fusion.fire+ice']);
+  assert.deepEqual(byId.get('fusion.fire+ice').refs, ['tools/refs/fusions/sil-fire+ice.png', 'tools/refs/fusions/render-ref.png']);
+  assert.deepEqual(byId.get('fusion.wind+metal').refs, ['tools/refs/fusions/sil-wind+metal.png', 'tools/refs/fusions/render-ref.png']);
+  for (const k of Object.keys(FUSIONS)) assert.deepEqual(byId.get(`fusion.${k}`).deps, [], `${k}: nothing to wait for`);
+  for (const f of ['render-ref.png', 'silhouettes.svg']) assert.ok(existsSync(new URL(`../tools/refs/fusions/${f}`, import.meta.url)), f);
   assert.deepEqual(byId.get('portrait.poison+earth').refs, ['fusion.poison+earth'], 'portraits see only their own fusion');
+});
+
+test('fusions: one animal each, gated like the foes against the other fusions, every foe and the base pets', () => {
+  for (const [k, r] of Object.entries(FUSION_ROSTER)) {
+    const j = byId.get(`fusion.${k}`);
+    const [a, b] = FUSIONS[k].parts;
+    assert.ok(j.prompt.includes(r.desc) && j.prompt.includes(r.pose), `${k}: its animal and pose`);
+    assert.ok(j.prompt.includes(r.name), `${k}: its name`);
+    assert.ok(j.prompt.includes(r.from[a]) && j.prompt.includes(r.from[b]), `${k}: both parents, in words`);
+    assert.ok(j.prompt.includes(petValues(r)), `${k}: its value rule`);
+    for (const h of r.pal) assert.ok(j.prompt.includes(h), `${k}: ${h} in the colour rule`);
+    assert.ok(j.prompt.includes('cream rim') && !j.post.stripRim, `${k}: keeps the heroes' cream rim`);
+    assert.deepEqual(j.post.palette, [...r.pal, ...UNIVERSAL.map((c) => c.hex)]);
+    assert.equal(j.post.size, 320);
+    assert.equal(j.bg, r.bg);
+    const p = j.pick;
+    assert.equal(p.n, 3);
+    assert.equal(p.side, 'pet');
+    assert.equal(p.contract, j.refs[0]);
+    assert.equal(p.view, r.view);
+    assert.equal(p.chapter, undefined, 'no chapter: an empty marching pool');
+    assert.deepEqual(p.grounds, PET_GROUNDS);
+    assert.equal(p.band, PET_BAND);
+    assert.equal(p.rim, HERO_RIM, `${k}: its cream rim is stripped before outlines are compared`);
+    assert.equal(p.light, r.pal[2]);
+    assert.ok(j.prompt.includes(petSticker(r)), `${k}: the sticker line${r.prop ? ' with its prop' : ''}`);
+    assert.equal(p.others.length, 27, `${k}: checked against the other 27`);
+    for (const o of p.others) assert.match(o.sil, /^tools\/refs\/fusions\/sil-[a-z]+\+[a-z]+\.png$/);
+    assert.equal(p.allies.length, 17 + 8, `${k}: every foe and every base pet at 128`);
+    assert.equal(p.cel, r.cel);
+  }
+  assert.deepEqual(PET_GROUNDS, { lane: '#D9C7A3', hedge: '#4A5A52', 'fareast.hedge': '#3F5A48', 'peaks.lane': '#CFC9BF', 'peaks.hedge': '#4A4A52' }, 'every lane and hedge, where pets roam (not the keep floor)');
+  assert.equal(HERO_RIM, 0.02);
+  // a prop in the contract is drawn: the mole's molehill is no ground
+  assert.match(byId.get('fusion.fire+earth').prompt, /no ground except its molehill, which is part of the sticker/);
+  assert.match(byId.get('fusion.poison+nature').prompt, /no ground except its branch/);
+  assert.match(byId.get('fusion.fire+ice').prompt, /no frame, no ground, no cast shadow\./, 'the others keep the plain rule');
+  // the value rule names zones the view shows
+  assert.match(petValues(FUSION_ROSTER['ice+lightning']), /large markings in the darker #3B3FE0 \(the head, the sides, stripes or the limbs\)/, 'a front view has no saddle');
+  assert.match(petValues(FUSION_ROSTER['fire+wind']), /large light zone in #D8FAF0 \(the four wings\) covers at least a third of the creature, so it reads on dark hedges/);
+  assert.match(petValues(FUSION_ROSTER['fire+poison']), /light zone in #FF9E3D \(the belly and the throat\)/, 'where its record puts it');
+  assert.match(petValues(FUSION_ROSTER['ice+poison']), /\(the top of the bell and its scalloped rim\)/, 'a jellyfish has no chest');
+  const view = (k) => byId.get(`fusion.${k}`).prompt;
+  assert.match(view('fire+ice'), /strict side view \(profile\) facing left/);
+  assert.match(view('fire+poison'), /straight front view/);
+  assert.match(view('wind+nature'), /seen from directly above/, 'a spread pet has limbs, not only wings');
+  assert.ok(!view('wind+nature').includes('both wings'));
+  for (const k of ['fire+earth', 'ice+lightning']) assert.match(view(k), /straight front view/, `${k}: drawn as its contract is (front)`);
+  assert.match(view('lightning+poison'), /strict side view/, 'the diving platypus is a profile');
+  assert.match(petValues(FUSION_ROSTER['wind+nature']), /large markings in the darker #8A5A33/, 'a pale pet gets dark markings');
+  assert.match(petValues(FUSION_ROSTER['poison+nature']), /large light zone in #CDEFA2/, 'a dark pet gets a light zone');
+  assert.ok(!petValues(FUSION_ROSTER['poison+nature']).includes('highlight in #CDEFA2'));
+  assert.match(petValues(FUSION_ROSTER['fire+ice']), /cel-shade tone in #456ac2 over at least a third/);
+  const portrait = byId.get('portrait.wind+metal').prompt;
+  assert.ok(portrait.includes(FUSION_ROSTER['wind+metal'].desc) && portrait.includes('Whirlblade'), 'the portrait names the same animal');
 });
 
 test('foes fill their own silhouette contract, styled by their chapter golden, three candidates each', () => {
@@ -99,6 +158,44 @@ test('foes fill their own silhouette contract, styled by their chapter golden, t
   assert.equal(new Set(Object.values(FOE_ROSTER).map((r) => r.animal)).size, 17, 'seventeen different animals');
 });
 
+test('gateSpec: a pet has no marching chapter, its allies are the listed sprites made so far; a foe keeps its chapters and its ally prefix', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mb-gatespec-'));
+  try {
+    for (const f of ['enemy.pixie', 'enemy.pixie.portrait', 'pet.fire.128', 'pet.fire.16', 'fusion.fire+lightning']) writeFileSync(join(dir, `${f}.png`), '');
+    const pet = byId.get('fusion.fire+ice');
+    const spec = gateSpec(pet, { meta: {} }, ['c.png'], dir);
+    assert.deepEqual(spec.chapters, []);
+    assert.ok(!('chapter' in spec));
+    assert.equal(spec.band, PET_BAND);
+    assert.deepEqual(spec.allies.map((a) => a.id).sort(), ['enemy.pixie', 'pet.fire.128'], 'listed ids only: no portrait, no other stage');
+    assert.equal(spec.rim, HERO_RIM);
+    assert.equal(spec.allies.find((a) => a.id === 'pet.fire.128').rim, HERO_RIM, 'a base pet’s rim is stripped');
+    assert.ok(!('rim' in spec.allies.find((a) => a.id === 'enemy.pixie')), 'a foe has no rim');
+    assert.equal(spec.allies.find((a) => a.id === 'enemy.pixie').path, join(dir, 'enemy.pixie.png'));
+    assert.equal(spec.others.length, 27);
+    for (const o of spec.others) assert.deepEqual(o.chapters, []);
+    assert.equal(spec.others.find((o) => o.id === 'fusion.fire+lightning').mask, 'dark', 'an old sprite with no gate is not a stand-in');
+    const made = gateSpec(pet, { meta: { 'fusion.fire+lightning': { gate: {} } } }, [], dir);
+    assert.equal(made.others.find((o) => o.id === 'fusion.fire+lightning').mask, 'alpha', 'a pet made under its contract stands in for its sketch');
+    assert.equal(made.others.find((o) => o.id === 'fusion.fire+lightning').rim, HERO_RIM, 'with its rim stripped');
+    const foe = gateSpec(byId.get('enemy.pixie'), { meta: {} }, [], dir);
+    assert.deepEqual(foe.chapters, ['forest', 'fareast']);
+    assert.equal(foe.chapter, 'forest');
+    assert.ok(!('band' in foe) && !('rim' in foe), 'the foes keep the 1 % outline band and have no rim');
+    assert.deepEqual(foe.allies, [{ id: 'fusion.fire+lightning', path: join(dir, 'fusion.fire+lightning.png'), rim: HERO_RIM }], 'a foe’s allies: every fusion sprite, rim stripped');
+    for (const o of foe.others) assert.ok(o.chapters.length >= 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a cached pick is reused only for the ask it answered (a roster edit makes it stale)', () => {
+  assert.equal(sidecarCurrent({ base: 'abc' }, 'abc'), true);
+  assert.equal(sidecarCurrent({ base: 'abc' }, 'def'), false, 'the words changed since the pick: generate again');
+  assert.equal(sidecarCurrent({ candidates: {} }, 'def'), true, 'a sidecar from before the record (the foes) counts as current');
+  assert.equal(sidecarCurrent(null, 'def'), true);
+});
+
 test('the palette hard limit: babies name their 6 element colours and snap to them', () => {
   for (const el of Object.keys(ELEMENT_PALETTES)) {
     const j = byId.get(`pet.${el}.16`);
@@ -108,8 +205,8 @@ test('the palette hard limit: babies name their 6 element colours and snap to th
     assert.equal(j.bg, BG_FOR[el]);
   }
   const fu = byId.get('fusion.fire+nature');
-  for (const h of [...hexes('fire'), ...hexes('nature')]) assert.ok(fu.post.palette.includes(h));
-  assert.equal(fu.bg, 'magenta', 'nature has greens, so the fusion keys on magenta');
+  for (const h of FUSION_ROSTER['fire+nature'].pal) assert.ok(fu.post.palette.includes(h));
+  assert.equal(fu.bg, 'magenta', 'its palette has greens, so the fusion keys on magenta');
   assert.equal(byId.get('fusion.fire+ice').bg, 'green');
 });
 
@@ -181,7 +278,7 @@ test('the backend chooses the models: sprites use fast, portraits and the backgr
   const p = plan(rows, root, ['P0', 'P1'], { fast: 'gemini-3.1-flash-image', best: 'gemini-3-pro-image' });
   const m = new Map(p.jobs.map((j) => [j.id, j.model]));
   assert.equal(m.get('pet.fire.16'), 'gemini-3.1-flash-image');
-  assert.equal(m.get('fusion.fire+ice'), 'gemini-3.1-flash-image');
+  assert.equal(m.get('fusion.fire+ice'), 'gemini-3-pro-image', 'gated sprites (fusions, foes) use best');
   assert.equal(m.get('portrait.fire+ice'), 'gemini-3-pro-image');
   assert.equal(m.get('env.background'), 'gemini-3-pro-image');
 });

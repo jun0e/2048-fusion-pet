@@ -3,6 +3,7 @@
 // colours per element with a value plan, so fire/earth and ice/metal also differ
 // by lightness, not only by hue. Gameplay colours in classes.js stay untouched.
 import { ELEMENTS, FUSIONS, fusionKey } from '../sim/classes.js';
+import { FUSION_ROSTER } from './fusion-roster.js';
 
 export const INK = '#2b1d2e'; // warm dark plum outline (sits better beside the cream UI than black)
 export const CREAM = '#fffaf2'; // sticker rim, number stroke, frames
@@ -72,37 +73,9 @@ export function fusionPalette(a, b) {
 export const elementColor = (el) => ELEMENTS[el].color;
 
 // Pet names for the namecards. A fusion's gameplay name reads as a phenomenon
-// ("Plasma"), so it becomes the skill; the pet gets a name of its own.
-const PET_NAMES = {
-  'fire+ice': 'Novakit',
-  'fire+lightning': 'Zapcinder',
-  'fire+poison': 'Smogpup',
-  'fire+earth': 'Magmole',
-  'fire+wind': 'Flarewhirl',
-  'ice+lightning': 'Sparkfrost',
-  'ice+poison': 'Frostfang',
-  'ice+earth': 'Tundrock',
-  'ice+wind': 'Flurrin',
-  'lightning+poison': 'Fizzlebolt',
-  'lightning+earth': 'Rumblebolt',
-  'lightning+wind': 'Gustbolt',
-  'poison+earth': 'Bogling',
-  'poison+wind': 'Mistmaw',
-  'earth+wind': 'Dunepuff',
-  'fire+metal': 'Anvilpup',
-  'ice+metal': 'Rimeplate',
-  'lightning+metal': 'Voltgild',
-  'poison+metal': 'Rustgrub',
-  'earth+metal': 'Ironclod',
-  'wind+metal': 'Whirlblade',
-  'fire+nature': 'Embersprout',
-  'ice+nature': 'Frostpetal',
-  'lightning+nature': 'Zaplily',
-  'poison+nature': 'Nightling',
-  'earth+nature': 'Mossbun',
-  'wind+nature': 'Pollenpuff',
-  'metal+nature': 'Sproutgear',
-};
+// ("Plasma"), so it becomes the skill; the pet gets a name of its own, from its animal
+// (src/art/fusion-roster.js).
+const PET_NAMES = Object.fromEntries(Object.entries(FUSION_ROSTER).map(([k, r]) => [k, r.name]));
 export function petName(a, b) {
   const k = fusionKey(a, b);
   return PET_NAMES[k] ?? FUSIONS[k].name.split(' ')[0] + 'ling';
