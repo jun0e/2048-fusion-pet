@@ -108,6 +108,13 @@ The cards hang on the right tower, centred on it, from the gate wall down to the
 
 On a short phone, four cards do not fit between the gates and the parapet. There, the rail runs on beside the keep, down to the deck row.
 
+Every fusion gets a card (T18), but the rail has four slots. From a fifth fusion on, the three highest fusions keep a slot each, and the rest share the fourth slot as a stack (`src/kv/namecards.js` `railSlots`):
+
+- **The face:** only the stack's top card shows, and it is the one to tap. A "+N" pill in its portrait's corner counts the cards waiting behind it.
+- **Charging:** every card keeps charging behind the stack.
+- **Ready:** a ready skill always comes to the front, so every fusion's skill can be cast. After a cast, the next ready card comes up. While no card is ready, the face holds still.
+- **Screen readers:** the face's name says how many pets wait behind it.
+
 ## Other details
 
 - Wave now leaves the tab order while it is hidden (during a wave).

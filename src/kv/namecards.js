@@ -1,5 +1,6 @@
 // Namecards: one card per fusion, on the rail that hangs on the right tower (proposal 4.1): never
-// over lane 4. The portrait uses the second art style, a soft-vinyl toy render, so the card reads
+// over lane 4. The rail has four slots; from a fifth fusion on, the fourth slot is a stack whose face
+// is the card to tap (railSlots), so every fusion's skill can be cast and the rail never grows. The portrait uses the second art style, a soft-vinyl toy render, so the card reads
 // as a reward. States follow the style brief: charging (dimmed; a fill bar under the portrait),
 // ready (full colour, an element rim, the bar turns into an inverted READY pill, a shine sweep, a
 // small bob), activating (a 0.9 s cut-in that never blocks play), lost (grey, falls away).
@@ -12,10 +13,26 @@ import { generatedUrl } from '../render/textures.js';
 
 const CHARGE = 9; // seconds of wave time per skill
 const CHARGE_LEGEND = 7;
-const MAX_CARDS = 4;
+const SLOTS = 4; // the rail's slots: the fourth holds a stack from a fifth fusion on (railSlots)
 // px: between cards, the bar under the portrait (with its gap), between a card's ink ring and the tower's edges
 const RAIL = { gap: 6, bar: 14, margin: RAIL_PX.margin };
 const MIN = RAIL_PX.card; // a card is never narrower (the touch-target floor)
+
+/**
+ * Which fusions show on the rail's slots: the three first (the highest) on slots of their own, and
+ * from a fifth on, the rest in a stack on the fourth slot. The stack's face, the one card of it shown
+ * and tapped, is the one already there while it is ready, else the first that is ready, else the one
+ * already there (or the first): a ready skill always comes to the front, and the face never flickers.
+ * ids: the fusions' tile ids in rail order; ready: the ids whose skill is ready; face: last frame's.
+ * → { shown: ids on slots of their own, stack: the stack's ids, face first, face: its face or null }
+ */
+export function railSlots(ids, ready, face) {
+  if (ids.length <= SLOTS) return { shown: ids, stack: [], face: null };
+  const rest = ids.slice(SLOTS - 1);
+  const keep = rest.includes(face) ? face : null;
+  const next = keep != null && ready.has(keep) ? keep : (rest.find((id) => ready.has(id)) ?? keep ?? rest[0]);
+  return { shown: ids.slice(0, SLOTS - 1), stack: [next, ...rest.filter((id) => id !== next)], face: next };
+}
 
 /** The card width a screen `vw` px wide would like: 48 on a phone up to 400 px wide (the touch-target size), 52 on wider ones (proposal 4.1). */
 export const cardWidth = (vw) => (vw <= 400 ? 48 : 52);
@@ -32,17 +49,17 @@ export const cardWidth = (vw) => (vw <= 400 ? 48 : 52);
 export function railLayout({ vw, towerX, towerOut = Infinity, keepX, top, parapet, floor }) {
   const want = cardWidth(vw);
   const right = Math.min(vw, towerOut);
-  const stack = (w) => MAX_CARDS * (w + RAIL.bar) + (MAX_CARDS - 1) * RAIL.gap;
+  const stack = (w) => SLOTS * (w + RAIL.bar) + (SLOTS - 1) * RAIL.gap;
   const place = (edge, w) => ({ left: Math.round(edge + RAIL.margin + Math.max(0, (right - edge - RAIL.margin * 2 - w) / 2)), width: w, top: Math.round(top) });
   const roomTower = right - towerX - RAIL.margin * 2;
   const w = Math.max(MIN, Math.floor(Math.min(want, roomTower))); // never under the 44 px touch floor
   if (stack(w) <= parapet - top) return place(towerX, w);
-  const tight = Math.max(MIN, Math.min(w, Math.floor((parapet - top - (MAX_CARDS - 1) * RAIL.gap) / MAX_CARDS - RAIL.bar)));
+  const tight = Math.max(MIN, Math.min(w, Math.floor((parapet - top - (SLOTS - 1) * RAIL.gap) / SLOTS - RAIL.bar)));
   if (tight <= roomTower && stack(tight) <= parapet - top) return place(towerX, tight);
   // a short phone: the tower is too short for four cards, so the rail runs on beside the keep
   const roomKeep = right - keepX - RAIL.margin * 2;
   if (roomKeep >= MIN) {
-    const wk = Math.min(want, roomKeep, Math.max(MIN, Math.floor((floor - top - (MAX_CARDS - 1) * RAIL.gap) / MAX_CARDS - RAIL.bar)));
+    const wk = Math.min(want, roomKeep, Math.max(MIN, Math.floor((floor - top - (SLOTS - 1) * RAIL.gap) / SLOTS - RAIL.bar)));
     return place(keepX, wk);
   }
   // no room beside the keep either: the rail stays on the tower and runs on past the parapet, its
@@ -100,11 +117,12 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
           .filter(Boolean)
           .map((e) => `<img src="${glyph(e)}" alt="${ELEMENTS[e].name}" />`)
           .join('')}</div>
+        <i class="kv-more" aria-hidden="true"></i>
       </div>
       <div class="kv-bar"><i></i><b>READY</b></div>`;
     el.title = `${petName(t.cls.element, t.cls.fusion)}: ${skill}`;
     el.style.pointerEvents = 'auto';
-    const card = { el, id: t.id, charge: CHARGE * 0.55, max: legend ? CHARGE_LEGEND : CHARGE, skill, name: petName(t.cls.element, t.cls.fusion), legend, cls: { ...t.cls }, lost: false, ready: null };
+    const card = { el, id: t.id, charge: CHARGE * 0.55, max: legend ? CHARGE_LEGEND : CHARGE, skill, name: petName(t.cls.element, t.cls.fusion), legend, cls: { ...t.cls }, lost: false, ready: null, more: 0, slot: '' };
     // a press casts at once (no wait for the click); Enter and Space on a focused card do the same
     const press = () => {
       if (card.lost || card.charge < card.max) {
@@ -147,6 +165,27 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     cutin.classList.add('go');
   }
 
+  let face = null; // the stack's face: the card of the fourth slot shown and tapped (railSlots)
+
+  /** A card's name for a screen reader: its pet, its skill, its charge, and the cards behind it. */
+  function label(card) {
+    const behind = card.more > 0 ? ` ${card.more} more pet${card.more === 1 ? ' waits' : 's wait'} behind this card.` : '';
+    card.el.setAttribute('aria-label', `${card.name}: ${card.skill}. ${card.ready ? 'Ready: tap to cast.' : 'Charging.'}${behind}`);
+  }
+
+  /** A card on its slot: on its own (more 0), the stack's face (more: how many wait behind it), or behind it (−1). */
+  function slot(card, order, more) {
+    const k = `${order}:${more}`;
+    if (card.slot === k) return;
+    card.slot = k;
+    card.more = more;
+    card.el.style.order = String(order);
+    card.el.classList.toggle('stacked', more < 0);
+    card.el.classList.toggle('stack-face', more > 0);
+    card.el.querySelector('.kv-more').textContent = more > 0 ? `+${more}` : '';
+    label(card);
+  }
+
   let placed = '';
   function layout() {
     // the rail on the right tower (src/render/frame.js draws it), clear of lane 4
@@ -174,10 +213,8 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     if (!strip.isConnected) root.appendChild(strip);
     if (!cutin.isConnected) root.appendChild(cutin);
     layout();
-    const fusions = run.tiles
-      .filter((t) => t.tier >= 8 && t.cls.fusion)
-      .sort((a, b) => b.tier - a.tier)
-      .slice(0, MAX_CARDS);
+    // every fusion gets a card and charges; the rail shows four slots (railSlots)
+    const fusions = run.tiles.filter((t) => t.tier >= 8 && t.cls.fusion).sort((a, b) => b.tier - a.tier);
     const live = new Set(fusions.map((t) => t.id));
     for (const t of fusions) {
       let card = cards.get(t.id);
@@ -196,9 +233,17 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
         card.ready = ready;
         card.el.classList.toggle('ready', ready);
         card.el.classList.toggle('charging', !ready);
-        card.el.setAttribute('aria-label', `${card.name}: ${card.skill}. ${ready ? 'Ready: tap to cast.' : 'Charging.'}`);
+        label(card);
       }
     }
+    const slots = railSlots(
+      fusions.map((t) => t.id),
+      new Set(fusions.filter((t) => cards.get(t.id).ready).map((t) => t.id)),
+      face,
+    );
+    face = slots.face;
+    slots.shown.forEach((id, i) => slot(cards.get(id), i, 0));
+    slots.stack.forEach((id, i) => slot(cards.get(id), SLOTS - 1, i === 0 ? slots.stack.length - 1 : -1));
     for (const [id, card] of cards) {
       if (live.has(id) || card.lost) continue;
       card.lost = true;
@@ -216,12 +261,14 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     cardCenter(id) {
       const c = cards.get(id);
       if (!c) return null;
-      const r = c.el.getBoundingClientRect();
+      const el = c.el.classList.contains('stacked') ? (cards.get(face)?.el ?? c.el) : c.el; // behind the stack: its slot
+      const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height * 0.4 };
     },
     reset() {
       for (const c of cards.values()) c.el.remove();
       cards.clear();
+      face = null;
     },
   };
 }

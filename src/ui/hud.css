@@ -1827,7 +1827,8 @@ body {
    does not play at all under it (namecards.js asks stage.takeFlash). */
 .reduce-motion .kv-card.ready,
 .reduce-motion .kv-card.ready .kv-shine,
-.reduce-motion .kv-card.nudge {
+.reduce-motion .kv-card.nudge,
+.reduce-motion .kv-card.stack-face {
   animation: none;
 }
 .reduce-motion .kv-card.lost {

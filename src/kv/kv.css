@@ -324,9 +324,48 @@
   }
 }
 
+/* T18: every fusion gets a card. From a fifth fusion on, the rail's fourth slot is a stack
+   (namecards.js railSlots): its face is the card to tap, the first one ready; "+N" in its corner
+   counts the cards waiting behind it. */
+.kv-card.stacked {
+  display: none;
+}
+
+.kv-more {
+  display: none;
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 10px;
+  background: #2b1d2e;
+  color: var(--cream);
+  font: 800 14px/20px var(--font-display); /* the label floor */
+  text-align: center;
+}
+
+.kv-card.stack-face .kv-more {
+  display: block;
+}
+
+/* a new face slides in, so the change reads as the stack turning over */
+.kv-card.stack-face {
+  animation: kvFace 0.25s ease-out;
+}
+
+@keyframes kvFace {
+  from {
+    transform: translateY(6px) scale(0.92);
+    opacity: 0.5;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .kv-card.ready,
-  .kv-card.ready .kv-shine {
+  .kv-card.ready .kv-shine,
+  .kv-card.stack-face {
     animation: none;
   }
 }
