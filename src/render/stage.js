@@ -60,7 +60,7 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
   }
   layers.numbers.eventMode = 'none';
 
-  const view = { U: 40, ox: 0, oy: 0, w: 1, h: 1 };
+  const view = { U: 40, ox: 0, oy: 0, w: 1, h: 1, top: 0 }; // top: where the HUD's top bands end (px)
   const listeners = [];
 
   function layout() {
@@ -72,6 +72,7 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
     view.oy = insets.top + availH / 2 + ((WORLD.minY + WORLD.maxY) / 2) * view.U;
     view.w = w;
     view.h = h;
+    view.top = insets.top; // under the status bar and its news ribbon
     for (const fn of listeners) fn(view);
   }
 

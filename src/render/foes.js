@@ -6,7 +6,8 @@ import { BitmapText, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { DOT, FOE_FLASH, FOE_PATCH } from '../ux/photosafe.js';
 import { FOE_ROSTER, FOE_SIZE_FLOOR, foeDrawSize } from '../art/foe-roster.js';
 import { FRAME_GEOM } from '../art/frame-kit.js';
-import { enemyTex, shadowTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
+import { enemyTex, shadowTex, shieldTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
+import { bossResistLevel } from '../sim/defense.js';
 
 const STATUS_ORDER = ['freeze', 'burn', 'poison', 'chill', 'loot'];
 const GEN_FILL = 1; // a trimmed generated foe fills its box (the overhaul's sizes: 37–54 px, bosses 86–95)
@@ -35,6 +36,80 @@ export function foeLabels({ U, boss = false, barY, barH }) {
   const bs = Math.max(0.42 * U, badgePx + 2);
   const under = boss ? Math.max(hpPx * NUMBER_HALF, (barH + 0.06 * U) / 2) : (barH + 0.06 * U) / 2;
   return { hpPx, badgePx, bs, y: barY - under - Math.max(bs / 2, badgePx * NUMBER_HALF) - 2 };
+}
+
+/** A foe's status row holds at most this many badges (a boss's shield mark counts as one); the rest show as "+N". */
+export const MAX_BADGES = 2;
+
+/**
+ * What a foe's status row shows: a boss's shield mark first (shield: the step of pushback resistance it
+ * reached, 0 = none), then its most telling statuses in STATUS_ORDER, MAX_BADGES in all; `more` counts the
+ * ones left out. A full row of four badges spanned 120–165 px of a 190 px board on a phone.
+ */
+export function badgeRow(statuses, { shield = 0 } = {}) {
+  const live = STATUS_ORDER.filter((k) => statuses[k]);
+  const room = MAX_BADGES - (shield > 0 ? 1 : 0);
+  return { shield: shield > 0, shown: live.slice(0, room), more: Math.max(0, live.length - room) };
+}
+
+/**
+ * How far (px) a foe's bar and the numbers over it move down so its badge row starts 2 px under `top`, where
+ * the HUD's bands end (the news ribbon above the gates); 0 when it already does. cy: the foe's y on the stage;
+ * the rest as foeLabels.
+ */
+export function labelDrop({ U, boss = false, barY, barH, cy, top }) {
+  const lab = foeLabels({ U, boss, barY, barH });
+  return Math.max(0, top + 2 - (cy + lab.y - Math.max(lab.bs / 2, lab.badgePx * NUMBER_HALF)));
+}
+
+/**
+ * Foes on one spot fan out sideways, drawing only: crowds within `spot` world units spread across
+ * ± `spread`, easing at `rate` per second; their HP bars share `lane` world units side by side.
+ */
+export const FAN = { spot: 0.35, spread: 0.35, rate: 8, lane: 1.8 };
+
+/**
+ * Each foe's place in its crowd: foes chained within FAN.spot of each other are one crowd, ordered left
+ * to right (by id where they stand level, so a pinned crowd never reshuffles) and spread evenly across
+ * ± FAN.spread; a foe on its own stays put. Knockback pins foes on the gate, a block gathers its biters:
+ * drawn on one spot, "8 left" showed about 4. → Map(id → { dx: world units sideways, i, k: its place
+ * and the crowd's size, cx: the crowd's centre x })
+ */
+export function fanLayout(foes) {
+  const parent = foes.map((_, i) => i);
+  const root = (i) => (parent[i] === i ? i : (parent[i] = root(parent[i])));
+  for (let i = 0; i < foes.length; i++)
+    for (let j = i + 1; j < foes.length; j++)
+      if (Math.abs(foes[i].x - foes[j].x) < FAN.spot && Math.abs(foes[i].y - foes[j].y) < FAN.spot) parent[root(i)] = root(j);
+  const crowds = new Map();
+  foes.forEach((f, i) => {
+    const r = root(i);
+    if (!crowds.has(r)) crowds.set(r, []);
+    crowds.get(r).push(f);
+  });
+  const out = new Map();
+  for (const crowd of crowds.values()) {
+    crowd.sort((a, b) => a.x - b.x || a.id - b.id);
+    const k = crowd.length;
+    const cx = crowd.reduce((sum, f) => sum + f.x, 0) / k;
+    crowd.forEach((f, i) => out.set(f.id, { dx: k > 1 ? -FAN.spread + (2 * FAN.spread * i) / (k - 1) : 0, i, k, cx }));
+  }
+  return out;
+}
+
+/** How far sideways (world units) each foe is drawn from its sim position (fanLayout). → Map(id → offset) */
+export const fanOffsets = (foes) => new Map([...fanLayout(foes)].map(([id, p]) => [id, p.dx]));
+
+/**
+ * Where a crowd's i-th HP bar of k goes, in px from the crowd's centre, and how wide it is: side by side
+ * across `span` px in the crowd's order, never wider than `barW`; a foe on its own keeps its own bar.
+ * (T41: fanned foes stand 0.35 apart, and their 1.05-wide bars drew one long strip.)
+ */
+export function barSlot(i, k, barW, span) {
+  if (k < 2) return { x: 0, w: barW };
+  const gap = span * 0.028;
+  const w = Math.min(barW, (span - gap * (k - 1)) / k);
+  return { x: (i - (k - 1) / 2) * (w + gap), w };
 }
 
 const whites = new WeakMap(); // texture → its white silhouette (or null when it cannot be read back)
@@ -109,16 +184,26 @@ export function createFoes(stage, fx) {
       badges.addChild(b);
       return { k, b, icon, n };
     });
+    const shield = new Sprite(Texture.EMPTY); // a boss's shield mark (I–III), from its first step of resistance
+    shield.anchor.set(0.5);
+    shield.visible = false;
+    const more = new BitmapText({ text: '', style: { fontFamily: 'Dmg', fontSize: 44 } }); // "+N": statuses left out
+    more.anchor.set(0, 0.5);
+    more.visible = false;
+    badges.addChild(shield, more);
     c.addChild(shadow, patch, body, flash, ice, barBg, barFg, hpText, badges);
     layer.addChild(c);
     const r = FOE_ROSTER[e.type];
     return {
-      c, shadow, patch, keep: null, body, flash, ice, barBg, barFg, hpText, badges, badgeViews,
+      c, shadow, patch, keep: null, body, flash, ice, barBg, barFg, hpText, badges, badgeViews, shield, more,
       gen: hasGenerated(`enemy.${e.type}`), move: r?.move ?? 'walk', view: r?.view ?? 'front', face: 1,
       white, // the silhouette's scale to the body's, per axis (it is drawn smaller than the body's texture)
       flashKx: white ? body.texture.width / Math.max(1, white.width) : 1,
       flashKy: white ? body.texture.height / Math.max(1, white.height) : 1,
       motion: null, // 0–1: how much of its motion the foe shows (eases to 0 while frozen, back to 1 after)
+      fan: 0, // drawn this far sideways of its sim position (world units, fanLayout)
+      barX: 0, // its HP bar's centre from its own (px): a crowd's bars stand side by side (barSlot)
+      barW: null, // its HP bar's width (px), eased
       seed: Math.random() * 10, dotT: 0, emitT: 0, seenBurn: e.dot.burn, seenPoison: e.dot.poison,
     };
   }
@@ -127,6 +212,7 @@ export function createFoes(stage, fx) {
     time += dt;
     const U = stage.view.U;
     const live = new Set();
+    const fan = fanLayout(enemies); // foes on one spot fan out sideways, so each one can be counted
     for (const e of enemies) {
       live.add(e.id);
       let v = views.get(e.id);
@@ -138,7 +224,10 @@ export function createFoes(stage, fx) {
       const def = e.def;
       const size = foeDrawSize(def); // world units across (src/art/foe-roster.js: what the flash audit books too)
       const frozen = e.freezeT > 0;
-      const sx = stage.sx(e.x);
+      const lay = fan.get(e.id) ?? { dx: 0, i: 0, k: 1, cx: e.x };
+      const ease = 1 - Math.exp(-FAN.rate * dt);
+      v.fan += (lay.dx - v.fan) * ease;
+      const sx = stage.sx(e.x + v.fan);
       const sy = stage.sy(e.y);
       v.c.position.set(sx, sy);
 
@@ -250,19 +339,26 @@ export function createFoes(stage, fx) {
       const ratio = Math.max(0, e.hp / e.maxHp);
       const barW = (e.boss ? 2.2 : 1.05) * U;
       const barH = (e.boss ? 0.2 : 0.13) * U;
-      const barY = -size * U * 0.62 - base * U;
-      v.barBg.position.set(-barW / 2, barY);
-      v.barBg.width = barW;
+      let barY = -size * U * 0.62 - base * U;
+      // near the gate a foe's labels would reach up behind the news ribbon: they move down under it
+      barY += labelDrop({ U, boss: e.boss, barY, barH, cy: sy, top: stage.view.top ?? -Infinity });
+      // a crowd's bars sit side by side across the lane in its order (barSlot), each readable on its own
+      const slot = barSlot(lay.i, lay.k, barW, FAN.lane * U);
+      const wantX = slot.x + (lay.cx - e.x - v.fan) * U; // from this foe's own place to its slot in the crowd's row
+      v.barX = v.barW == null ? wantX : v.barX + (wantX - v.barX) * ease;
+      v.barW = v.barW == null ? slot.w : v.barW + (slot.w - v.barW) * ease;
+      v.barBg.position.set(v.barX - v.barW / 2, barY);
+      v.barBg.width = v.barW;
       v.barBg.height = barH + 0.06 * U;
-      v.barFg.position.set(-barW / 2 + 0.03 * U, barY);
-      v.barFg.width = Math.max(0, (barW - 0.06 * U) * ratio);
+      v.barFg.position.set(v.barX - v.barW / 2 + 0.03 * U, barY);
+      v.barFg.width = Math.max(0, (v.barW - 0.06 * U) * ratio);
       v.barFg.height = barH;
       v.barFg.tint = ratio > 0.5 ? 0x7be36a : ratio > 0.25 ? 0xf2c14e : 0xef5a5a;
       const lab = foeLabels({ U, boss: e.boss, barY, barH });
       if (e.boss) {
         v.hpText.text = Math.ceil(e.hp).toLocaleString('en-US');
         v.hpText.scale.set(lab.hpPx / 44);
-        v.hpText.position.set(0, barY);
+        v.hpText.position.set(v.barX, barY);
       }
 
       // status badges with stack counts
@@ -273,18 +369,35 @@ export function createFoes(stage, fx) {
         chill: !frozen && e.chillT > 0 ? Math.round(e.chillSlow * 100) : 0,
         loot: e.lootT > 0 ? Math.round(e.lootPct * 100) : 0, // Metal's mark: +% coins on death
       };
+      // the row: a boss's shield mark, then the most telling statuses and "+N" for the rest (badgeRow)
+      const level = e.boss ? bossResistLevel(e.pushes) : 0;
+      const row = badgeRow(statuses, { shield: level });
       let bx = 0;
       const bs = lab.bs;
+      v.shield.visible = row.shield;
+      if (row.shield) {
+        v.shield.texture = shieldTex(level);
+        v.shield.width = v.shield.height = bs;
+        v.shield.position.set(0, 0);
+        bx += bs + 0.06 * U;
+      }
       for (const bv of v.badgeViews) {
         const val = statuses[bv.k];
-        bv.b.visible = !!val;
-        if (!val) continue;
+        bv.b.visible = row.shown.includes(bv.k);
+        if (!bv.b.visible) continue;
         bv.icon.width = bv.icon.height = bs;
         bv.n.text = bv.k === 'freeze' ? `${val.toFixed(1)}` : bv.k === 'chill' ? `-${val}` : bv.k === 'loot' ? `+${val}` : `×${val}`;
         bv.n.scale.set(lab.badgePx / 44);
         bv.n.position.set(bs * 0.42, 0);
         bv.b.position.set(bx, 0);
         bx += bs + bv.n.width + 0.06 * U;
+      }
+      v.more.visible = row.more > 0;
+      if (row.more) {
+        v.more.text = `+${row.more}`;
+        v.more.scale.set(lab.badgePx / 44);
+        v.more.position.set(bx - bs / 2, 0);
+        bx += v.more.width + 0.06 * U;
       }
       v.badges.position.set(-bx / 2 + bs / 2, lab.y);
 

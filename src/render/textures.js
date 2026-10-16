@@ -431,6 +431,31 @@ export const statusTex = (kind) =>
     g.restore();
   });
 
+/** A boss's shield mark (T15): a steel shield with 1–3 bars, the step of pushback resistance it reached (I–III). */
+export const shieldTex = (level) =>
+  tex(`status.shield.${level}`, 64, 64, (g) => {
+    g.beginPath();
+    g.moveTo(9, 9);
+    g.lineTo(55, 9);
+    g.lineTo(55, 30);
+    g.quadraticCurveTo(54, 50, 32, 60);
+    g.quadraticCurveTo(10, 50, 9, 30);
+    g.closePath();
+    g.fillStyle = '#2f4a66';
+    g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.9)';
+    g.lineWidth = 4;
+    g.lineJoin = 'round';
+    g.stroke();
+    g.fillStyle = '#fffaf2';
+    for (let i = 0; i < level; i++) {
+      const x = 32 - (level - 1) * 5.5 + i * 11;
+      g.beginPath();
+      g.roundRect(x - 3, 19, 6, 24, 2);
+      g.fill();
+    }
+  });
+
 // --- projectiles (white-ish shapes, tinted at runtime) -------------------------------
 
 // Bold silhouettes with a dark outline and a white body: the body takes the

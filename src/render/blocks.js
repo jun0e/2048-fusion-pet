@@ -360,7 +360,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       const [s0, s1] = v.spots ?? [];
       v.badgeA.visible = !!s0;
       v.badgeB.visible = !!s1;
-      if (s0) v.badgeA.texture = art.badge(s0.el);
+      if (s0) v.badgeA.texture = art.badge(s0.el, s0.el2); // a den's is split between its two elements
       if (s1) v.badgeB.texture = art.badge(s1.el);
       v.number.visible = v.sticker;
     } else {

@@ -72,3 +72,8 @@ test('attack speeds show their exact design value: Horn Arc 0.85 / s, not 0.8', 
   assert.equal(attacks({ element: 'lightning', fusion: 'earth' }, 8), '0.85 / s', 'a fusion keeps its first element’s rhythm');
   for (const k of Object.keys(ELEMENTS)) assert.equal(attacks({ element: k }), `${ELEMENTS[k].rate} / s`, k);
 });
+
+test('the Knockback line says bosses resist after many pushes', () => {
+  const line = describeTile(tile(4, { element: 'wind' })).effects.find((l) => l.startsWith('Knockback'));
+  assert.equal(line, 'Knockback: pushes foes 0.5 cells back; bosses resist it more after 20, 50 and 100 pushes');
+});

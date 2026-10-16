@@ -342,9 +342,52 @@ function pawsCanvas(W = TILE_PX) {
   });
 }
 
-/** The glyph badges (a den's two; a legend's apex is on its altar), drawn into a cell-sized context. */
+/** The glyph badge (a den's split between its two elements; a legend's apex is on its altar), drawn into a cell-sized context. */
 function drawBadges(g, t, W) {
-  for (const b of badgeSpots(t)) if (!b.apex) drawBadge(g, b.el, b.x * W, b.y * W, b.r * W, ELEMENTS[b.el].color, INK);
+  for (const b of badgeSpots(t)) {
+    if (b.apex) continue;
+    if (b.el2) drawSplitBadge(g, b.el, b.el2, b.x * W, b.y * W, b.r * W);
+    else drawBadge(g, b.el, b.x * W, b.y * W, b.r * W, ELEMENTS[b.el].color, INK);
+  }
+}
+
+// the badge's panel inside its rims (plum, cream, plum), as a share of the badge's width (measured on the generated badges)
+const BADGE_PANEL = { inset: 0.115, r: 0.2 };
+
+/**
+ * A den's badge (T21): one badge split between the element it attacks with (left) and its partner
+ * (right). Each half shows its own badge's panel and symbol, scaled to fit the half; the rims are the
+ * first badge's, and a plum seam parts the halves. As wide as one badge: 2.35 r.
+ */
+function drawSplitBadge(g, a, b, cx, cy, r) {
+  const s = r * 2.35;
+  const p = s * (1 - 2 * BADGE_PANEL.inset); // the panel's side
+  const panel = () => {
+    g.beginPath();
+    g.roundRect(cx - p / 2, cy - p / 2, p, p, s * BADGE_PANEL.r);
+  };
+  drawBadge(g, a, cx, cy, r, ELEMENTS[a].color, INK); // the rims (and a panel under the halves)
+  for (const [el, side] of [
+    [a, -1],
+    [b, 1],
+  ]) {
+    g.save();
+    panel();
+    g.clip();
+    g.beginPath();
+    g.rect(side < 0 ? cx - p / 2 : cx, cy - p / 2, p / 2, p);
+    g.clip();
+    drawBadge(g, el, cx + (side * p) / 4, cy, r * 0.7, ELEMENTS[el].color, INK);
+    g.restore();
+  }
+  g.save();
+  g.strokeStyle = INK;
+  g.lineWidth = s * 0.03;
+  g.beginPath();
+  g.moveTo(cx, cy - p / 2);
+  g.lineTo(cx, cy + p / 2);
+  g.stroke();
+  g.restore();
 }
 
 /** The numeral: Baloo 2 ExtraBold, ink with the cream stroke, its middle at (x, y); `size` in cells (its design size by default). */
@@ -375,11 +418,12 @@ function numberCanvas(tier, W, size = null) {
   return c;
 }
 
-/** A glyph badge on its own, drawn 2.35 r wide like the generated one (the stand-in when none is). */
-function badgeCanvas(el, r = 40) {
+/** A glyph badge on its own, drawn 2.35 r wide like the generated one (the stand-in when none is); with `el2`, a den's split badge. */
+function badgeCanvas(el, r = 40, el2 = null) {
   const s = Math.ceil(r * 2.35);
   const c = makeCanvas(s, s);
-  drawBadge(c.getContext('2d'), el, s / 2, s / 2, r, ELEMENTS[el].color, INK);
+  if (el2) drawSplitBadge(c.getContext('2d'), el, el2, s / 2, s / 2, r);
+  else drawBadge(c.getContext('2d'), el, s / 2, s / 2, r, ELEMENTS[el].color, INK);
   return c;
 }
 
@@ -819,8 +863,9 @@ export function createArt(initial = 'sticker') {
       const em = size ?? numberEm(numberText(tier).length);
       return texture(`num.${tier}.${px}.${em.toFixed(4)}`, () => numberCanvas(tier, px, em));
     },
-    /** A glyph badge: the generated badge.<el>, else the code-drawn one (2.35 r wide, like the generated). */
-    badge(el) {
+    /** A glyph badge: the generated badge.<el>, else the code-drawn one (2.35 r wide, like the generated); with `el2`, a den's split badge. */
+    badge(el, el2 = null) {
+      if (el2) return texture(`badge.${el}|${el2}`, () => badgeCanvas(el, 82, el2)); // 192 px, the generated badges' size
       return generatedTex(`badge.${el}`) ?? texture(`badge.${el}`, () => badgeCanvas(el));
     },
     /** A den's paw prints, the "out" mark of its roaming pet (cell-sized, over the plate). */

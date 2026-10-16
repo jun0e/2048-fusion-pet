@@ -26,6 +26,7 @@ import { createAfterimage } from '../render/trails.js';
 import { BRACKET_CORNERS, drawBracket } from '../render/brackets.js';
 import { PLAQUE, bracketOffset } from '../art/plaque.js';
 import { createRng } from '../sim/rng.js';
+import { foeDrawSize } from '../art/foe-roster.js';
 
 const hex = (c) => parseInt(c.replace('#', ''), 16);
 /**
@@ -40,6 +41,27 @@ const MARK = { shadow: 0.76, shadowH: 0.22, legendShadow: 0.54, legendShadowH: 0
 export const GAITS = ['walk', 'crawl', 'leap', 'hover', 'swim', 'float'];
 /** 1/s: how fast a pet eases into and out of its stride, so starting and stopping never pop. */
 const SETTLE = 8;
+
+/**
+ * A pet drawn over a foe fades so the foe shows through (T38): to `alpha` while it covers `over` or
+ * more of a foe drawn under it (a pounce leap's body included), easing at `rate` per second. Its box
+ * is `core` of its sprite's, the body of the silhouette (a trimmed sprite's corners are empty).
+ */
+export const PET_FADE = { alpha: 0.55, over: 0.2, rate: 12, core: 0.8 };
+
+/** The share (0–1) of box `b` that box `a` covers. Boxes: { x0, x1, y0, y1 }. */
+export function coverShare(a, b) {
+  const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+  const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+  const area = (b.x1 - b.x0) * (b.y1 - b.y0);
+  return w > 0 && h > 0 && area > 0 ? (w * h) / area : 0;
+}
+
+/** The alpha a pet { box, z } eases to: PET_FADE.alpha while it covers a foe { box, z } drawn under it (smaller z), else 1. */
+export function petFadeTarget(pet, foes) {
+  for (const f of foes) if (f.z < pet.z && coverShare(pet.box, f.box) >= PET_FADE.over) return PET_FADE.alpha;
+  return 1;
+}
 
 /**
  * A fusion's idle and walking motion by its roster `move` (src/art/fusion-roster.js), at time `t`
@@ -99,6 +121,7 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
   const views = new Map();
   const pets = new WeakSet(); // the pets' containers in the shared layer (the rest are foes)
   const live = new Set(); // reused each frame
+  const foeBoxes = []; // reused each frame: { z, box } of every foe on the field
   const list = [];
   const simRate = createSimRate(); // the game speed, so a wind-up lasts WIND_UP s of real time
   let time = 0;
@@ -158,6 +181,7 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
       dial: 0, // the halo's turn
       leap: null,
       echo: null,
+      fade: 1, // its alpha: PET_FADE while it covers a foe
     };
     fx.burst(t.x, t.y, [hex(fusionOf(t.cls).color), 0xffffff, 0xffe27a], 26, { speed: 5, size: 0.3, life: 0.6, gravity: 0 });
     fx.ring(t.x, t.y, 0xffffff, 0.4, 2.2, 0.4);
@@ -181,6 +205,15 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
         views.set(t.id, v);
       }
       list.push(t, v);
+    }
+    // the foes' boxes on screen, for the pets that stand over them (their sprites stand on their feet, lifted ~0.3 u)
+    foeBoxes.length = 0;
+    for (const e of run.enemies ?? []) {
+      if (e.dead || e.gone) continue;
+      const w = foeDrawSize(e.def) * U;
+      const fx0 = stage.sx(e.x);
+      const fy = stage.sy(e.y) - 0.3 * U;
+      foeBoxes.push({ z: stage.sy(e.y), box: { x0: fx0 - w / 2, x1: fx0 + w / 2, y0: fy - 0.62 * w, y1: fy + 0.38 * w } });
     }
     for (let i = 0; i < list.length; i += 2) {
       const t = list[i];
@@ -263,6 +296,16 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
         v.echo.push(dt, sx + v.body.position.x, sy + v.body.position.y, v.body.scale.x, v.body.scale.y, v.body.rotation);
         v.echo.draw(n, v.body.texture, 0xffffff, 0.5, v.fit.feet);
       }
+      // over a foe it fades so the foe shows through, mid-pounce too (the box follows the body)
+      const hw = (Math.abs(v.body.scale.x) * (tex.width || 1) * PET_FADE.core) / 2;
+      const bh = Math.abs(v.body.scale.y) * (tex.height || 1);
+      const foot = sy + v.body.position.y;
+      const mid = foot - bh * (v.fit.feet - 0.5);
+      const hh = (bh * PET_FADE.core) / 2;
+      const bx = sx + v.body.position.x;
+      const want = petFadeTarget({ z: v.c.zIndex, box: { x0: bx - hw, x1: bx + hw, y0: mid - hh, y1: mid + hh } }, foeBoxes);
+      v.fade += (want - v.fade) * (1 - Math.exp(-PET_FADE.rate * dt));
+      v.c.alpha = v.fade;
       const air = legend ? 1 : Math.max(0.6, 1 - g.lift * 0.8); // a shadow left on the ground shrinks under a hovering pet
       v.shadow.width = cell * (legend ? MARK.legendShadow : MARK.shadow) * air;
       v.shadow.height = cell * (legend ? MARK.legendShadowH : MARK.shadowH) * air;

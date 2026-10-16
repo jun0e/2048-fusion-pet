@@ -562,3 +562,30 @@ test('knockback and holds brace: a foe pushed or held again soon slides and stay
   }
   assert.ok(held / 10 < 0.6, `held ${(held * 10).toFixed(0)}% of the time`);
 });
+
+test('bosses resist pushback after many pushes (DEFENSE.bossPushResist), normal foes never do', () => {
+  const steps = DEFENSE.bossPushResist; // after 20 / 50 / 100 pushes: 25 / 50 / 75% shorter
+  const d = createDefense({ rng: createRng(1) });
+  const boss = d.spawn('elfRuler', { lane: 2, hpScale: 1e12, s: sAtY(12) });
+  const grunt = d.spawn('hoodedFlier', { lane: 2, hpScale: 1e12, s: sAtY(12.2) });
+  const wind = block(2, 4, { element: 'wind' }, 1, 3); // Wing Gust at 16: pushes 1 unit, a boss 0.5
+  wind.y = 9; // close enough that both foes are inside the skill's radius
+  const slides = [];
+  const gruntSlides = [];
+  for (let i = 1; i <= steps.at(-1).after + 1; i++) {
+    for (const e of [boss, grunt]) Object.assign(e, { braceT: 0, s: sAtY(10.5), y: 10.5 }); // unbraced, same spot every time
+    d.cast(wind, { radius: 3, mult: 0 }); // one push each, no damage
+    slides.push(sAtY(10.5) - boss.s);
+    gruntSlides.push(sAtY(10.5) - grunt.s);
+  }
+  const near = (a, b) => Math.abs(a - b) < 1e-6;
+  assert.ok(slides.slice(0, steps[0].after).every((x) => near(x, 0.5)), `pushes 1–${steps[0].after}: half as far, like any boss`);
+  steps.forEach((r, k) => {
+    const last = steps[k + 1]?.after ?? r.after + 1; // the pushes after this step (and before the next)
+    for (const n of [r.after, last - 1]) assert.ok(near(slides[n], 0.5 * (1 - r.resist)), `push ${n + 1}: ${r.resist * 100}% shorter (${slides[n]})`);
+  });
+  assert.ok(gruntSlides.every((x) => near(x, 1)), 'a normal foe never resists');
+  const marks = d.drainEvents().filter((e) => e.type === 'resist');
+  assert.deepEqual(marks.map((e) => [e.id, e.level]), [[boss.id, 1], [boss.id, 2], [boss.id, 3]], 'one popup at each step');
+  assert.equal(marks[0].name, ENEMY_TYPES.elfRuler.name);
+});
