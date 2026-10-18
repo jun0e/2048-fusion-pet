@@ -79,3 +79,21 @@ test('a reorder moves the fewest cards: those outside the longest run already in
   assert.deepEqual([...longestRun([0, 1, 2, 3])].sort(), [0, 1, 2, 3], 'in order: nothing moves');
   assert.equal(longestRun([]).size, 0);
 });
+
+test('the move list: the fewest cards, falling ones left where they hang', async () => {
+  const { railMoves } = await import('../src/kv/namecards.js');
+  const apply = (dom, order) => {
+    const out = [...dom];
+    for (const i of railMoves(dom.filter((x) => !x.startsWith('lost')), order)) {
+      out.splice(out.indexOf(order[i]), 1);
+      const next = order[i + 1];
+      out.splice(next ? out.indexOf(next) : out.length, 0, order[i]);
+    }
+    return out;
+  };
+  // card 12 falls while a new fusion 20 comes in: 20 goes to the top, 12 is not moved mid-fall
+  const after = apply(['11', 'lost12', '13', '20'], ['20', '11', '13']);
+  assert.deepEqual(after.filter((x) => !x.startsWith('lost')), ['20', '11', '13']);
+  assert.equal(railMoves(['11', '13', '20'], ['20', '11', '13']).length, 1, 'one move: the new card');
+  assert.deepEqual(railMoves(['a', 'b', 'c'], ['a', 'b', 'c']), [], 'in order: nothing moves');
+});

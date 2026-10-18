@@ -66,6 +66,19 @@ export function longestRun(pos) {
   return keep;
 }
 
+/**
+ * Which of `order` to move, last first, each to just before the one after it (or to the end), so the
+ * cards stand in `order`: the fewest, those outside the longest run already in order in `current`
+ * (the rail's cards in the DOM, the falling ones left out). [] when they already stand in order.
+ */
+export function railMoves(current, order) {
+  if (order.every((el, i) => current[i] === el) && current.length === order.length) return [];
+  const keep = longestRun(order.map((el) => current.indexOf(el)));
+  const moves = [];
+  for (let i = order.length - 1; i >= 0; i--) if (!keep.has(i)) moves.push(i);
+  return moves;
+}
+
 /** How long a just-cast face holds the stack's slot (ms): a quick second tap nudges it instead. */
 export const FACE_HOLD_MS = 600;
 
@@ -164,6 +177,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     // a press casts at once (no wait for the click); Enter and Space on a focused card do the same
     const press = () => {
       if (card.lost || card.charge < card.max) {
+        if (document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         el.classList.remove('nudge');
         void el.offsetWidth;
         el.classList.add('nudge');
@@ -317,20 +331,13 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     for (const id of slots.shown) slot(cards.get(id), 'own');
     slots.stack.forEach((id, i) => slot(cards.get(id), i === 0 ? 'face' : 'behind', slots.stack.length - 1));
     if (focused?.role === 'behind' || dropped) (cards.get(face) ?? cards.get(slots.shown[0]))?.el.focus({ preventScroll: true });
-    // the DOM in the rail's order, so Tab reads the cards top to bottom (moved only when it changed);
-    // a falling card keeps its place
-    const onRail = [...slots.shown, ...slots.stack].map((id) => cards.get(id));
-    onRail.forEach((c, i) => (c.index = i));
-    const order = onRail.map((c) => c.el);
-    const falling = [...cards.values()].filter((c) => c.lost).sort((a, b) => (a.index ?? Infinity) - (b.index ?? Infinity));
-    for (const c of falling) order.splice(Math.min(c.index ?? order.length, order.length), 0, c.el);
-    // the fewest cards move: those outside the longest run already in order (a node taken out of the
-    // page restarts its animations, the ready bob, the shine, a fall, and loses its focus)
-    if (order.some((el, i) => strip.children[i] !== el)) {
+    // the DOM in the rail's order, so Tab reads the cards top to bottom; a falling card is left where
+    // it hangs (moving a node restarts its animations: the fall, the bob, the shine, and drops its focus)
+    const order = [...slots.shown, ...slots.stack].map((id) => cards.get(id).el);
+    const moves = railMoves([...strip.children].filter((el) => !el.classList.contains('lost')), order);
+    if (moves.length) {
       const had = document.activeElement;
-      const at = [...strip.children];
-      const keep = longestRun(order.map((el) => at.indexOf(el)));
-      for (let i = order.length - 1; i >= 0; i--) if (!keep.has(i)) strip.insertBefore(order[i], order[i + 1] ?? null);
+      for (const i of moves) strip.insertBefore(order[i], order[i + 1] ?? null);
       if (had && had !== document.activeElement && strip.contains(had)) had.focus({ preventScroll: true });
     }
   }

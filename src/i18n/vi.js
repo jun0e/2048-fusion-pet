@@ -107,7 +107,7 @@ export const VI = {
   'foe.elfRuler': 'Ong Chúa',
   'foe.elfRuler.intro': 'Mẹ của tổ ong Bầy Săn Hoang Dã. Hồi máu cho quái gần đó.',
   'foe.kiteNinja': 'Cua Tháp',
-  'foe.kiteNinja.intro': 'Một con cua cõng cả ngôi tháp. Khi gục, nó thả ra cá chép diều. Mai của nó kháng sát thương vật lý.',
+  'foe.kiteNinja.intro': 'Cõng ngôi tháp; gục thì thả cá chép diều. Mai kháng đòn vật lý.',
   'foe.dragonRider': 'Rồng Dung Nham',
   'foe.dragonRider.intro': 'Một con rồng dung nham đang nguội. Hệ Lửa: miễn thiêu đốt, sợ băng.',
   // the chapters

@@ -2203,14 +2203,14 @@ body {
 }
 
 .boss-intro.narrow .boss-intro-head b {
-  font-size: 20px; /* a card under 260 px: "Rồng Dung Nham" stays on one line */
+  font-size: 20px; /* a card under 260 px: a smaller name (the portrait still sets the row's height) */
 }
 
 .boss-intro-line {
   grid-area: line;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3; /* at most three lines: the card fits between the gates and the board */
+  -webkit-line-clamp: var(--lines, 3); /* three lines, four where the room allows (boss-intro.js) */
   overflow: hidden;
   font: 700 14px/1.3 var(--font-body);
   color: var(--ink-soft);

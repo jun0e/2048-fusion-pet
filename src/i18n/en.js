@@ -107,7 +107,7 @@ export const EN = {
   'foe.elfRuler': 'Hive Queen',
   'foe.elfRuler.intro': 'The mother of the Wild Hunt’s hive. Heals nearby allies.',
   'foe.kiteNinja': 'Pagoda Crab',
-  'foe.kiteNinja.intro': 'A crab that carries a pagoda. Releases kite carps when it falls. Its shell has physical RES.',
+  'foe.kiteNinja.intro': 'Carries a pagoda; drops kite carps when it falls. Its shell resists physical hits.',
   'foe.dragonRider': 'Lava Wyrm',
   'foe.dragonRider.intro': 'A wyrm of cooling lava. Fire element: immune to burn, weak to ice.',
   // the chapters

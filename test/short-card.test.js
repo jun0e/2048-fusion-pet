@@ -105,5 +105,5 @@ test('the narrow card’s sizes in inspect.js are the ones inspect.css sets (the
   assert.match(rule('.inspect.short.narrow .inspect-sell'), new RegExp(`padding-left: ${button}px;\\s*padding-right: ${button}px`));
   assert.match(rule('.inspect.short.narrow .inspect-act'), new RegExp(`column-gap: ${gap}px`));
   assert.match(rule('.inspect.short.narrow .inspect-act'), new RegExp(`padding-left: ${row}px;\\s*padding-right: ${row}px`));
-  assert.match(rule('.inspect.short.narrow .inspect-more'), new RegExp(`width: ${icon}px`));
+  assert.match(rule('.inspect.short.narrow .inspect-more'), new RegExp(`(?<![-\\w])width: ${icon}px`));
 });

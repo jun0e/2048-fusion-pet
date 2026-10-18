@@ -9,8 +9,8 @@ This page says how the run screen is laid out after the visual overhaul (phase P
   - the floating popups ("Block lost!", a signature's name) float up from the keep for under a second;
   - the pet skill cut-in (0.9 s), the coach's bubbles and the dialogs on their scrim;
   - the boss intro card (T6, `src/ui/boss-intro.js`). As a boss wave starts, the boss's portrait, its name and what it does sit halfway between the gates and the board for 2.6 s of play, then fade:
-    - it sits on the field, centred, from the screen's left gutter to 4 px inside the right tower, so never over the namecard rail;
-    - it has two rows: the portrait beside the Boss tag and the name, then what the boss does, three lines at most. Measured for all three bosses, in English and in Vietnamese, it fits between the gates and the board from 320 × 480 up (150 px in a 152 px room at the smallest);
+    - it never covers the namecard rail: its right edge stays 4 px inside the right tower. It is centred on the field wherever a centred card can still be 240 px wide or more: a big phone, a tablet or a laptop. On a smaller phone it starts at the 8 px gutter instead, over the left tower, so its lines stay long and the card short;
+    - it has two rows: the portrait beside the Boss tag and the name, then what the boss does, in three lines (four where the room allows). Measured for all three bosses, in English and in Vietnamese, it fits between the gates and the board from 320 × 480 up;
     - it stays under the dialogs, and waits, hidden, behind a die card; its time stops while the game is paused;
     - the boss itself stays in view at its gate, and the card never takes a tap;
     - the news ribbon still says "… approaches!", because the ribbon is the HUD's spoken line.

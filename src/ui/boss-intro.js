@@ -5,10 +5,11 @@
 // spoken line, aria-live), so the card stays out of the accessibility tree.
 // A large panel (docs/ux/photosafe.md): it always fades in, over 0.6 s, which is no flash, so it
 // never takes the flash budget a pet's skill cut-in needs.
-// It sits on the field, from the screen's left gutter to 4 px inside the right tower (never over the
-// namecard rail), and halfway between the portals and the board (hud.css, from main.js's --field-top
-// and --board-top). Two rows (the portrait and the name; what it does, at most three lines), so it fits
-// between the gates and the board on every phone, a 320 x 480 one with its toolbars showing included.
+// It sits on the field, never over the namecard rail (place), and halfway between the portals and the
+// board (hud.css, from main.js's --field-top and --board-top). Two rows (the portrait and the name; what
+// it does, three or four lines as the room allows), so it fits between the gates and the board on every
+// phone, a 320 x 480 one with its toolbars showing included.
+import { FIELD, GRID_TOP } from '../config.js';
 import { ENEMY_TYPES } from '../sim/enemies.js';
 import { FRAME_GEOM } from '../art/frame-kit.js';
 import { generatedUrl } from '../render/textures.js';
@@ -34,18 +35,28 @@ export function createBossIntro(root, { stage }) {
     el.classList.remove('fade', 'out');
   }
 
-  /** Centred on the field, within the left gutter and 4 px inside the right tower (off the namecard rail). */
+  /**
+   * Off the namecard rail: its right edge at most 4 px inside the right tower. Centred on the field where
+   * a centred card is still 240 px wide or more (a big phone, a tablet, a laptop); on a smaller phone it
+   * starts at the screen's 8 px gutter instead, over the left tower, so its lines stay long and the card
+   * short. Its intro takes a fourth line where the room allows.
+   */
   function place() {
     const box = root.getBoundingClientRect();
     const right = stage.toClient(FRAME_GEOM.towerIn, 0).x - box.left - 4;
-    const w = Math.round(Math.min(360, right - 8));
-    const x = Math.round(Math.max(8, Math.min(right - w, stage.toClient(0, 0).x - box.left - w / 2)));
-    const k = `${w}|${x}`;
+    const mid = stage.toClient(0, 0).x - box.left;
+    const centred = Math.min(360, 2 * (right - mid));
+    const w = Math.round(centred >= 240 ? centred : Math.min(360, right - 8));
+    const x = Math.round(centred >= 240 ? mid - w / 2 : Math.max(8, Math.min(right - w, mid - w / 2)));
+    const room = stage.toClient(0, GRID_TOP + 0.3).y - stage.toClient(0, FIELD.spawnY + 1.05).y; // --board-top less --field-top
+    const lines = room >= 170 ? 4 : 3;
+    const k = `${w}|${x}|${lines}`;
     if (k === placed) return;
     placed = k;
     el.style.left = `${x}px`;
     el.style.width = `${w}px`;
-    el.classList.toggle('narrow', w < 260); // a smaller name: the longest stays on one line
+    el.style.setProperty('--lines', String(lines));
+    el.classList.toggle('narrow', w < 260); // a smaller name on a narrow card (the portrait still sets the row)
   }
 
   return {
