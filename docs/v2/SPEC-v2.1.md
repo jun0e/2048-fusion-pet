@@ -18,7 +18,9 @@ What the user asked for (2026-10-19):
 11. No main-element pick when two pets fuse: a fusion pet's attack and skill are fixed to the pet (its picture).
 12. New blocks can spawn as 16 and 32 at high levels, and 2, 4 and 8 can stop spawning.
 13. Balance: after about 8 minutes the waves beat anyone who does not play well, and nobody lasts past
-    about 12 minutes. (The minutes on the level road and the ramp follow from this; see section 4.)
+    about 12 minutes. The user chose to fit everything into those 12 minutes (2026-10-19): the board
+    grows to 5×5 at about 4 minutes and to 6×6 at about 7, the waves steepen from 8 and match the
+    player's damage from 10, and the 20 levels arrive by about 10.
 14. The level card shows no spawn odds: only the XP still needed and the next level's reward. Buy XP is gone.
 
 ## 1. A board that grows
@@ -80,7 +82,8 @@ What the user asked for (2026-10-19):
   bigger; some levels also unlock something. The minutes are set by the balance target (item 13): the
   road's `minute` field says where each level falls, so views never hard-code minutes.
 - `LEVEL_ROAD` (src/sim/levels.js): one entry per level, `{ level, minute, rewards }`. `minute` is when an
-  average run reaches it (the bot's median), for the road's labels. Rewards:
+  average run reaches it (the bot's median): a level about every 30 s, the 5×5 board at level 11 (about
+  4:00), the 6×6 at level 17 (about 7:00), the top level 20 at about 10:00. Rewards:
 
 | kind | fields | what it does |
 |---|---|---|
@@ -105,10 +108,11 @@ What the user asked for (2026-10-19):
   second), growing with the wave. Bosses resist the top element from wave 15. `spawn` events carry `resist`.
   Event `{ type: 'resisted', id, x, y, element }` when a resisted hit lands (views: a small shield blink,
   at most a few a second).
-- **The ramp.** `run.ramp` → `{ phase, dps, needS }`: `phase` is `'curve'` before 15:00, `'steep'` from
-  15:00 (toughness grows faster each minute), `'dps'` from 20:00 (each wave needs at least `needS` seconds
-  of the board's whole firepower, `dps`, to clear; `needS` rises every minute). Events `{ type: 'ramp',
-  phase }` at 15:00 and 20:00 (the HUD says so).
+- **The ramp.** `run.ramp` → `{ phase, dps, needS }`: `phase` is `'curve'` before 8:00, `'steep'` from
+  8:00 (toughness grows faster each minute), `'dps'` from 10:00 (each wave needs at least `needS` seconds
+  of the board's whole firepower, `dps`, to clear; `needS` rises every minute, so nobody lasts past about
+  12:00). Events `{ type: 'ramp', phase }` when a phase starts (the HUD says so). The minutes live in
+  `V2_1.ramp` (src/config.js); views never hard-code them.
 
 ## 6. Screens
 
