@@ -6,9 +6,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Container, Texture, TextureSource } from 'pixi.js';
-import { AIR, CAPS, PIECE, SKILL_FX, ZONE, boltPoints, createSkillFx, fxWord, pieceAlpha } from '../src/render/skillfx.js';
+import { AIR, CAPS, CLIP, FIELD_AREA, LANE_HALF, PIECE, SKILL_FX, WALL, ZONE, boltPoints, createSkillFx, fxWord, pieceAlpha, zoneArea } from '../src/render/skillfx.js';
 import { FUSIONS } from '../src/sim/classes.js';
-import { laneX } from '../src/config.js';
+import { FIELD, laneX } from '../src/config.js';
 
 const U = 30;
 const DT = 1 / 60;
@@ -16,9 +16,10 @@ const tex = (w, h) => new Texture({ source: new TextureSource({ width: w, height
 const KINDS = ['lava', 'web', 'cloud', 'sand', 'snow', 'twister', 'field'];
 
 function scene({ reduced = false, grant = 1 } = {}) {
-  const layers = Object.fromEntries(['path', 'shots', 'fx', 'numbers', 'enemies'].map((k) => [k, new Container()]));
+  const layers = Object.fromEntries(['path', 'tiles', 'shots', 'fx', 'numbers', 'enemies'].map((k) => [k, new Container()]));
+  layers.tiles.addChild(new Container()); // the blocks' layers, there first
   const shakes = [];
-  const stage = { layers, reduced, view: { U }, sx: (x) => 300 + x * U, sy: (y) => 900 - y * U, shake: (px) => shakes.push(px) };
+  const stage = { layers, reduced, view: { U, ox: 300, oy: 900 }, sx: (x) => 300 + x * U, sy: (y) => 900 - y * U, shake: (px) => shakes.push(px) };
   const fx = {
     shares: [],
     alls: [],
@@ -50,7 +51,10 @@ function scene({ reduced = false, grant = 1 } = {}) {
       s.update(run, DT);
     }
   };
-  return { s, stage, fx, run, step, layers, shakes };
+  const ground = layers.tiles.children[0];
+  /** The zones' containers on the ground (its clip mask aside). */
+  const groundZones = () => ground.children.filter((c) => c !== ground.mask);
+  return { s, stage, fx, run, step, layers, shakes, ground, groundZones };
 }
 
 // --- the instant effects ----------------------------------------------------------------------------
@@ -140,7 +144,7 @@ test('a bolt runs jagged from its start to its end, bending a little to the side
 // --- the standing pieces --------------------------------------------------------------------------------
 
 test('zones: every kind is drawn, on the ground or in the air; it rises, holds at least its least time, then falls and is gone', () => {
-  assert.deepEqual([...AIR].sort(), ['cloud', 'sand', 'snow', 'twister']);
+  assert.deepEqual([...AIR].sort(), ['snow', 'twister']);
   const sc = scene();
   sc.run.defense.zones = KINDS.map((kind, i) => ({ id: i + 1, kind, x: -3 + (i % 4) * 2, y: 10 + Math.floor(i / 4) * 3, r: 1.5, color: '#ff9f1c', t: 3, dur: 3 }));
   sc.step();
@@ -164,7 +168,7 @@ test('zones: every kind is drawn, on the ground or in the air; it rises, holds a
   assert.ok(a > 0.2 * ZONE.lava && a < 0.8 * ZONE.lava, `falling (${a.toFixed(2)})`);
   quick.step(PIECE.fall);
   assert.equal(quick.s.drawn.zones.length, 0, 'gone');
-  assert.equal(quick.layers.path.children[0].children.length, 0, 'its view destroyed');
+  assert.equal(quick.groundZones().length, 0, 'its view destroyed');
   // the rise and the fall are more than a second apart, at any game speed (real time)
   assert.ok(PIECE.rise + PIECE.hold > 1);
   assert.equal(pieceAlpha(0), 0);
@@ -202,7 +206,7 @@ test('a glacier wall stands across its lanes among the foes, rises from the grou
   const wall = () => sc.layers.enemies.children.find((c) => c.skillDepth && c.children.length === 2);
   assert.ok(wall(), 'among the foes');
   assert.equal(wall().position.x, sc.stage.sx((laneX(1) + laneX(2)) / 2), 'centred on its lanes');
-  assert.equal(sc.s.drawn.walls[0].z, sc.stage.sy(9.4), 'drawn by its base line');
+  assert.equal(sc.s.drawn.walls[0].z, sc.stage.sy(9.4 - WALL.sink), 'drawn by its base line');
   assert.ok(sc.s.drawn.walls[0].scaleY < 0.3, 'it rises from the ground');
   sc.step(0.4);
   assert.ok(Math.abs(sc.s.drawn.walls[0].scaleY - 1) < 0.07);
@@ -272,7 +276,7 @@ test('Reduce motion: zones hold still, and lines appear whole instead of racing 
   const sc = scene({ reduced: true });
   sc.run.defense.zones = [{ id: 1, kind: 'field', x: 0, y: 12, r: 2, color: '#ffffff' }];
   sc.step(0.5);
-  const g = sc.layers.path.children[0].children[0];
+  const g = sc.groundZones()[0].children[0];
   const r0 = g.rotation;
   sc.step(1);
   assert.equal(g.rotation, r0, 'the field’s dashes do not turn');
@@ -303,4 +307,53 @@ test('an id the sim gives to another kind of zone or minion gets a view of its o
   sc.step();
   assert.deepEqual(sc.s.drawn.zones.map((z) => z.kind), ['web']);
   assert.deepEqual(sc.s.drawn.minions.map((m) => m.kind), ['spider']);
+});
+
+test('a zone’s area: a disc; r = Infinity the whole field; a sandstorm with lanes those lanes’ columns, from the parapet to the portals', () => {
+  assert.deepEqual(zoneArea({ x: 1, y: 12, r: 3 }), { cx: 1, cy: 12, hx: 3, hy: 3, round: true, lanes: null });
+  const field = zoneArea({ kind: 'snow', x: 0, y: 12, r: Infinity });
+  assert.deepEqual([field.round, field.cx, field.hx], [false, 0, FIELD_AREA.hx]);
+  assert.ok(Math.abs(field.cy - field.hy - FIELD_AREA.y0) < 1e-9 && Math.abs(field.cy + field.hy - FIELD.spawnY) < 1e-9, 'parapet to portals');
+  const storm = zoneArea({ kind: 'sand', x: 0, y: 12, r: Infinity, lanes: [2, 1] });
+  assert.deepEqual(storm.lanes, [1, 2]);
+  assert.ok(Math.abs(storm.cx - (laneX(1) + laneX(2)) / 2) < 1e-9 && Math.abs(storm.hx - (laneX(2) - laneX(1)) / 2 - LANE_HALF) < 1e-9, 'its two columns');
+});
+
+test('a whole-field blizzard and a sandstorm over its lanes are drawn where they lie, and the ground zones sit under the blocks, clipped to the field and keep', () => {
+  const sc = scene();
+  sc.run.defense.zones = [
+    { id: 1, kind: 'snow', x: 0, y: 12.6, r: Infinity, color: '#e0f7ff' },
+    { id: 2, kind: 'sand', x: 1, y: 12, r: Infinity, lanes: [1, 2], color: '#e6c88a' },
+    { id: 3, kind: 'cloud', x: -3, y: 11, r: 5, color: '#c39bd3' },
+  ];
+  sc.step(PIECE.rise);
+  const [snow, sand, cloud] = sc.s.drawn.zones;
+  assert.equal(snow.layer, 'air');
+  const mid = (FIELD_AREA.y0 + FIELD_AREA.y1) / 2;
+  assert.deepEqual([snow.x, snow.y], [sc.stage.sx(0), sc.stage.sy(mid)], 'over the whole field');
+  assert.deepEqual([sand.layer, sand.x], ['ground', sc.stage.sx((laneX(1) + laneX(2)) / 2)], 'over its lanes, under the foes');
+  assert.equal(cloud.layer, 'ground', 'a cloud too: the foes in it stay readable');
+  for (const z of sc.s.drawn.zones) assert.ok(Number.isFinite(z.x) && Number.isFinite(z.y) && z.alpha > 0);
+  // the ground is the bottom of the tiles layer (under the blocks), and both containers are clipped
+  assert.equal(sc.layers.tiles.children[0], sc.ground);
+  assert.ok(sc.ground.mask && sc.layers.shots.children[0].mask, 'clipped');
+  const b = sc.ground.mask.getLocalBounds();
+  assert.ok(Math.abs(b.minX - sc.stage.sx(-CLIP.hx)) < 1e-6 && Math.abs(b.maxX - sc.stage.sx(CLIP.hx)) < 1e-6, 'tower to tower');
+  // the bits of a whole-field zone stay inside it
+  const snowC = sc.layers.shots.children[0].children.find((c) => c.children.length > 10);
+  for (const bit of snowC.children.slice(1)) {
+    assert.ok(Math.abs(bit.position.x) <= FIELD_AREA.hx * U + 1e-6, 'within the field');
+    assert.ok(Math.abs(bit.position.y) <= ((FIELD_AREA.y1 - FIELD_AREA.y0) / 2) * U + 1e-6);
+  }
+});
+
+test('a glacier wall stands on its line: foes stopped just above it show over it', () => {
+  const sc = scene();
+  sc.run.defense.walls = [{ id: 1, lanes: [0], y: 9, dur: 6, color: '#9fc5e8' }];
+  sc.step(0.5);
+  const wall = sc.layers.enemies.children.find((c) => c.skillDepth);
+  assert.equal(wall.position.y, sc.stage.sy(9 - WALL.sink));
+  const top = wall.position.y + wall.getLocalBounds().minY * wall.scale.y;
+  assert.ok(top > sc.stage.sy(9 + 0.45 + 0.6), 'its top lies below a stopped foe’s head');
+  assert.ok(WALL.h < 1, 'a low barrier');
 });

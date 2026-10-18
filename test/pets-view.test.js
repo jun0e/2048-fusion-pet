@@ -352,3 +352,66 @@ test('every roster move is a gait the pet draws', () => {
   assert.deepEqual(GAITS, ['walk', 'crawl', 'leap', 'hover', 'swim', 'float']);
   for (const [k, r] of Object.entries(FUSION_ROSTER)) assert.ok(GAITS.includes(r.move), `${k}: ${r.move}`);
 });
+
+/** One step of a summon as the sim moves it (src/sim/roam.js moveSummon on v2): a line and a sine arc 2.2 high. */
+function simHop(s, dt) {
+  s.t += dt;
+  const k = Math.min(1, s.t / s.hop);
+  const tx = s.phase === 'out' ? s.tx : s.home.x;
+  const ty = s.phase === 'out' ? s.ty : s.home.y;
+  s.x = s.x0 + (tx - s.x0) * k;
+  s.y = s.y0 + (ty - s.y0) * k;
+  s.z = Math.sin(k * Math.PI) * 2.2;
+}
+
+test('a summon that carries its own hop (the sim’s x, y, z) is drawn exactly there, standing on its tile’s sill near home', () => {
+  const s = scene({ phase: 'out' });
+  const tile = s.tile;
+  const hop = V2.summon.hopS;
+  Object.assign(tile.summon, { t: 0, hop, dur: 2, x: tile.x, y: tile.y, z: 0, x0: tile.x, y0: tile.y, tx: 3, ty: 12, home: { x: tile.x, y: tile.y }, facing: 1, moving: false });
+  const sim = () => {
+    simHop(tile.summon, DT);
+    s.step();
+  };
+  s.step();
+  const v = s.pet();
+  const sill = homeOf(tile);
+  assert.ok(Math.hypot(v.x - sill.x, v.y - sill.y) < 0.05, 'it leaves from its tile’s sill, not the sim’s home point');
+  for (let i = 0; i < Math.round(hop / DT / 2); i++) sim();
+  const k = tile.summon.t / hop;
+  assert.ok(Math.abs(v.lift - tile.summon.z) < 1e-9 && v.lift > 2, `its lift is the sim’s z (${v.lift.toFixed(2)})`);
+  assert.ok(Math.abs(v.x - (tile.summon.x + (sill.x - tile.x) * (1 - k))) < 1e-9 && Math.abs(v.y - (tile.summon.y + (sill.y - tile.y) * (1 - k))) < 1e-9);
+  assert.ok(Math.abs(v.scale - (HOP.tile + (1 - HOP.tile) * k)) < 1e-9, 'it grows as it goes');
+  while (tile.summon.t < hop) sim();
+  const rings = s.fx.rings.length;
+  Object.assign(tile.summon, { phase: 'act', t: 0, x: 3, y: 12, z: 0 });
+  s.step();
+  assert.equal(v.mode, 'act');
+  assert.ok(Math.abs(v.x - 3) < 1e-9 && Math.abs(v.y - 12) < 1e-9 && v.lift === 0 && v.scale === 1);
+  assert.equal(s.fx.rings.length, rings + 1, 'it lands with a dust ring');
+  // it walks while the sim says it moves, and stands when it does not
+  tile.summon.moving = true;
+  tile.summon.x -= 0.03;
+  s.step(0.3);
+  assert.ok(v.go > 0.5, 'into its stride');
+  tile.summon.moving = false;
+  s.step(0.6);
+  assert.ok(v.go < 0.05, 'and out of it');
+  // home: the sim hops it back to its home point; it lands on the sill, and the summon ends without a puff
+  Object.assign(tile.summon, { phase: 'back', t: 0, x0: tile.summon.x, y0: tile.summon.y });
+  while (tile.summon.t < hop) sim(); // the sim's last step before petHome: k = 1
+  assert.ok(Math.hypot(v.x - sill.x, v.y - sill.y) < 1e-9 && Math.abs(v.scale - HOP.tile) < 1e-9 && v.lift < 1e-9, 'on its sill, at its tile size');
+  const puffs = s.fx.bursts.length;
+  delete tile.summon; // petHome
+  s.step();
+  assert.equal(s.pet(), null);
+  assert.equal(s.fx.bursts.length, puffs, 'it landed: no puff');
+});
+
+test('v1’s enemy split event, still named summon, is no pet’s', () => {
+  const s = scene();
+  s.run.tiles[0].summon = undefined;
+  s.roam.onEvent({ type: 'summon', id: 3, x: 1, y: 12, count: 3 });
+  s.step();
+  assert.equal(s.pet(), null);
+});

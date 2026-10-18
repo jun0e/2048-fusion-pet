@@ -17,6 +17,7 @@
 // resizes) that is moved, turned and faded each frame; at most CAPS of each are drawn.
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { FIELD, GRID, laneX } from '../config.js';
+import { FRAME_GEOM } from '../art/frame-kit.js';
 import { ELEMENTS, fusionOf } from '../sim/classes.js';
 import { has, tr } from '../i18n/index.js';
 import { tone } from '../art/tokens.js';
@@ -40,8 +41,43 @@ export const PIECE = { rise: 0.45, hold: 1.2, fall: 0.7 };
 export const CAPS = { zones: 12, walls: 8, traps: 16, minions: 32, tethers: 12, lines: 24, texts: 6 };
 /** The zones' looks: their most alpha (a ground stain, an air haze), how many bits they draw. */
 export const ZONE = { lava: 0.88, web: 0.8, field: 0.5, fill: 0.08, haze: 0.42, puffs: 7, flakes: 36, streaks: 10, snowHaze: 4 };
-/** The zone kinds drawn in the air over the foes (the rest lie on the ground under them). */
-export const AIR = new Set(['cloud', 'sand', 'snow', 'twister']);
+/**
+ * The zone kinds drawn in the air over the foes: a blizzard's flakes fall in front of them, a twister
+ * towers over what it pulls in. The rest lie on the ground under the foes (a cloud and a sandstorm too,
+ * so the foes in them stay readable), over the keep's floor and under the blocks.
+ */
+export const AIR = new Set(['snow', 'twister']);
+
+/** Half a lane's width (world units): a sandstorm's column. */
+export const LANE_HALF = GRID.cell * 0.48;
+/** The field a whole-field zone covers (world units): tower to tower, from the parapet to the portals. */
+export const FIELD_AREA = { hx: FRAME_GEOM.towerIn, y0: FRAME_GEOM.parapet.wall, y1: FIELD.spawnY };
+/** Where the skills' pieces may show (world units): the field and the keep, never over the towers. */
+export const CLIP = { hx: FRAME_GEOM.towerIn, y0: -FRAME_GEOM.keep.pad, y1: FIELD.spawnY + 0.6 };
+
+/**
+ * Where a zone lies, in world units: a disc (its x, y, r); with r = Infinity the whole field (FIELD_AREA),
+ * or with `lanes` (a sandstorm) those lanes' columns from the parapet to the portals.
+ * → { cx, cy, hx, hy, round, lanes }
+ */
+export function zoneArea(z) {
+  if (Number.isFinite(z.r)) {
+    const r = Math.max(0.2, z.r);
+    return { cx: z.x, cy: z.y, hx: r, hy: r, round: true, lanes: null };
+  }
+  const cy = (FIELD_AREA.y0 + FIELD_AREA.y1) / 2;
+  const hy = (FIELD_AREA.y1 - FIELD_AREA.y0) / 2;
+  const lanes = Array.isArray(z.lanes) && z.lanes.length ? [...z.lanes].sort((a, b) => a - b) : null;
+  if (lanes) {
+    const xa = laneX(lanes[0]) - LANE_HALF;
+    const xb = laneX(lanes.at(-1)) + LANE_HALF;
+    return { cx: (xa + xb) / 2, cy, hx: (xb - xa) / 2, hy, round: false, lanes };
+  }
+  return { cx: 0, cy, hx: FIELD_AREA.hx, hy, round: false, lanes: null };
+}
+
+/** A glacier wall (world units): its blocks' height, standing this far below its line (foes stop 0.45 above it: their heads show over it). */
+export const WALL = { h: 0.85, sink: 0.1 };
 /**
  * The instant effects (world units, seconds): a ring's stroke and life, a beam's race and life, a bolt's
  * width and life, a slam's life and cracks, a sweep's crossing, a word's height and life.
@@ -95,10 +131,29 @@ export function pieceAlpha(age, gone = null) {
 
 export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {}) {
   const { layers } = stage;
-  const ground = new Container(); // ground zones: under the foes (over the lanes, the decals and puddles)
-  layers.path.addChild(ground);
-  const air = new Container(); // air zones and tethers: over the foes, under the shots' bits
+  // ground zones: under the foes and the blocks, over the lanes and the keep's floor (a lava pool under a
+  // crowd on the board shows); air zones and tethers: over the foes, under the shots' bits. Both are
+  // clipped to the field and the keep, so a big zone never spills over the towers.
+  const ground = new Container();
+  layers.tiles.addChildAt(ground, 0);
+  const air = new Container();
   layers.shots.addChild(air);
+  const clips = [ground, air].map((c) => {
+    const g = new Graphics();
+    c.addChild(g);
+    c.mask = g;
+    return g;
+  });
+  let clipKey = '';
+  /** The clip rectangle, in screen px (again when the stage moves or resizes). */
+  function clipAt() {
+    const key = `${stage.view.U}|${stage.view.ox}|${stage.view.oy}`;
+    if (key === clipKey) return;
+    clipKey = key;
+    const x0 = sx(-CLIP.hx);
+    const y0 = sy(CLIP.y1);
+    for (const g of clips) g.clear().rect(x0, y0, sx(CLIP.hx) - x0, sy(CLIP.y0) - y0).fill({ color: 0xffffff });
+  }
   const lineLayer = new Container(); // instant lines and rings
   layers.fx.addChild(lineLayer);
   const textLayer = new Container();
@@ -200,17 +255,19 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     const g = new Graphics();
     c.addChild(g);
     (AIR.has(z.kind) ? air : ground).addChild(c);
-    const v = { c, g, kind: z.kind, color: hex(z.color ?? ELEMENTS.fire.color), U: 0, r: 0, seed: (hash01i(++serial) * 1000) | 0, bits: [], spin: 0, dt: 0 };
+    const v = { c, g, kind: z.kind, color: hex(z.color ?? ELEMENTS.fire.color), U: 0, r: 0, key: '', area: zoneArea(z), seed: (hash01i(++serial) * 1000) | 0, bits: [], spin: 0, dt: 0 };
     // the bits that move: puffs of a cloud or a sandstorm, a blizzard's flakes, a twister's rings
     const dot = tx.softDot();
-    const flakes = Math.max(10, Math.min(ZONE.flakes, Math.round((z.r ?? 3) ** 2 * 0.8))); // a blizzard over the whole field gets them all
-    const n = z.kind === 'cloud' ? ZONE.puffs : z.kind === 'sand' ? ZONE.puffs + ZONE.streaks : z.kind === 'snow' ? ZONE.snowHaze + flakes : z.kind === 'lava' ? 3 : 0;
+    const flakes = Math.max(10, Math.min(ZONE.flakes, Math.round((Number.isFinite(z.r) ? z.r : 99) ** 2 * 0.8))); // a blizzard over the whole field gets them all
+    const lanes = v.area.lanes?.length ?? 1;
+    const n = z.kind === 'cloud' ? ZONE.puffs : z.kind === 'sand' ? ZONE.puffs * Math.min(2, lanes) + ZONE.streaks * Math.min(2, lanes) : z.kind === 'snow' ? ZONE.snowHaze + flakes : z.kind === 'lava' ? 3 : 0;
     for (let i = 0; i < n; i++) {
       const s = new Sprite(dot);
       s.anchor.set(0.5);
       c.addChild(s);
       v.bits.push({ s, a: hash01i(v.seed + i * 7) * Math.PI * 2, d: hash01i(v.seed + i * 13), k: hash01i(v.seed + i * 29) });
     }
+    v.puffs = z.kind === 'sand' ? ZONE.puffs * Math.min(2, lanes) : z.kind === 'snow' ? ZONE.snowHaze : ZONE.puffs;
     if (z.kind === 'twister') {
       v.rings = [0, 1, 2, 3, 4].map(() => {
         const r = new Graphics();
@@ -221,13 +278,20 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     return v;
   }
 
-  /** A zone's shape, drawn once for its radius and the stage's U (again when either changes). */
+  /** A zone's shape, drawn once for its area and the stage's U (again when either changes). */
   function shapeZone(v, z) {
     const u = U();
-    const R = Math.max(0.2, z.r ?? 1) * u;
+    const area = zoneArea(z);
+    v.area = area;
+    const R = area.hx * u;
     const g = v.g.clear();
     const col = v.color;
-    if (v.kind === 'lava') {
+    if (!area.round) {
+      // over the whole field, or a sandstorm over its lanes: a soft wash, its bits do the rest
+      const wash = v.kind === 'snow' ? 0xffffff : col;
+      if (area.lanes) for (const l of area.lanes) g.roundRect((laneX(l) - area.cx - LANE_HALF) * u, -area.hy * u, 2 * LANE_HALF * u, 2 * area.hy * u, 0.3 * u).fill({ color: wash, alpha: ZONE.fill * 1.5 });
+      else g.roundRect(-R, -area.hy * u, 2 * R, 2 * area.hy * u, 0.4 * u).fill({ color: wash, alpha: ZONE.fill });
+    } else if (v.kind === 'lava') {
       // a molten pool: a dark basalt rim, the red melt glowing yellow at its heart, dark crust plates
       // floating on it with bright seams between them
       const pts = (k, amp, seed, cx = 0, cy = 0) => blobPts(cx, cy, R * k, 11, amp, v.seed + seed);
@@ -283,18 +347,27 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     }
     v.U = u;
     v.r = z.r;
+    v.key = zoneKey(z);
   }
+
+  /** What a zone's shape depends on besides U: its radius and, for a sandstorm, its lanes. */
+  const zoneKey = (z) => `${z.r}|${z.lanes ?? ''}`;
 
   function updateZone(v, z, a) {
     const u = U();
-    if (v.U !== u || v.r !== z.r) shapeZone(v, z);
+    if (v.U !== u || v.key !== zoneKey(z)) shapeZone(v, z);
     const still = reduced();
-    v.c.position.set(sx(z.x), sy(z.y));
-    const R = Math.max(0.2, z.r ?? 1) * u;
+    const area = v.area;
+    // a disc follows its zone (a twister wanders, a cloud goes with its pet); a field-wide one stays put
+    const cx = area.round ? z.x : area.cx;
+    const cy = area.round ? z.y : area.cy;
+    v.c.position.set(sx(cx), sy(cy));
+    const R = area.hx * u;
+    const RY = area.hy * u;
     const t = time;
     const most = v.kind === 'lava' ? ZONE.lava : v.kind === 'web' ? ZONE.web : v.kind === 'field' ? ZONE.field : 1;
     v.c.alpha = a * most;
-    if (v.kind === 'field' && !still) v.g.rotation = t * 0.25;
+    if (v.kind === 'field' && area.round && !still) v.g.rotation = t * 0.25;
     if (v.kind === 'web' && !still) v.g.rotation = Math.sin(t * 0.8 + v.seed) * 0.02;
     if (v.kind === 'twister') {
       // a funnel of rings over its eye, widening as it rises, swaying, turning
@@ -312,50 +385,81 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
       if (!still) v.g.rotation = t * 1.4;
     }
     // the bits: puffs drift round, flakes fall, sand streaks blow across, lava bubbles swell and pop
+    const wrap = (k) => ((k % 1) + 1) % 1;
     for (let i = 0; i < v.bits.length; i++) {
       const b = v.bits[i];
       const s = b.s;
+      const puff = i < v.puffs;
       if (v.kind === 'cloud') {
-        const ang = b.a + (still ? 0 : t * (0.18 + b.k * 0.2));
-        const d = R * (0.15 + b.d * 0.5);
-        s.position.set(Math.cos(ang) * d, Math.sin(ang) * d * 0.8);
-        s.width = s.height = R * (0.8 + b.k * 0.6);
+        if (area.round) {
+          const ang = b.a + (still ? 0 : t * (0.18 + b.k * 0.2));
+          const d = R * (0.15 + b.d * 0.5);
+          s.position.set(Math.cos(ang) * d, Math.sin(ang) * d * 0.8);
+          s.width = s.height = R * (0.8 + b.k * 0.6);
+        } else {
+          s.position.set((b.k - 0.5) * 1.6 * R + (still ? 0 : Math.sin(t * 0.3 + i) * 0.3 * u), (b.d - 0.5) * 1.7 * RY);
+          s.width = s.height = Math.min(R, RY) * (0.9 + b.k * 0.5);
+        }
         s.tint = i % 3 === 2 ? toneN(v.color, -0.25) : v.color;
         s.alpha = ZONE.haze * (0.8 + 0.2 * Math.sin(t * 0.9 + i));
       } else if (v.kind === 'sand') {
-        if (i < ZONE.puffs) {
-          const ang = b.a + (still ? 0 : t * 0.3);
-          const d = R * (0.2 + b.d * 0.5);
-          s.position.set(Math.cos(ang) * d, Math.sin(ang) * d * 0.7);
-          s.width = s.height = R * (0.7 + b.k * 0.5);
+        const lanes = area.lanes;
+        if (puff) {
+          if (lanes) {
+            // its lanes' columns, from the portals down: the dust rolls slowly down each
+            const lx = (laneX(lanes[i % lanes.length]) - area.cx) * u;
+            s.position.set(lx + (still ? 0 : Math.sin(t * 0.7 + i) * 0.2 * u), (wrap(b.d - (still ? 0 : t * 0.05)) - 0.5) * 1.8 * RY);
+            s.width = s.height = 2 * LANE_HALF * u * (1.3 + b.k * 0.5);
+          } else {
+            const ang = b.a + (still ? 0 : t * 0.3);
+            const d = R * (0.2 + b.d * 0.5);
+            s.position.set(Math.cos(ang) * d, Math.sin(ang) * d * 0.7);
+            s.width = s.height = R * (0.7 + b.k * 0.5);
+          }
           s.tint = i % 2 ? toneN(v.color, -0.3) : v.color; // ochre and sand: the storm darkens the lane
           s.alpha = ZONE.haze;
         } else {
           // a streak blowing across, wrapping inside the storm: dark grit and pale dust in turn, so it reads on the sand lanes
-          const span = 2 * R;
-          const x = still ? (b.d - 0.5) * span : ((((b.d + t * (0.35 + b.k * 0.3)) % 1) + 1) % 1 - 0.5) * span;
-          const y = (b.k - 0.5) * 1.6 * R;
-          const inside = Math.max(0, 1 - (x * x + y * y) / (R * R));
+          let x;
+          let y;
+          let inside = 1;
+          if (lanes) {
+            const lx = (laneX(lanes[i % lanes.length]) - area.cx) * u;
+            x = lx + (still ? b.d - 0.5 : wrap(b.d + t * (0.5 + b.k * 0.4)) - 0.5) * 2 * LANE_HALF * u;
+            y = (b.k - 0.5) * 1.9 * RY;
+          } else {
+            const span = 2 * R;
+            x = still ? (b.d - 0.5) * span : (wrap(b.d + t * (0.35 + b.k * 0.3)) - 0.5) * span;
+            y = (b.k - 0.5) * 1.6 * (area.round ? R : RY);
+            if (area.round) inside = Math.max(0, 1 - (x * x + y * y) / (R * R));
+          }
           s.position.set(x, y);
           s.width = 0.65 * u;
           s.height = 0.1 * u;
           s.tint = i % 2 ? 0x8a6a3c : toneN(v.color, 0.45);
           s.alpha = 0.85 * Math.sqrt(inside);
         }
-      } else if (v.kind === 'snow' && i < ZONE.snowHaze) {
+      } else if (v.kind === 'snow' && puff) {
         // a white haze drifting through the blizzard (the whiteout), under its flakes
-        const ang = b.a + (still ? 0 : t * 0.12);
-        const d = R * (0.2 + b.d * 0.45);
-        s.position.set(Math.cos(ang) * d, Math.sin(ang) * d * 0.8);
-        s.width = s.height = R * (0.9 + b.k * 0.5);
+        if (area.round) {
+          const ang = b.a + (still ? 0 : t * 0.12);
+          const d = R * (0.2 + b.d * 0.45);
+          s.position.set(Math.cos(ang) * d, Math.sin(ang) * d * 0.8);
+          s.width = s.height = R * (0.9 + b.k * 0.5);
+        } else {
+          s.position.set((b.k - 0.5) * 1.4 * R + (still ? 0 : Math.sin(t * 0.2 + i) * 0.4 * u), (b.d - 0.5) * 1.4 * RY);
+          s.width = s.height = Math.min(R, RY) * (1.1 + b.k * 0.4);
+        }
         s.tint = 0xffffff;
         s.alpha = ZONE.haze * 0.55;
       } else if (v.kind === 'snow') {
         // flakes falling slant through the blizzard, wrapping inside it
-        const fall = still ? b.d : (((b.d + t * (0.12 + b.k * 0.1)) % 1) + 1) % 1;
-        const x = (b.k - 0.5) * 2 * R + (still ? 0 : Math.sin(t * 1.3 + i) * 0.2 * u) - fall * 0.4 * R;
-        const y = (fall - 0.5) * 2 * R;
-        const inside = Math.max(0, 1 - (x * x + y * y) / (R * R));
+        const fall = still ? b.d : wrap(b.d + t * (0.12 + b.k * 0.1));
+        const H = area.round ? R : RY;
+        let x = (b.k - 0.5) * 2 * R + (still ? 0 : Math.sin(t * 1.3 + i) * 0.2 * u) - fall * 0.4 * Math.min(R, H);
+        if (!area.round) x = (wrap(x / (2 * R) + 0.5) - 0.5) * 2 * R;
+        const y = (fall - 0.5) * 2 * H;
+        const inside = area.round ? Math.max(0, 1 - (x * x + y * y) / (R * R)) : 1;
         s.position.set(x, y);
         s.width = s.height = (0.16 + b.k * 0.1) * u;
         s.tint = 0xf4fbff;
@@ -375,9 +479,9 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
       fx.particle(tx.softDot(), z.x + side * (0.2 + up * 0.35), z.y + 0.2 + up, { vx: -side * 1.4, vy: 0.9, life: 0.5, size: 0.18, grow: -0.12, color: Math.random() < 0.5 ? 0xffd36b : v.color });
     }
     // embers off the lava now and then (booked, small)
-    if (v.kind === 'lava' && !still && a > 0.5 && Math.random() < v.dt * 2.5 && fx.flashAll(DOT.share * 0.16 * 0.16, 0.6)) {
+    if (v.kind === 'lava' && area.round && !still && a > 0.5 && Math.random() < v.dt * 2.5 && fx.flashAll(DOT.share * 0.16 * 0.16, 0.6)) {
       const ang = Math.random() * Math.PI * 2;
-      fx.particle(tx.softDot(), z.x + Math.cos(ang) * (z.r ?? 1) * 0.5, z.y + Math.sin(ang) * (z.r ?? 1) * 0.4, { vy: 1.2, vx: (Math.random() - 0.5) * 0.4, life: 0.6, size: 0.16, grow: -0.1, color: Math.random() < 0.5 ? 0xffd36b : 0xff7a3d });
+      fx.particle(tx.softDot(), z.x + Math.cos(ang) * area.hx * 0.5, z.y + Math.sin(ang) * area.hx * 0.4, { vy: 1.2, vx: (Math.random() - 0.5) * 0.4, life: 0.6, size: 0.16, grow: -0.1, color: Math.random() < 0.5 ? 0xffd36b : 0xff7a3d });
     }
   }
 
@@ -405,7 +509,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     v.cx = (x0 + laneX(lanes.at(-1))) / 2;
     const col = v.color;
     const half = GRID.cell * 0.48 * u;
-    const H = 1.35 * u;
+    const H = WALL.h * u;
     for (const l of lanes) {
       const x = (laneX(l) - v.cx) * u;
       // an ice block: its face, a darker right facet, a light top, an ink outline; icicles at its foot
@@ -427,7 +531,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
   function updateWall(v, w, a) {
     const lanes = [...(w.lanes ?? [])].sort((p, q) => p - q).join(',');
     if (v.U !== U() || v.key !== lanes) shapeWall(v, w);
-    const y = sy(w.y ?? FIELD.gateY);
+    const y = sy((w.y ?? FIELD.gateY) - WALL.sink);
     v.c.position.set(sx(v.cx ?? 0), y);
     v.c.zIndex = y;
     // it rises from the ground (with a little overshoot), and sinks as it melts away
@@ -447,7 +551,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
   function endWall(v) {
     // it bursts: ice shards fly where each block stood
     const it = v.it;
-    for (const l of it.lanes ?? []) fx.burst(laneX(l), (it.y ?? 0) + 0.6, [v.color, 0xffffff, toneN(v.color, 0.4)], 10, { speed: 4.5, size: 0.26, life: 0.5, gravity: -9 });
+    for (const l of it.lanes ?? []) fx.burst(laneX(l), (it.y ?? 0) + WALL.h / 2 - WALL.sink, [v.color, 0xffffff, toneN(v.color, 0.4)], 10, { speed: 4.5, size: 0.26, life: 0.5, gravity: -9 });
   }
 
   // --- traps: flowers in the foes' path ------------------------------------------------------------
@@ -831,6 +935,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
 
   function update(run, dt) {
     time += dt;
+    clipAt();
     const d = run?.defense ?? {};
     const simNow = run?.time ?? time;
     const simDt = Math.max(0, simNow - (lastSim ?? simNow));

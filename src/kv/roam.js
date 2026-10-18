@@ -1,12 +1,13 @@
 // Summoned pets (docs/v2/SPEC.md sections 5 and 7). A fusion pet's skill (from 1024) summons it to
-// the front for a while: it hops out of its tile to tile.summon.{x, y} (phase 'out', V2.summon.hopS of
-// sim time), acts there ('act': it uses its skill, src/render/skillfx.js draws what the skill does; the
-// sim may move it, and it walks, crawls, hops or glides its own way), and hops back onto its tile
-// ('back'). The tile keeps shooting from the board and shows its empty den meanwhile
-// (src/render/blocks.js). Where the pet is and when it goes are sim state (tile.summon), so a replay
-// plays out the same; this layer only draws it, on the sim's clock (run.time): a paused game holds
-// the hop. A summon that starts without its 'out' phase still hops out, and one that ends without
-// its 'back' phase pops the pet back home in a puff.
+// the front for a while: it hops out of its tile (phase 'out'), acts at the front ('act': it uses its
+// skill, src/render/skillfx.js draws what the skill does; the sim may walk it, or jump it, and it walks,
+// crawls, hops or glides its own way), and hops back onto its tile ('back'). The tile keeps shooting
+// from the board and shows its empty den meanwhile (src/render/blocks.js). Where the pet is and when it
+// goes are sim state (tile.summon: x, y and its hop's height z, t into the phase, hop, home, moving,
+// facing), so a replay plays out the same; this layer only draws it, and near home on its tile's sill
+// where the tile draws it. A summon without a hop of its own (no z) is hopped by the renderer on the
+// sim's clock (run.time): a paused game holds the hop. A summon that starts acting still hops out, and
+// one that ends before its 'back' landed (petHome) pops the pet home in a puff.
 // Each generated fusion moves its own way (its roster `move`, gaitAt): walkers step, crawlers stretch
 // along the ground, leapers hop, hoverers and floaters ride over a detached shadow, the swimmer drifts
 // in an S; only a side view (`view` profile) is flipped to face where it goes. A pure form wears its
@@ -252,8 +253,8 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
       // the phase it is drawn in: a hop out always finishes; 'back' (or the summon's end) starts the hop home
       const want = s ? (s.phase ?? 'act') : 'gone';
       if (want === 'gone') {
-        // the summon ended: home in a puff, unless it has (all but) landed already
-        const k = v.mode === 'back' ? (now - v.at) / hopS : 0;
+        // the summon ended (petHome): home in a puff, unless it has (all but) landed already
+        const k = v.mode === 'back' ? (v.simHop ? v.hopK : (now - v.at) / hopS) : 0;
         if (k >= 0.6) {
           v.c.destroy({ children: true });
           views.delete(t.id);
@@ -261,13 +262,16 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
         live.delete(t.id);
         continue;
       }
-      if (v.mode === 'out' && now - v.at >= hopS) {
+      // the sim's own hop (docs/v2/SPEC.md: tile.summon.z, t, hop, home), else the renderer draws one
+      v.simHop = typeof s.z === 'number';
+      const landing = v.mode === 'out' && (v.simHop ? want !== 'out' : now - v.at >= hopS);
+      if (landing) {
         v.mode = 'act';
         v.at = now;
         v.landed = true;
         // it lands at its spot: a dust ring, a puff of its colour
-        if (!reduced) fx.ring(v.x, v.y, 0xffffff, 0.3, 1.1, 0.3);
-        fx.burst(v.x, v.y + 0.2, [colorOf(t.cls), 0xffffff], 10, { speed: 2.5, size: 0.22, life: 0.4, gravity: -3 });
+        if (!reduced) fx.ring(s.x ?? v.x, s.y ?? v.y, 0xffffff, 0.3, 1.1, 0.3);
+        fx.burst(s.x ?? v.x, (s.y ?? v.y) + 0.2, [colorOf(t.cls), 0xffffff], 10, { speed: 2.5, size: 0.22, life: 0.4, gravity: -3 });
       }
       if (want === 'back' && v.mode !== 'back') {
         v.mode = 'back';
@@ -277,7 +281,19 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
       }
       // where it is
       let moving = false;
-      if (v.mode === 'out' || v.mode === 'back') {
+      if ((v.mode === 'out' || v.mode === 'back') && v.simHop) {
+        // the sim moves it along its hop (x, y) and lifts it (z, world units); near home it stands on its
+        // tile's sill, where the tile draws it, rather than at the sim's home point (the tile's centre)
+        const k = s.hop > 0 ? Math.max(0, Math.min(1, (s.t ?? 0) / s.hop)) : 1;
+        const home = homeOf(t);
+        const simHome = s.home ?? { x: t.x, y: t.y };
+        const near = v.mode === 'out' ? 1 - k : k;
+        v.x = s.x + (home.x - simHome.x) * near;
+        v.y = s.y + (home.y - simHome.y) * near;
+        v.lift = reduced ? 0 : Math.max(0, s.z);
+        v.scale = v.mode === 'out' ? HOP.tile + (1 - HOP.tile) * k : 1 - (1 - HOP.tile) * k;
+        v.hopK = k;
+      } else if (v.mode === 'out' || v.mode === 'back') {
         const k = Math.min(1, (now - v.at) / hopS);
         const home = homeOf(t);
         const to = v.mode === 'out' ? { x: s.x ?? home.x, y: s.y ?? home.y } : home;
@@ -290,12 +306,14 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
         v.hopK = k;
         if (Math.abs(to.x - from.x) > 0.05) v.facing = to.x > from.x ? 1 : -1;
       } else {
-        // acting: it follows the sim; a jump (a hop to another foe, a charge's end) is drawn as a hop
+        // acting: it follows the sim (walking when it moves); a jump (jumpTo: a hop to another foe, a
+        // charge's start) is drawn as a hop
         const sx = s.x ?? v.x;
         const sy = s.y ?? v.y;
         if (v.sx != null && Math.hypot(sx - v.sx, sy - v.sy) > HOP.leap) v.leap = { x0: v.x, y0: v.y, at: now };
-        moving = v.sx != null && (sx !== v.sx || sy !== v.sy);
-        if (moving && Math.abs(sx - v.sx) > 0.01) v.facing = sx > v.sx ? 1 : -1;
+        const shifted = v.sx != null && (sx !== v.sx || sy !== v.sy);
+        moving = typeof s.moving === 'boolean' ? s.moving : shifted;
+        if (shifted && Math.abs(sx - v.sx) > 0.01) v.facing = sx > v.sx ? 1 : -1;
         v.sx = sx;
         v.sy = sy;
         v.scale = 1;
@@ -310,7 +328,7 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
           v.leap = null;
           v.x = sx;
           v.y = sy;
-          v.lift = 0;
+          v.lift = reduced ? 0 : Math.max(0, s.z ?? 0);
         }
       }
       if (s.facing === 1 || s.facing === -1) v.facing = s.facing;

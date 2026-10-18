@@ -372,3 +372,18 @@ test('an elemental egg hatches out of a shell in its colours: a fusion egg’s h
   assert.deepEqual(halves.map((p) => p.o.color), [tint('fire'), tint('ice')]);
   assert.ok(s.blocks.viewOf(1).creature.visible && !s.blocks.viewOf(1).egg, 'the fusion pet stands on its tile');
 });
+
+test('with the sim’s own hop (tile.summon.t of its hop), the den’s altar rises with the pet’s hop out', () => {
+  const s = scene();
+  const t = s.add(1, 10, 1, 0, fusion('fire', 'ice'));
+  s.step(0.2);
+  t.summon = { key: 'fire+ice', phase: 'out', t: 0, hop: 0.6, dur: 8, x: t.x, y: t.y, z: 0, home: { x: t.x, y: t.y } };
+  s.step();
+  const v = s.blocks.viewOf(1);
+  t.summon.t = 0.3; // half way, whatever the renderer's clock says
+  s.step();
+  assert.ok(Math.abs(v.motif.alpha - 0.5) < 1e-9, `half up (${v.motif.alpha})`);
+  Object.assign(t.summon, { phase: 'act', t: 0 });
+  s.step();
+  assert.equal(v.motif.alpha, 1, 'up while it acts');
+});

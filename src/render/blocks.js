@@ -948,13 +948,16 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   }
 
   /**
-   * A den (its pet summoned out): the altar rises as the pet hops out (over V2.summon.hopS of sim
-   * time from when the den was first seen), then the pet's paw prints lead off it; they fade as the
-   * pet hops back (the summon's 'back' phase), and the den gives way to the pet when it lands.
+   * A den (its pet summoned out): the altar rises as the pet hops out (the sim's hop: tile.summon.t of
+   * its hop while 'out'; else over V2.summon.hopS of sim time from when the den was first seen), then
+   * the pet's paw prints lead off it; they fade as the pet hops back (the summon's 'back' phase), and
+   * the den gives way to the pet when it lands.
    */
   function denParts(v, t, cell, reduced, dt, sx, sy, simTime) {
+    const s = t.summon;
     const hop = V2.summon?.hopS ?? 0.6;
-    const k = hop > 0 ? Math.max(0, Math.min(1, (simTime - (v.outAt ?? simTime)) / hop)) : 1;
+    const own = s && Number.isFinite(s.t) && s.hop > 0; // the sim's own hop
+    const k = own ? (s.phase === 'out' ? Math.max(0, Math.min(1, s.t / s.hop)) : 1) : hop > 0 ? Math.max(0, Math.min(1, (simTime - (v.outAt ?? simTime)) / hop)) : 1;
     v.motif.scale.set(sx, sy);
     v.motif.alpha = k;
     v.motif.position.set(0, reduced ? 0 : (1 - ease(k)) * PLAQUE.altar.rise * PLAQUE.size * cell);
