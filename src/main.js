@@ -534,11 +534,12 @@ async function start() {
       hudEl.classList.toggle('paused', paused); // banners stop with the game
       if (s.menu === 'main') syncSettings();
       if (s.menu === 'closed') pauseTitle = tr('pause.title');
-      if (s.menu === 'closed' && resultOn) hud.focusResult(); // a keyboard player is back on its OK
       if (s.menu !== 'closed') saveNow(); // the phone may close the tab next
       // the help sheet first: the pause view then knows which dialog keeps the focus
       if ((s.menu === 'help') !== tutorial.helpOpen) tutorial.openHelp(s.menu === 'help');
       hud.setPauseView(s.menu, { title: pauseTitle, wave: run.waveNo, score: run.score, blocks: run.blocks });
+      // a skill card under the menu: back on its OK (once the menu has given the card back its taps)
+      if (s.menu === 'closed' && resultOn) hud.focusResult();
     },
   });
   /** The pause menu: the Pause button, Escape or P, or the tab going to the background. */
