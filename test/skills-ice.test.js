@@ -38,18 +38,18 @@ test('Cryo Lance: every period a frozen bolt runs down the busiest lane: its sha
 test('Venom Tendrils: tendrils on the toughest foes in reach slow them and drain their max health; a dead one’s tendril grabs another', () => {
   const p = P['ice+poison'];
   const h = skillHarness('ice+poison', { hit: HIT });
+  // one more foe in reach than it has tendrils (at rangeCells 5 the reach covers most of the field)
+  const extra = Array.from({ length: Math.max(0, p.count - 4) }, (_, i) => h.foe(3, 5.5 + i * 0.3, { hp: 600 - i * 50 }));
   const a = h.foe(2, 6, { hp: 1000 });
   const b = h.foe(2, 7, { hp: 2000 });
   const c = h.foe(1, 6.5, { hp: 3000 });
   const d = h.foe(2, 5, { hp: 4000 });
   const boss = h.foe(1, 5.5, { hp: 5000, boss: true });
-  const far = h.foe(0, 0, { hp: 9000 }); // the toughest of all, but out of reach
   h.act();
   const pet = h.pet.summon;
   const reach = p.rangeCells * CELL;
-  const inReach = [boss, d, c, b, a]; // toughest first
-  assert.ok(Math.hypot(far.x - pet.x, far.y - pet.y) > reach, 'set-up: the far one is out of reach');
-  for (const e of inReach) assert.ok(Math.hypot(e.x - pet.x, e.y - pet.y) <= reach, 'set-up: the rest are in reach');
+  const inReach = [boss, d, c, b, a, ...extra]; // toughest first
+  for (const e of inReach) assert.ok(Math.hypot(e.x - pet.x, e.y - pet.y) <= reach, 'set-up: all in reach');
   assert.ok(p.count < inReach.length, 'set-up: one foe in reach is left over');
   const held = () => new Set(mine(h, 'tethers').filter((t) => !t.dead).map((t) => t.enemyId));
   const toughest = inReach.slice(0, p.count);

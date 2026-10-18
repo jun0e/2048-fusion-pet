@@ -87,16 +87,19 @@ test('Moss Spring: blocks heal healPct a second; biters are rooted once every co
   let top = 0;
   let breakerTop = 0;
   let savedAt = null;
+  let healedBy2 = null; // the heal over the first 2 s (over the whole time out it fills the block)
   while (h.pet.summon?.phase === 'act') {
     h.run(PHYSICS.dt);
+    if (healedBy2 == null && h.pet.summon.t >= 2) healedBy2 = h.pet.hp - 500;
     if (biter.rootT > prev + 1e-9) roots.push(h.pet.summon.t);
     prev = biter.rootT;
     top = Math.max(top, biter.rootT);
     breakerTop = Math.max(breakerTop, breaker.rootT);
     if (savedAt == null && weak.saved) savedAt = weak.hp;
   }
-  // the heal comes in steps: healPct of max health a second, the whole time out
-  assert.ok(near(h.pet.hp - 500, dur * p.healPct * h.pet.maxHp), `healed ${h.pet.hp - 500}`);
+  // the heal comes in steps: healPct of max health a second, the whole time out (to full health)
+  assert.ok(Math.abs(healedBy2 - 2 * p.healPct * h.pet.maxHp) <= 0.5 * p.healPct * h.pet.maxHp + 1e-6, `healed ${healedBy2} in 2 s`);
+  assert.equal(h.pet.hp, Math.min(h.pet.maxHp, 500 + dur * p.healPct * h.pet.maxHp), 'and on to full');
   const heals = h.events('tileHeal').filter((x) => x.id === h.pet.id).length;
   assert.ok(heals >= dur && heals <= 2 * dur + 1, `${heals} heals, not one a frame`);
   // roots: on a bite, then not again until cooldownS has passed
