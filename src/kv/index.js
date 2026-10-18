@@ -47,6 +47,8 @@ export function setupKv({ stage, fx, blocks, art, hudEl, getRun, params }) {
   const pets = setupPets({ stage, fx, art, hudEl, getRun });
   const roam = pets.roam;
   document.body.classList.add('kv');
+  // the showcase's layers, for checks from the console (a skill's effects on mock state: src/render/skillfx.js)
+  globalThis.__kv = { stage, fx, art, blocks, roam };
 
   // pixel map: enemies, shots and effects get a matching pixel grid
   const pixelate = new PixelateFilter(2);
