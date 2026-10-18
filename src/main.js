@@ -46,6 +46,7 @@ import { createArt } from './art/index.js';
 import { boardRefused } from './art/plaque.js';
 import { setupKv, KV_DICE } from './kv/index.js';
 import { setupPets } from './kv/pets.js';
+import { GROW } from './art/frame-kit.js'; // v2.1 (views): the board's grow moment
 
 const BEST_KEY = 'mb:best';
 const loadBest = () => {
@@ -707,6 +708,7 @@ async function start() {
       kv?.onEvent(e);
       pets?.onEvent(e);
       skillFx.onEvent(e); // v2: skillFx events and the summons' moments (src/render/skillfx.js)
+      foes.onEvent(e); // v2.1 (views): a resisted hit blinks its foe's shield (src/render/foes.js)
       switch (e.type) {
         case 'merge': {
           fx.burst(e.x, e.y, [0xffffff, 0xffe27a], 10 + e.tier * 2, { speed: 4, size: 0.24, life: 0.45, gravity: 0 });
@@ -859,7 +861,12 @@ async function start() {
           break;
         }
         case 'grow':
-          growNews(e); // v2.1 (screens): the ribbon says the keep grew (the board views' rebuild joins this case at merge)
+          // v2.1 (views): the board grew, in a break. The keep, its pits and the lanes ease to the new board
+          // (scenery.grow); the tiles do too (blocks.onEvent, above). Under Reduce motion they are there at
+          // once and the screen cross-fades to them instead (the snapshot is taken before they redraw)
+          if (stage.reduced) stage.crossFade(GROW.time);
+          scenery.grow(e);
+          growNews(e); // v2.1 (screens): the ribbon says the keep grew
           break;
         case 'stomp':
           // Quake Boots: the board shakes and every monster on it is stunned
@@ -1065,6 +1072,9 @@ async function start() {
     hud.setEconomy(run.coins, run.swipeCost, run.swipes); // the swipes count drives the price step tick
     // a choice waits while the skill a fusion gained is on screen; then the next skill card, if any
     hud.setChoice(gameOverShown || resultOn ? null : (demoChoice ?? run.pendingChoice), { deck: run.owned });
+    // v2.1 (views): while the HUD shows a keep choice, its merged pet's tile is highlighted on the board
+    const shownChoice = gameOverShown || resultOn ? null : (demoChoice ?? run.pendingChoice);
+    blocks.highlight(shownChoice?.kind === 'keep' ? shownChoice.tileId : null);
     nextResult();
     badges.update({
       ...(demoLevel ?? { level: run.level, xp: run.xp, need: run.xpNeed }),

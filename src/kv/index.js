@@ -9,7 +9,7 @@
 import './kv.css';
 import { PixelateFilter } from 'pixi-filters';
 import { ELEMENT_KEYS } from '../sim/classes.js';
-import { GRID, FIELD } from '../config.js';
+import { BOARD_HALF, FIELD } from '../config.js';
 import { setupPets } from './pets.js';
 
 export const KV_DICE = [...ELEMENT_KEYS];
@@ -78,7 +78,7 @@ export function setupKv({ stage, fx, blocks, art, hudEl, getRun, params }) {
 
   function placeSwitcher() {
     // the empty strip left of the board, level with the top of the field
-    const left = stage.toClient(-GRID.cell * 2 - 0.1, 0).x;
+    const left = stage.toClient(-BOARD_HALF - 0.1, 0).x; // the board's left edge, at every size
     const w = Math.max(50, Math.min(64, left - 12));
     switcher.style.width = `${w}px`;
     switcher.style.left = `${Math.max(6, left - w - 6)}px`;

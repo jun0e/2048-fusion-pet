@@ -20,8 +20,12 @@
 // under its halo (src/art/index.js roamerFit), smaller than the bosses, and pets and foes share the
 // enemies layer, drawn by where they stand: a foe lower on screen is drawn over a pet, a pet lower
 // down over a foe; a pet over a foe fades so the foe shows through.
+// v2.1 (docs/v2/SPEC-v2.1.md section 1): on the field a pet is sized as the foes are, to its lane's fit
+// (the 4×4 board's cell × frame-kit laneFit), so pets and bosses keep their sizes to each other as the
+// board grows; at home, on its tile's sill, it is about the creature its (smaller) tile shows.
 import { Container, Graphics, Sprite } from 'pixi.js';
-import { GRID, V2 } from '../config.js';
+import { DESIGN_CELL, GRID, V2 } from '../config.js';
+import { laneFit } from '../art/frame-kit.js';
 import { ELEMENTS, fusionOf } from '../sim/classes.js';
 import { shadowTex, softDot } from '../render/textures.js';
 import { BRACKET_CORNERS, drawBracket } from '../render/brackets.js';
@@ -53,6 +57,11 @@ export const HOP = { height: 1.1, reach: 0.18, sill: 0.43, tile: 0.6, cast: 0.32
 
 /** Where a pet stands on its tile (world units): on the sill, below the tile's centre. */
 export const homeOf = (t) => ({ x: t.x, y: t.y - HOP.sill * GRID.cell });
+
+/** A pet's "cell" out on the field (world units): the 4×4 board's, at its lane's fit, as the foes are drawn. */
+export const fieldCell = () => DESIGN_CELL * laneFit();
+/** Its size at home on its tile's sill, as a share of its field size: HOP.tile of a 4×4 tile, and as its tile shrinks. */
+export const homeScale = () => HOP.tile * (GRID.cell / fieldCell());
 
 /** The ways a fusion moves (src/art/fusion-roster.js `move`); anything else walks. */
 export const GAITS = ['walk', 'crawl', 'leap', 'hover', 'swim', 'float'];
@@ -208,7 +217,7 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
       ringU: 0, // the U its ring was drawn at
       dial: 0, // a pure form's halo turn
       fade: 1, // its alpha: PET_FADE while it covers a foe
-      scale: HOP.tile, // its size: HOP.tile on its tile, 1 on the field
+      scale: homeScale(), // its size: about its tile's creature on its tile (homeScale), 1 on the field
       landed: false,
     };
     // it springs off its tile
@@ -229,7 +238,8 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
     time += dt;
     const now = run.time ?? time;
     const U = stage.view.U;
-    const cell = GRID.cell * U;
+    const cell = fieldCell() * U; // px: what a pet is sized by out on the field (its marks too)
+    const homeK = homeScale(); // its size on its tile's sill
     const reduced = stage.reduced;
     const hopS = Math.max(0.05, V2.summon?.hopS ?? 0.6);
     live.clear();
@@ -286,7 +296,7 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
         const home = homeOf(t);
         const k = v.simHop ? (s.hop > 0 ? Math.max(0, Math.min(1, (s.t ?? 0) / s.hop)) : 1) : Math.min(1, (now - v.at) / hopS);
         v.hopK = k;
-        v.scale = v.mode === 'out' ? HOP.tile + (1 - HOP.tile) * k : 1 - (1 - HOP.tile) * k;
+        v.scale = v.mode === 'out' ? homeK + (1 - homeK) * k : 1 - (1 - homeK) * k;
         if (reduced) {
           // Reduce motion: no arc and no slide. It fades out where it stands for the first half of the hop
           // and in where it goes for the second (draw() fades it): its tile's sill, its spot on the field
@@ -295,7 +305,7 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
           v.x = spot.x;
           v.y = spot.y;
           v.lift = 0;
-          v.scale = atHome ? HOP.tile : 1;
+          v.scale = atHome ? homeK : 1;
         } else if (v.simHop) {
           // the sim moves it along its hop (x, y) and lifts it (z, world units); near home it stands on its
           // tile's sill, where the tile draws it, rather than at the sim's home point (the tile's centre)
@@ -368,9 +378,9 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
       v.glow.tint = hex(ELEMENTS[t.cls.element]?.color ?? '#ffe9a8');
       v.ringU = 0;
     }
-    if (v.ringU !== U) {
-      // the element ring at its feet, sized to the pet (redrawn when the stage resizes)
-      v.ringU = U;
+    if (v.ringU !== cell) {
+      // the element ring at its feet, sized to the pet (redrawn when the stage resizes or the board grows)
+      v.ringU = cell;
       const col = colorOf(t.cls);
       v.ring.clear();
       v.ring.ellipse(0, 0, MARK.ring * cell, MARK.ringH * cell).stroke({ width: 0.08 * U, color: col, alpha: 0.85 });

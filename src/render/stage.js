@@ -5,7 +5,7 @@
 // the head (top bar, chapter lintel and news ribbon) and the bottom bar (coins, Wave now). The
 // bands come from setInsets, measured from the HUD. The width also leaves the right tower room
 // for the namecard rail (RAIL_MIN), so a card can never cover lane 4.
-import { Application, Container, Graphics } from 'pixi.js';
+import { Application, Container, Graphics, Rectangle, Sprite } from 'pixi.js';
 // no runtime code generation: the game also runs under a strict Content-Security-Policy
 // (no 'unsafe-eval'), e.g. as a claude.ai artifact
 import 'pixi.js/unsafe-eval';
@@ -91,9 +91,37 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
   const washes = createFlashGuard();
   const flashes = createFlashGuard();
   let clock = 0; // real seconds (frame time), whatever the game speed
+  // a cross-fade (Reduce motion's stand-in for a big moving change, v2.1: the board growing): the
+  // screen as it was, over the new one, fading out. Every pixel changes once, from old to new: never a flash
+  let fade = null; // { s: Sprite, t, dur }
+  function dropFade() {
+    if (!fade) return;
+    fade.s.destroy({ texture: true, textureSource: true });
+    fade = null;
+  }
+  function crossFade(seconds) {
+    dropFade();
+    let tex = null;
+    try {
+      tex = app.renderer.generateTexture({ target: root, frame: new Rectangle(0, 0, view.w, view.h), resolution: app.renderer.resolution });
+    } catch {
+      return false; // no snapshot: the change shows at once
+    }
+    const s = new Sprite(tex);
+    s.eventMode = 'none';
+    layers.overlay.addChild(s);
+    fade = { s, t: 0, dur: Math.max(0.05, seconds) };
+    return true;
+  }
 
   function update(dt) {
     clock += dt;
+    if (fade) {
+      fade.t += dt;
+      const k = Math.min(1, fade.t / fade.dur);
+      fade.s.alpha = 1 - k * k * (3 - 2 * k);
+      if (k >= 1) dropFade();
+    }
     if (shake.amp > 0.2) {
       shake.t += dt * 60;
       shake.amp *= Math.exp(-dt * 10);
@@ -152,6 +180,15 @@ export async function createStage(el, { insets = { top: 136, bottom: 76 } } = {}
     /** The wash on screen now (0 = none), for checks. */
     get washLevel() {
       return flash.peak ? washLevel(flash.peak, flash.t) : 0;
+    },
+    /**
+     * Cross-fade from the screen as it is now to what is drawn next, over `seconds` (Reduce motion's stand-in
+     * for a moving change: the board growing). → whether it could take the snapshot
+     */
+    crossFade,
+    /** Is a cross-fade on screen? */
+    get fading() {
+      return !!fade;
     },
     /** The HUD bars' bands in px ({ top, bottom }): the world fills the space between them. */
     setInsets(next) {

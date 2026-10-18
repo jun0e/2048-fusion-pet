@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Container, Sprite, Texture, TextureSource } from 'pixi.js';
-import { AIR, CAPS, CLIP, FIELD_AREA, LANE_HALF, LAVA, PIECE, PIECE_GROUNDS, SKILL_FX, WALL, ZONE, boltPoints, createSkillFx, fxWord, hazeAlpha, lavaCore, pieceAlpha, tetherLit, trapLit, wallLit, zoneArea, zoneLit } from '../src/render/skillfx.js';
+import { AIR, CAPS, CLIP, FIELD_AREA, LAVA, laneHalf, PIECE, PIECE_GROUNDS, SKILL_FX, WALL, ZONE, boltPoints, createSkillFx, fxWord, hazeAlpha, lavaCore, pieceAlpha, tetherLit, trapLit, wallLit, zoneArea, zoneLit } from '../src/render/skillfx.js';
 import { DOT, POINT, PUDDLE, overlayStep } from '../src/ux/photosafe.js';
 import { FUSIONS } from '../src/sim/classes.js';
 import { FIELD, laneX } from '../src/config.js';
@@ -336,7 +336,7 @@ test('a zone’s area: a disc; r = Infinity the whole field; a sandstorm with la
   assert.ok(Math.abs(field.cy - field.hy - FIELD_AREA.y0) < 1e-9 && Math.abs(field.cy + field.hy - FIELD.spawnY) < 1e-9, 'parapet to portals');
   const storm = zoneArea({ kind: 'sand', x: 0, y: 12, r: Infinity, lanes: [2, 1] });
   assert.deepEqual(storm.lanes, [1, 2]);
-  assert.ok(Math.abs(storm.cx - (laneX(1) + laneX(2)) / 2) < 1e-9 && Math.abs(storm.hx - (laneX(2) - laneX(1)) / 2 - LANE_HALF) < 1e-9, 'its two columns');
+  assert.ok(Math.abs(storm.cx - (laneX(1) + laneX(2)) / 2) < 1e-9 && Math.abs(storm.hx - (laneX(2) - laneX(1)) / 2 - laneHalf()) < 1e-9, 'its two columns');
 });
 
 test('a whole-field blizzard and a sandstorm over its lanes are drawn where they lie, and the ground zones sit under the blocks, clipped to the field and keep', () => {
