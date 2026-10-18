@@ -1,14 +1,14 @@
-// Photosensitivity audit: plays bot games on the real sim (pets roaming, namecards tapped as
-// soon as they are ready, a burst of taps when several are), a stress board of legendaries
-// and a ladder board per element (one block at every attack stage: 16, 64, 128, a 256 fusion
-// and a 4096 apex), then counts the large flashes the screen would show per second of real
+// Photosensitivity audit: plays bot games on the real sim (v2: summons cast as soon as they are
+// ready, one tap after another when several are), a stress board of 1024 fusions summoning their
+// flashiest skills at once beside pure forms, and a ladder board per element (one block at every
+// attack stage: 16, 64, 128, a fusion and a 4096 pure form), then counts the large flashes the screen would show per second of real
 // time at x1, x2 and x4: the old effects against the rules in src/ux/photosafe.js. The
 // photosafe effects are today's: the sprite attacks book what src/art/attack-vfx.js
 // attackLight plans for each event, as src/render/attacks.js and shots.js draw them.
 // A large flash is one of these:
 // - a full-screen wash;
 // - the red edge pulse when a block falls (it shows only in danger: 3 or fewer blocks in a wave);
-// - a pet skill's cut-in panel;
+// - a pet skill's cut-in panel (v2: its namecard plays it as the pet goes out, petOut);
 // - a moment when the local effects on screen together light POINT.large or more to 10% or more
 //   (a quarter of 10° of vision on a phone; the lane field is about one 10° patch, so the whole
 //   screen counts as one). The local effects are rings, explosions, lines (lightning, wind
@@ -23,7 +23,8 @@ import { createRun } from '../src/sim/run.js';
 import { bestDir } from '../src/autoplay.js';
 import { FIELD, PHYSICS } from '../src/config.js';
 import { BURST, COIN, DOT, FOE_FLASH, HIT_TINT, HURT_PULSE, LINE, NUMBER, POINT, SIGNATURE_TINT, TEXT, boomLit, createFlashGuard, createLightBudget, fitBoom, fitRing, isSaturatedRed, numberLight, numberScale, numberText, popupFont, ringLit, textInk, washAlpha } from '../src/ux/photosafe.js';
-import { ELEMENTS, ELEMENT_KEYS } from '../src/sim/classes.js';
+import { ELEMENTS, ELEMENT_KEYS, FUSIONS } from '../src/sim/classes.js';
+import { SKILL_FX, fxWord } from '../src/render/skillfx.js';
 import { STAGES, attackLight, attackOf } from '../src/art/attack-vfx.js';
 import { foeDrawSize } from '../src/art/foe-roster.js';
 
@@ -39,6 +40,37 @@ const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 const OLD = { signatureAlpha: 0.28, skillAlpha: 0.22, hurtAlpha: 0.53, dotScale: 1.3, dotLife: 0.16, dotShare: 0.647, hitHold: 0, hitDecay: 4, numberLit: 0.12 };
 // (a damage number before: its world scale alone, NUMBER.scales, with the old 0.16 em stroke)
 // the old flash dot: 64.7% of its texture lit to 10% or more at alpha 1 (measured), growing by 0.6 over its life
+
+/**
+ * A v2 skill effect as src/render/skillfx.js draws and books it: rings, beams, bolts, slams and sweeps
+ * as lines (fx.flashShare), bursts as particles (fx.burst), a word whole or not at all.
+ */
+function skillFxEffects(e, fx, text) {
+  const len = e.x1 != null ? Math.hypot(e.x1 - e.x, e.y1 - e.y) : 0;
+  switch (e.fx) {
+    case 'ring': {
+      const S = SKILL_FX.ring;
+      return fx({ lines: [[2 * Math.PI * Math.max(0.3, e.r ?? 1) * (S.w + (S.ink ?? 0)), S.life]] });
+    }
+    case 'burst':
+      return fx({ bursts: [[Math.max(1, Math.min(40, Math.round(e.n ?? 12))), 0.28, 0.55]] });
+    case 'beam':
+      return fx({ lines: [[len * Math.max(0.1, e.w ?? 0.5), SKILL_FX.beam.life]], bursts: [[6, 0.22, 0.35]] });
+    case 'bolt':
+      return fx({ lines: [[len * 1.15 * SKILL_FX.bolt.w, SKILL_FX.bolt.life]], bursts: [[4, 0.24, 0.3]] });
+    case 'slam': {
+      const S = SKILL_FX.slam;
+      const r = Math.max(0.4, e.r ?? 1.2);
+      return fx({ lines: [[2 * Math.PI * r * S.w + S.cracks * r * 0.7 * 0.05, S.crackLife]], embers: [[4 * DOT.share * 0.4 * 0.4, 0.5]] });
+    }
+    case 'sweep':
+      return fx({ lines: [[SKILL_FX.sweep.span * Math.max(0.15, e.w ?? 0.6) * 0.5, SKILL_FX.sweep.life]] });
+    case 'text':
+      return e.x == null ? null : fx({ texts: [text(fxWord(e.key), 4)] });
+    default:
+      return null;
+  }
+}
 
 /** The explosion size src/render/shots.js gives an impact (world units). */
 function impactSize(e) {
@@ -114,6 +146,12 @@ function pointEffects(e) {
       return fx({ rings: [[0.3, e.radius * 2, 0.5]], bursts: [[36, 0.32, 0.7]] });
     case 'skill':
       return fx({ rings: [[0.4, e.radius * 2, 0.5], [0.3, e.radius * 1.6, 0.4]], bursts: [[46, 0.32, 0.7]] });
+    case 'petOut': // v2: a ring where the pet leaves its tile (main.js)
+      return fx({ rings: [[0.5, 2.6, 0.45]] });
+    case 'petHome':
+      return e.gone ? null : fx({ rings: [[0.3, 1.4, 0.3]] });
+    case 'skillFx':
+      return skillFxEffects(e, fx, text);
     case 'impact': {
       if (e.area) return null; // area attacks draw their own shape (the cases above)
       const size = impactSize(e);
@@ -251,29 +289,14 @@ function pointLight(items, safe) {
   return { peak, large, trim };
 }
 
-/** Namecards as src/kv/namecards.js runs them: the 4 biggest fusions, charged by wave time. */
-function tapCards(run, cards, dt) {
-  const fusions = run.tiles
-    .filter((t) => t.tier >= 8 && t.cls.fusion)
-    .sort((a, b) => b.tier - a.tier)
-    .slice(0, 4);
-  for (const t of fusions) {
-    const legend = !!t.cls.ultimate;
-    const max = legend ? 7 : 9;
-    const c = cards.get(t.id) ?? { charge: 9 * 0.55 };
-    if (run.phase === 'wave' && !run.over) c.charge = Math.min(max, c.charge + dt);
-    if (c.charge >= max) {
-      c.charge = 0;
-      run.castSkill(t.id, { radius: legend ? 3.6 : 2.8, mult: legend ? 7 : 5 });
-    }
-    cards.set(t.id, c);
-  }
+/** v2 namecards: every summon is cast as soon as the sim says it is ready (the cut-ins space themselves out, TAP_GAP). */
+function castReady(run) {
+  for (const t of run.tiles) if (run.skillReady(t.id)) run.castSkill(t.id);
 }
 
 /** Events with the sim time they came at and whether the red edge pulse would show (danger). */
 function play(run, { seconds, bot }) {
   const out = [];
-  const cards = new Map();
   const flashing = new Set(); // enemies whose hit flash is on
   const emit = new Map(); // enemy id → its status-particle and DoT-number timers
   let wasLit = false; // some foe's hit flash was on last step
@@ -332,7 +355,7 @@ function play(run, { seconds, bot }) {
       emit.set(f.id, tm);
     }
     if (embers.length || numbers.length) out.push([run.time, { type: 'embers', embers, numbers }, danger]);
-    tapCards(run, cards, PHYSICS.dt);
+    castReady(run);
     if (bot && t >= next && run.coins >= run.swipeCost) {
       const d = bestDir(run);
       if (d) run.move(d);
@@ -343,12 +366,20 @@ function play(run, { seconds, bot }) {
   return out;
 }
 
-/** A board of legendaries, one per washing apex (Plague every 1 s, Sun 2 s, Midas 4 s, Lifebloom 6 s). */
+/**
+ * The v2 stress board: four 1024 fusions whose skills draw the most (Frostfire Waltz's rings, Railgun's
+ * rails, Storm Hop's bolts, Ember Swarm's bursts) summoning together, beside two pure forms and two fusions.
+ */
 function stressRun() {
-  const run = createRun({ seed: 7, autoChoose: true, roaming: true, empty: true });
-  const apex = ['poison', 'fire', 'metal', 'nature'];
-  apex.forEach((u, i) => (run.spawnDebug(12, i, 0).cls = { element: 'ice', fusion: 'wind', ultimate: u }));
-  ['fire', 'earth', 'lightning', 'metal'].forEach((el, i) => (run.spawnDebug(8, i, 1).cls = { element: el, fusion: 'poison' }));
+  const run = createRun({ seed: 7, autoChoose: true, empty: true });
+  ['fire+ice', 'lightning+metal', 'lightning+wind', 'fire+nature'].forEach((k, i) => {
+    const [a, b] = k.split('+');
+    run.spawnDebug(10, i, 0).cls = { element: a, fusion: b, buffs: {} };
+  });
+  run.spawnDebug(12, 0, 1).cls = { element: 'ice', fusion: 'wind', buffs: {}, pure: true };
+  run.spawnDebug(12, 1, 1).cls = { element: 'fire', fusion: 'earth', buffs: {}, pure: true };
+  ['metal', 'poison'].forEach((el, i) => (run.spawnDebug(8, 2 + i, 1).cls = { element: el, fusion: 'nature', buffs: {} }));
+  for (const t of run.tiles) t.prof = null;
   return run;
 }
 
@@ -357,17 +388,17 @@ const LADDER_BLOCKS = {
   16: (el) => [4, { element: el }],
   64: (el) => [6, { element: el }],
   128: (el) => [7, { element: el }],
-  256: (el, i) => [8, { element: el, fusion: ELEMENT_KEYS[(i + 1) % 8] }],
-  4096: (el, i) => [12, { element: el, fusion: ELEMENT_KEYS[(i + 1) % 8], ultimate: ELEMENT_KEYS[(i + 2) % 8] }],
+  256: (el, i) => [8, { element: el, fusion: ELEMENT_KEYS[(i + 1) % 8], buffs: {} }],
+  4096: (el, i) => [12, { element: el, fusion: ELEMENT_KEYS[(i + 1) % 8], buffs: {}, pure: true }],
 };
 
 /**
- * A ladder board: one block of an element at one attack stage (a fusion or an apex roams), made
+ * A ladder board: one block of an element at one attack stage (a fusion, a pure form), made
  * sturdy so the waves keep coming at it (a lone block draws every foe), so the audit sees each
  * attack at each stage on its own.
  */
 function ladderRun(el, i, stage) {
-  const run = createRun({ seed: 300 + i * 7 + STAGES.indexOf(stage), autoChoose: true, roaming: true, empty: true });
+  const run = createRun({ seed: 300 + i * 7 + STAGES.indexOf(stage), autoChoose: true, empty: true });
   const [tier, cls] = LADDER_BLOCKS[stage](el, i);
   const t = run.spawnDebug(tier, 1, 3);
   t.cls = cls;
@@ -431,7 +462,7 @@ function flashes(events, speed, safe) {
   };
   for (const [simT, e, danger] of events) {
     let w = simT / speed;
-    if (e.type === 'skill') {
+    if (e.type === 'skill' || e.type === 'petOut') {
       taps = simT === lastSim ? taps + 1 : 0; // cards ready together: tapped one after another
       lastSim = simT;
       w += taps * TAP_GAP;
@@ -442,6 +473,8 @@ function flashes(events, speed, safe) {
     else if (e.type === 'skill') {
       flash(w, isSaturatedRed(hex(e.colors.at(-1))), 1); // the cut-in panel (the tap plays it)
       wash(w, hex(e.colors.at(-1)), OLD.skillAlpha);
+    } else if (e.type === 'petOut') {
+      flash(w, isSaturatedRed(hex(FUSIONS[e.key]?.color ?? '#ffffff')), 1); // v2: the namecard's cut-in as the pet goes out
     } else if (e.type === 'milestone') {
       flash(w, false, 1); // the big milestone number (photosafe: it waits for the flash budget, a moment at most)
     } else if (e.type === 'remove' && e.reason === 'destroyed') {
@@ -528,7 +561,7 @@ function rowsFor(scenarios, speeds) {
 export function audit({ seeds = 12, minutes = 15, stressSeconds = 180, speeds = [1, 2, 4], stress = true, ladderSeconds = 0, U = PHONE_U } = {}) {
   phoneU = U;
   const scenarios = [];
-  for (let seed = 1; seed <= seeds; seed++) scenarios.push({ name: `bot ${seed}`, events: play(createRun({ seed, autoChoose: true, roaming: true }), { seconds: minutes * 60, bot: true }) });
+  for (let seed = 1; seed <= seeds; seed++) scenarios.push({ name: `bot ${seed}`, events: play(createRun({ seed, autoChoose: true }), { seconds: minutes * 60, bot: true }) });
   if (stress) scenarios.push({ name: 'stress', events: play(stressRun(), { seconds: stressSeconds, bot: false }) });
   const rows = rowsFor(scenarios, speeds);
   if (ladderSeconds > 0) {
@@ -547,7 +580,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const U = arg('u', PHONE_U);
   const rows = audit({ seeds, minutes, ladderSeconds, U });
   console.log(`at U ${U} (px per world unit; a 360 × 640 phone is 23.78): damage numbers at ${['hit', 'small'].map((k) => `${k} ${numberScale(k, U).toFixed(3)}`).join(', ')} world units`);
-  console.log(`${seeds} bot games (up to ${minutes} min, pets roaming, namecards tapped when ready) + a stress board of 4 legendaries + 40 ladder boards (each element at each attack stage, ${ladderSeconds} s each)`);
+  console.log(`${seeds} bot games (up to ${minutes} min, summons cast when ready) + a stress board of 4 summoning fusions and 2 pure forms + 40 ladder boards (each element at each attack stage, ${ladderSeconds} s each)`);
   console.log(`a large local flash: the local effects on screen light ${POINT.large} units² or more to 10%; photosafe keeps them under ${POINT.cap}\n`);
   const table = (list) => {
     console.log('| effects | speed | large flashes in any 1 s | above the thresholds | from local effects | red | wash peak alpha | most lit by local effects at once (units²) | red pulses of one block in any 1 s |');
