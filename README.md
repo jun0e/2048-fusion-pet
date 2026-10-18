@@ -128,7 +128,26 @@ The old values (kill 5 + 2 × wave, bosses × 12, clear 20 + 5 × wave, +1 per 1
 
 Because most blocks cover only their own column's lane, the classic 2048 corner strategy stacks your firepower in one lane. Left and right swipes shift blocks between lanes, so you trade growth swipes against positioning swipes. Ranges also care about rows: a block's reach is measured from the block, so top-row blocks meet enemies as they enter the board and bottom-row blocks guard the wall.
 
-## Dice and classes
+## v2: eggs, pets, fusions and their skills
+
+v2 (branch `v2`; v1 is kept as tag `v1-backup`) reworks the upgrade path. The contract is [docs/v2/SPEC.md](docs/v2/SPEC.md), and every call made without asking is in [docs/v2/DECISIONS.md](docs/v2/DECISIONS.md).
+
+| Step | What happens |
+|---|---|
+| Elemental eggs | Some new blocks are **eggs of an element in your deck**, never more than one single egg or pet per element on the board. Every other block is a plain stone block that shoots pebbles from 16 on. |
+| Hatching (16) | An egg hatches into its element's pet, which shoots its element's attack and grows to 128. |
+| Fusion | Merge **two pets of different elements**: they become that pair's fusion pet. You pick its main element, which sets its attack. Both elements are freed, so their eggs can come again. |
+| Feeding | A pet merged into a fusion, or two fusions merged (you keep one), adds **element buffs** to the fusion you keep: one stat per element (fire damage, ice slow, lightning fire rate, poison stacks, earth health, wind range, metal crits, nature healing). |
+| Summon (1024) | A fusion at 1024 gets a namecard. When it is charged, tap it: the pet **hops out to the front for a few seconds and uses its own skill**, one of 28 (Frostfire Waltz, Railgun, Bog Web …). The tile keeps shooting meanwhile. |
+| Pure form (4096) | A pet at 4096 becomes the **pure form of its main element**: it hits harder and gives every other pet its element's stat. |
+| New elements | Spawn levels 2–7 each offer a new element: pick 1 of 2. |
+
+The skills' numbers live in `src/sim/skills/data.js`, their words (English and Vietnamese, in the shape of a League of Legends tooltip) in `src/i18n/skills-*.js`, and their code in `src/sim/skills/<first element>.js` through the kit (`src/sim/skills/kit.js`). Useful tools:
+
+- `node tools/skill-matrix.mjs vi` prints the skill matrix in Vietnamese (`en` for English).
+- `node tools/skill-gauntlet.mjs` scores every skill against one standard wave (damage, kills, holds, blocks saved), to keep them even.
+
+## Dice and classes (v1, kept for reference)
 
 Elements are dice. **Every new block spawns in the colour of a random die from your deck.** When two blocks merge, **the block that slides in sets the colour**: its class overrides the one it slid into. Swipe left and the right block slides into the left one, so the right block's colour wins; swipe the other way and the other colour wins.
 
@@ -202,7 +221,7 @@ Each fusion is also a hero pet of its own: one animal with its own silhouette, t
 | **Wind** |  |  |  |  |  | Whirlblade, sickle weasel | Pollenpuff, sugar glider |
 | **Metal** |  |  |  |  |  |  | Sproutgear, beaver |
 
-### Ultimates (by third element)
+### Ultimates (by third element; v1 only, v2 has the pure forms)
 
 | Third die | Ultimate | Signature |
 |---|---|---|
