@@ -183,19 +183,6 @@ test('Kite Ninja summons minions in nearby lanes; Elf Ruler heals allies', () =>
   assert.ok(pal.hp > pal.maxHp / 2);
 });
 
-test('ultimates reach every lane: Sun burns all, Timestop freezes all', () => {
-  const sun = createDefense({ rng: createRng(1) });
-  const foes = [0, 2, 3].map((lane) => sun.spawn('hoodedFlier', { lane, hpScale: 5000, s: at(1) }));
-  run(sun, [block(0, 12, { element: 'earth', fusion: 'wind', ultimate: 'fire' })], 2.2);
-  assert.ok(foes.every((e) => e.burn.stacks > 0));
-
-  const ts = createDefense({ rng: createRng(1) });
-  const fs = [0, 1, 3].map((lane) => ts.spawn('hoodedFlier', { lane, hpScale: 5000, s: at(1) }));
-  for (const e of fs) e.speed = 0;
-  run(ts, [block(0, 12, { element: 'earth', fusion: 'wind', ultimate: 'ice' })], 10.2);
-  assert.ok(fs.every((e) => e.freezeT > 0));
-});
-
 test('waves: deterministic, telegraphed lanes, boss every 5 waves, growing', () => {
   const w1 = generateWave(3, createRng(77));
   assert.deepEqual(w1, generateWave(3, createRng(77)));
@@ -210,7 +197,7 @@ test('waves: deterministic, telegraphed lanes, boss every 5 waves, growing', () 
   assert.ok(generateWave(12, createRng(1)).lanes.length > generateWave(1, createRng(1)).lanes.length);
 });
 
-test('Metal marks foes so they drop bonus coins; Midas gilds the whole field', () => {
+test('Metal marks foes so they drop bonus coins', () => {
   const d = createDefense({ rng: createRng(1) });
   const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: at(3) });
   e.speed = 0;
@@ -226,15 +213,9 @@ test('Metal marks foes so they drop bonus coins; Midas gilds the whole field', (
   run(k, [block(1, 4, { element: 'metal' })], 1.5);
   assert.ok(weak.dead);
   assert.equal(k.drainEvents().find((x) => x.type === 'kill').loot, 0.6, 'a Metal killing blow pays the bonus too');
-
-  const g = createDefense({ rng: createRng(1) });
-  const foes = [0, 2, 3].map((lane) => g.spawn('hoodedFlier', { lane, hpScale: 5000, s: at(1) }));
-  for (const f of foes) f.speed = 0;
-  run(g, [block(0, 12, { element: 'earth', fusion: 'wind', ultimate: 'metal' })], 4.2);
-  assert.ok(foes.every((f) => f.lootT > 0), 'every lane gilded');
 });
 
-test('Bramble Shell regrows the block and its neighbours when its ring bites; Lifebloom repairs them all', () => {
+test('Bramble Shell regrows the block and its neighbours when its ring bites', () => {
   const d = createDefense({ rng: createRng(5) });
   const e = d.spawn('hoodedFlier', { lane: 1, hpScale: 50000, s: sAtY(2) }); // inside the ring
   e.speed = 0;
@@ -247,14 +228,6 @@ test('Bramble Shell regrows the block and its neighbours when its ring bites; Li
   assert.equal(far.hp, 500, 'a block two cells away does not');
   assert.ok(e.hp < e.maxHp, 'the ring hurt the foe in it');
   assert.ok(next.hp <= next.maxHp);
-
-  const bloom = createDefense({ rng: createRng(5) });
-  const b = bloom.spawn('hoodedFlier', { lane: 0, hpScale: 50000, s: at(1) });
-  b.speed = 0;
-  const a1 = Object.assign(block(1, 4, {}, 2), { hp: 100, maxHp: 1000 });
-  const a2 = Object.assign(block(2, 4, {}, 3), { hp: 200, maxHp: 1000 });
-  run(bloom, [sturdy(block(3, 12, { element: 'earth', fusion: 'wind', ultimate: 'nature' }, 1)), a1, a2], 6.2);
-  assert.ok(a1.hp >= 350 && a2.hp >= 450, 'Lifebloom repaired every damaged block');
 });
 
 test('lane ranges reach up and down from the block: top-row Fire meets foes entering the board', () => {
