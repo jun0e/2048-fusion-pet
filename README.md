@@ -39,23 +39,22 @@ Balance (the autoplay bot, 8 seeds): fast play ends around wave 20 on average (1
 
 Run it next to the main game: `npm run dev -- --port 5176`.
 
-### Spawn level (the Lv disc)
+### The level road (the Lv disc)
 
-Like a player's level in Teamfight Tactics, which changes the shop's odds, the spawn level changes the odds of the block each swipe adds (`src/sim/levels.js`). The **Lv** disc sits above the coin plate, with an XP ring. Tap it for the odds at this level and the next, and for **Buy XP**.
+v2.1 (`src/sim/levels.js`): 20 levels in a run of about 12 minutes, about one every 30 seconds. XP comes from kills (1 each, 10 a boss) and cleared waves (3); there is no Buy XP and no level cap. Every level moves the odds of the block each swipe adds toward bigger values, as a player's level in Teamfight Tactics moves its shop's odds, and some levels bring more. The **Lv** disc sits above the coin plate, with an XP ring. Tap it for the XP still needed and the next level's reward; no odds are shown.
 
-| Level | 2 | 4 | 8 | 16 |
-|---|---|---|---|---|
-| 1 | 90% | 10% | | |
-| 3 | 86% | 13% | 1% | |
-| 5 | 72% | 22% | 5% | 1% |
-| 7 | 50% | 34% | 12% | 4% |
-| 9 | 26% | 40% | 24% | 10% |
+| Level | About (the bot's median) | Reward |
+|---|---|---|
+| 2, 4, 6, 8, 10, 13 | 0:18 … 5:12 | Pick a new element (1 of 2): the whole deck of 8 by level 13 |
+| 3, 7, 12 | 0:36, 2:18, 4:48 | New blocks can be 8s, then 16s, then 32s (2s stop at 12) |
+| 11 | 4:12 | The board grows to 5×5 (5 lanes) |
+| 15, 19 | 6:12, 8:36 | Summons charge 2 s faster |
+| 16, 20 | 6:42, 9:12 | 4s stop, then 8s (level 20 is for strong runs) |
+| 17 | 7:12 | The board grows to 6×6 (6 lanes) |
 
-- **XP:** +2 for each cleared wave (TFT: +2 a round). Buy XP gives +4 for the price of 2 swipes. Merges give none.
-- **XP costs:** 2, 12, 20, 28, 40, 52, 64, 72 to reach levels 2–9.
-- **Level cap:** your top block in this run caps the level at its tier − 3 (16 → 1, 64 → 3, 512 → 6, 4096 → 9). At the cap the bar fills and waits, and Buy XP is off.
+- **The board grows** at the first break after its level: a new column on the right and a new row on top, in the same footprint on screen, so the cells shrink. Each column guards its own lane.
 - **After the run's first 512, no more 2s:** the other values share the 2s' weight.
-- **A spawned 16** hatches like a merged one: it rolls an element from the deck.
+- **A spawned 16 or 32** hatches like a merged one: it rolls an element from the deck.
 
 ### Keepsakes (the disc above Wave now)
 
@@ -66,7 +65,7 @@ You bring one keepsake into each run (`src/sim/keepsakes.js`). The biggest block
 | Iron Fist | (the starter) | A block that moves in a swipe punches every monster in its way, as hard as its base hit (once per monster per swipe, from the biggest block) |
 | Coin Purse | a 128 | +60 coins at the start; kills pay 20% more |
 | Spiked Collar | a 256 | Blocks have 30% more health |
-| Lucky Clover | a 512 | New blocks use the odds of 2 levels above yours, up to level 9 (so Buy XP is off from level 7) |
+| Lucky Clover | a 512 | New blocks use the odds of 2 levels above yours, up to the top level |
 | Phoenix Feather | a 1024 | Once a run, your last block rises as the biggest block you lost this run, at full health; the monsters on the board are thrown back to the gates; +4 swipes of coins |
 | Quake Boots | a 2048 | A swipe with 2+ merges stomps: every monster on the board takes your top block's base hit and is stunned for 1.5 s (bosses half as long) |
 
@@ -136,11 +135,20 @@ v2 (branch `v2`; v1 is kept as tag `v1-backup`) reworks the upgrade path. The co
 |---|---|
 | Elemental eggs | Some new blocks are **eggs of an element in your deck**, never more than one single egg or pet per element on the board. Every other block is a plain stone block that shoots pebbles from 16 on. |
 | Hatching (16) | An egg hatches into its element's pet, which shoots its element's attack and grows to 128. |
-| Fusion | Merge **two pets of different elements**: they become that pair's fusion pet. You pick its main element, which sets its attack. Both elements are freed, so their eggs can come again. |
-| Feeding | A pet merged into a fusion, or two fusions merged (you keep one), adds **element buffs** to the fusion you keep: one stat per element (fire damage, ice slow, lightning fire rate, poison stacks, earth health, wind range, metal crits, nature healing). |
+| Fusion | Merge **two pets of different elements**: they become that pair's fusion pet at once. Its main element (its attack) is fixed per pet, so its picture, attack and skill always go together (v2.1). Both elements are freed, so their eggs can come again. |
+| Feeding | A pet merged into a fusion, or two fusions merged (you keep one), adds **element buffs** to the fusion you keep: one stat per element (fire damage, ice slow, lightning fire rate, poison stacks, earth health, wind range, metal crits, nature healing). Each more copy of one buff gives 60% of the one before (v2.1). |
 | Summon (1024) | A fusion at 1024 gets a namecard. When it is charged, tap it: the pet **hops out to the front for a few seconds and uses its own skill**, one of 28 (Frostfire Waltz, Railgun, Bog Web …). The tile keeps shooting meanwhile. |
 | Pure form (4096) | A pet at 4096 becomes the **pure form of its main element**: it hits harder and gives every other pet its element's stat. |
-| New elements | Spawn levels 2–7 each offer a new element: pick 1 of 2. |
+| New elements | Levels 2, 4, 6, 8, 10 and 13 each offer a new element: pick 1 of 2. |
+
+### v2.1: every pet has a weakness, and the siege ramps up
+
+v2.1 (branch `v2.1`; v2 is kept as tag `v2.0`) is a rebalance; its contract is [docs/v2/SPEC-v2.1.md](docs/v2/SPEC-v2.1.md).
+
+- **Four strengths, two at most:** an attack can reach **far**, hit other **lanes**, hit an **area**, or **chain**. The main element sets the shape (fire area; ice far and lanes; lightning lanes and chain; poison, earth and nature lanes and area; wind far and area; metal lanes); the second element adds its effects, and a strength only while the shape has room, so every fusion has exactly two. The tile card shows them as icons, lit or dim.
+- **Waves keep growing** in count all run, on every lane of a bigger board. From wave 10 a growing share of foes **resists the element that has dealt the most damage lately** (from wave 20 also the second; bosses from 15), and wears a shield in its colour.
+- **The ramp:** from 8 minutes foes get tougher every second (health × e^(2·(m−8)²), bites more), and from 10 minutes each wave also needs a set number of seconds of the board's whole firepower, ×4 a minute. Runs end between 8 and 12 minutes (`tools/v21-probe.mjs`: median 9.5).
+- **Stat icons** (`src/ui/icons.js`) replace the stat words on the cards, the tile card and the banners.
 
 The skills' numbers live in `src/sim/skills/data.js`, their words (English and Vietnamese, in the shape of a League of Legends tooltip) in `src/i18n/skills-*.js`, and their code in `src/sim/skills/<first element>.js` through the kit (`src/sim/skills/kit.js`). Useful tools:
 
@@ -292,7 +300,7 @@ The script reads `GEMINI_API_KEY` from the environment or `.env.local` (git-igno
 | `src/sim/enemies.js` | Enemy roster, chapters, deterministic waves with their lanes |
 | `src/sim/defense.js` | Lane movement, statuses, per-lane targeting, projectiles, chain/splash/pierce, signatures, castle |
 | `src/sim/run.js` | Real-time loop (prep, waves, breaks) tying board and defense; coins, swipe price; the deck (spawn colours) and unlocks; boss rewards; lock warning; spawn XP and levels; the keepsake's rules |
-| `src/sim/levels.js` | The spawn level: odds per level, XP costs, the level cap, the no-2 rule |
+| `src/sim/levels.js` | The level road: 20 levels, their rewards and minutes, the odds per level, XP costs, the no-2 rule |
 | `src/sim/keepsakes.js`, `src/sim/punch.js` | The six keepsakes and their numbers; Iron Fist's slide paths and punch targets |
 | `src/ux/meta.js` | The record across runs (`siege:meta`): biggest block ever, keepsake to bring, run count |
 | `src/render/*` | PixiJS: stage/layout, scenery (lanes, portals, wall, tray), the deck row (`deck.js`), blocks, monsters (`foes.js`), projectiles (`shots.js`), effects incl. flying coins (`fx.js`), procedural art and generated-sprite loading (`textures.js`) |
@@ -306,8 +314,7 @@ Everything in `src/sim` is pure and deterministic: a seed plus the same inputs r
 
 ## Prototype defaults to revisit
 
-- **Spawn level odds are gentler than TFT's.** This game is very sensitive to spawn value: TFT-sized steps made bot runs about 50% longer, and free XP from merges doubled them. So XP comes from cleared waves and coins only, the top block caps the level, and the early levels change little. Steeper odds are one table away (`LEVELS.odds`).
-- **Buy XP is in the level card,** not a button on the bar: two taps (disc, then Buy). It costs 2 swipes, so it competes with swiping.
+- **The level road's minutes are the bot's.** `LEVEL_ROAD` holds when the autoplay bot reaches each level (its median over 96 games); a human who swipes slower levels later. XP costs and the ramp are in `LEVELS.xpToNext` and `V2_1.ramp`; re-run `node tools/v21-probe.mjs` after changing them.
 - **Five of the six keepsakes are mine;** only Iron Fist came from the brief. Unlocks follow the bot's top-block rates (128 in 90% of games, 2048 in 10%), so a new player gets a second keepsake in the first run or two.
 - **Iron Fist's punch** reaches 1.25 past the block's new cell (a biting monster stands 1.15 from the block) and 0.9 to each side (the next column is safe); it uses the block's base hit (`turretDamage`), and physical resistance applies.
 - **Keepsakes can't be swapped mid-run** (Hades allows it between regions with an upgrade).

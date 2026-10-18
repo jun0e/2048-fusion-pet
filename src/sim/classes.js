@@ -559,6 +559,16 @@ export const BUFF_DECAY = 0.6;
 export const buffWorth = (n) => (n > 0 ? (1 - BUFF_DECAY ** n) / (1 - BUFF_DECAY) : 0);
 
 /**
+ * What `n` copies of `element`'s buff add to its stat (ELEMENT_STATS): buffWorth × the buff. Poison's stat
+ * is whole stacks a hit, so its worth rounds (more copies give +2 at most). The sim (statsOf) and the
+ * cards (src/sim/describe.js) both use this, so what a card says is what the pet gets.
+ */
+export const statWorth = (element, n) => {
+  const w = buffWorth(n);
+  return (ELEMENT_STATS[element].stat === 'poison' ? Math.round(w) : w) * ELEMENT_STATS[element].buff;
+};
+
+/**
  * A block's element stats (ELEMENT_STATS): a fusion's buffs (each more copy of one gives less: buffWorth)
  * and the aura of the other pure pets (`tile.aura`, { element: v }, set by the run). hp and regen from an
  * aura reach every block; the other stats only blocks with an element. → { stat: v } (only the stats it has).
@@ -570,8 +580,7 @@ export function statsOf(tile) {
     if (stat && v) out[stat] = (out[stat] ?? 0) + v;
   };
   const c = tile.cls ?? {};
-  // (poison's stat is whole stacks a hit: its worth rounds, so more copies give +2 at most)
-  if (c.fusion && c.buffs) for (const e of ELEMENT_KEYS) add(e, (ELEMENT_STATS[e].stat === 'poison' ? Math.round(buffWorth(c.buffs[e] ?? 0)) : buffWorth(c.buffs[e] ?? 0)) * ELEMENT_STATS[e].buff);
+  if (c.fusion && c.buffs) for (const e of ELEMENT_KEYS) add(e, statWorth(e, c.buffs[e] ?? 0));
   if (tile.aura) for (const e of ELEMENT_KEYS) if (c.element || ['hp', 'regen'].includes(ELEMENT_STATS[e].stat)) add(e, tile.aura[e] ?? 0);
   return out;
 }

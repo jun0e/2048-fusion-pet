@@ -271,6 +271,7 @@ export const VI = {
   'tip.fist': 'Nắm Đấm Sắt: trượt một khối vào quái để đấm nó!',
   'tip.fistDone': 'Bốp! Khối càng lớn đấm càng mạnh.',
   'tip.level': 'Lên cấp! Chạm Cấp để xem phần thưởng tiếp theo.',
+  'tip.resist': 'Quái có khiên kháng nguyên tố mạnh nhất của bạn. Hãy dùng thêm nguyên tố khác!',
   'guide.swipe': 'Vuốt để gộp hai khối 8.',
   'guide.turret': 'Trứng nở ra thú cưng! Khối từ 16 bắn quái.',
   'guide.grow': 'Tiếp tục gộp. Mỗi lần vuốt tốn xu.',
