@@ -89,6 +89,12 @@ test('an egg hatches at 16 (stage 1), from either side; below 16 it stays an egg
   assert.deepEqual(small.cls, { element: 'ice' });
 });
 
+test('a merge drops v1’s ultimate (v2 has none)', () => {
+  const c = block(9);
+  mergeClass(c, block(8, { element: 'lightning', fusion: 'metal', ultimate: 'ice' }), block(8));
+  assert.deepEqual(c.cls, fusion('lightning', 'metal'));
+});
+
 test('single A + single A (cannot happen in play): keeps A', () => {
   const c = block(6);
   assert.deepEqual(mergeClass(c, block(5, { element: 'nature' }), block(5, { element: 'nature' })), { stage: 0, choice: null, gain: null });

@@ -270,9 +270,10 @@ export function singlesOn(tiles) {
   return out;
 }
 
-/** A copy of a class with buffs of its own (a fusion always has them, `{}` when none). */
+/** A copy of a class with buffs of its own (a fusion always has them, `{}` when none), without v1's `ultimate`. */
 export function copyCls(cls) {
   const out = { ...cls };
+  delete out.ultimate;
   if (out.fusion) out.buffs = { ...(cls.buffs ?? {}) };
   return out;
 }

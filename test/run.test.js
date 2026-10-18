@@ -432,6 +432,19 @@ test('summons: skillCharge and skillReady read the defense; castSkill sends a fu
   r.defense.summon = () => false;
   delete pet.summon;
   assert.equal(r.castSkill(pet.id), false, 'the defense says no: not cast');
+  // an open card pauses the run: no summon (and not shown as ready)
+  r.grid.remove(single);
+  r.grid.remove(young); // (only the new pair merges: the pet stays where it is)
+  r.spawnDebug(5, 0, 3).cls = { element: 'fire' };
+  r.spawnDebug(5, 1, 3).cls = { element: 'ice' };
+  r.defense.summon = () => true;
+  assert.ok(r.move('left'));
+  assert.equal(r.pendingChoice?.kind, 'fusion');
+  assert.equal(r.grid.at(0, 0), pet, 'the pet is still home');
+  assert.equal(r.skillReady(pet.id), false);
+  assert.equal(r.castSkill(pet.id), false);
+  r.choose(0);
+  assert.equal(r.skillReady(pet.id), true, 'ready again once the card is gone');
 });
 
 test('kill rewards a skill changes: coinMult multiplies the coins, xp adds spawn XP (Bumper Harvest)', () => {

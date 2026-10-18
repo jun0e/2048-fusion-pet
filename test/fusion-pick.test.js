@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRun } from '../src/sim/run.js';
-import { FUSIONS } from '../src/sim/classes.js';
+import { FUSIONS, profileFor } from '../src/sim/classes.js';
 import { recordRun, replayRun, fingerprint } from '../src/ux/resume.js';
 
 const DECK = ['fire', 'ice', 'lightning', 'metal'];
@@ -129,7 +129,7 @@ test('eggs fuse below 16 with the same choice; a fusion egg hatches at 16 as its
     [[1, FUSIONS['fire+metal'].name]],
   );
 
-  // two 8-eggs: one choice, then the fusion news only (it hatched as a fusion pet)
+  // two 8-eggs: one choice, then its news: the fusion made, and its hatch (as that fusion)
   const two = run();
   block(two, 3, 0, 0, { element: 'ice' });
   block(two, 3, 1, 0, { element: 'lightning' });
@@ -137,9 +137,79 @@ test('eggs fuse below 16 with the same choice; a fusion egg hatches at 16 as its
   two.drainEvents();
   two.choose(0);
   assert.deepEqual(
-    two.drainEvents().filter((e) => e.type === 'classed').map((e) => e.stage),
-    [2],
+    two.drainEvents().filter((e) => e.type === 'classed').map((e) => [e.stage, e.info.name]),
+    [
+      [2, FUSIONS['ice+lightning'].name],
+      [1, FUSIONS['ice+lightning'].name],
+    ],
   );
+});
+
+/**
+ * Iron Fist drains the defense during a swipe: a boss killed before it pays its x2s while the swipe's
+ * merge card is still open. Tries seeds until the reward lifts the merged block (the plan is random).
+ */
+function liftWhilePending(setup) {
+  for (let seed = 1; seed <= 30; seed++) {
+    const r = createRun({ seed, empty: true, levels: false, keepsake: 'ironFist', dice: DECK });
+    setup(r);
+    r.spawnDebug(13, 3, 0); // an 8192: the boss pays 13 x2s
+    const boss = r.defense.spawn('elfRuler', { hpScale: 1 });
+    r.defense.damage(boss, 1e9, ['fire']); // the kill is paid at the swipe's drain
+    r.drainEvents();
+    assert.ok(r.move('left'));
+    const t = r.grid.at(0, 0);
+    if (t.tier >= 12) return { r, t, ev: r.drainEvents() };
+  }
+  assert.fail('no seed lifted the block with the open card');
+}
+
+test('a boss x2 that lifts a block whose keep card is open: the card follows, and the kept fusion is pure', () => {
+  const { r, t, ev } = liftWhilePending((r) => {
+    block(r, 10, 0, 0, fusion('fire', 'ice'));
+    block(r, 10, 1, 0, fusion('lightning', 'metal'));
+  });
+  const c = r.pendingChoice;
+  assert.equal(c.kind, 'keep');
+  assert.equal(c.tier, t.tier, 'the card shows the block as it is now');
+  assert.ok(c.offers.every((o) => o.cls.pure), 'each offer is pure at that tier');
+  assert.ok(!ev.some((e) => e.type === 'classed' && e.tileId === t.id), 'no news before the pick');
+  r.choose(1);
+  assert.deepEqual(t.cls, { ...fusion('fire', 'ice', { lightning: 1, metal: 1 }), pure: true });
+  assert.equal(profileFor(t).pure, 'fire');
+  assert.deepEqual(
+    r.drainEvents().filter((e) => ['buffed', 'classed'].includes(e.type)).map((e) => [e.type, e.stage, e.info?.name]),
+    [
+      ['buffed', undefined, undefined],
+      ['classed', 3, 'Pure Fire'],
+    ],
+  );
+});
+
+test('a boss x2 that lifts a block whose fusion card is open: the pure news names the main element picked', () => {
+  const { r, t } = liftWhilePending((r) => {
+    block(r, 10, 0, 0, { element: 'fire' });
+    block(r, 10, 1, 0, { element: 'ice' });
+  });
+  assert.equal(r.pendingChoice.kind, 'fusion');
+  r.choose(1); // fire main (the mover, ice, was offer 0)
+  assert.deepEqual(t.cls, { ...fusion('fire', 'ice'), pure: true });
+  assert.deepEqual(
+    r.drainEvents().filter((e) => e.type === 'classed').map((e) => [e.stage, e.info.name]),
+    [
+      [2, 'Frostnova'],
+      [3, 'Pure Fire'],
+    ],
+  );
+});
+
+test('choose() without an index takes offer 0', () => {
+  const r = run();
+  block(r, 5, 0, 0, { element: 'fire' });
+  block(r, 5, 1, 0, { element: 'ice' });
+  assert.ok(r.move('left'));
+  assert.equal(r.choose(), true);
+  assert.deepEqual(r.grid.at(0, 0).cls, fusion('ice', 'fire'));
 });
 
 test('a merge that reaches 4096 announces the pure form: at once, or after its choice', () => {
