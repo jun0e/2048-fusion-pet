@@ -2,11 +2,12 @@
 // rail that hangs on the right tower (proposal 4.1): never over lane 4. The rail has four slots; from a
 // fifth pet on, the fourth slot is a stack whose face is the card to tap (railSlots), so every pet's
 // skill can be cast and the rail never grows. The portrait uses the second art style, a soft-vinyl toy
-// render, so the card reads as a reward. The charge lives in the sim (run.skillCharge; a tap casts
-// with run.castSkill). States follow the style brief: charging (dimmed; a fill bar under the
-// portrait), ready (full colour, an element rim, the bar turns into an inverted READY pill, a shine
-// sweep, a small bob), out (the pet is on the field: the time it has left, the bar draining; a 0.9 s
-// cut-in as it goes, that never blocks play), lost (grey, falls away).
+// render, so the card reads as a reward. The charge lives in the sim (run.skillCharge); a tap on a ready
+// card asks its creator to cast (onCast: src/kv/pets.js calls run.castSkill). States follow the style
+// brief: charging (dimmed; a fill bar under the portrait), ready (full colour, an element rim, the bar
+// turns into an inverted READY pill, a shine sweep, a small bob), out (the pet is on the field: the time
+// it has left, the bar draining; a 0.9 s cut-in as it goes, that never blocks play), lost (grey, falls
+// away).
 import { tr } from '../i18n/index.js';
 import { ELEMENTS, FUSIONS, fusionKey } from '../sim/classes.js';
 import { GRID, V2 } from '../config.js';
@@ -204,11 +205,11 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
       void el.offsetWidth;
       el.classList.add('nudge');
     };
-    // a press casts at once (no wait for the click); Enter and Space on a focused card do the same.
-    // The sim says whether the summon started (ready, and the pet home): the cut-in comes with it (sync)
+    // a press casts at once (no wait for the click); Enter and Space on a focused card do the same. A
+    // ready card hands the cast to its creator (src/kv/pets.js onCast: run.castSkill(card.id), and the
+    // beam to the pet); the cut-in comes when the sim sends the pet out (sync)
     const press = () => {
-      const run = getRun();
-      if (card.lost || card.state !== 'ready' || !run.castSkill(card.id)) return nudge();
+      if (card.lost || card.state !== 'ready') return nudge();
       card.castAt = performance.now(); // the stack's face holds a moment (FACE_HOLD_MS)
       onCast(card);
       el.classList.add('fire');
