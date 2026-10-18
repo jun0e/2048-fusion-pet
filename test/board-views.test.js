@@ -247,6 +247,38 @@ test('grow: the frame is rebuilt at the new size and eases there; new lanes slid
   }
 });
 
+test('two grows at once (two levels in one step): one moment from the board drawn to the run’s size; a grow mid-moment carries on', () => {
+  setBoardSize(4);
+  try {
+    const sc = frameScene();
+    setBoardSize(6); // the run has grown twice before its events are drawn
+    sc.frame.grow({ type: 'grow', size: 5, from: 4 });
+    sc.frame.grow({ type: 'grow', size: 6, from: 5 });
+    let L = sc.frame.layout;
+    assert.ok(Math.abs(L.cell - 2) < EPS, 'it starts from the 4×4 board on screen');
+    L.lanes.slice(0, 4).forEach((l, i) => assert.ok(Math.abs(l.x - cellXAt(i, 2)) < EPS));
+    assert.equal(sc.parts.length, GROW_DUST.n, 'one puff of dust');
+    sc.step(GROW.time + 0.05);
+    expectBoard(sc.frame.layout, 6, 'then 6×6');
+    // a grow while one plays: from the cell drawn now, with no jump
+    setBoardSize(4);
+    const b = frameScene();
+    setBoardSize(5);
+    b.frame.grow({ type: 'grow', size: 5, from: 4 });
+    b.step(GROW.time / 2);
+    const before = b.frame.layout;
+    setBoardSize(6);
+    b.frame.grow({ type: 'grow', size: 6, from: 5 });
+    L = b.frame.layout;
+    assert.ok(Math.abs(L.cell - before.cell) < EPS, 'the same cell as a moment ago');
+    before.lanes.slice(0, 4).forEach((l, i) => assert.ok(Math.abs(L.lanes[i].x - l.x) < 0.06, `lane ${i} stays put`));
+    b.step(GROW.time + 0.05);
+    expectBoard(b.frame.layout, 6, 'and ends at 6×6');
+  } finally {
+    setBoardSize(4);
+  }
+});
+
 test('grow under Reduce motion: the frame is at its new size at once (the stage cross-fades), with no dust', () => {
   setBoardSize(4);
   try {
@@ -330,6 +362,29 @@ test('grow: every tile eases from its old place and size to its new one over GRO
       assert.ok(Math.abs(w.c.position.x - at(id).x) < EPS && Math.abs(w.c.position.y - at(id).y) < EPS, `tile ${id} on its new cell`);
       assert.equal(w.c.scale.x, 1);
     }
+  } finally {
+    setBoardSize(4);
+  }
+});
+
+test('two grows at once: the tiles ease once, from the 4×4 board to the 6×6 one', () => {
+  try {
+    setBoardSize(4);
+    const s = scene();
+    const a = s.add(1, 5, 3, 3, { element: 'fire' });
+    s.step(0.3);
+    const x0 = s.blocks.viewOf(1).c.position.x;
+    setBoardSize(6);
+    a.x = cellX(a.col);
+    a.y = cellY(a.row);
+    s.blocks.onEvent({ type: 'grow', size: 5, from: 4 });
+    s.blocks.onEvent({ type: 'grow', size: 6, from: 5 });
+    s.step();
+    const v = s.blocks.viewOf(1);
+    assert.ok(Math.abs(v.c.position.x - x0) < 0.5, 'it starts where it was');
+    assert.ok(Math.abs(v.c.scale.x - 1.5) < 0.01, 'and as big');
+    s.step(GROW.time + 0.05);
+    assert.ok(Math.abs(v.c.position.x - (200 + cellX(3) * 35)) < EPS && v.c.scale.x === 1, 'then on its 6×6 cell');
   } finally {
     setBoardSize(4);
   }

@@ -847,10 +847,13 @@ export function createFrame(stage, { fx = null, tx = FRAME_TEXTURES } = {}) {
      * cross-fades instead).
      */
     grow(e) {
-      const from = e?.from ?? built.size;
-      grow = !stage.reduced && from > 0 && GRID.size > from ? { from, to: GRID.size, t: 0 } : null;
+      // from the board as drawn now: a grow on top of a grow (two levels at once) carries on from where the
+      // first one has got to, to the run's size now (a fractional board: growPos takes it)
+      const from = grow ? BOARD_SPAN / (built.drawn ?? built.cell) : (e?.from ?? built.size);
+      const first = !grow;
+      grow = !stage.reduced && from > 0 && GRID.size > from + 1e-6 ? { from, to: GRID.size, t: 0 } : null;
       build(stage.view);
-      if (grow) dust();
+      if (grow && first) dust();
     },
     /** Is the grow moment playing? */
     get growing() {

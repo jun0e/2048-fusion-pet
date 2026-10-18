@@ -719,6 +719,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     }
     const gk = grow ? growEase(grow.t / GROW.time) : 1;
     const cellW = grow ? BOARD_SPAN / grow.from + (BOARD_SPAN / grow.to - BOARD_SPAN / grow.from) * gk : GRID.cell;
+    if (grow) grow.cell = cellW;
     const gs = cellW / GRID.cell;
     const rate = simRate.update(run.time ?? 0, dt);
     const simTime = run.time ?? time;
@@ -1360,8 +1361,11 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       else pending.set(e.tileId, { ...pending.get(e.tileId), loser: e.loser });
     } else if (e.type === 'grow') {
       // the board grew (in a break): every tile eases from its old place and size to its new one, on the
-      // keep's eased cell (src/render/frame.js does the same with the pits); under Reduce motion, at once
-      grow = !reduced && e.from > 0 && e.size > e.from ? { from: e.from, to: e.size, t: 0 } : null;
+      // keep's eased cell (src/render/frame.js does the same with the pits); under Reduce motion, at once.
+      // A grow on top of a grow (two levels at once) carries on from the cell drawn now, to the run's size
+      const from = grow ? BOARD_SPAN / (grow.cell ?? BOARD_SPAN / grow.from) : e.from;
+      const to = Math.max(e.size ?? 0, GRID.size);
+      grow = !reduced && from > 0 && to > from + 1e-6 ? { from, to, t: 0 } : null;
     }
   }
 
