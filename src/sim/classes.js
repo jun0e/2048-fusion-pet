@@ -1,18 +1,18 @@
-// Block classes. A block gains a class stage at three thresholds (BALL x PIT style):
-//   16   (tier 4)  → one element, with an attack that fits it
-//   256  (tier 8)  → a fusion: its element + a second one, carrying BOTH effects, upgraded
-//   4096 (tier 12) → an ultimate: the fusion + a third "apex" element with a rule-breaking signature
-// Elements are "dice" in the player's deck. Blocks below 16 are plain and don't
-// shoot. A block reaching 16 rolls a random element from the deck and starts
-// shooting. When two elemental blocks merge, the one that slides in keeps its
-// element (its class overrides the one it slid into). At 256 the block fuses:
-// the stayer's element (or a rolled one if they match) joins it and the pair
-// becomes a unique fusion element (Fire + Ice = Frostnova: burn and slow at once),
-// with its own name and colour. 4096 adds a third element: the ultimate.
-// Pure data + functions; no rendering.
+// Block classes, v2 (docs/v2/SPEC.md sections 1, 3 and 4). `tile.cls`:
+//   {}                              a plain block: never gains an element; from 16 it shoots pebbles
+//   { element }                     an elemental egg (below 16) or a single pet (16+); one per element
+//   { element, fusion, buffs }      a fusion egg or pet: `element` the main one (its attack), `fusion`
+//                                   the second; `buffs` { element: count } the singles fed into it
+//   … + pure: true                  from V2.pureTier (4096): the pure form of its main element
+// Elements are the "dice" of the player's deck. Merging two single pets (or eggs) of different elements
+// makes a fusion (the player picks the main element); a single fed into a fusion adds a buff of its
+// element; two fusions merged keep one of them (the player picks), which gains the other's elements and
+// buffs. Below 16 nothing shoots. Each element stands for one stat (ELEMENT_STATS: buffs and pure
+// auras). Pure data + functions; no rendering.
 
 import { tr } from '../i18n/index.js';
-import { DEFENSE } from '../config.js';
+import { DEFENSE, V2 } from '../config.js';
+import { ELEMENT_STATS, FUSION_HIT, PURE_SELF } from './skills/data.js';
 
 // The basic attacks (redesign, src/art/attack-design.js): each element animal attacks the
 // way the animal would, and between them they cover every range and targeting type.
@@ -108,7 +108,7 @@ export const ELEMENTS = {
 for (const [k, e] of Object.entries(ELEMENTS)) Object.assign(e, { name: tr(`el.${k}`), attack: tr(`el.${k}.attack`), desc: tr(`el.${k}.desc`), line: tr(`el.${k}.line`) });
 export const ELEMENT_KEYS = Object.keys(ELEMENTS);
 
-/** Growth stage of a class: 0 at 16 … 3 at 128; fusions and ultimates are fully grown. */
+/** Growth stage of a class: 0 at 16 … 3 at 128; fusions are fully grown. */
 export const growthOf = (tier) => Math.max(0, Math.min(3, tier - 4));
 
 /** An element at a growth stage: its data with the stage's overrides merged in. */
@@ -125,20 +125,17 @@ export function grownElement(key, s = 0) {
 export const PLAIN_SHOOT = { pattern: 'single', reach: 5, lanes: 0, target: 'front' };
 
 /**
- * Range of a class: the first element's shape at its growth stage (cone, lane line, ring,
- * circle, 3-lane wave). A fusion keeps that shape; a lane attack takes the widest lane
- * cover of its elements.
+ * Range of a class: the main element's shape at its growth stage (cone, lane line, ring,
+ * circle, 3-lane wave). A fusion keeps that shape, fully grown; a lane attack takes the
+ * widest lane cover of its two elements.
  */
 export function shootFor(cls, active, tier = 4) {
   if (!active || !cls.element) return { ...PLAIN_SHOOT };
   const s = cls.fusion ? 3 : growthOf(tier);
   const shoot = { ...grownElement(cls.element, s).shoot };
-  // fusions keep the first element's shape; a lane attack takes the widest lane cover
-  if (shoot.lanes != null) {
-    for (const k of [cls.fusion, cls.ultimate].filter(Boolean)) {
-      const o = grownElement(k, 3).shoot;
-      if (o.lanes != null) shoot.lanes = Math.max(shoot.lanes, o.lanes);
-    }
+  if (shoot.lanes != null && cls.fusion) {
+    const o = grownElement(cls.fusion, 3).shoot;
+    if (o.lanes != null) shoot.lanes = Math.max(shoot.lanes, o.lanes);
   }
   return shoot;
 }
@@ -223,16 +220,16 @@ for (const [key, f] of Object.entries(FUSIONS)) {
 
 /**
  * The 4-piece milestone border: pieces lit toward the next milestone. 16 → 32 → 64
- * → 128 lights 0–3 (256 = fusion), then 512 → 1024 → 2048 lights 0–3 again (4096 =
- * ultimate). -1 = no border (below 16, or an ultimate).
+ * → 128 lights 0–3 (256), then 512 → 1024 → 2048 lights 0–3 again (4096 = the pure
+ * form). -1 = no border (below 16, or 4096 and up).
  */
 export const milestonePieces = (tier) => (tier >= 4 && tier < 8 ? tier - 4 : tier >= 8 && tier < 12 ? tier - 8 : -1);
 
 /** The unique fusion element of a class (or null). */
 export const fusionOf = (cls) => (cls.element && cls.fusion ? FUSIONS[fusionKey(cls.element, cls.fusion)] : null);
 
-// Ultimate signatures, keyed by the apex (third) element. Periodic, field-wide,
-// like BALL x PIT's top tier (Sun, Timestop, Storm, Virus …).
+// v1's ultimate signatures, keyed by the apex (third) element. v2 has no ultimates and the sim no
+// longer reads these; they stay as data for the screens and the art catalogue until those move to v2.
 export const APEX = {
   fire: { effect: 'globalBurn', period: 2 },
   ice: { effect: 'globalFreeze', period: 10, dur: 2.5 },
@@ -250,65 +247,128 @@ export const TAGS = Object.fromEntries(Object.keys(ELEMENTS).map((k) => [k, tr(`
 
 // --- stages -----------------------------------------------------------------
 
+const HATCH_TIER = DEFENSE.classTiers[0]; // 16: eggs hatch, blocks start shooting
+
+/** By tier alone: 0 below 16 (nothing shoots), 1 from 16, 2 from 256, 3 from 4096. */
 export function stageFor(tier) {
   const [t1, t2, t3] = DEFENSE.classTiers;
   return tier >= t3 ? 3 : tier >= t2 ? 2 : tier >= t1 ? 1 : 0;
 }
 
-export function elementsOf(cls) {
-  return [cls.element, cls.fusion, cls.ultimate].filter(Boolean);
+/** The elements of a class: its main one, then its second one (a fusion). */
+export const elementsOf = (cls) => [cls.element, cls.fusion].filter(Boolean);
+
+/** A single egg or pet: one element, no fusion. */
+export const isSingle = (cls) => !!cls?.element && !cls.fusion;
+/** A fusion egg or pet. */
+export const isFusion = (cls) => !!cls?.element && !!cls.fusion;
+
+/** The elements that have a single (egg or pet) on the board; the run keeps it to one per element. */
+export function singlesOn(tiles) {
+  const out = new Set();
+  for (const t of tiles) if (isSingle(t.cls)) out.add(t.cls.element);
+  return out;
 }
 
-/** Class stages a block has active: 0 while dormant (below 16), up to 3. */
-export function activeStages(tile) {
-  if (!tile.cls.element || stageFor(tile.tier) < 1) return 0;
-  return 1 + (tile.cls.fusion ? 1 : 0) + (tile.cls.ultimate ? 1 : 0);
+/** A copy of a class with buffs of its own (a fusion always has them, `{}` when none). */
+export function copyCls(cls) {
+  const out = { ...cls };
+  if (out.fusion) out.buffs = { ...(cls.buffs ?? {}) };
+  return out;
 }
+
+/** Mark a class pure when it has an element and its block has reached V2.pureTier. */
+export function withPure(cls, tier) {
+  if (cls.element && tier >= V2.pureTier) cls.pure = true;
+  return cls;
+}
+
+/** Add `gain` ({ element: n }) to `buffs`, in place. */
+function addBuffs(buffs, gain) {
+  for (const [e, n] of Object.entries(gain)) buffs[e] = (buffs[e] ?? 0) + n;
+  return buffs;
+}
+
+/** A fusion choice's offer: `element` the main one (its attack), `fusion` the second. */
+export function fusionOffer(element, second) {
+  const key = fusionKey(element, second);
+  return { element, fusion: second, key, name: FUSIONS[key].name, color: FUSIONS[key].color };
+}
+
+/** What a fusion keeps from `other` (a fusion merged into it): its two elements and all its buffs. */
+const gainFrom = (other) => addBuffs({ [other.element]: 1, [other.fusion]: 1 }, other.buffs ?? {});
+/** The fusion `keep` after `other` merged into it. */
+const keptAfter = (keep, other) => {
+  const cls = copyCls(keep);
+  addBuffs(cls.buffs, gainFrom(other));
+  return cls;
+};
 
 /**
- * Merge rule: `mover` slid into `stayer`. Below 16 blocks are plain. A child
- * reaching 16 rolls a random element (`roll(exclude)` picks from the deck). Above
- * that the child takes the mover's class (the sliding block overrides). A child
- * that reaches 256 / 4096 fills its fusion / ultimate slot with the stayer's
- * element, or a rolled one when the stayer has nothing new to give.
- * Returns the highest stage the child gained over the mover (0 = none).
+ * The merge rule (docs/v2/SPEC.md section 3): `mover` slid into `stayer` (the same tier) and made
+ * `child`. Sets child.cls (with a choice, its offer 0 until the player picks) and returns
+ * { stage, choice, gain }:
+ *   stage   1 the child hatched (reached 16 with an element), 3 it became pure (reached V2.pureTier
+ *           with an element), else 0. With a choice the run announces it once the choice is made.
+ *   choice  null, or { kind: 'fusion', parts, offers }: two singles of different elements (which one is
+ *           main; offer 0 the mover's), or { kind: 'keep', parts, offers }: two fusions (which one stays,
+ *           gaining the other's elements and buffs; offer 0 the mover's)
+ *   gain    null, or { element: 1 }: the buff a fusion gained from a single fed into it
  */
-export function mergeClass(child, mover, stayer, roll = null) {
-  const slots = stageFor(child.tier);
-  const cls = {};
-  if (slots >= 1) {
-    cls.element = mover.cls.element ?? stayer.cls.element ?? roll?.([]) ?? undefined;
-    if (mover.cls.fusion) cls.fusion = mover.cls.fusion;
-    if (mover.cls.ultimate) cls.ultimate = mover.cls.ultimate;
-    const donors = elementsOf(stayer.cls).filter((e) => !elementsOf(cls).includes(e));
-    const give = () => donors.shift() ?? roll?.(elementsOf(cls)) ?? undefined;
-    if (slots >= 2 && cls.element && !cls.fusion) cls.fusion = give();
-    if (slots >= 3 && cls.fusion && !cls.ultimate) cls.ultimate = give();
-    for (const k of Object.keys(cls)) if (!cls[k]) delete cls[k];
+export function mergeClass(child, mover, stayer) {
+  const a = mover.cls ?? {};
+  const b = stayer.cls ?? {};
+  let cls;
+  let choice = null;
+  let gain = null;
+  if (!a.element || !b.element) {
+    cls = copyCls(a.element ? a : b); // plain + plain stays plain; plain + X is X
+  } else if (isSingle(a) && isSingle(b)) {
+    if (a.element === b.element) cls = copyCls(a); // cannot happen in play (one single per element)
+    else {
+      const offers = [fusionOffer(a.element, b.element), fusionOffer(b.element, a.element)];
+      const parts = [
+        { element: a.element, tier: mover.tier },
+        { element: b.element, tier: stayer.tier },
+      ];
+      choice = { kind: 'fusion', parts, offers };
+      cls = { element: offers[0].element, fusion: offers[0].fusion, buffs: {} };
+    }
+  } else if (isFusion(a) && isFusion(b)) {
+    const offers = [
+      { cls: withPure(keptAfter(a, b), child.tier), gain: gainFrom(b) },
+      { cls: withPure(keptAfter(b, a), child.tier), gain: gainFrom(a) },
+    ];
+    const parts = [
+      { cls: copyCls(a), tier: mover.tier },
+      { cls: copyCls(b), tier: stayer.tier },
+    ];
+    choice = { kind: 'keep', parts, offers };
+    cls = copyCls(offers[0].cls);
+  } else {
+    // a single fed into a fusion: one buff of its element
+    const [f, single] = isFusion(a) ? [a, b] : [b, a];
+    gain = { [single.element]: 1 };
+    cls = copyCls(f);
+    addBuffs(cls.buffs, gain);
   }
+  withPure(cls, child.tier);
   child.cls = cls;
   child.prof = null;
-  const before = activeStages(mover);
-  const after = activeStages(child);
-  return after > before ? after : 0;
+  const crossed = (tier) => mover.tier < tier && child.tier >= tier;
+  const stage = !cls.element ? 0 : crossed(V2.pureTier) ? 3 : crossed(HATCH_TIER) ? 1 : 0;
+  return { stage, choice, gain };
 }
 
+// v1's material (the elements merged into a block) and its fusion offers: the sim no longer uses them
+// (v2 fusions come from merging two single pets); kept for the tile card until it moves to v2.
 /** Elements in any of `lists`, once each, in element order (deterministic). */
 export const mergeMaterial = (...lists) => ELEMENT_KEYS.filter((e) => lists.some((l) => l.includes(e)));
 
-/**
- * A block's material: the elements of every elemental block that went into it, in element order,
- * and always its own elements (blocks given a class directly, as the showcase's presets and
- * ?debug do, count those).
- */
+/** A block's material: v1's record of the elements merged into it, and always its own elements. */
 export const materialOf = (t) => mergeMaterial(t.mats ?? [], elementsOf(t.cls ?? {}));
 
-/**
- * The fusions a block may become at 256, made only from its material: every pair of its
- * elements, the merge rule's own pick first (the element that slid in, with the one it slid
- * into), then the other pairs with the sliding block's element, then the rest; at most `max`.
- * → [{ element (it attacks like this one), fusion, key, name, color, tags }]
- */
+/** v1: the fusions a block's material could make, the merge rule's own pick first; at most `max`. */
 export function fusionOffers(cls, material, max = 4) {
   const out = [];
   const seen = new Set();
@@ -317,7 +377,7 @@ export function fusionOffers(cls, material, max = 4) {
     const key = fusionKey(a, b);
     if (seen.has(key)) return;
     seen.add(key);
-    out.push({ element: a, fusion: b, key, name: FUSIONS[key].name, color: FUSIONS[key].color, tags: `${TAGS[a]} · ${TAGS[b]}` });
+    out.push({ ...fusionOffer(a, b), tags: `${TAGS[a]} · ${TAGS[b]}` });
   };
   add(cls.element, cls.fusion);
   const order = [cls.element, ...material.filter((e) => e !== cls.element)];
@@ -325,42 +385,35 @@ export function fusionOffers(cls, material, max = 4) {
   return out.slice(0, max);
 }
 
-/** What a block just became, for the announcement: the parts that combined and the result. */
+/**
+ * What a block just became, for the announcement: the parts that combined and the result.
+ * Stage 1 a hatch (an egg reached 16; a fusion egg hatches as its fusion), 2 a fusion made, 3 the pure
+ * form of its main element (`pure`: that element).
+ */
 export function describeStage(cls, stage, tier) {
   const el = (k) => ({ key: k, name: ELEMENTS[k].name, color: ELEMENTS[k].color });
+  const key = cls.fusion ? fusionKey(cls.element, cls.fusion) : null;
+  const fu = key ? FUSIONS[key] : null;
+  const e = ELEMENTS[cls.element];
+  const tags = fu ? `${TAGS[cls.element]} · ${TAGS[cls.fusion]}` : TAGS[cls.element];
   if (stage === 1) {
-    const e = ELEMENTS[cls.element];
-    return { stage, parts: [{ name: String(2 ** tier), color: null }, el(cls.element)], name: e.attack, colors: [e.color], tags: TAGS[cls.element] };
+    const value = { name: String(2 ** tier), color: null };
+    if (fu) return { stage, parts: [value, { key, name: fu.name, color: fu.color }], name: fu.name, colors: [fu.color], tags };
+    return { stage, parts: [value, el(cls.element)], name: e.attack, colors: [e.color], tags };
   }
-  const fu = FUSIONS[fusionKey(cls.element, cls.fusion)];
-  const fusion = fu.name;
-  if (stage === 2) {
-    return {
-      stage,
-      parts: [el(cls.element), el(cls.fusion)],
-      name: fusion,
-      colors: [fu.color],
-      tags: `${TAGS[cls.element]} · ${TAGS[cls.fusion]}`,
-    };
-  }
-  const apex = APEX[cls.ultimate];
-  return {
-    stage,
-    parts: [{ name: fusion, color: fu.color }, el(cls.ultimate)],
-    name: apex.name,
-    colors: [fu.color, ELEMENTS[cls.ultimate].color],
-    tags: `${TAGS[cls.element]} · ${TAGS[cls.fusion]} · ${TAGS[cls.ultimate]}`,
-  };
+  if (stage === 2) return { stage, parts: [el(cls.element), el(cls.fusion)], name: fu.name, colors: [fu.color], tags };
+  const was = fu ? { key, name: fu.name, color: fu.color } : { key: cls.element, name: e.attack, color: e.color };
+  return { stage, parts: [was, el(cls.element)], name: tr(`pure.${cls.element}.name`), colors: [e.color], tags: TAGS[cls.element], pure: cls.element };
 }
 
-/** Up to three dice the player doesn't own yet, as card offers. */
-export function dieOffers(owned, rng) {
+/** Up to `n` (V2.offers) elements the deck does not have yet, as card offers. */
+export function dieOffers(owned, rng, n = V2.offers) {
   const pool = ELEMENT_KEYS.filter((e) => !owned.includes(e));
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rng.next() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return pool.slice(0, 3).map((e) => ({ element: e, name: ELEMENTS[e].name, attack: ELEMENTS[e].attack, line: ELEMENTS[e].line, desc: ELEMENTS[e].desc, colors: [ELEMENTS[e].color] }));
+  return pool.slice(0, n).map((e) => ({ element: e, name: ELEMENTS[e].name, attack: ELEMENTS[e].attack, line: ELEMENTS[e].line, desc: ELEMENTS[e].desc, colors: [ELEMENTS[e].color] }));
 }
 
 // --- attack profile -----------------------------------------------------------
@@ -419,21 +472,67 @@ function addComponents(p, el, boost) {
   if (!p.kinds.includes(el.kind)) p.kinds.push(el.kind);
 }
 
-/** Attack profile for a ball (cached on the ball until its class or tier changes). */
-export function profileFor(ball) {
-  const key = `${ball.tier}:${ball.cls.element ?? ''}:${ball.cls.fusion ?? ''}:${ball.cls.ultimate ?? ''}`;
-  if (ball.prof && ball.prof.key === key) return ball.prof;
-  const c = ball.cls;
-  const p = { key, kinds: [], name: 'Pebble', colors: ['#d9d2c5'], rate: 1, dmgMult: 1, signature: null, active: false, element: null, shoots: true };
-  if (stageFor(ball.tier) < 1) {
+/**
+ * A block's element stats (ELEMENT_STATS): a fusion's buffs (count × buff) and the aura of the other
+ * pure pets (`tile.aura`, { element: v }, set by the run). hp and regen from an aura reach every block;
+ * the other stats only blocks with an element. → { stat: v } (only the stats it has).
+ */
+export function statsOf(tile) {
+  const out = {};
+  const add = (e, v) => {
+    const stat = ELEMENT_STATS[e]?.stat;
+    if (stat && v) out[stat] = (out[stat] ?? 0) + v;
+  };
+  const c = tile.cls ?? {};
+  if (c.fusion && c.buffs) for (const e of ELEMENT_KEYS) add(e, (c.buffs[e] ?? 0) * ELEMENT_STATS[e].buff);
+  if (tile.aura) for (const e of ELEMENT_KEYS) if (c.element || ['hp', 'regen'].includes(ELEMENT_STATS[e].stat)) add(e, tile.aura[e] ?? 0);
+  return out;
+}
+
+/** The element stats in a profile (docs/v2/SPEC.md section 4). */
+function applyStats(p, st) {
+  if (st.dmg) p.dmgMult *= 1 + st.dmg;
+  if (st.slow) p.chill = { slow: Math.min(0.65, (p.chill?.slow ?? 0) + st.slow), dur: Math.max(p.chill?.dur ?? 0, 1.5) };
+  if (st.rate) p.rate *= 1 + st.rate;
+  if (st.poison) {
+    // +v poison stacks per hit (a block that poisons already adds its own one)
+    const had = p.poison;
+    p.poison = { ...had, dpsPct: Math.max(had?.dpsPct ?? 0, 0.1 * st.poison), dur: Math.max(had?.dur ?? 0, 3), max: Math.max(had?.max ?? 0, 2 + st.poison), perHit: (had ? (had.perHit ?? 1) : 0) + st.poison };
+  }
+  if (st.hp) p.hpMult = 1 + st.hp;
+  if (st.range) {
+    p.shoot = { ...p.shoot };
+    if (p.shoot.reach != null) p.shoot.reach *= 1 + st.range;
+    if (p.shoot.radius != null) p.shoot.radius *= 1 + st.range;
+  }
+  if (st.crit) p.critChance = Math.min(0.75, st.crit);
+  if (st.regen) p.regen = st.regen;
+}
+
+const tally = (o) => (o ? ELEMENT_KEYS.filter((e) => o[e]).map((e) => `${e}${o[e]}`).join(',') : '');
+
+/**
+ * Attack profile of a block (docs/v2/SPEC.md section 4), cached on it until its tier, class (buffs,
+ * pure) or aura changes. Plain blocks shoot pebbles from 16; a single pet its element's attack at its
+ * growth stage; a fusion pet its main element's attack fully grown, × FUSION_HIT, with the second
+ * element's effects; the pure form × PURE_SELF. Then the element stats (statsOf). Also
+ * `hpMult` and `regen` (the run applies them), `critChance` / `critMult` (the defense rolls them per
+ * hit), `pure` (the element of a pure pet) and `summon` (a fusion pet's skill key from V2.summonTier).
+ */
+export function profileFor(tile) {
+  const c = tile.cls ?? {};
+  const key = `${tile.tier}:${c.element ?? ''}:${c.fusion ?? ''}:${tally(c.buffs)}:${c.pure ? 'pure' : ''}:${tally(tile.aura)}`;
+  if (tile.prof && tile.prof.key === key) return tile.prof;
+  const p = { key, kinds: [], name: 'Pebble', colors: ['#d9d2c5'], rate: 1, dmgMult: 1, signature: null, active: false, element: null, shoots: true, pure: null, summon: null, hpMult: 1, regen: 0, critChance: 0, critMult: 2 };
+  if (tile.tier < HATCH_TIER) {
     // below 16 a block doesn't shoot at all
     p.kinds.push('physical');
     p.shoots = false;
   } else if (!c.element) {
-    p.kinds.push('physical'); // an element-less 16+ (debug) shoots plain pebbles
+    p.kinds.push('physical'); // a plain block shoots pebbles
   } else if (!c.fusion) {
     p.active = true;
-    const e = grownElement(c.element, growthOf(ball.tier));
+    const e = grownElement(c.element, growthOf(tile.tier));
     addComponents(p, e, 1);
     p.name = e.attack;
     p.colors = [e.color];
@@ -442,26 +541,24 @@ export function profileFor(ball) {
   } else {
     p.active = true;
     const a = grownElement(c.element, 3);
-    const b = grownElement(c.fusion, 3);
-    addComponents(p, a, 1.5);
-    addComponents(p, b, 1.5);
-    p.name = FUSIONS[fusionKey(c.element, c.fusion)].name;
-    p.colors = [FUSIONS[fusionKey(c.element, c.fusion)].color]; // one unique element colour
-    // the first element's firing rhythm, hitting harder
+    addComponents(p, a, 1);
+    addComponents(p, grownElement(c.fusion, 3), 1);
+    const fk = fusionKey(c.element, c.fusion);
+    p.name = FUSIONS[fk].name;
+    p.colors = [FUSIONS[fk].color]; // one unique element colour
+    // the main element's firing rhythm, hitting harder
     p.rate = a.rate;
-    p.dmgMult = a.dmg * 1.25;
-    if (c.ultimate) {
-      const x = grownElement(c.ultimate, 3);
-      addComponents(p, x, 2);
-      p.signature = APEX[c.ultimate];
-      p.name = tr('legend.name', { apex: APEX[c.ultimate].name, fusion: p.name }); // the language orders the two
-      p.colors.push(x.color);
-      p.dmgMult *= 1.6;
-    }
+    p.dmgMult = a.dmg * FUSION_HIT;
+    if (tile.tier >= V2.summonTier) p.summon = fk;
+  }
+  if (c.element && c.pure) {
+    p.dmgMult *= PURE_SELF;
+    p.pure = c.element;
   }
   p.element = p.active ? c.element : null;
-  p.shoot = shootFor(c, p.active, ball.tier);
-  p.damage = turretDamage(ball.tier) * p.dmgMult;
-  ball.prof = p;
+  p.shoot = shootFor(c, p.active, tile.tier);
+  applyStats(p, statsOf(tile));
+  p.damage = turretDamage(tile.tier) * p.dmgMult;
+  tile.prof = p;
   return p;
 }

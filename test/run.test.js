@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRun, swipeCostFor, killCoinsFor, breakSecondsFor, maxHpFor } from '../src/sim/run.js';
-import { DICE, ECONOMY, PHYSICS, SIEGE } from '../src/config.js';
+import { DICE, ECONOMY, PHYSICS, SIEGE, V2 } from '../src/config.js';
 import { createAutoplay } from '../src/autoplay.js';
+import { ELEMENTS } from '../src/sim/classes.js';
 
 const steps = (run, seconds) => {
   for (let i = 0; i < Math.round(seconds / PHYSICS.dt); i++) run.step();
@@ -140,134 +141,6 @@ test('three merges in one swipe refund the swipe', () => {
   assert.equal(r.coins, before, 'the combo paid the swipe back');
 });
 
-const DECK4 = ['fire', 'ice', 'lightning', 'metal'];
-const paint = (t, element) => {
-  t.cls = { element };
-  return t;
-};
-
-test('you start with 2 dice; blocks spawn plain and roll a deck element at 16', () => {
-  const r = createRun({ seed: 3, autoChoose: true });
-  assert.equal(r.owned.length, DICE.start);
-  assert.equal(DICE.start, 2);
-  assert.equal(new Set(r.owned).size, 2);
-  r.addCoins(1000);
-  for (let i = 0; i < 40; i++) bestMove(r);
-  for (const t of r.tiles) {
-    if (t.tier < 4) assert.equal(t.cls.element, undefined, 'plain below 16');
-    else assert.ok(r.owned.includes(t.cls.element), `${t.cls.element} came from the deck`);
-  }
-  assert.ok(r.tiles.some((t) => t.tier >= 4), 'some block reached 16');
-});
-
-test('when elemental blocks merge, the one that slides in keeps its element', () => {
-  const left = createRun({ seed: 3, empty: true, dice: DECK4 });
-  paint(left.spawnDebug(4, 0, 0), 'fire');
-  paint(left.spawnDebug(4, 1, 0), 'ice');
-  left.move('left'); // the right block (ice) slides into the left one
-  assert.equal(left.grid.at(0, 0).cls.element, 'ice');
-
-  const right = createRun({ seed: 3, empty: true, dice: DECK4 });
-  paint(right.spawnDebug(4, 0, 0), 'fire');
-  paint(right.spawnDebug(4, 1, 0), 'ice');
-  right.move('right'); // now fire slides into ice
-  assert.equal(right.grid.at(3, 0).cls.element, 'fire');
-});
-
-test('two plain 8s make a 16 that rolls an element and starts shooting, with an announcement', () => {
-  const r = createRun({ seed: 3, empty: true, dice: DECK4 });
-  r.spawnDebug(3, 0, 0);
-  r.spawnDebug(3, 0, 1);
-  r.move('down');
-  const t = r.tiles.find((x) => x.tier === 4);
-  assert.ok(DECK4.includes(t.cls.element));
-  const ev = r.drainEvents().find((e) => e.type === 'classed');
-  assert.equal(ev.stage, 1);
-  assert.equal(r.pendingChoice, null);
-});
-
-test('reaching 256 fuses the two colours; a different-coloured merge below that just overrides', () => {
-  const r = createRun({ seed: 5, empty: true, dice: DECK4 });
-  r.grid.clear();
-  paint(r.spawnDebug(4, 0, 0), 'fire');
-  paint(r.spawnDebug(4, 1, 0), 'ice');
-  r.move('left');
-  const ev = r.drainEvents();
-  assert.ok(ev.some((e) => e.type === 'override' && e.winner === 'ice' && e.loser === 'fire'));
-  assert.deepEqual(r.grid.at(0, 0).cls, { element: 'ice' });
-
-  const f = createRun({ seed: 5, empty: true, dice: DECK4 });
-  paint(f.spawnDebug(7, 0, 0), 'fire');
-  paint(f.spawnDebug(7, 1, 0), 'ice');
-  f.step();
-  while (f.pendingChoice) f.choose(0); // 128s unlock the 64 die
-  f.move('right'); // fire slides into ice
-  const big = f.tiles.find((x) => x.tier === 8);
-  assert.deepEqual(big.cls, { element: 'fire', fusion: 'ice' });
-  assert.equal(f.drainEvents().find((e) => e.type === 'classed').info.name, 'Frostnova');
-});
-
-test('the first 64, 256 and 512 each add a new die to the deck', () => {
-  const r = createRun({ seed: 8, empty: true, dice: DECK4 });
-  paint(r.spawnDebug(5, 0, 0), 'fire');
-  paint(r.spawnDebug(5, 1, 0), 'fire');
-  r.move('left'); // 32 + 32 = 64
-  const c = r.pendingChoice;
-  assert.equal(c.kind, 'die');
-  assert.equal(c.tier, 6);
-  for (const o of c.offers) assert.ok(!DECK4.includes(o.element));
-  const t = r.time;
-  steps(r, 1);
-  assert.equal(r.time, t, 'paused while picking');
-  const pick = c.offers[1].element;
-  r.choose(1);
-  assert.deepEqual(r.owned, [...DECK4, pick]);
-
-  paint(r.spawnDebug(6, 2, 2), 'ice');
-  paint(r.spawnDebug(6, 3, 2), 'ice');
-  r.move('right'); // a second 64: nothing new
-  assert.equal(r.pendingChoice, null);
-  for (const tier of DICE.unlockTiers.slice(1)) {
-    r.spawnDebug(tier, 0, 3);
-    r.step();
-    assert.equal(r.pendingChoice?.tier, tier);
-    r.choose(0);
-  }
-  assert.equal(r.owned.length, 7);
-});
-
-test('a newly unlocked die can be rolled at 16', () => {
-  const r = createRun({ seed: 11, empty: true, dice: ['fire'] });
-  r.spawnDebug(6, 0, 0);
-  r.step();
-  const pick = r.pendingChoice.offers[0].element;
-  r.choose(0);
-  const seen = new Set();
-  for (let i = 0; i < 24; i++) {
-    r.grid.clear();
-    r.spawnDebug(3, 0, 0);
-    r.spawnDebug(3, 1, 0);
-    r.move('left');
-    seen.add(r.grid.at(0, 0).cls.element);
-  }
-  assert.ok(seen.has(pick), `${pick} gets rolled`);
-  assert.ok(seen.has('fire'));
-});
-
-test('unlocks that arrive together never offer a die you already own', () => {
-  const r = createRun({ seed: 8, empty: true, dice: DECK4 });
-  r.spawnDebug(10, 0, 0); // a 1024 at once: all three unlocks queued
-  r.step();
-  const picked = [];
-  while (r.pendingChoice) {
-    for (const o of r.pendingChoice.offers) assert.ok(!r.owned.includes(o.element), `${o.element} offered twice`);
-    picked.push(r.pendingChoice.offers[0].element);
-    r.choose(0);
-  }
-  assert.equal(picked.length, 3);
-  assert.equal(new Set(r.owned).size, 7, 'seven different dice');
-});
-
 test('kills marked by Metal drop bonus coins', () => {
   const r = createRun({ seed: 4, empty: true });
   r.nextWave();
@@ -398,9 +271,10 @@ test('a block destroyed by enemies reopens a locked board', () => {
 });
 
 /** Kill a boss on a run set up with `blocks` ([tier, col, row]); returns the run and its blocks. */
-function killBoss(blocks, opts = {}) {
+function killBoss(blocks, opts = {}, setup = () => {}) {
   const r = createRun({ seed: 4, empty: true, autoChoose: true, ...opts });
   const tiles = blocks.map(([tier, col, row]) => r.spawnDebug(tier, col, row));
+  tiles.forEach(setup);
   r.nextWave();
   const boss = r.defense.spawn('elfRuler', { hpScale: 1 });
   r.defense.damage(boss, 1e9, ['fire']);
@@ -447,38 +321,6 @@ test('a block that falls in the boss-kill step takes no x2', () => {
   assert.ok(r.drainEvents().find((e) => e.type === 'bossReward').x2s > 0, 'the others still got theirs');
 });
 
-test('a boss x2 past 256 fills the fusion slot from the deck', () => {
-  const { tiles, events } = killBoss(
-    [
-      [9, 0, 0],
-      [7, 3, 3],
-    ],
-    { dice: ['fire', 'ice', 'metal', 'nature'] },
-  );
-  const [top, big] = tiles;
-  assert.equal(top.tier, 9);
-  assert.equal(big.tier, 9, 'the 128 takes two x2s: up to the 512, not past it');
-  assert.ok(big.cls.element, 'it awakened on the way');
-  assert.ok(['fire', 'ice', 'metal', 'nature'].includes(big.cls.fusion));
-  assert.notEqual(big.cls.fusion, big.cls.element, 'a different die from the deck');
-  const stages = events.filter((e) => e.type === 'classed' && e.tileId === big.id).map((e) => [e.stage, e.promoted]);
-  assert.deepEqual(stages.at(-1), [2, true]);
-});
-
-test('a block that jumps past 16 on boss x2s rolls its element', () => {
-  const { tiles, events } = killBoss([
-    [8, 0, 0],
-    [3, 3, 3],
-  ]);
-  const small = tiles[1];
-  assert.equal(small.tier, 8, 'the 8 grows to 256, as big as the biggest (five of the eight x2s fit)');
-  assert.ok(small.cls.element);
-  const ev = events.find((e) => e.type === 'classed' && e.tileId === small.id);
-  assert.equal(ev.stage, 1, 'the element first, then the fusion slot');
-  assert.equal(ev.promoted, true);
-  assert.equal(events.find((e) => e.type === 'bossReward').x2s, 5);
-});
-
 test('same seed and inputs replay the same run', () => {
   const play = () => {
     const r = createRun({ seed: 21, autoChoose: true });
@@ -497,11 +339,132 @@ test('same seed and inputs replay the same run', () => {
   assert.equal(play(), play());
 });
 
-test('a siege run opens with two 8s side by side: the first sideways swipe makes a turret', () => {
-  const r = createRun({ seed: 9 });
-  assert.deepEqual(r.tiles.map((t) => [t.tier, t.col, t.row]), [[3, 1, 0], [3, 2, 0]]);
-  r.move('left');
-  assert.ok(r.tiles.some((t) => t.tier === 4 && t.cls.element));
+test('a siege run opens with two 8s side by side: an egg of the deck’s first element and a plain 8; the first sideways swipe hatches a pet', () => {
+  const r = createRun({ seed: 9, dice: ['wind', 'fire'] });
+  assert.deepEqual(
+    r.tiles.map((t) => [t.tier, t.col, t.row, t.cls.element ?? null]),
+    [
+      [3, 1, 0, 'wind'],
+      [3, 2, 0, null],
+    ],
+  );
+  const egg = r.drainEvents().find((e) => e.type === 'egg');
+  assert.deepEqual([egg.element, egg.tier, egg.tileId], ['wind', 3, r.tiles[0].id], 'the egg is announced');
+  assert.ok(r.move('left'));
+  const pet = r.tiles.find((t) => t.tier === 4);
+  assert.deepEqual(pet.cls, { element: 'wind' });
+  const hatch = r.drainEvents().find((e) => e.type === 'classed');
+  assert.equal(hatch.stage, 1);
+  assert.equal(hatch.info.name, ELEMENTS.wind.attack, 'announced with its attack');
+  assert.equal(hatch.tileId, pet.id);
+  const deck = createRun({ seed: 9 });
+  assert.equal(deck.tiles[0].cls.element, deck.owned[0], 'a random deck: its first element');
+});
+
+test('you start with 2 elements in the deck; plain blocks never gain one, and from 16 they shoot pebbles', () => {
+  const r = createRun({ seed: 3, empty: true, levels: false, dice: ['fire', 'ice'] });
+  assert.equal(DICE.start, 2);
+  assert.equal(createRun({ seed: 3 }).owned.length, 2);
+  r.spawnDebug(3, 0, 0);
+  r.spawnDebug(3, 0, 1);
+  r.drainEvents();
+  assert.ok(r.move('down'));
+  const t = r.grid.at(0, 0);
+  assert.equal(t.tier, 4);
+  assert.deepEqual(t.cls, {}, 'two plain 8s make a plain 16');
+  assert.ok(!r.drainEvents().some((e) => e.type === 'classed'), 'nothing hatched');
+  assert.equal(t.prof?.shoots ?? true, true);
+});
+
+test('boss x2s follow the merge rules: an egg hatches at 16 and turns pure at 4096; a plain block stays plain', () => {
+  const { tiles, events } = killBoss(
+    [
+      [12, 0, 0],
+      [3, 3, 3],
+    ],
+    {},
+    (t, i) => i === 1 && (t.cls = { element: 'fire' }),
+  );
+  const egg = tiles[1];
+  assert.equal(egg.tier, 12, 'the only other block takes all the x2s it has room for');
+  assert.deepEqual(egg.cls, { element: 'fire', pure: true });
+  assert.deepEqual(
+    events.filter((x) => x.type === 'classed' && x.tileId === egg.id).map((x) => [x.stage, x.promoted]),
+    [
+      [1, true],
+      [3, true],
+    ],
+    'it hatched, then became pure',
+  );
+  const plain = killBoss([
+    [9, 0, 0],
+    [3, 3, 3],
+  ]);
+  assert.equal(plain.tiles[1].tier, 9);
+  assert.deepEqual(plain.tiles[1].cls, {}, 'no rolled element');
+  assert.ok(!plain.events.some((x) => x.type === 'classed'));
+});
+
+test('summons: skillCharge and skillReady read the defense; castSkill sends a fusion pet (1024+) out through defense.summon', () => {
+  const r = createRun({ seed: 1, empty: true, levels: false });
+  const pet = r.spawnDebug(10, 0, 0);
+  pet.cls = { element: 'fire', fusion: 'ice', buffs: {} };
+  const single = r.spawnDebug(10, 1, 0);
+  single.cls = { element: 'earth' };
+  const young = r.spawnDebug(9, 2, 0);
+  young.cls = { element: 'wind', fusion: 'metal', buffs: {} };
+  assert.equal(r.skillCharge(pet.id), 0, 'the stub charges nothing');
+  assert.equal(r.skillReady(pet.id), false);
+  const sent = [];
+  r.defense.skillCharge = () => 1;
+  r.defense.summon = (t) => (sent.push(t.id), true);
+  assert.equal(r.skillCharge(pet.id), 1);
+  assert.equal(r.skillReady(pet.id), true);
+  assert.equal(r.skillReady(single.id), false, 'a single pet has no summon');
+  assert.equal(r.skillReady(young.id), false, 'a fusion below 1024 neither');
+  assert.equal(r.skillReady(999), false);
+  assert.equal(r.castSkill(pet.id), true);
+  assert.deepEqual(sent, [pet.id]);
+  assert.equal(r.castSkill(single.id), false);
+  assert.equal(r.castSkill(999), false);
+  pet.summon = { key: 'fire+ice', t: 0, dur: V2.summon.durS, phase: 'out', x: 0, y: 12, facing: 1, lane: 0 };
+  assert.equal(r.skillReady(pet.id), false, 'not while it is out');
+  r.defense.summon = () => false;
+  delete pet.summon;
+  assert.equal(r.castSkill(pet.id), false, 'the defense says no: not cast');
+});
+
+test('kill rewards a skill changes: coinMult multiplies the coins, xp adds spawn XP (Bumper Harvest)', () => {
+  const r = createRun({ seed: 4, empty: true });
+  r.spawnDebug(8, 0, 0); // a 256: the level cap is 5
+  r.nextWave();
+  const drain = r.defense.drainEvents;
+  r.defense.drainEvents = () => drain().map((e) => (e.type === 'kill' ? { ...e, coinMult: 3, xp: 1 } : e));
+  const foe = r.defense.spawn('pixie', { lane: 0, hpScale: 1 });
+  const coins = r.coins;
+  r.drainEvents();
+  r.defense.damage(foe, 1e9, ['fire']);
+  r.step();
+  const paid = r.drainEvents().find((e) => e.type === 'coins' && e.reason === 'kill');
+  assert.equal(paid.amount, killCoinsFor(1, false) * 3);
+  assert.ok(r.coins >= coins + paid.amount);
+  assert.equal(r.xp, 1, 'one level XP');
+});
+
+test('pets no longer roam: the roaming option is accepted (saved runs carry it) but blocks stay on their tiles', () => {
+  const r = createRun({ seed: 5, empty: true, roaming: true, levels: false });
+  assert.equal(r.roaming, true);
+  const t = r.spawnDebug(9, 0, 0);
+  t.cls = { element: 'fire', fusion: 'ice', buffs: {} };
+  r.nextWave();
+  steps(r, 3);
+  assert.equal(t.roam, undefined);
+  assert.deepEqual([t.x, t.y], [r.grid.at(0, 0).x, r.grid.at(0, 0).y]);
+});
+
+test('the summons’ field state is on the run for the renderer', () => {
+  const r = createRun({ seed: 5, empty: true });
+  for (const k of ['zones', 'walls', 'traps', 'minions', 'tethers']) assert.equal(r[k], r.defense[k], k);
 });
 
 test('coins trickle in during a wave', () => {

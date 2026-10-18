@@ -7,11 +7,14 @@
 // 2048, spawns a new block). Kills drop coins, clearing a wave pays a bonus and
 // three merges in one swipe refund it. There is no selling: a locked board opens
 // up when enemies destroy a block or a boss kill's x2s make a pair.
-// Dice: blocks below 16 are plain and don't shoot. A block reaching 16 rolls a
-// random element from the deck; when elemental blocks merge, the one that slides
-// in keeps its element; 256 fuses in a second element (a unique fusion), 4096 a
-// third (see mergeClass). You start with 2 dice; the first 64, 256 and 512 each
-// add one more to the deck (a card pick that pauses the run).
+// Elements (v2, docs/v2/SPEC.md): the deck starts with 2. A new block is sometimes an elemental egg
+// (V2.eggChance) of a deck element that has no single egg or pet on the board (one single per element).
+// Plain blocks stay plain; from 16 they shoot pebbles, and an egg hatches into a single pet. Two singles
+// of different elements merge into a fusion (the player picks the main element), a single fed into a
+// fusion adds a buff of its element, two fusions merge into the one the player keeps (classes.js
+// mergeClass). At 1024 a fusion pet has a summon skill (defense.summon); at 4096 a pet becomes the pure
+// form of its main element, whose aura reaches every other block. Spawn levels in V2.unlockLevels each
+// offer a new element for the deck (a pick of V2.offers). Choices are cards that pause the run.
 // Siege: there is no castle. Every block has hidden health (hpPerTier × tier^hpExp)
 // that refills at the start of each wave; enemies on the board attack the nearest
 // block; a block at 0 is destroyed for good. The run ends when the last block falls.
@@ -19,24 +22,21 @@
 // run's top block caps it), and each level makes bigger new blocks likelier (TFT's
 // shop odds); after the run's first 512, 2s stop spawning. A keepsake (src/sim/keepsakes.js) changes
 // one rule of the run, e.g. Iron Fist: blocks punch the monsters they slide into.
-// Fusion choice: every block keeps its material (the elements of all the elemental blocks
-// merged into it); a block reaching 256 lets the player pick its fusion from the pairs its
-// material can make (a card, like the die pick), when there is more than one.
 // Pure and deterministic for a given seed, keepsake and input sequence.
 
 import { createGrid } from './grid.js';
 import { createDefense } from './defense.js';
 import { generateWave } from './enemies.js';
 import { createRng } from './rng.js';
-import { createRoam } from './roam.js';
 import { planBossReward } from './boss-reward.js';
-import { ELEMENT_KEYS, describeStage, dieOffers, elementsOf, fusionOffers, materialOf, mergeClass, mergeMaterial, stageFor, turretDamage } from './classes.js';
+import { ELEMENT_KEYS, copyCls, describeStage, dieOffers, mergeClass, profileFor, singlesOn, stageFor, turretDamage, withPure } from './classes.js';
+import { ELEMENT_STATS } from './skills/data.js';
 import { LEVELS, buyXpPrice, levelCap, spawnOdds, spawnTable, xpNeeded } from './levels.js';
 import { keepsakeById } from './keepsakes.js';
 import { punchTargets, slidePaths } from './punch.js';
-import { DEFENSE, DICE, ECONOMY, GRID, GUIDED_WAVE, PHYSICS, SIEGE, cellX, cellY } from '../config.js';
+import { DEFENSE, DICE, ECONOMY, GRID, GUIDED_WAVE, PHYSICS, SIEGE, V2, cellX, cellY } from '../config.js';
 
-const DEFENSE_CLASS_TIER = DEFENSE.classTiers[0];
+const HATCH_TIER = DEFENSE.classTiers[0]; // 16
 
 /** Hidden health of a block: grows with its tier (so big blocks stay fragile). */
 export const maxHpFor = (tier) => Math.round(SIEGE.hpPerTier * tier ** SIEGE.hpExp);
@@ -59,20 +59,22 @@ export const breakSecondsFor = (wave) => Math.min(ECONOMY.breakMax, ECONOMY.brea
 export const waveBonusFor = (wave) => Math.round(ECONOMY.waveClearBase + wave * ECONOMY.waveClearPerWave);
 
 /**
- * @param levels    the spawn level (on in the game; off: classic 90/10 spawns, for the showcase and old tests)
+ * @param levels    the spawn level (on in the game; off: classic 90/10 spawns and no element unlocks, for the showcase and tests)
  * @param keepsake  the keepsake brought into this run (an id from src/sim/keepsakes.js), or null
+ * @param roaming   accepted for saved runs; v2 pets stay on their tiles (summons go out instead)
  */
 export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose = false, empty = false, dice = null, brokeBreak = ECONOMY.brokeBreak, roaming = false, levels = true, keepsake = null } = {}) {
   const diceRng = createRng((seed ^ 0xa5a5a5a5) >>> 0);
-  const rollRng = createRng((seed ^ 0x3c6ef372) >>> 0);
+  const eggRng = createRng((seed ^ 0x2545f491) >>> 0); // which new blocks are eggs, and of what (its own stream: other rolls stay put)
   const bossRng = createRng((seed ^ 0x27d4eb2f) >>> 0); // where boss x2s go (its own stream: other rolls stay the same)
-  const roam = roaming ? createRoam(createRng((seed ^ 0x6d2b79f5) >>> 0)) : null; // fusions' pets roam the field (src/sim/roam.js)
   const events = [];
-  const choices = []; // die unlocks { kind: 'die', tier, offers } and fusion picks { kind: 'fusion', tileId, tier, offers }
-  const fusionPicks = []; // fusion picks a swipe or a boss reward made, queued after their announcements
-  const notes = []; // merge results (class gained, colour overridden), emitted after the grid's events
+  // the cards that pause the run: new elements { kind: 'die', level, offers }, and the merge choices
+  // { kind: 'fusion' | 'keep', tileId, tier, parts, offers, stage } (docs/v2/SPEC.md section 3)
+  const choices = [];
+  const picks = []; // merge choices a swipe made, queued after its news
+  const notes = []; // what merges and spawns made (hatches, buffs, eggs), emitted after the grid's events
 
-  // the deck: 4 random dice (or the given ones); every new block takes a random die's colour
+  // the deck: DICE.start random elements (or the given ones); new eggs take one with no single on the board
   let owned = dice ? [...dice] : null;
   if (!owned) {
     const pool = [...ELEMENT_KEYS];
@@ -82,17 +84,21 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
     owned = pool.slice(0, DICE.start);
   }
-  const unlocked = new Set(); // unlock tiers already rewarded
-  /** A random die from the deck, avoiding `exclude` (null if none is left). */
-  const roll = (exclude) => {
-    const pool = owned.filter((e) => !exclude.includes(e));
-    return pool.length ? pool[Math.floor(rollRng.next() * pool.length)] : null;
-  };
+  /** A new block is an egg this often, of a deck element with no single on the board (null: a plain block). */
+  function rollEgg() {
+    const roll = eggRng.next();
+    const singles = singlesOn(gridRef?.tiles ?? []);
+    const free = owned.filter((e) => !singles.has(e));
+    if (roll >= V2.eggChance || !free.length) return null;
+    return free[Math.floor(eggRng.next() * free.length)];
+  }
 
   const ks = keepsakeById(keepsake);
   const fist = ks?.punch ?? null; // Iron Fist
   /** A block's hidden health with this run's keepsake (Spiked Collar adds to it). */
   const hpFor = (tier) => Math.round(maxHpFor(tier) * (1 + (ks?.blockHp ?? 0)));
+  /** … and with its element stats: earth buffs and an earth aura raise it (profileFor hpMult). */
+  const maxHpOf = (t) => Math.round(hpFor(t.tier) * profileFor(t).hpMult);
   const lv = { level: 1, xp: 0 }; // the spawn level and the XP toward the next one
   /** The level the spawn odds use: the player's level, plus Lucky Clover's. */
   const spawnLevel = () => Math.min(LEVELS.max, lv.level + (ks?.levels ?? 0));
@@ -103,44 +109,28 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     spawn: true,
     spawnTable: levels ? () => spawnTable(spawnLevel(), gridRef?.maxTier ?? 0) : null,
     onSpawn: (t, info) => {
-      t.cls = {}; // plain until it reaches 16
-      t.mats = []; // no material yet (an element joins at 16)
+      t.cls = {};
       t.maxHp = hpFor(t.tier);
       t.hp = t.maxHp;
-      // a spawned 16 (the top spawn levels) hatches like a merged one: an element from the deck
-      if (info?.random && stageFor(t.tier) >= 1) {
-        const e = roll([]);
-        if (e) {
-          t.cls.element = e;
-          t.mats = [e];
-          notes.push({ type: 'classed', tileId: t.id, stage: 1, element: e, x: t.x, y: t.y, tier: t.tier, spawned: true, info: describeStage(t.cls, 1, t.tier) });
-        }
-      }
+      if (!info?.random) return; // debug blocks are plain
+      const e = rollEgg();
+      if (!e) return;
+      t.cls = { element: e };
+      // a spawned 16 (the top spawn levels) is a single pet at once
+      if (t.tier >= HATCH_TIER) notes.push(classed(t, 1, { spawned: true }));
+      else notes.push(eggEvent(t));
     },
     onMerge: (child, mover, stayer) => {
-      // the merged block keeps the damage its parents had taken (merging doesn't heal)
-      child.maxHp = hpFor(child.tier);
+      const res = mergeClass(child, mover, stayer);
+      // the merged block keeps the damage its parents had taken (merging doesn't heal); its aura comes
+      // from the board (refresh, after the swipe)
+      child.aura = mover.aura ?? null;
+      child.maxHp = maxHpOf(child);
       child.hp = Math.min(child.maxHp, (mover.hp ?? hpFor(mover.tier)) + (stayer.hp ?? hpFor(stayer.tier)));
-      let stage = mergeClass(child, mover, stayer, roll);
-      let picking = false;
-      // the material both blocks brought; a new fusion is made from it only (a pick when it allows several)
-      const material = mergeMaterial(materialOf(mover), materialOf(stayer));
-      if (stage === 2 && material.length >= 2) {
-        const offers = fusionOffers(child.cls, material);
-        // until the pick, the block holds the first offer: the merge rule's own pick when it came from the material
-        child.cls = { ...child.cls, element: offers[0].element, fusion: offers[0].fusion };
-        child.prof = null;
-        if (offers.length > 1) {
-          fusionPicks.push({ kind: 'fusion', tileId: child.id, tier: child.tier, offers });
-          stage = 0; // announced with the pick
-          picking = true;
-        }
-      }
-      child.mats = mergeMaterial(material, elementsOf(child.cls));
-      if (stage) notes.push({ type: 'classed', tileId: child.id, stage, element: child.cls.element, x: child.x, y: child.y, tier: child.tier, info: describeStage(child.cls, stage, child.tier) });
-      else if (!picking && stageFor(child.tier) >= 1 && mover.cls.element && stayer.cls.element && mover.cls.element !== stayer.cls.element) {
-        notes.push({ type: 'override', tileId: child.id, x: child.x, y: child.y, tier: child.tier, winner: mover.cls.element, loser: stayer.cls.element });
-      }
+      if (res.gain) notes.push(buffed(child, res.gain));
+      // a choice is announced once made (the main element decides what the block is)
+      if (res.choice) picks.push({ ...res.choice, tileId: child.id, tier: child.tier, stage: res.stage });
+      else if (res.stage) notes.push(classed(child, res.stage));
     },
   });
   gridRef = grid;
@@ -148,9 +138,14 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
   grid.drainEvents(); // the grid's own first spawns are gone: no news of them
   notes.length = 0;
   if (!empty) {
-    // siege opening: two 8s side by side, so the first sideways swipe makes a 16 turret
-    grid.spawnDebug(3, 1, 0);
+    // siege opening: two 8s side by side; the first an egg of the deck's first element, so the first
+    // sideways swipe hatches a pet
+    const egg = grid.spawnDebug(3, 1, 0);
     grid.spawnDebug(3, 2, 0);
+    if (owned.length) {
+      egg.cls = { element: owned[0] };
+      events.push(eggEvent(egg));
+    }
   }
   const defense = createDefense({ rng: createRng((seed ^ 0x5bd1e995) >>> 0) });
   const waveFor = (n) => generateWave(n, createRng((seed ^ Math.imul(n, 0x9e3779b1)) >>> 0));
@@ -172,6 +167,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     phoenix: ks?.reviveHp != null, // Phoenix Feather not used yet
     fallen: null, // the biggest block destroyed this run ({ tier, cls }): the Phoenix Feather brings it back
   };
+  refresh();
   let wave = waveFor(1);
 
   // First run only (set by the tutorial): wave 1 comes down the biggest block's
@@ -194,6 +190,50 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     events.push({ type: 'gameover', reason, wave: s.waveNo, score: grid.score + s.killScore, maxTier: grid.maxTier, kills: s.kills });
   }
 
+  function classed(t, stage, extra = {}) {
+    return { type: 'classed', tileId: t.id, stage, element: t.cls.element, x: t.x, y: t.y, tier: t.tier, ...extra, info: describeStage(t.cls, stage, t.tier) };
+  }
+  function eggEvent(t) {
+    return { type: 'egg', tileId: t.id, element: t.cls.element, tier: t.tier, x: t.x, y: t.y };
+  }
+  function buffed(t, gain) {
+    return { type: 'buffed', tileId: t.id, gain, buffs: { ...t.cls.buffs }, x: t.x, y: t.y, tier: t.tier };
+  }
+
+  /** A block's max health follows its tier and element stats; growth adds to its health (it is not a heal), a fallen block stays down. */
+  function setMaxHp(t) {
+    const max = maxHpOf(t);
+    if (t.hp == null) {
+      t.maxHp = max;
+      t.hp = max;
+      return;
+    }
+    if (t.maxHp === max) return;
+    const grow = Math.max(0, max - (t.maxHp ?? max));
+    t.maxHp = max;
+    if (t.hp > 0) t.hp = Math.min(max, t.hp + grow);
+  }
+
+  /**
+   * The auras: each pure pet's (ELEMENT_STATS pure, by its main element) reaches every other block, as
+   * tile.aura = { element: v } (null when none; profileFor applies it). Then max health, which earth
+   * buffs and auras raise.
+   */
+  function refresh() {
+    const tiles = grid.tiles;
+    const pures = tiles.filter((t) => t.cls.pure && t.cls.element);
+    for (const t of tiles) {
+      let aura = null;
+      for (const p of pures) {
+        if (p === t) continue;
+        aura ??= {};
+        aura[p.cls.element] = (aura[p.cls.element] ?? 0) + ELEMENT_STATS[p.cls.element].pure;
+      }
+      t.aura = aura;
+      setMaxHp(t);
+    }
+  }
+
   function addCoins(amount, reason, x = 0, y = 0) {
     s.coins = Math.max(0, s.coins + amount);
     events.push({ type: 'coins', amount, reason, x, y, total: s.coins });
@@ -210,6 +250,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       lv.xp -= xpNeeded(lv.level);
       lv.level += 1;
       events.push({ type: 'levelUp', level: lv.level, reason, odds: spawnOdds(spawnLevel(), grid.maxTier) });
+      if (V2.unlockLevels.includes(lv.level)) offerElement(lv.level);
     }
     // the top level has no bar; at the cap the bar fills and waits (XP past a full bar is lost)
     lv.xp = lv.level >= LEVELS.max ? 0 : Math.min(lv.xp, xpNeeded(lv.level));
@@ -231,22 +272,18 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
   }
 
-  // The first time the top block reaches an unlock tier, offer a new die.
-  function scanUnlocks() {
-    DICE.unlockTiers.forEach((tier) => {
-      if (grid.maxTier < tier || unlocked.has(tier)) return;
-      unlocked.add(tier);
-      const offers = dieOffers(owned, diceRng);
-      if (!offers.length) return;
-      const c = { kind: 'die', tier, offers };
-      choices.push(c);
-      events.push({ type: 'choice', ...c });
-    });
+  /** A level in V2.unlockLevels: a new element for the deck, a pick of V2.offers (fewer when the deck is nearly full, none when it is full). */
+  function offerElement(level) {
+    const offers = dieOffers(owned, diceRng);
+    if (!offers.length) return;
+    const c = { kind: 'die', level, offers };
+    choices.push(c);
+    events.push({ type: 'choice', ...c });
   }
 
-  /** Fusion picks wait behind the news of what made them, then open like the die pick. */
-  function queueFusionPicks() {
-    for (const c of fusionPicks.splice(0)) {
+  /** Merge choices wait behind the news of the swipe that made them, then open like the element pick. */
+  function queuePicks() {
+    for (const c of picks.splice(0)) {
       choices.push(c);
       events.push({ type: 'choice', ...c });
     }
@@ -256,70 +293,47 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     const c = choices.shift();
     if (!c) return false;
     const offer = c.offers[Math.max(0, Math.min(c.offers.length - 1, index))];
-    if (c.kind === 'fusion') {
-      // the block becomes the fusion picked (from its own material); now it is announced
-      const t = grid.tiles.find((x) => x.id === c.tileId);
-      if (t) {
-        t.cls = { ...t.cls, element: offer.element, fusion: offer.fusion };
-        t.prof = null;
-        t.mats = mergeMaterial(materialOf(t), elementsOf(t.cls));
-        events.push({ type: 'classed', tileId: t.id, stage: 2, element: t.cls.element, x: t.x, y: t.y, tier: t.tier, chosen: true, promoted: !!c.promoted, info: describeStage(t.cls, 2, t.tier) });
-      }
+    if (c.kind === 'die') {
+      owned.push(offer.element);
+      events.push({ type: 'dieGained', element: offer.element, level: c.level, offer });
+      // element picks queued together must not offer the element just taken
+      for (const next of choices) if (next.kind === 'die') next.offers = dieOffers(owned, diceRng);
+      for (let i = choices.length - 1; i >= 0; i--) if (choices[i].kind === 'die' && !choices[i].offers.length) choices.splice(i, 1);
       return true;
     }
-    owned.push(offer.element);
-    events.push({ type: 'dieGained', element: offer.element, tier: c.tier, offer });
-    // die unlocks queued together must not offer the die just taken
-    for (const next of choices) if (next.kind === 'die') next.offers = dieOffers(owned, diceRng);
-    for (let i = choices.length - 1; i >= 0; i--) if (choices[i].kind === 'die' && !choices[i].offers.length) choices.splice(i, 1);
+    const t = grid.tiles.find((x) => x.id === c.tileId);
+    if (!t) return true;
+    if (c.kind === 'fusion') {
+      // the fusion made, with the main element picked: its news (it supersedes a hatch)
+      t.cls = withPure({ element: offer.element, fusion: offer.fusion, buffs: {} }, t.tier);
+      t.prof = null;
+      events.push(classed(t, 2, { chosen: true }));
+    } else {
+      // 'keep': the kept fusion, with what it gained from the other
+      t.cls = copyCls(offer.cls);
+      t.prof = null;
+      events.push(buffed(t, offer.gain));
+      if (c.stage === 1) events.push(classed(t, 1));
+    }
+    if (c.stage === 3) events.push(classed(t, 3));
+    refresh();
     return true;
   }
 
   /**
-   * A boss x2 that lifts a block into a new class stage: at 16 it rolls its
-   * element; at 256 the fusion comes from the block's own material when that has
-   * a second element (a pick when there are several: returns -2, announced with
-   * the pick), else a roll from the deck; at 4096 the ultimate rolls from the deck
-   * (there is no partner block to borrow from). Fills one slot per call; returns
-   * the stage filled, 0 when none.
+   * Boss x2s follow the merge rules: a block with an element that passes 16 hatches, one that reaches
+   * V2.pureTier becomes pure; plain blocks stay plain (no rolled elements). → the stages reached, in order.
    */
-  function promoteClass(t) {
+  function promoteClass(t, from) {
     t.prof = null;
-    const slots = stageFor(t.tier);
-    if (slots >= 1 && !t.cls.element) {
-      const e = roll([]);
-      if (!e) return 0;
-      t.cls.element = e;
-      t.mats = mergeMaterial(materialOf(t), [e]);
-      return 1;
+    if (!t.cls.element) return [];
+    const out = [];
+    if (from < HATCH_TIER && t.tier >= HATCH_TIER) out.push(1);
+    if (from < V2.pureTier && t.tier >= V2.pureTier) {
+      withPure(t.cls, t.tier);
+      out.push(3);
     }
-    if (slots >= 2 && !t.cls.fusion) {
-      // from its own material when that has a second element (a pick when there are several, if the
-      // block stops at the fusion stage; one that jumps on to 4096 takes the first, as its ultimate builds on it)
-      const material = mergeMaterial(materialOf(t), elementsOf(t.cls));
-      const offers = material.length >= 2 ? fusionOffers(t.cls, material) : [];
-      if (offers.length) {
-        t.cls = { ...t.cls, element: offers[0].element, fusion: offers[0].fusion };
-        if (offers.length > 1 && slots === 2) {
-          fusionPicks.push({ kind: 'fusion', tileId: t.id, tier: t.tier, offers, promoted: true });
-          return -2; // filled, announced with the pick
-        }
-        return 2;
-      }
-      const e = roll(elementsOf(t.cls));
-      if (!e) return 0;
-      t.cls.fusion = e;
-      t.mats = mergeMaterial(material, [e]);
-      return 2;
-    }
-    if (slots >= 3 && !t.cls.ultimate) {
-      const e = roll(elementsOf(t.cls));
-      if (!e) return 0;
-      t.cls.ultimate = e;
-      t.mats = mergeMaterial(materialOf(t), [e]);
-      return 3;
-    }
-    return 0;
+    return out;
   }
 
   // Warn once each time the board locks; a boss reward can reopen merges.
@@ -335,8 +349,9 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     s.waveT = 0;
     s.spawnIdx = 0;
     // every block's hidden health refills at the start of a wave
+    refresh();
     for (const t of grid.tiles) {
-      t.maxHp = hpFor(t.tier);
+      t.maxHp = maxHpOf(t);
       t.hp = t.maxHp;
     }
     events.push({ type: 'tilesRestored', count: grid.tiles.length });
@@ -374,8 +389,9 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       merges += 1;
       if (e.combo === ECONOMY.comboAt) addCoins(cost, 'combo', e.x, e.y);
     }
-    events.push(...notes.splice(0)); // what the merges made: new classes, overridden colours
-    queueFusionPicks();
+    events.push(...notes.splice(0)); // what the merges and the new block made: hatches, buffs, eggs
+    queuePicks();
+    refresh();
     if (paths) punch(paths, dir);
     if (ks?.merges && merges >= ks.merges) {
       // Quake Boots: a swipe with enough merges stuns the monsters on the board
@@ -386,7 +402,6 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     if (paths || ks?.merges) drainDefense(); // their kills pay now, even with a die card about to open
     gainXp(merges * LEVELS.xp.merge, 'merge'); // also levels up a full bar whose cap a new top block just raised
     checkNo2();
-    scanUnlocks();
     checkLock();
     aimGuidedWave();
     return true;
@@ -405,8 +420,10 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       if (e.type !== 'kill') continue;
       s.killScore += e.bounty;
       s.kills += 1;
-      // Metal marks foes: a marked foe drops bonus coins (and the Coin Purse adds its share)
-      addCoins(Math.round(killCoinsFor(s.waveNo, e.boss) * (1 + (e.loot ?? 0)) * (1 + (ks?.killPct ?? 0))), 'kill', e.x, e.y);
+      // Metal marks foes: a marked foe drops bonus coins (and the Coin Purse adds its share); a skill can
+      // multiply a kill's coins and add spawn XP (Bumper Harvest: coinMult, xp)
+      addCoins(Math.round(killCoinsFor(s.waveNo, e.boss) * (1 + (e.loot ?? 0)) * (1 + (ks?.killPct ?? 0)) * (e.coinMult ?? 1)), 'kill', e.x, e.y);
+      if (e.xp) gainXp(e.xp, 'kill');
       if (e.boss) {
         // boss reward: x2s for the other blocks, as many as the biggest block's power of two (boss-reward.js).
         // Blocks at 0 health this step are about to fall: they take no x2 (and pair with nothing).
@@ -414,19 +431,16 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
         const { x2s, pairs, plan } = planBossReward(live, GRID.size, bossRng);
         for (const { id, x2 } of plan) {
           const t = live.find((b) => b.id === id);
+          const from = t.tier;
           if (!grid.promote(t, x2)) continue;
           for (const g of grid.drainEvents()) events.push(g);
-          const grow = hpFor(t.tier) - (t.maxHp ?? 0);
-          t.maxHp = hpFor(t.tier);
-          t.hp = Math.min(t.maxHp, (t.hp ?? 0) + grow);
-          // a block that jumps several stages (an 8 that becomes a 256) fills each slot in turn
-          for (let stage = promoteClass(t); stage; stage = promoteClass(t)) {
-            if (stage > 0) events.push({ type: 'classed', tileId: t.id, stage, element: t.cls.element, x: t.x, y: t.y, tier: t.tier, promoted: true, info: describeStage(t.cls, stage, t.tier) });
-          }
+          // an egg that jumps past 16 hatches; one that reaches 4096 also turns pure
+          for (const stage of promoteClass(t, from)) events.push(classed(t, stage, { promoted: true }));
+          setMaxHp(t); // a bigger block has more health (added, not healed)
         }
         events.push({ type: 'bossReward', x2s, pairs, blocks: plan.length, boss: e.enemy?.def?.name ?? null, wave: s.waveNo });
-        queueFusionPicks(); // a block the reward lifted to 256 picks its fusion
-        checkLock(); // (no unlock check: the reward never raises the biggest block)
+        refresh(); // a block that turned pure brings its aura
+        checkLock();
       }
     }
   }
@@ -462,7 +476,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     s.time += dt;
     grid.step(dt);
     for (const e of grid.drainEvents()) events.push(e);
-    scanUnlocks();
+    refresh();
     checkLock();
 
     if (s.phase === 'prep' || s.phase === 'break') {
@@ -486,9 +500,14 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
         const sp = wave.spawns[s.spawnIdx++];
         defense.spawn(sp.type, { lane: sp.lane, hpScale: wave.hpScale, atkScale: SIEGE.attackGrowth ** (s.waveNo - 1) });
       }
+      // regen (nature buffs and auras): blocks heal a share of their max health per second while the wave runs
+      for (const t of grid.tiles) {
+        if (!(t.hp > 0) || t.hp >= t.maxHp) continue;
+        const regen = profileFor(t).regen;
+        if (regen > 0) t.hp = Math.min(t.maxHp, t.hp + regen * t.maxHp * dt);
+      }
     }
 
-    roam?.step(grid.tiles, defense.enemies, dt);
     defense.step(dt, grid.tiles);
     drainDefense();
     // Phoenix Feather: when the last blocks fall together, the biggest rises again, once a run, as the
@@ -497,12 +516,11 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     if (s.phoenix && falling.length && falling.length === grid.tiles.length) {
       const keep = falling.reduce((b, t) => (t.tier > b.tier ? t : b));
       if (s.fallen && s.fallen.tier > keep.tier && grid.promote(keep, s.fallen.tier - keep.tier)) {
-        keep.cls = { ...s.fallen.cls };
-        keep.mats = mergeMaterial(materialOf(keep), s.fallen.mats);
+        keep.cls = copyCls(s.fallen.cls);
         keep.prof = null;
         for (const g of grid.drainEvents()) events.push(g);
       }
-      keep.maxHp = hpFor(keep.tier);
+      keep.maxHp = maxHpOf(keep);
       keep.hp = keep.maxHp * ks.reviveHp;
       keep.downed = false; // its next fall says who broke it (defense 'tileDown')
       s.phoenix = false;
@@ -514,12 +532,13 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     let lost = 0;
     for (const t of [...grid.tiles]) {
       if (t.hp > 0) continue;
-      if (!s.fallen || t.tier > s.fallen.tier) s.fallen = { tier: t.tier, cls: { ...t.cls }, mats: materialOf(t) };
+      if (!s.fallen || t.tier > s.fallen.tier) s.fallen = { tier: t.tier, cls: copyCls(t.cls) };
       grid.remove(t, 'destroyed');
       lost += 1;
     }
     if (lost) {
       for (const g of grid.drainEvents()) events.push(g);
+      refresh(); // a fallen pure pet takes its aura with it
       checkLock();
       if (!grid.tiles.length) endRun('overrun');
     }
@@ -565,13 +584,22 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       for (const g of grid.drainEvents()) events.push(g);
       s.coins = Math.max(0, s.coins + price.amount);
       events.push({ type: 'discard', ...price, tier: t.tier, x: t.x, y: t.y, total: s.coins });
+      refresh();
       checkLock();
       return { ok: true, ...price };
     },
-    /** Fire a block's active skill (key-visual namecards); returns foes caught. */
-    castSkill: (id, opts) => {
+    /** A fusion pet's summon charge, 0..1 (the defense keeps it: docs/v2/SPEC.md section 5). */
+    skillCharge: (id) => defense.skillCharge(id),
+    /** The pet can be summoned now: a fusion pet at V2.summonTier+, home, fully charged. */
+    skillReady: (id) => {
       const t = grid.tiles.find((x) => x.id === id);
-      return t && !s.over ? defense.cast(t, opts) : 0;
+      return !!t && !s.over && !!profileFor(t).summon && !t.summon && defense.skillCharge(id) >= 1;
+    },
+    /** Summon a fusion pet to the front (its namecard): true when it went out (defense.summon). */
+    castSkill: (id) => {
+      const t = grid.tiles.find((x) => x.id === id);
+      if (!t || s.over || choices.length || !profileFor(t).summon) return false;
+      return defense.summon(t) === true;
     },
     addCoins: (n) => addCoins(n, 'debug'),
     drainEvents: () => events.splice(0, events.length),
@@ -583,9 +611,25 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     get enemies() {
       return defense.enemies;
     },
-    /** Fusions' pets roam the field (createRun({ roaming })). */
+    /** The run was made with { roaming } (saved runs carry it); v2 pets stay on their tiles. */
     get roaming() {
       return roaming;
+    },
+    // the summons' field state, for the renderer (docs/v2/SPEC.md section 6)
+    get zones() {
+      return defense.zones;
+    },
+    get walls() {
+      return defense.walls;
+    },
+    get traps() {
+      return defense.traps;
+    },
+    get minions() {
+      return defense.minions;
+    },
+    get tethers() {
+      return defense.tethers;
     },
     get shots() {
       return defense.shots;
@@ -632,7 +676,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     get pendingChoice() {
       return choices[0] ?? null;
     },
-    /** The deck: dice (elements) new blocks can spawn in. */
+    /** The deck: the elements new eggs can be. */
     get owned() {
       return [...owned];
     },

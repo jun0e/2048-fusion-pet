@@ -2,8 +2,10 @@
 // probe uses). It swipes about twice a second when it can afford to, choosing
 // the direction by a one-move lookahead: keep the big blocks stacked in the
 // bottom-left corner, keep cells free, and put firepower (blocks of 16+) under
-// the lanes enemies are coming down. It picks the first die offered and presses
-// Wave now once it is out of coins (or the board is locked) during a break.
+// the lanes enemies are coming down. It takes the first offer of every card (the
+// default: a new element, a fusion's main element, the fusion to keep), summons each
+// fusion pet whose skill is ready, and presses Wave now once it is out of coins (or
+// the board is locked) during a break.
 
 const N = 4;
 const SWIPE_GAP = 0.42; // seconds between swipes
@@ -85,6 +87,13 @@ export function bestDir(run) {
   return best;
 }
 
+/** Summon every fusion pet whose skill is ready (run.skillReady); returns how many went out. */
+export function autoCast(run) {
+  let n = 0;
+  for (const t of run.tiles) if (run.skillReady(t.id) && run.castSkill(t.id)) n += 1;
+  return n;
+}
+
 export function createAutoplay() {
   let on = false;
   let t = 0;
@@ -108,6 +117,7 @@ export function createAutoplay() {
         }
         return;
       }
+      autoCast(run);
       if (t < SWIPE_GAP) return;
       const waiting = run.phase === 'prep' || run.phase === 'break';
       if (waiting && (run.coins < run.swipeCost || run.locked)) {
