@@ -621,11 +621,20 @@ function rampAt(ramp, l) {
   return ramp[ramp.length - 1].slice(1);
 }
 
+const tintedEggs = new WeakMap(); // source image → its recoloured eggs, by element (the inspect card asks again and again)
 /**
  * An egg image (a canvas or a loaded sprite) in its element's colours (`el2`: a fusion egg's second
  * element, below its seam), at most `maxH` px tall: the tile draws an egg about 0.5 cell tall.
  */
 export function tintedEgg(src, el, el2 = null, maxH = 192) {
+  const key = `${el}|${el2 ?? ''}|${maxH}`;
+  let made = tintedEggs.get(src);
+  if (!made) tintedEggs.set(src, (made = new Map()));
+  if (!made.has(key)) made.set(key, recolorCanvas(src, el, el2, maxH));
+  return made.get(key);
+}
+
+function recolorCanvas(src, el, el2, maxH) {
   const k = Math.min(1, maxH / Math.max(1, src.height));
   const w = Math.max(1, Math.round(src.width * k));
   const h = Math.max(1, Math.round(src.height * k));
