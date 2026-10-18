@@ -45,7 +45,8 @@ test('a stat chip is its icon and its number, never its word; a buff wears its e
   assert.match(html, /^<span class="stat-chip" title="\+20% damage"><svg class="ico ico-dmg"/);
   const edged = chipHtml(buffChip('poison', 2), { edge: '#a35cf0', title: null, cls: 'gain' });
   assert.match(edged, /class="stat-chip edged gain" style="--e:#a35cf0">/);
-  assert.equal(text(edged), '[Poison stacks] +1.6', 'two copies of a buff give less than twice one (classes.js buffWorth)');
+  assert.equal(text(edged), '[Poison stacks] +2', 'poison buffs are whole stacks: two copies round to 2, as the sim adds them (classes.js statWorth)');
+  assert.equal(text(chipHtml(buffChip('fire', 2))), '[Damage] +32%', 'two copies of any other buff give less than twice one (buffWorth)');
   assert.equal(chipHtml(null), '');
 });
 
@@ -128,8 +129,8 @@ test('the fusion pet to keep: compact, both side by side, each its portrait and 
   assert.ok(!html.includes('class="choice-chip"><div'), 'no tier chip: the board shows the block');
   assert.match(t, /^Keep one pet It gains the other’s elements: the gold buffs\./);
   // keep the mover's (Novakit): it gains the other's two elements and all its buffs (gold, first), and keeps its own
-  assert.match(t, /Novakit Frostfire Waltz \[Poison stacks\] \+1\.6 \[Health\] \+25% \[Range\] \+24% \[Crit chance\] \+10% \[Regen\] \+1%\/s \[Attack speed\] \+20% Keep Novakit 1/);
-  assert.match(t, /Ironclod Iron Taunt \[Damage\] \+20% \[Slow\] \+10% \[Attack speed\] \+20% \[Range\] \+24% \[Poison stacks\] \+1\.6 \[Regen\] \+1%\/s Keep Ironclod 2/);
+  assert.match(t, /Novakit Frostfire Waltz \[Poison stacks\] \+2 \[Health\] \+25% \[Range\] \+24% \[Crit chance\] \+10% \[Regen\] \+1%\/s \[Attack speed\] \+20% Keep Novakit 1/);
+  assert.match(t, /Ironclod Iron Taunt \[Damage\] \+20% \[Slow\] \+10% \[Attack speed\] \+20% \[Range\] \+24% \[Poison stacks\] \+2 \[Regen\] \+1%\/s Keep Ironclod 2/);
   assert.equal(count(html, /stat-chip edged gain/g), 9, 'one gold chip per element gained');
   assert.equal(count(html, /stat-chip edged"/g), 3, 'and the buffs it keeps as they are');
   assert.match(html, /title="\+Wind ×2: \+24% range"/, 'each chip says its element and what it gives');

@@ -7,7 +7,7 @@
 // src/sim/skills/data.js), so the card always shows the attack the block really has. The words come
 // from the language's table (src/i18n). Pure data; no rendering.
 import { DEFENSE, GRID, V2, tierValue } from '../config.js';
-import { ELEMENTS, FUSIONS, TRAIT_KEYS, buffWorth, fusionKey, profileFor, turretDamage } from './classes.js';
+import { ELEMENTS, FUSIONS, TRAIT_KEYS, fusionKey, profileFor, statWorth, turretDamage } from './classes.js';
 import { ELEMENT_STATS, FUSION_HIT, FUSION_SKILLS, PURE_SELF, skillVars, summonHead } from './skills/data.js';
 import { num as fmt, ordinal, tr } from '../i18n/index.js';
 
@@ -48,8 +48,8 @@ export function statText(element, v) {
   if (!s) return '';
   return tr(`stat.${s}`, { v: s === 'poison' ? fmt(Math.round(v * 100) / 100) : pct(v) });
 }
-/** What `n` single pets of an element fed into a fusion give it, each more copy a little less (classes.js buffWorth): "+32% damage". */
-export const buffStat = (element, n = 1) => statText(element, ELEMENT_STATS[element].buff * buffWorth(n));
+/** What `n` single pets of an element fed into a fusion give it, each more copy a little less (classes.js statWorth): "+32% damage". */
+export const buffStat = (element, n = 1) => statText(element, statWorth(element, n));
 /** "Fed to a fusion: +20% damage" */
 export const buffLine = (element) => tr('buff.line', { stat: buffStat(element) });
 /** "Pure Fire" */
@@ -84,8 +84,8 @@ export function statChip(element, v) {
   const stat = ELEMENT_STATS[element]?.stat;
   return stat ? { element, stat, value: statValue(stat, v), words: statText(element, v) } : null;
 }
-/** What `n` single pets of an element fed into a fusion give it, as a chip (with its tag: "+Fire ×2"); each more copy gives less (buffWorth). */
-export const buffChip = (element, n = 1) => ({ ...statChip(element, ELEMENT_STATS[element].buff * buffWorth(n)), n, tag: gainTag(element, n) });
+/** What `n` single pets of an element fed into a fusion give it, as a chip (with its tag: "+Fire ×2"); each more copy gives less (statWorth). */
+export const buffChip = (element, n = 1) => ({ ...statChip(element, statWorth(element, n)), n, tag: gainTag(element, n) });
 /** A buffs map as chips, in element order. */
 export const buffChips = (buffs) => buffList(buffs).map((b) => buffChip(b.element, b.n));
 /** A pure pet's aura as a chip, and whom it reaches: 'others' (every other pet) or 'blocks' (every block: health and regen). */
