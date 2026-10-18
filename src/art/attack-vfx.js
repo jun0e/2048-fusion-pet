@@ -76,7 +76,7 @@ export const VFX_IDS = Object.entries(VFX_PIECES).flatMap(([el, pieces]) => Obje
 // Every stage adds exactly one visible thing to an attack (a piece, a trail layer or a second
 // motion), the way a pet adds one motif piece per stage; reach, counts and size also grow with
 // the sim (classes.js grow(s), +6% a tier). Stages are keyed by the tile's value: 16, 64 (32 and
-// 64), 128, 256 (a fusion: its pet roams) and 4096 (an apex legendary). A block's tier is log2 of
+// 64), 128, 256 (a fusion: v2 fusions use it at any value) and 4096 (the apex: v2's pure form poses as it). A block's tier is log2 of
 // its value (config.js tierValue): 16 is tier 4, 128 tier 7, 256 tier 8, 4096 tier 12.
 // Fusion rule: the first element's shape in the fusion colour, plus the partner element's add-on
 // layer (ADDON). Apex: the attack echoes once in the apex element's colour.

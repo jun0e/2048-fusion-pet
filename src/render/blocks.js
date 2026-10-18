@@ -353,7 +353,8 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   /**
    * The creature's pose for its attack's stage: the wind-up rises before a shot (WIND_UP s of real
    * time at any game speed, from the sim's cooldown: defense.cooldownLeft, read only) and settles
-   * if no shot comes; the follow-through falls after a shot. None under Reduce motion. → petPose or null
+   * if no shot comes; the follow-through falls after a shot. A pure form takes the apex stage: its
+   * body stays serene and its halo swells (pose.halo). None under Reduce motion. → petPose or null
    */
   function windUp(v, t, run, dt, reduced, rate) {
     if (reduced || !isPet(t)) {
@@ -366,7 +367,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     const want = windUpAt(left, rate, v.period);
     v.wind = want >= v.wind ? want : Math.max(0, v.wind - dt / 0.1);
     v.follow = Math.max(0, v.follow - dt / FOLLOW);
-    return petPose(ladderStage(t.tier), smooth(v.wind), v.follow, v.aim, v.pose);
+    return petPose(v.pure ? '4096' : ladderStage(t.tier), smooth(v.wind), v.follow, v.aim, v.pose);
   }
 
   /** The tile's textures, when its tier, class, den, style or chapter skin changed. */
@@ -966,7 +967,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     if (!reduced) v.haloTurn += dt * H.turn * Math.PI * 2;
     v.halo.rotation = v.haloTurn;
     v.halo.position.set(0, H.y * cell);
-    v.halo.scale.set(((H.w * cell) / Math.max(1, v.halo.texture.width, v.halo.texture.height)) * (1 + Math.sin(v.pop * Math.PI) * 0.12));
+    v.halo.scale.set(((H.w * cell) / Math.max(1, v.halo.texture.width, v.halo.texture.height)) * (1 + Math.sin(v.pop * Math.PI) * 0.12) * (v.haloPose ?? 1));
   }
 
   /** The creature: its bob, the attack's wind-up and follow-through, the leap; a hit's face; the blink. */
@@ -1006,8 +1007,9 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       v.sweat.position.set(0.27 * cell, (0.43 - v.crop * 0.62) * cell);
       v.sweat.scale.set((0.1 * cell) / Math.max(1, v.sweat.texture.height));
     }
-    // the attack's wind-up and follow-through (cells)
+    // the attack's wind-up and follow-through (cells); a pure form's halo swells with it
     const pose = v.egg ? null : windUp(v, t, run, dt, reduced, rate);
+    v.haloPose = pose?.halo ?? 1;
     if (pose) {
       v.creature.scale.x *= pose.sx;
       v.creature.scale.y *= pose.sy;

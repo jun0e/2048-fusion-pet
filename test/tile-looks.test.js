@@ -253,6 +253,21 @@ test('a pure form wears its halo behind it, turning slowly, and a soft aura ring
   const r1 = w.halo.rotation;
   const b = range(still, 1, () => w.aura.alpha);
   assert.ok(w.halo.rotation === r1 && b.hi === b.lo, 'Reduce motion: still');
+  // as it winds up for a shot its halo swells, its body stays serene (the apex stage); not under Reduce motion
+  const swell = (reduced) => {
+    const sc = scene({ reduced });
+    sc.add(1, 12, 1, 1, { element: 'nature', pure: true });
+    sc.step(0.3);
+    const v = sc.blocks.viewOf(1);
+    const rest = { s: v.halo.scale.x, x: v.creature.position.x, y: v.creature.position.y };
+    sc.run.defense.cooldownLeft = () => 0.04; // a shot is near
+    sc.step(0.2);
+    return { grew: v.halo.scale.x / rest.s, moved: Math.hypot(v.creature.position.x - rest.x, v.creature.position.y - rest.y) };
+  };
+  const live = swell(false);
+  assert.ok(live.grew > 1.05, `the halo swells (${live.grew.toFixed(3)}×)`);
+  assert.ok(live.moved < 0.5, 'the body does not lunge');
+  assert.ok(Math.abs(swell(true).grew - 1) < 1e-9, 'Reduce motion: no swell');
   // a pure pet out on the field takes its halo with it
   const out = scene();
   out.add(1, 12, 1, 1, fusion('fire', 'ice', { pure: true }), { summon: { phase: 'act', x: 0, y: 12 } });
