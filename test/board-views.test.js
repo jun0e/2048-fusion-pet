@@ -469,6 +469,26 @@ test('the keep cardâ€™s highlight: a gold outline and pointer on the merged petâ
   assert.ok(v.lift < 0.005, 'the plaque settles');
 });
 
+test('a highlight moving to another tile fades out on the first, then books and fades in on the second', () => {
+  const s = scene();
+  s.add(7, 8, 2, 1, { element: 'fire', fusion: 'ice', buffs: {} });
+  s.add(9, 8, 0, 3, { element: 'earth', fusion: 'metal', buffs: {} });
+  s.step(0.3);
+  s.blocks.highlight(7);
+  s.step(HIGHLIGHT.fade + 0.05);
+  const on7 = s.blocks.highlighted;
+  const booked = s.books.length;
+  s.blocks.highlight(9);
+  s.step(HIGHLIGHT.fade / 2);
+  let h = s.blocks.highlighted;
+  assert.ok(h.k < 1 && h.x === on7.x && h.y === on7.y, 'still on the first tile, fading out');
+  s.step(HIGHLIGHT.fade + 0.05);
+  h = s.blocks.highlighted;
+  const v9 = s.blocks.viewOf(9);
+  assert.ok(h.visible && h.x === v9.c.position.x && h.y === v9.c.position.y, 'then on the second');
+  assert.equal(s.books.length, booked + 1, 'booked again for the second');
+});
+
 test('the highlight waits for room in the light budget, and shows nothing for a tile that is not on the board', () => {
   const s = scene({ grant: false });
   s.add(7, 8, 2, 1, { element: 'fire', fusion: 'ice', buffs: {} });

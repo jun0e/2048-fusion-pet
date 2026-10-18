@@ -219,7 +219,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   let chargeCell = 0;
   let grow = null; // the board's grow moment: { from, to, t }
   let marked = null; // the tile the keep card highlights (highlight)
-  const lit = { k: 0, booked: false, cell: 0, x: 0, y: 0 }; // its fade (0–1), its booking, the cell its shapes were drawn for, where it shows
+  const lit = { k: 0, booked: false, id: null, cell: 0, x: 0, y: 0 }; // its fade (0–1), its booking, the tile it shows on, the cell its shapes were drawn for, where it shows
   const penLine = (x, y) => chargePen.lineTo(x, y);
   const penArc = (cx, cy, r, a0, a1) => chargePen.arc(cx, cy, r, a0, a1);
 
@@ -1206,16 +1206,18 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   function highlightAt(dt, cell, reduced, gs) {
     const H = HIGHLIGHT;
     const v = marked != null ? views.get(marked) : null;
-    let want = !!v && v.shown;
+    // another tile to highlight: the one on show fades out first, then the new one books and fades in
+    let want = !!v && v.shown && (lit.id === marked || lit.k === 0);
     if (want && lit.k === 0 && !lit.booked) {
       lit.booked = book(highlightLit(), H.fade);
-      if (!lit.booked) want = false; // it waits for room in the light budget
+      if (lit.booked) lit.id = marked;
+      else want = false; // it waits for room in the light budget
     }
     lit.k = want ? Math.min(1, lit.k + dt / H.fade) : Math.max(0, lit.k - dt / H.fade);
     if (lit.k === 0) lit.booked = false;
     hl.visible = hlGlow.visible = lit.k > 0;
     if (!hl.visible) return;
-    if (v) {
+    if (v && lit.id === marked) {
       lit.x = v.c.position.x;
       lit.y = v.c.position.y;
     }
