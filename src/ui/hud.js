@@ -1,11 +1,13 @@
 // DOM HUD (proposal 4.1, zones B–H): the top bar (Pause and Speed as stone discs, the score plate,
 // the top-block chip), the head (the chapter lintel: crest and wave, the foes meter that becomes the
-// boss's health bar, the 4×4 keep grid of blocks alive; and under it the news ribbon in the sky,
-// where banners and class announcements queue, src/ux/banners.js), the bottom bar (the coin plate
-// with the swipe price and its step tick, Wave now), the choices (a new element, a fusion's main
-// element, the fusion pet to keep: src/ui/cards.js builds them) and the card with the skill a new
-// fusion gained, floating popups, the red edge pulse, the pause menu and the game-over card. Nothing here sits over a lane: the combo tally hangs
-// on the left tower, the namecard rail on the right one (src/kv/namecards.js).
+// boss's health bar, the keep grid of blocks alive, as big as the board: 4×4 to 6×6; and under it the
+// news ribbon in the sky, where banners and class announcements queue, src/ux/banners.js, a stat's
+// icon in a banner's line too), the bottom bar (the coin plate with the swipe price and its step tick,
+// Wave now), the choices (a new element over the screen; the fusion pet to keep docked at the top of the
+// field, the board in view under it: src/ui/cards.js builds them) and the card with the skill a new
+// fusion gained, floating popups, the red edge pulse, the pause menu and the game-over card. Nothing
+// here sits over a lane: the combo tally hangs on the left tower, the namecard rail on the right one
+// (src/kv/namecards.js).
 // Pure presentation; main.js feeds it. All markup is built from constants and numbers from
 // config/sim data (no user input), so innerHTML is safe here.
 import { ECONOMY, TIER_COLORS, tierValue } from '../config.js';
@@ -14,7 +16,8 @@ import { createBannerQueue, bannerTimes } from '../ux/banners.js';
 import { TEXT, popupFont } from '../ux/photosafe.js';
 import { chapterKeyFor, skinFor } from '../art/frame-kit.js';
 import { generatedUrl } from '../render/textures.js';
-import { choiceHtml, choiceKey, choiceLabel, fusionColor, resultCardHtml } from './cards.js';
+import { choiceDocks, choiceHtml, choiceKey, choiceLabel, fusionColor, resultCardHtml } from './cards.js';
+import { icon } from './icons.js';
 import { LANG_NAMES, getLang, num, tr } from '../i18n/index.js';
 
 const STAGE_LABEL = { 1: tr('stage.1'), 2: tr('stage.2'), 3: tr('stage.3') };
@@ -59,13 +62,31 @@ export function meterState({ phase, left = 0, total = 0, boss = null, bossHp = n
   return { mode: 'over', fill: 0, label: tr('meter.defeat'), say: tr('meter.defeat') };
 }
 
-/** The keep grid: 16 cells (top-left first, as the DOM lays them out); the blocks alive light them from the bottom row up, left to right. */
-export function keepGridCells(blocks) {
-  const n = Math.max(0, Math.min(16, Math.floor(blocks)));
-  const cells = new Array(16).fill(false);
-  for (let k = 0; k < n; k++) cells[(3 - Math.floor(k / 4)) * 4 + (k % 4)] = true;
+/**
+ * The keep grid: one cell per board cell, size × size (run.size: 4, 5 or 6), top-left first as the DOM
+ * lays them out; the blocks alive light them from the bottom row up, left to right.
+ */
+export function keepGridCells(blocks, size = 4) {
+  const total = size * size;
+  const n = Math.max(0, Math.min(total, Math.floor(blocks)));
+  const cells = new Array(total).fill(false);
+  for (let k = 0; k < n; k++) cells[(size - 1 - Math.floor(k / size)) * size + (k % size)] = true;
   return cells;
 }
+
+/**
+ * A stat's icon in a banner's line (src/ui/icons.js): a token the ribbon draws as the icon, and measures
+ * as one ("[sword]+20%" stays one word, so a page never splits the icon from its number).
+ */
+export const iconToken = (key) => `\uE000${key}\uE001`;
+const TOKEN = /\uE000([a-z]+)\uE001/g;
+/** The ribbon's icons (px), and the room each takes in a line (its margin). */
+const TOKEN_PX = 16;
+const TOKEN_ROOM = TOKEN_PX + 3;
+/** A banner's line as markup: its words escaped, its icon tokens drawn as icons. */
+export const bannerLineHtml = (text) => esc(text ?? '').replace(TOKEN, (m, k) => icon(k, { size: TOKEN_PX }));
+/** A banner's line without its icon tokens, and how many it had (the ribbon measures each as TOKEN_ROOM). */
+export const untoken = (text) => ({ text: String(text ?? '').replace(TOKEN, ''), icons: (String(text ?? '').match(TOKEN) ?? []).length });
 
 /** The swipe price and its next step: { cost, next, left: swipes until the price rises, share: how far along (0–1) }. */
 export function priceStep(swipes) {
@@ -140,8 +161,8 @@ export const pageSeconds = (item, count) => Math.max(1.1, (bannerTimes(item).min
  * The lintel's state as one key: a change re-renders it. It holds what the meter says (`say`, with
  * the boss's health), so the screen reader's description never goes stale.
  */
-export function statusKey({ wave, phase, timer = 0, holding = false, left, blocks, boss, bestWave = 0 }, m) {
-  return `${wave}|${phase}|${Math.ceil(timer)}|${holding}|${left}|${blocks}|${boss}|${bestWave}|${m.mode}|${m.label}|${m.say}`;
+export function statusKey({ wave, phase, timer = 0, holding = false, left, blocks, boss, bestWave = 0, size = 4 }, m) {
+  return `${wave}|${phase}|${Math.ceil(timer)}|${holding}|${left}|${blocks}|${size}|${boss}|${bestWave}|${m.mode}|${m.label}|${m.say}`;
 }
 
 /** The meter's label as markup: its numbers ("In 14s", "12 left") in their own spans, drawn as primary numerals. */
@@ -194,7 +215,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
           <b class="meter-label">${esc(tr('meter.ready'))}</b>
         </div>
         <div class="castle" role="img" aria-label="${esc(tr('hud.blocksLeft'))}">
-          <span class="keep-grid" aria-hidden="true">${'<i></i>'.repeat(16)}</span>
+          <span class="keep-grid" data-n="4" aria-hidden="true">${'<i></i>'.repeat(16)}</span>
           <span class="castle-hp">0</span>
         </div>
       </div>
@@ -291,7 +312,15 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   const castleHp = $('.castle-hp');
   const castleEl = $('.castle');
   const lintelEl = $('.lintel');
-  const gridCells = [...root.querySelectorAll('.keep-grid i')];
+  const keepGrid = $('.keep-grid');
+  let gridCells = [...keepGrid.querySelectorAll('i')];
+  /** The keep grid as big as the board (a board that grows: 5×5, 6×6). */
+  function setGridSize(size) {
+    if (gridCells.length === size * size) return;
+    keepGrid.dataset.n = String(size);
+    keepGrid.innerHTML = '<i></i>'.repeat(size * size);
+    gridCells = [...keepGrid.querySelectorAll('i')];
+  }
   const ribbon = $('.ribbon');
   const ribbonLine = $('.ribbon-line');
   const ribbonTitle = $('.banner-title');
@@ -367,10 +396,11 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   };
   // The title's digits are tabular (every one as wide as "0"), which a canvas does not draw: it is
   // measured with its digits as "0", or a line it judged to fit by a few px would end in an ellipsis.
-  function measure(text, part) {
-    if (!measureCtx) return text.length * 7;
+  function measure(line, part) {
+    const { text, icons } = untoken(line); // a stat's icon: TOKEN_ROOM px
+    if (!measureCtx) return text.length * 7 + icons * TOKEN_ROOM;
     measureCtx.font = fontOf(part === 'title' ? ribbonTitle : ribbonSub);
-    return measureCtx.measureText(part === 'title' ? text.replace(/[0-9]/g, '0') : text).width;
+    return measureCtx.measureText(part === 'title' ? text.replace(/[0-9]/g, '0') : text).width + icons * TOKEN_ROOM;
   }
   /** The line's width for text: the ribbon's inner width less its padding. */
   function lineWidth() {
@@ -397,8 +427,8 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       return;
     }
     ribbonLine.title = '';
-    ribbonTitle.textContent = p.title;
-    ribbonSub.textContent = p.sub;
+    ribbonTitle.innerHTML = bannerLineHtml(p.title);
+    ribbonSub.innerHTML = bannerLineHtml(p.sub);
     ribbonLine.classList.toggle('sub-only', !p.title);
   }
   // one banner at a time: news that lands together shows in turn (src/ux/banners.js)
@@ -529,7 +559,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
      * The lintel. total: foes in this wave (optional: else the most seen left), bossHp: the boss's
      * health 0–1 while it lives (optional, bossHealth(run.enemies)); chapter: the chapter ({ key, name }) or its key.
      */
-    setStatus({ wave, chapter, phase, timer, holding = false, left, blocks, boss, bestWave = 0, total = null, bossHp = null }) {
+    setStatus({ wave, chapter, phase, timer, holding = false, left, blocks, boss, bestWave = 0, total = null, bossHp = null, size = 4 }) {
       setChapter(chapter);
       if (wave !== waveSeen || phase !== 'wave') {
         if (wave !== waveSeen) waveSeen = wave;
@@ -542,7 +572,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
         shownFill = fill;
         meterFill.style.transform = `scaleX(${fill})`;
       }
-      const key = statusKey({ wave, phase, timer, holding, left, blocks, boss, bestWave }, m);
+      const key = statusKey({ wave, phase, timer, holding, left, blocks, boss, bestWave, size }, m);
       if (key === shownStatus) return;
       shownStatus = key;
       // only what changed is written (the boss's health changes the description many times a wave)
@@ -575,7 +605,8 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       }
       // siege: no castle; losing every block loses the run. The keep grid shows the blocks alive.
       setText(castleHp, String(blocks));
-      const lit = keepGridCells(blocks);
+      setGridSize(size);
+      const lit = keepGridCells(blocks, size);
       gridCells.forEach((c, i) => c.classList.toggle('on', lit[i]));
       setAttr(castleEl, 'aria-label', tr('hud.blocksLeftN', { n: blocks }));
       castleEl.classList.toggle('low', blocks <= 3 && phase === 'wave');
@@ -670,9 +701,10 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       vignette.style.opacity = String(level * 0.9);
     },
     /**
-     * Show (or keep showing) the pending choice (docs/v2/SPEC.md section 3): a new element, a fusion's
-     * main element, or the fusion pet to keep; null hides it. `deck`: the run's elements (a new
-     * element's card shows the fusions it makes with them).
+     * Show (or keep showing) the pending choice (docs/v2/SPEC.md section 3, SPEC-v2.1 section 2): a new
+     * element, over the screen; or the fusion pet to keep, docked at the top of the field with no scrim,
+     * so the board stays in view under it; null hides it. `deck`: the run's elements (a new element's
+     * card shows the fusions it makes with them).
      */
     setChoice(choice, { deck = [] } = {}) {
       const key = choiceKey(choice);
@@ -685,6 +717,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
         return;
       }
       choiceScrim.setAttribute('aria-label', choiceLabel(choice));
+      choiceScrim.classList.toggle('docked', choiceDocks(choice));
       choiceEl.dataset.kind = choice.kind;
       choiceEl.innerHTML = choiceHtml(choice, { deck });
       choiceEl.scrollTop = 0;
@@ -693,9 +726,10 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     },
     /**
      * The skill a new fusion pet gained, in full (src/ui/cards.js resultCardHtml), with OK (onResult);
-     * null closes it. `tier`: the block's, for the merges until its summon unlocks.
+     * null closes it. `tier`: the block's, for the merges until its summon unlocks; `strengths`: its
+     * attack's strengths (src/sim/describe.js strengthsOf); `chargeS`: the run's summon charge time.
      */
-    showResult(cls, { tier = null } = {}) {
+    showResult(cls, { tier = null, strengths = null, chargeS = null } = {}) {
       for (const el of resultInerted) el.inert = false; // the rest of the HUD back (a modal card: inert under it)
       resultInerted = [];
       if (!cls) {
@@ -706,7 +740,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       resultInerted = [...root.children].filter((el) => el !== resultScrim && !el.inert);
       for (const el of resultInerted) el.inert = true;
       resultCard.style.setProperty('--c', fusionColor(cls.element, cls.fusion));
-      resultCard.innerHTML = resultCardHtml(cls, { tier });
+      resultCard.innerHTML = resultCardHtml(cls, { tier, strengths, chargeS });
       resultCard.scrollTop = 0;
       resultScrim.inert = false;
       resultScrim.classList.add('open');

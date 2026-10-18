@@ -1,18 +1,22 @@
-// v2 cards (docs/v2/SPEC.md section 7): the markup of the three choices (a new element, a fusion's main
-// element, the fusion pet to keep), the card that shows the skill a new fusion gained, and the pieces the
+// v2 cards (docs/v2/SPEC.md section 7, docs/v2/SPEC-v2.1.md section 6): the markup of the two choices (a
+// new element, the fusion pet to keep), the card that shows the skill a new fusion gained (two single pets
+// fuse at once in v2.1: their pair fixes the pet's main element, so there is no pick), and the pieces the
 // tile card (src/ui/inspect.js) shares with them: a fusion's skill in the shape of a League of Legends
-// tooltip, the element chips. Pure: HTML strings built from the SPEC's shapes and the skill data
-// (src/sim/skills/data.js), so a test renders every card in Node from mock choices. The words come from
-// the language's table (src/i18n) through src/sim/describe.js, and every text is escaped. `img(id)` finds a
-// generated picture (src/render/textures.js generatedUrl; a test passes its own); without one a card
-// shows the element's badge or colour instead.
+// tooltip, the element chips, the stat chips (a stat's icon and its number, src/ui/icons.js, in place of
+// its words) and the attack's strengths. Pure: HTML strings built from the SPEC's shapes and the skill
+// data (src/sim/skills/data.js), so a test renders every card in Node from mock choices. The words come
+// from the language's table (src/i18n) through src/sim/describe.js, and every text is escaped. `img(id)`
+// finds a generated picture (src/render/textures.js generatedUrl; a test passes its own); without one a
+// card shows the element's badge or colour instead.
 import { TIER_COLORS, V2, tierValue } from '../config.js';
 import { ELEMENTS, FUSIONS, fusionKey } from '../sim/classes.js';
-import { PURE_AT, SUMMON_AT, anyMainPassive, buffLine, buffList, buffStat, elAttack, elLine, elName, fusionName, gainTag, mergesTo, pureAura, pureName, skillHead, skillWords as wordsOf } from '../sim/describe.js';
+import { PURE_AT, SUMMON_AT, buffChip, buffChips, elAttack, elLine, elName, fusionName, mergesTo, pureChip, pureName, skillWords as wordsOf } from '../sim/describe.js';
+import { summonHead } from '../sim/skills/data.js';
 import { petName } from '../art/tokens.js';
 import { portraitId, spriteId } from '../art/sprite-ids.js';
 import { generatedUrl } from '../render/textures.js';
-import { tr } from '../i18n/index.js';
+import { icon, iconWord } from './icons.js';
+import { num, tr } from '../i18n/index.js';
 
 export const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -23,6 +27,40 @@ export const fusionColor = (a, b) => FUSIONS[fusionKey(a, b)]?.color ?? elColor(
 export { fusionName };
 /** A fusion's skill in words (src/sim/describe.js skillWords), with its pet's name. */
 export const skillWords = (cls) => wordsOf(cls, petName(cls.element, cls.fusion));
+
+/**
+ * tr() with some of its values as markup: the words are escaped, then each {name} of `html` goes in as
+ * it is (a stat chip in the middle of a sentence, wherever the language puts it).
+ */
+export function trMarkup(key, vars = {}, html = {}) {
+  const names = Object.keys(html);
+  const marks = Object.fromEntries(names.map((k, i) => [k, `\u0001${i}\u0002`]));
+  return esc(tr(key, { ...vars, ...marks })).replace(/\u0001(\d+)\u0002/g, (m, i) => html[names[i]]);
+}
+
+// --- stat chips and strengths ------------------------------------------------------------------------
+
+/**
+ * A stat chip (src/sim/describe.js statChip, buffChip, boostChips): the stat's icon and its number
+ * ("[sword] +20%"). The icon says the stat's word to a screen reader; `title` (the stat in words by
+ * default) shows on a hover. `edge`: the element's colour on its left edge (a buff's element).
+ */
+export function chipHtml(chip, { title = chip?.words, edge = null, cls = '' } = {}) {
+  if (!chip) return '';
+  const style = edge ? ` style="--e:${edge}"` : '';
+  return `<span class="stat-chip${edge ? ' edged' : ''}${cls ? ` ${cls}` : ''}"${style}${title ? ` title="${esc(title)}"` : ''}>${icon(chip.stat, { size: 16 })}<b>${esc(chip.value)}</b></span>`;
+}
+
+/**
+ * An attack's strengths (src/sim/describe.js strengthsOf): the four icons, lit where the pet has the
+ * strength and dim where it is a weakness, each with its word, and the line that says it. The row is
+ * for the eye; the line says the same to a screen reader.
+ */
+export function strengthsHtml(st, { title = true } = {}) {
+  if (!st) return '';
+  const trait = (t) => `<span class="trait${t.on ? ' on' : ''}">${icon(t.key, { size: 22, title: null })}<small>${esc(iconWord(t.key))}</small></span>`;
+  return `<div class="traits">${title ? `<h4>${esc(tr('trait.title'))}</h4>` : ''}<div class="trait-row" aria-hidden="true">${st.list.map(trait).join('')}</div><p class="trait-line">${esc(st.line)}</p></div>`;
+}
 
 // --- pictures ---------------------------------------------------------------------------------------
 
@@ -49,19 +87,30 @@ function choiceHead({ chip = '', title, sub }) {
 // --- the skill tooltip ------------------------------------------------------------------------------
 
 /**
- * A fusion's skill as a League of Legends tooltip: its name and header line, ACTIVE (the summon, and
- * what the pet does out on the field), PASSIVE (how the fusion attacks from its tile), then `foot`
- * (markup: the lock, or the tile card's live charge line). `passive`: true (this main element's),
- * 'any' (the fusion choice: the main element is still to pick, the buttons below say each attack) or
- * false; `unlock` keeps the value it unlocks at in the header when no foot says it.
+ * The summon's numbers as the tooltip's head shows them: its charge and its time out as icons and
+ * seconds ("[charge] 15 s · [paw] 8 s"), and with `unlock` the value it unlocks at, in words. `chargeS`:
+ * the run's charge time (the level road shortens it), else the summon's own.
  */
-export function skillTipHtml(cls, { passive = true, foot = '', unlock = !foot } = {}) {
+function tipHeadHtml(unlock, chargeS = null) {
+  const h = summonHead();
+  const part = (key, s) => `<span class="tip-stat">${icon(key, { size: 16 })}${esc(tr('unit.s', { n: num(Math.round(s * 10) / 10) }))}</span>`;
+  const dot = '<i class="tip-dot" aria-hidden="true">·</i>';
+  return `${part('charge', chargeS ?? h.chargeS)}${dot}${part('summon', h.durS)}${unlock ? `${dot}<span>${esc(tr('skill.locked', { unlock: String(h.unlock) }))}</span>` : ''}`;
+}
+
+/**
+ * A fusion's skill as a League of Legends tooltip: its name and head (the summon's charge and time out),
+ * ACTIVE (the summon, and what the pet does out on the field), PASSIVE (how the fusion attacks from its
+ * tile), then `foot` (markup: the lock, or the tile card's live charge line). `unlock` keeps the value it
+ * unlocks at in the head when no foot says it; `chargeS` is the run's charge time, when there is a run.
+ */
+export function skillTipHtml(cls, { passive = true, foot = '', unlock = !foot, chargeS = null } = {}) {
   const w = skillWords(cls);
   const row = (kind, words) => `<p class="tip-row"><i class="tip-kick tip-${kind}">${esc(tr(`skill.${kind}`))}</i> ${esc(words)}</p>`;
   return `<section class="skill-tip" style="--c:${fusionColor(cls.element, cls.fusion)}">
-    <header class="tip-top"><b class="tip-name">${esc(w.name)}</b><small class="tip-head">${esc(unlock ? skillHead() : w.head)}</small></header>
+    <header class="tip-top"><b class="tip-name">${esc(w.name)}</b><small class="tip-head">${tipHeadHtml(unlock, chargeS)}</small></header>
     ${row('active', `${w.summon} ${w.text}`)}
-    ${passive ? row('passive', passive === 'any' ? anyMainPassive() : w.passive) : ''}
+    ${passive ? row('passive', w.passive) : ''}
     ${foot}
   </section>`;
 }
@@ -83,6 +132,13 @@ function fuseChipHtml(a, b, img) {
   return `<span class="fuse-chip" style="--c:${fusionColor(a, b)}" title="${esc(`${w.name}: ${w.pet} (${elName(a)} + ${elName(b)})`)}"><span class="fc-pic">${face ? pic(face) : ''}<span class="fc-badge" style="--c:${elColor(b)}">${badge(b, img)}</span></span><small>${esc(w.name)}</small></span>`;
 }
 
+/** What an element gives a fusion it is fed into, its stat as a chip: "Fed to a fusion: [sword] +20%". */
+export const feedLineHtml = (element) => trMarkup('buff.line', {}, { stat: chipHtml(buffChip(element)) });
+/** A pure pet's aura, its stat as a chip: "Every other pet: [sword] +25%" (`chip`: pureChip's, else the element's). */
+export function pureAuraHtml(element, chip = pureChip(element)) {
+  return trMarkup(chip.scope === 'blocks' ? 'chip.blocks' : 'chip.others', {}, { stat: chipHtml(chip) });
+}
+
 /** One element on offer: a card to pick. */
 function dieCardHtml(o, i, { img, deck }) {
   // the offer's own words (the sim's), else the element's from the table
@@ -96,8 +152,8 @@ function dieCardHtml(o, i, { img, deck }) {
         <span class="dc-art">${pic(baby)}<span class="dc-seal">${badge(o.element, img)}</span></span>
         <span class="dc-names"><b class="dc-name">${esc(name)}</b><em class="dc-attack">${esc(o.attack ?? elAttack(o.element))}</em><small class="dc-line">${esc(o.line ?? elLine(o.element))}</small></span>
       </span>
-      <span class="dc-perk dc-feed">${FEED_ICON}<span>${esc(buffLine(o.element))}</span></span>
-      <span class="dc-perk dc-pure">${PURE_ICON}<span><b>${esc(tr('die.pureAt', { name: pureName(o.element), value: PURE_AT }))}</b> ${esc(pureAura(o.element))}</span></span>
+      <span class="dc-perk dc-feed">${FEED_ICON}<span>${feedLineHtml(o.element)}</span></span>
+      <span class="dc-perk dc-pure">${PURE_ICON}<span><b>${esc(tr('die.pureAt', { name: pureName(o.element), value: PURE_AT }))}</b> ${pureAuraHtml(o.element)}</span></span>
       ${partners.length ? `<span class="dc-fuses-label">${esc(tr('die.fuses'))}</span><span class="dc-fuses">${partners.map((d) => fuseChipHtml(o.element, d, img)).join('')}</span>` : ''}
       <span class="v2-pick">${esc(tr('die.pick', { name }))}</span>
       <kbd>${i + 1}</kbd>
@@ -116,47 +172,6 @@ export function dieChoiceHtml(choice, { img = generatedUrl, deck = [] } = {}) {
   return `${choiceHead({ chip, title: tr('die.title'), sub: tr('die.sub') })}<div class="v2-options die-options" data-n="${offers.length}">${offers.map((o, i) => dieCardHtml(o, i, { img, deck })).join('')}</div>`;
 }
 
-// --- a fusion's main element ------------------------------------------------------------------------
-
-/** One of the two pets being merged: its egg or baby on its colour, its element and value. */
-function partHtml(part, img) {
-  const url = img(petPicId(part.element, part.tier));
-  return `<span class="fe-part" style="--c:${elColor(part.element)}"><span class="fe-pic">${pic(url)}<span class="fe-badge">${badge(part.element, img)}</span></span><small>${esc(tr('fuse.part', { name: elName(part.element), value: tierValue(part.tier) }))}</small></span>`;
-}
-
-/** A main element to pick: its badge, its attack's name, and what the attack does. */
-function mainButtonHtml(o, i, img) {
-  return `
-    <button class="option main-option" data-act="pick" data-i="${i}" style="--c:${elColor(o.element)}">
-      <span class="mo-badge">${badge(o.element, img)}</span>
-      <span class="opt-text"><b>${esc(elAttack(o.element))}</b><small>${esc(tr('fuse.mainLine', { name: elName(o.element), line: elLine(o.element) }))}</small></span>
-      <kbd>${i + 1}</kbd>
-    </button>`;
-}
-
-/**
- * Two single pets (or eggs) of different elements merged: { kind: 'fusion', tileId, tier, parts:
- * [{ element, tier }] (mover, stayer), offers: [{ element, fusion, key, name, color }] (mover-main first) }.
- * The two pets being merged → the fusion pet (portrait, pet name, fusion name); the fusion's skill in
- * full (name, header, ACTIVE, PASSIVE for whichever main element); then one button per main element
- * (its attack and what it does).
- */
-export function fusionChoiceHtml(choice, { img = generatedUrl } = {}) {
-  const offers = choice.offers ?? [];
-  const head = choiceHead({ chip: choice.tier != null ? tierChip(choice.tier) : '', title: tr('fuse.title'), sub: tr('fuse.sub') });
-  if (!offers.length) return head; // (never in the SPEC: a frame that throws would stop the game)
-  const cls = { element: offers[0].element, fusion: offers[0].fusion };
-  const parts = choice.parts ?? [
-    { element: cls.element, tier: Math.max(1, choice.tier - 1) },
-    { element: cls.fusion, tier: Math.max(1, choice.tier - 1) },
-  ];
-  const pet = petName(cls.element, cls.fusion);
-  const say = tr('fuse.say', { a: elName(parts[0].element), b: elName(parts[1].element), pet });
-  const face = fusionPic(cls, img);
-  const eq = `<div class="fuse-eq" role="img" aria-label="${esc(say)}">${partHtml(parts[0], img)}<i class="fe-op" aria-hidden="true">+</i>${partHtml(parts[1], img)}<i class="fe-op fe-to" aria-hidden="true">→</i><span class="fe-out" style="--c:${fusionColor(cls.element, cls.fusion)}"><span class="fe-pic">${pic(face)}</span><b class="fe-pet">${esc(pet)}</b><small class="fe-fusion">${esc(fusionName(cls.element, cls.fusion))}</small></span></div>`;
-  return `${head}${eq}${skillTipHtml(cls, { passive: 'any' })}<div class="v2-options main-options">${offers.map((o, i) => mainButtonHtml(o, i, img)).join('')}</div>`;
-}
-
 // --- the fusion to keep -----------------------------------------------------------------------------
 
 /** An element chip (its badge and name); the main one says so. */
@@ -164,25 +179,24 @@ export function elChipHtml(element, { main = false, img = generatedUrl } = {}) {
   return `<span class="el-chip${main ? ' main' : ''}" style="--c:${elColor(element)}">${badge(element, img)}${esc(main ? tr('card.main', { name: elName(element) }) : elName(element))}</span>`;
 }
 
-/** The buffs a kept pet had before the merge: its buffs after it, less what it gains. */
-const ownBuffs = (buffs = {}, gain = {}) => Object.fromEntries(KEYS.map((k) => [k, (buffs[k] ?? 0) - (gain[k] ?? 0)]).filter(([, n]) => n > 0));
+/** A buff as a chip on its element's edge, titled with its element and what it gives ("+Poison ×2: +1.6 poison stacks per hit"). */
+const buffChipHtml = (c, cls = '') => chipHtml(c, { title: `${c.tag}: ${c.words}`, edge: elColor(c.element), cls });
 
 function keepCardHtml(o, i, img) {
   const cls = o.cls;
   const w = skillWords(cls);
   const face = fusionPic(cls, img);
-  const own = buffList(ownBuffs(cls.buffs, o.gain));
-  const gains = buffList(o.gain);
+  // its buffs after the merge, in one flow: what the merge gives it first (gold), then the ones it keeps as they are
+  const gained = (c) => (o.gain?.[c.element] ?? 0) > 0;
+  const after = buffChips(cls.buffs);
+  const buffs = [...after.filter(gained), ...after.filter((c) => !gained(c))];
   return `
     <button class="v2-card keep-card" data-act="pick" data-i="${i}" style="--c:${fusionColor(cls.element, cls.fusion)}">
-      <span class="kc-pic">${pic(face)}</span>
-      <b class="kc-pet">${esc(w.pet)}</b>
-      <small class="kc-skill">${esc(w.name)}</small>
-      <span class="kc-els">${elChipHtml(cls.element, { main: true, img })}${elChipHtml(cls.fusion, { img })}</span>
-      <span class="kc-label kc-gain-label">${esc(tr('keep.gains'))}</span>
-      <span class="kc-tags kc-gains">${gains.map((g) => `<span class="kc-tag kc-gain" style="--c:${elColor(g.element)}">${esc(gainTag(g.element, g.n))}</span>`).join('')}</span>
-      <small class="kc-gain-stats">${esc(gains.map((g) => buffStat(g.element, g.n)).join(', '))}</small>
-      ${own.length ? `<span class="kc-label">${esc(tr('keep.has'))}</span><span class="kc-tags">${own.map((b) => `<span class="kc-tag">${esc(gainTag(b.element, b.n))}</span>`).join('')}</span>` : ''}
+      <span class="kc-top">
+        <span class="kc-pic">${pic(face)}<span class="kc-badges">${[cls.element, cls.fusion].map((e) => `<span class="kc-badge" style="--c:${elColor(e)}" title="${esc(elName(e))}">${badge(e, img)}</span>`).join('')}</span></span>
+        <span class="kc-names"><b class="kc-pet">${esc(w.pet)}</b><small class="kc-skill">${esc(w.name)}</small></span>
+      </span>
+      <span class="kc-buffs">${buffs.map((c) => buffChipHtml(c, gained(c) ? 'gain' : '')).join('')}</span>
       <span class="v2-pick">${esc(tr('keep.pick', { pet: w.pet }))}</span>
       <kbd>${i + 1}</kbd>
     </button>`;
@@ -190,26 +204,29 @@ function keepCardHtml(o, i, img) {
 
 /**
  * Two fusions merged: { kind: 'keep', tileId, tier, offers: [{ cls, gain }] } (keep the mover's, keep the
- * stayer's; cls = the kept fusion after the merge, gain = the buffs it gains). Both pets side by side,
- * each with its skill, its elements, what it gains (the elements as tags, then what they give, in one
- * line: a long list never runs a phone's card off its screen) and the buffs it already had.
+ * stayer's; cls = the kept fusion after the merge, gain = the buffs it gains). A compact card docked at
+ * the top of the field, so the board stays in view under it (the merged block is highlighted there):
+ * both pets side by side, each with its portrait (its two elements' badges on it), its skill, and its
+ * buffs after the merge as stat chips, what the merge gives it first and in gold.
  */
 export function keepChoiceHtml(choice, { img = generatedUrl } = {}) {
   const offers = choice.offers ?? [];
-  return `${choiceHead({ chip: choice.tier != null ? tierChip(choice.tier) : '', title: tr('keep.title'), sub: tr('keep.sub') })}<div class="v2-options keep-options">${offers.map((o, i) => keepCardHtml(o, i, img)).join('')}</div>`;
+  return `${choiceHead({ title: tr('keep.title'), sub: tr('keep.sub') })}<div class="v2-options keep-options">${offers.map((o, i) => keepCardHtml(o, i, img)).join('')}</div>`;
 }
 
 // --- a choice, as the HUD shows it -----------------------------------------------------------------
 
 /** The dialog's markup for a pending choice (run.pendingChoice); ctx = { img, deck }. */
 export function choiceHtml(choice, ctx = {}) {
-  if (choice.kind === 'fusion') return fusionChoiceHtml(choice, ctx);
   if (choice.kind === 'keep') return keepChoiceHtml(choice, ctx);
   return dieChoiceHtml(choice, ctx);
 }
 
 /** The dialog's name for a screen reader. */
-export const choiceLabel = (choice) => tr(choice.kind === 'fusion' ? 'fuse.name' : choice.kind === 'keep' ? 'keep.name' : 'die.name');
+export const choiceLabel = (choice) => tr(choice.kind === 'keep' ? 'keep.name' : 'die.name');
+
+/** Whether a choice docks at the top of the field (the board stays in view) rather than opening over the screen. */
+export const choiceDocks = (choice) => choice?.kind === 'keep';
 
 /** A choice as one key: a new key is a new card (two die choices in a row share no tier, so the level and the offers count). */
 export const choiceKey = (choice) =>
@@ -218,11 +235,12 @@ export const choiceKey = (choice) =>
 // --- the skill gained ------------------------------------------------------------------------------
 
 /**
- * The card after a fusion is made (its choice taken, or none): the fusion pet's portrait, its name, the
- * fusion and its two elements, the skill it gained in full (name, header, ACTIVE, PASSIVE), when its
- * summon unlocks (`tier`: the block's, for the merges still to go), and OK.
+ * The card after two single pets fuse: the fusion pet's portrait, its name, the fusion and its two
+ * elements, its attack's strengths (`traits`: the block's profileFor(tile).traits, when the sim gives
+ * them), the skill it gained in full (name, head, ACTIVE, PASSIVE), when its summon unlocks (`tier`:
+ * the block's, for the merges still to go), and OK.
  */
-export function resultCardHtml(cls, { img = generatedUrl, tier = null } = {}) {
+export function resultCardHtml(cls, { img = generatedUrl, tier = null, strengths = null, chargeS = null } = {}) {
   const w = skillWords(cls);
   const face = fusionPic(cls, img);
   return `
@@ -230,6 +248,7 @@ export function resultCardHtml(cls, { img = generatedUrl, tier = null } = {}) {
     <span class="rc-pic">${pic(face)}</span>
     <h2 class="rc-pet" id="result-pet">${esc(w.pet)}</h2>
     <p class="rc-sub">${esc(tr('result.sub', { fusion: fusionName(cls.element, cls.fusion), a: elName(cls.element), b: elName(cls.fusion) }))}</p>
-    ${skillTipHtml(cls, { passive: true, foot: lockFootHtml(tier) })}
+    ${strengthsHtml(strengths, { title: false })}
+    ${skillTipHtml(cls, { passive: true, foot: lockFootHtml(tier), chargeS })}
     <button class="primary rc-ok" data-act="result-ok">${esc(tr('result.ok'))}</button>`;
 }

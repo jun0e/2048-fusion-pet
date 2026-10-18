@@ -1,11 +1,13 @@
 // What a block does, in words and numbers, for the tile card (src/ui/inspect.js) and the v2 cards
 // (src/ui/cards.js), as docs/v2/SPEC.md has it: a plain stone block, an elemental egg (or a fusion egg),
 // a single pet, a fusion pet (its main and second element, its buffs, its summon skill and how charged
-// it is, its pure aura at 4096). Built from the same data the simulation uses (classes.js profileFor,
+// it is, its pure aura at 4096), and since v2.1 (docs/v2/SPEC-v2.1.md) its attack's strengths and the
+// stats as chips: an icon's key and a number, which the screens draw with src/ui/icons.js in place of
+// the stat's words. Built from the same data the simulation uses (classes.js profileFor,
 // src/sim/skills/data.js), so the card always shows the attack the block really has. The words come
 // from the language's table (src/i18n). Pure data; no rendering.
 import { DEFENSE, GRID, V2, tierValue } from '../config.js';
-import { ELEMENTS, FUSIONS, fusionKey, profileFor, turretDamage } from './classes.js';
+import { ELEMENTS, FUSIONS, TRAIT_KEYS, buffWorth, fusionKey, profileFor, turretDamage } from './classes.js';
 import { ELEMENT_STATS, FUSION_HIT, FUSION_SKILLS, PURE_SELF, skillVars, summonHead } from './skills/data.js';
 import { num as fmt, ordinal, tr } from '../i18n/index.js';
 
@@ -46,8 +48,8 @@ export function statText(element, v) {
   if (!s) return '';
   return tr(`stat.${s}`, { v: s === 'poison' ? fmt(Math.round(v * 100) / 100) : pct(v) });
 }
-/** What `n` single pets of an element fed into a fusion give it: "+40% damage". */
-export const buffStat = (element, n = 1) => statText(element, ELEMENT_STATS[element].buff * n);
+/** What `n` single pets of an element fed into a fusion give it, each more copy a little less (classes.js buffWorth): "+32% damage". */
+export const buffStat = (element, n = 1) => statText(element, ELEMENT_STATS[element].buff * buffWorth(n));
 /** "Fed to a fusion: +20% damage" */
 export const buffLine = (element) => tr('buff.line', { stat: buffStat(element) });
 /** "Pure Fire" */
@@ -66,6 +68,66 @@ export const gainLine = (element, n = 1) => tr(n > 1 ? 'buff.gainN' : 'buff.gain
 /** A buffs map ({ fire: 2 }) as a list in element order: [{ element, n }]. */
 export const buffList = (buffs) => KEYS.filter((k) => buffs?.[k] > 0).map((k) => ({ element: k, n: buffs[k] }));
 
+// --- stat chips: the stat's icon and its number, where the cards showed the stat in words -------------
+
+/** A stat's value as its chip shows it beside the icon: "+20%", "+1" (poison stacks), "+1%/s" (regen). */
+export function statValue(stat, v) {
+  if (stat === 'poison') return `+${fmt(Math.round(v * 100) / 100)}`;
+  if (stat === 'regen') return tr('chip.perS', { v: `+${pct(v)}` });
+  return `+${pct(v)}`;
+}
+/**
+ * An element's stat at `v` as a chip: { element, stat (the icon's key), value ("+20%"), words (the
+ * stat in words, "+20% damage": a title, and what a line without icons says) }.
+ */
+export function statChip(element, v) {
+  const stat = ELEMENT_STATS[element]?.stat;
+  return stat ? { element, stat, value: statValue(stat, v), words: statText(element, v) } : null;
+}
+/** What `n` single pets of an element fed into a fusion give it, as a chip (with its tag: "+Fire ×2"); each more copy gives less (buffWorth). */
+export const buffChip = (element, n = 1) => ({ ...statChip(element, ELEMENT_STATS[element].buff * buffWorth(n)), n, tag: gainTag(element, n) });
+/** A buffs map as chips, in element order. */
+export const buffChips = (buffs) => buffList(buffs).map((b) => buffChip(b.element, b.n));
+/** A pure pet's aura as a chip, and whom it reaches: 'others' (every other pet) or 'blocks' (every block: health and regen). */
+export function pureChip(element) {
+  const s = ELEMENT_STATS[element];
+  return { ...statChip(element, s.pure), scope: s.stat === 'hp' || s.stat === 'regen' ? 'blocks' : 'others' };
+}
+
+/**
+ * The stats a block's profile carries beyond its attack's numbers (the buffs' and auras' crit, regen and
+ * health, docs/v2/SPEC.md section 4), as chips: [{ stat, value, words }].
+ */
+export function boostChips(p) {
+  const out = [];
+  if (p.critChance) out.push({ stat: 'crit', value: `${pct(p.critChance)} ×${p.critMult ?? 2}`, words: tr('card.fx.crit', { pct: pct(p.critChance), mult: p.critMult ?? 2 }) });
+  if (p.regen) out.push({ stat: 'regen', value: statValue('regen', p.regen), words: tr('card.fx.regen', { pct: pct(p.regen) }) });
+  if (p.hpMult > 1) out.push({ stat: 'hp', value: statValue('hp', p.hpMult - 1), words: tr('card.fx.hp', { pct: pct(p.hpMult - 1) }) });
+  return out;
+}
+
+// --- the attack's strengths (docs/v2/SPEC-v2.1.md section 3) ------------------------------------------
+
+/** The four strengths, in the order the cards show them (the sim's: classes.js TRAIT_KEYS). */
+export const TRAITS = TRAIT_KEYS;
+/** "A, B and C" in the language's words. */
+export const andList = (items) => (items.length > 1 ? tr('list.and', { head: items.slice(0, -1).join(', '), last: items.at(-1) }) : (items[0] ?? ''));
+
+/**
+ * A block's attack strengths (profileFor(tile).traits: { far, lanes, area, chain }) as the cards show
+ * them: each lit (it has it) or dim (a weakness), and a short line on what it is good and weak at.
+ * → { list: [{ key, on }], good: [key], weak: [key], line }, or null without traits.
+ */
+export function strengthsOf(traits) {
+  if (!traits) return null;
+  const list = TRAITS.map((key) => ({ key, on: !!traits[key] }));
+  const good = list.filter((t) => t.on).map((t) => t.key);
+  const weak = list.filter((t) => !t.on).map((t) => t.key);
+  const words = (keys) => andList(keys.map((k) => tr(`trait.${k}`)));
+  const line = !good.length ? tr('trait.none') : !weak.length ? tr('trait.all', { good: words(good) }) : tr('trait.line', { good: words(good), weak: words(weak) });
+  return { list, good, weak, line };
+}
+
 /**
  * The buff banner of a `buffed` event: { title: "Novakit +Fire", sub: "+20% damage", gains: "+Fire" }.
  * Several gains are joined with commas: the ribbon pages a long line at its words, and a page never
@@ -78,6 +140,7 @@ export function buffBanner(gain, pet) {
     title: tr('ban.buffed', { pet, gains }).trim(),
     sub: g.map((x) => buffStat(x.element, x.n)).join(', '),
     gains,
+    chips: g.map((x) => buffChip(x.element, x.n)), // the sub as the ribbon shows it: each stat's icon and number
   };
 }
 
@@ -116,9 +179,6 @@ export function skillWords(cls, pet) {
   };
 }
 
-/** The passive while the main element is still to pick (the fusion choice): "Attacks like the main element you pick, …". */
-export const anyMainPassive = () => tr('skill.fusionPassive', { main: tr('fuse.anyMain'), second: tr('fuse.anySecond'), hit: pct(FUSION_HIT - 1) });
-
 /** Seconds a summoned pet still has out on the field (tile.summon: `t` seconds out of `dur`). */
 export const summonLeft = (s) => (s ? Math.max(0, s.left ?? (s.dur ?? V2.summon.durS) - (s.t ?? 0)) : 0);
 
@@ -153,7 +213,7 @@ function rangeText(shoot) {
   return tr('card.range.line', { cells: cells(shoot.reach), lanes: laneText });
 }
 
-/** Each effect the profile carries, as one readable line (the v2 stats too: crit, regen, health). */
+/** Each effect the profile's attack carries, as one readable line. */
 export function effectLines(p) {
   const out = [];
   if (p.burn) out.push(tr('card.fx.burn', { pct: pct(p.burn.dpsPct), dur: secs(p.burn.dur), max: p.burn.max }));
@@ -175,55 +235,56 @@ export function effectLines(p) {
   if (p.bite) out.push(tr('card.fx.bite', { pct: pct(p.bite.chance), mult: p.bite.mult, below: pct(p.bite.below) }));
   if (p.loot) out.push(tr('card.fx.loot', { pct: pct(p.loot.pct), dur: secs(p.loot.dur) }));
   if (p.heal) out.push(tr('card.fx.heal', { pct: pct(p.heal.chance), by: pct(p.heal.pct) }));
-  // v2: the element stats a fusion's buffs and the pure auras add (docs/v2/SPEC.md section 4)
-  if (p.critChance) out.push(tr('card.fx.crit', { pct: pct(p.critChance), mult: p.critMult ?? 2 }));
-  if (p.regen) out.push(tr('card.fx.regen', { pct: pct(p.regen) }));
-  if (p.hpMult > 1) out.push(tr('card.fx.hp', { pct: pct(p.hpMult - 1) }));
+  // (the element stats a fusion's buffs and the pure auras add, crit, regen and health, are chips: boostChips)
   return out;
 }
 
-/** The attack's numbers: damage, attacks, DPS, range, targets (a block that shoots). */
+/** The attack's numbers: damage, attacks, DPS, range, targets (a block that shoots); `key` is each one's icon. */
 function statsOf(tile, p) {
   const hit = p.damage ?? turretDamage(tile.tier) * p.dmgMult;
   const count = p.shoot.count ?? 1;
   return [
-    { label: tr('card.stat.damage'), value: count > 1 ? `${num(hit)} × ${count}` : num(hit) },
-    { label: tr('card.stat.attacks'), value: perSec(p.rate) },
-    { label: tr('card.stat.dps'), value: `≈ ${num(hit * count * p.rate)}` },
-    { label: tr('card.stat.range'), value: rangeText(p.shoot) },
-    { label: tr('card.stat.targets'), value: tr(`card.target.${AREA[p.shoot.pattern] ? `area.${AREA[p.shoot.pattern]}` : (TARGET[p.shoot.target] ?? 'nearest')}`) },
+    { key: 'dmg', label: tr('card.stat.damage'), value: count > 1 ? `${num(hit)} × ${count}` : num(hit) },
+    { key: 'rate', label: tr('card.stat.attacks'), value: perSec(p.rate) },
+    { key: 'dps', label: tr('card.stat.dps'), value: `≈ ${num(hit * count * p.rate)}` },
+    { key: 'range', label: tr('card.stat.range'), value: rangeText(p.shoot) },
+    { key: 'aim', label: tr('card.stat.targets'), value: tr(`card.target.${AREA[p.shoot.pattern] ? `area.${AREA[p.shoot.pattern]}` : (TARGET[p.shoot.target] ?? 'nearest')}`) },
   ];
 }
 
 /**
  * The auras a block takes from the pure pets on the board (tile.aura, set by the run: { [element]: v },
  * every OTHER pure pet's value by its main element): health and regen reach every block, the rest only
- * pets. → [{ element, text: "Pure Fire: +25% damage" }]
+ * pets. → [{ element, name: "Pure Fire", chip (statChip), text: "Pure Fire: +25% damage" }]
  */
 export function auraLines(tile) {
   const pet = !!tile.cls?.element;
   return KEYS.filter((k) => tile.aura?.[k] > 0)
     .filter((k) => pet || ['hp', 'regen'].includes(ELEMENT_STATS[k].stat))
-    .map((k) => ({ element: k, text: tr('card.aura', { name: pureName(k), stat: statText(k, tile.aura[k]) }) }));
+    .map((k) => ({ element: k, name: pureName(k), chip: statChip(k, tile.aura[k]), text: tr('card.aura', { name: pureName(k), stat: statText(k, tile.aura[k]) }) }));
 }
 
-/** A pet's pure form: its name, its aura, what it gains itself, and whether it is pure now (else when: "Pure Fire at 4096 (2 more merges)"). */
+/** A pet's pure form: its name, its aura (in words, and as a chip), what it gains itself, and whether it is pure now (else when: "Pure Fire at 4096 (2 more merges)"). */
 const pureOf = (element, tile, active) => ({
   element,
   active,
   name: pureName(element),
   aura: pureAura(element),
+  chip: pureChip(element),
   self: pureSelf(),
+  selfChip: { stat: 'dmg', value: statValue('dmg', PURE_SELF - 1), words: pureSelf() }, // what it gains itself, as a chip
   at: active ? null : tr('card.pure.at', { name: pureName(element), value: PURE_AT, merges: mergesTo(tile.tier, V2.pureTier) }),
 });
 
 // --- the tile card ----------------------------------------------------------------------------------
 
 /**
- * The tile card's content for a block (docs/v2/SPEC.md section 7):
+ * The tile card's content for a block (docs/v2/SPEC.md section 7, SPEC-v2.1 section 6):
  *   { kind: plain | egg | single | fusion, value, title, subtitle?, petName?, desc, hint?, elements: [{ element, main }],
- *     stats: [{ label, value }], effects: [string], auras: [{ element, text }], feed?, fuses?, buffs?, skill?, pure?, next, colors }
- * skill: skillWords + { cls, state, charge, left, stateText } (skillState); pure: { name, aura, self, active, at }
+ *     stats: [{ key (its icon), label, value }], effects: [string], boosts: [chip], strengths (strengthsOf, or null),
+ *     auras: [{ element, name, chip, text }], feed?, feedChip?, fuses?, buffs?: [{ element, n, text, tag, chip }],
+ *     skill?, pure?, next, colors }
+ * skill: skillWords + { cls, state, charge, left, stateText } (skillState); pure: { name, aura, chip, self, active, at }
  * ctx: { petName (a, b) → name, tiles (the board, for the singles a pet can fuse with), skill: { charge, ready } }
  */
 export function describeTile(tile, ctx = {}) {
@@ -237,7 +298,10 @@ export function describeTile(tile, ctx = {}) {
   const shoots = p.shoots !== false && hatched;
   const stats = shoots && p.shoot ? statsOf(tile, p) : [];
   const effects = shoots ? effectLines(p) : [];
-  const base = { value, tier: tile.tier, stats, effects, elements: [], auras: auraLines(tile), next: null };
+  const boosts = shoots ? boostChips(p) : [];
+  // the attack's strengths, lit or dim (v2.1: profileFor gives them; none until a block shoots)
+  const strengths = shoots ? strengthsOf(p.traits) : null;
+  const base = { value, tier: tile.tier, stats, effects, boosts, strengths, elements: [], auras: auraLines(tile), next: null };
 
   // a plain stone block: never an element; from 16 it shoots pebbles
   if (!cls.element) {
@@ -263,7 +327,7 @@ export function describeTile(tile, ctx = {}) {
     const pure = !!cls.pure;
     const st = skillState(tile, ctx.skill);
     const skill = { ...words, cls: { element: cls.element, fusion: cls.fusion }, state: st.state, charge: st.charge, left: st.left, stateText: st.text };
-    const buffs = buffList(cls.buffs).map((b) => ({ ...b, text: gainLine(b.element, b.n) }));
+    const buffs = buffList(cls.buffs).map((b) => ({ ...b, text: gainLine(b.element, b.n), tag: gainTag(b.element, b.n), chip: buffChip(b.element, b.n) }));
     const egg = !hatched;
     return {
       ...base,
@@ -292,6 +356,7 @@ export function describeTile(tile, ctx = {}) {
       hint: tr('card.egg.fuse'),
       elements,
       feed: buffLine(cls.element),
+      feedChip: buffChip(cls.element),
       next: tr('card.egg.next', { merges: mergesTo(tile.tier, HATCH_TIER) }),
       colors: [e.color],
     };
@@ -312,6 +377,7 @@ export function describeTile(tile, ctx = {}) {
     desc: tr(`el.${cls.element}.desc`),
     elements,
     feed: buffLine(cls.element),
+    feedChip: buffChip(cls.element),
     fuses,
     pure: pureOf(cls.element, tile, !!cls.pure),
     colors: [e.color],

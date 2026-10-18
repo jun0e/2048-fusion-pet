@@ -203,57 +203,67 @@
   transform-origin: left;
 }
 
-/* the level card puts Buy XP first (under the bar), then the odds */
-.run-card .lv-act {
-  margin: 8px 0 10px;
-  padding: 0 0 10px;
-  border-top: 0;
-  border-bottom: 2px dashed var(--cream-2);
+/* the level card: the XP to the next level, then what that level brings on the level road, each
+   reward as an icon and words (src/ui/run-badges.js levelCardHtml) */
+.lv-next {
+  margin: 10px 0 0;
 }
 
-.lv-odds {
+.lv-next h4 {
+  margin: 0 0 6px;
+  font: 800 14px/1.2 var(--font-display);
+}
+
+.lv-rewards {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lv-reward {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 12px;
+  background: #fff1c2;
+  box-shadow: inset 0 0 0 2px #ffcf4a99;
+}
+
+.lv-reward b {
+  display: block;
+  font: 800 16px/1.2 var(--font-display);
+}
+
+/* the values new blocks can be from this level on, or no longer are */
+.lv-values {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font: 800 13px/1.2 var(--font-body);
+  color: var(--ink-soft);
+}
+
+.lv-value {
+  min-width: 28px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c) 55%, var(--cream));
+  box-shadow: inset 0 0 0 1.5px #2b1d2e40;
+  font: 800 13px/1.5 var(--font-display);
+  color: var(--ink);
+  text-align: center;
+}
+
+.lv-top {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 6px;
-}
-
-.lv-odds-label {
-  flex: 0 0 52px;
-  font: 800 12px/1.2 var(--font-display);
-  color: var(--ink-soft);
-}
-
-.lv-odds.next .odds {
-  opacity: 0.75;
-}
-
-.odds {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-/* an odd: the value on its tier colour (the number is the colour-blind channel), its share under */
-.odd {
-  display: grid;
-  justify-items: center;
-  min-width: 38px;
-  padding: 2px 3px 3px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--c) 45%, var(--cream));
-  box-shadow: inset 0 0 0 1.5px #2b1d2e40;
-}
-
-.odd b {
-  font: 800 14px/1.1 var(--font-display);
-}
-
-.odd em {
-  font: 800 12px/1.1 var(--font-body);
-  font-style: normal;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-soft);
+  margin: 10px 0 0;
 }
 
 /* --- the keepsake picker (before a run) ------------------------------------------------------- */

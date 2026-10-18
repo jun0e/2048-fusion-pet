@@ -11,9 +11,9 @@
 /** Also in index.html: New run on the failure screen removes this key itself (it must work without main.js). */
 export const RESUME_KEY = 'siege:run';
 /** Bump when a change makes old logs replay differently (renamed inputs, sim rules). */
-export const SAVE_VERSION = 6; // 2: the basic attacks and sell / break (art fork merge); 3: roaming pets are sim state; 4: spawn levels and keepsakes; 5: fusion picks from a block's material; 6: v2 (docs/v2/SPEC.md: eggs, fusions of two pets, buffs, summons, pure forms)
+export const SAVE_VERSION = 7; // 2: the basic attacks and sell / break (art fork merge); 3: roaming pets are sim state; 4: spawn levels and keepsakes; 5: fusion picks from a block's material; 6: v2 (docs/v2/SPEC.md: eggs, fusions of two pets, buffs, summons, pure forms); 7: v2.1 (docs/v2/SPEC-v2.1.md: the level road, a growing board, no fusion pick, no Buy XP)
 /** Run methods that change the sim from outside (debug helpers are not saved). */
-export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave', 'discard', 'castSkill', 'buyXp'];
+export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave', 'discard', 'castSkill'];
 
 /** localStorage, or null where reading it throws. */
 function local() {
@@ -37,6 +37,7 @@ export function recordRun(run, log = { seed: run.seed, roaming: !!run.roaming, k
   };
   for (const name of RESUME_INPUTS) {
     const call = run[name];
+    if (typeof call !== 'function') continue; // a run without it (a stand-in in a test): nothing to record
     run[name] = (...args) => {
       const res = call(...args);
       if (res !== false && res?.ok !== false) log.inputs.push([log.steps, name, ...args]);

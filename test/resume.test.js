@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRun } from '../src/sim/run.js';
 import { createRng } from '../src/sim/rng.js';
-import { recordRun, replayRun, restoreRun, fingerprint, saveRun, loadSaved, clearSaved, markRelang, mayRestore, takeRelang, RELANG_KEY, SAVE_VERSION, RESUME_KEY } from '../src/ux/resume.js';
+import { recordRun, replayRun, restoreRun, fingerprint, saveRun, loadSaved, clearSaved, markRelang, mayRestore, takeRelang, RELANG_KEY, RESUME_INPUTS, SAVE_VERSION, RESUME_KEY } from '../src/ux/resume.js';
 
 /** Play a recorded run with random inputs for `seconds` of sim time. */
 function play(seed, seconds) {
@@ -192,4 +192,15 @@ test('v2: the fingerprint holds a block’s buffs, its pure form and its summone
   assert.equal(fingerprint(runOf([{ ...base, cls: { element: 'fire', fusion: 'ice', buffs: { earth: 1 } } }])), fp, 'the same block, the same print');
   assert.equal(fingerprint(runOf([{ ...base, cls: { ...base.cls, buffs: { ice: 1, earth: 1 } } }])), fingerprint(runOf([{ ...base, cls: { ...base.cls, buffs: { earth: 1, ice: 1 } } }])), 'buffs in any key order');
   assert.ok(SAVE_VERSION >= 6, 'a v1 save cannot replay in v2');
+});
+
+test('v2.1: Buy XP is no input any more, and old saves are let go (the level road replays differently)', () => {
+  assert.ok(!RESUME_INPUTS.includes('buyXp'));
+  assert.ok(SAVE_VERSION >= 7, 'a v2 save cannot replay in v2.1');
+  // a run without one of the inputs (a stand-in) is still recorded: the inputs it has are wrapped
+  const run = { seed: 1, steps: 0, step() {}, move: () => true };
+  const log = recordRun(run);
+  assert.equal(run.move('up'), true);
+  assert.deepEqual(log.inputs, [[0, 'move', 'up']]);
+  assert.equal(run.castSkill, undefined, 'nothing added where the run has nothing');
 });
