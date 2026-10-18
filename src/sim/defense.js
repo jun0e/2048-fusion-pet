@@ -186,9 +186,10 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     e.burn.dps = Math.max(e.burn.dps, burn.dpsPct * hitDamage);
   }
 
-  function addPoison(e, poison, hitDamage) {
+  /** `stacks`: how many a hit adds (v2's poison buff: profile poison.perHit); a puddle's tick adds one. */
+  function addPoison(e, poison, hitDamage, stacks = 1) {
     if (!poison) return;
-    e.poison.stacks = Math.max(e.poison.stacks, Math.min(poison.max, e.poison.stacks + 1));
+    e.poison.stacks = Math.max(e.poison.stacks, Math.min(poison.max, e.poison.stacks + Math.max(1, stacks)));
     e.poison.t = poison.dur;
     e.poison.dps = Math.max(e.poison.dps, poison.dpsPct * hitDamage);
     if (poison.weaken && e.poison.stacks >= poison.max) {
@@ -344,7 +345,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
   function applyStatuses(e, prof, hitDamage, origin = null) {
     if (e.dead) return;
     addBurn(e, prof.burn, hitDamage);
-    addPoison(e, prof.poison, hitDamage);
+    addPoison(e, prof.poison, hitDamage, prof.poison?.perHit ?? 1);
     if (prof.chill) {
       const slow = e.boss ? prof.chill.slow * 0.5 : prof.chill.slow;
       e.chillSlow = e.chillT > 0 ? Math.max(e.chillSlow, slow) : slow;

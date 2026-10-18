@@ -37,12 +37,12 @@ export function createKit(api) {
       p,
       tile,
       s,
-      prof,
+      prof, // the defense refreshes it every tick: a buff fed in while the pet is out counts at once
       color,
       state: s.state,
       /** The pet's hit: every "pct" in the skill data is a share of it. */
       get hit() {
-        return prof.damage;
+        return ctx.prof.damage;
       },
       /** The pet, where it stands on the field: { x, y }. */
       get pet() {
@@ -102,9 +102,9 @@ export function createKit(api) {
       /** `pct` of the pet's hit to one foe (its crit chance rolls); a `hit` event. → damage dealt. */
       strike(e, pct, { kinds = ['physical'], color: c = color } = {}) {
         if (!e || e.dead || e.gone) return 0;
-        let d = prof.damage * pct;
-        const crit = !!prof.critChance && rng.next() < prof.critChance;
-        if (crit) d *= prof.critMult ?? 2;
+        let d = ctx.prof.damage * pct;
+        const crit = !!ctx.prof.critChance && rng.next() < ctx.prof.critChance;
+        if (crit) d *= ctx.prof.critMult ?? 2;
         const dealt = api.damage(e, d, kinds);
         events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: [c], crit, skill: key });
         return dealt;
@@ -137,10 +137,10 @@ export function createKit(api) {
         e.chillT = Math.max(e.chillT, sec);
       },
       burn(e) {
-        if (!e.dead) api.addBurn(e, prof.burn ?? BURN, prof.damage);
+        if (!e.dead) api.addBurn(e, ctx.prof.burn ?? BURN, ctx.prof.damage);
       },
       poison(e, stacks = 1) {
-        for (let i = 0; i < stacks && !e.dead; i++) api.addPoison(e, prof.poison ?? POISON, prof.damage);
+        for (let i = 0; i < stacks && !e.dead; i++) api.addPoison(e, ctx.prof.poison ?? POISON, ctx.prof.damage);
       },
       push(e, cells) {
         if (!e.dead) api.knock(e, cells * CELL, { by: 'skill', tier: tile.tier, colors: [color] });
@@ -173,7 +173,7 @@ export function createKit(api) {
       /** It loses `pct` of the pet's hit for every cell it moves. */
       bleed(e, sec, pct) {
         if (e.dead) return;
-        e.bleedPer = Math.max(e.bleedT > 0 ? e.bleedPer : 0, prof.damage * pct);
+        e.bleedPer = Math.max(e.bleedT > 0 ? e.bleedPer : 0, ctx.prof.damage * pct);
         e.bleedT = Math.max(e.bleedT, sec);
       },
       /** It stops and bites the pet instead of the blocks; each bite costs it `reflectPct` of the pet's hit. */
@@ -181,7 +181,7 @@ export function createKit(api) {
         if (e.dead) return;
         e.tauntT = Math.max(e.tauntT, sec);
         e.tauntBy = owner;
-        e.tauntReflect = prof.damage * reflectPct;
+        e.tauntReflect = ctx.prof.damage * reflectPct;
       },
 
       // --- blocks -------------------------------------------------------------------------------

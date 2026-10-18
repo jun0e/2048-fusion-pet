@@ -252,3 +252,28 @@ test('ctx.every counts whole periods; strike rolls the pet crit', () => {
   ctxRef.strike(e, 1.5);
   assert.equal(hp0 - e.hp, 300, '150% of a 100 hit, a sure crit ×2');
 });
+
+test('a buff fed in while the pet is out counts at once: the skill reads the profile the defense keeps current', () => {
+  let ctxRef = null;
+  const h = fresh({ start: (ctx) => (ctxRef = ctx) });
+  const e = h.foe(1, 3);
+  h.act();
+  const hp0 = e.hp;
+  ctxRef.strike(e, 1);
+  assert.equal(hp0 - e.hp, 100, 'the hit it started with');
+  h.pet.fakeProf = { ...h.pet.fakeProf, damage: 300 }; // a fire buff fed into the fusion mid-summon
+  h.run(PHYSICS.dt);
+  const hp1 = e.hp;
+  ctxRef.strike(e, 1);
+  assert.equal(hp1 - e.hp, 300, 'the new hit, at once');
+  assert.equal(ctxRef.hit, 300);
+});
+
+test("a hit poisons with the profile's stacks per hit (the poison buff), a puddle's tick with one", () => {
+  const POISON = { dpsPct: 0.1, dur: 3, max: 9, perHit: 3 };
+  const shooter = fakeBlock(5, { col: 1, row: 3, shoots: true, shoot: { pattern: 'single', reach: 10, lanes: 0, target: 'front' }, rate: 1, damage: 1, poison: POISON });
+  const h = skillHarness('test+probe', { blocks: [shooter] });
+  const e = h.foe(1, 6);
+  for (let i = 0; i < 120 && e.poison.stacks === 0; i++) h.run(PHYSICS.dt);
+  assert.equal(e.poison.stacks, 3, 'one hit, three stacks');
+});
