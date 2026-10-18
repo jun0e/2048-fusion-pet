@@ -9,6 +9,7 @@ import { Container, Texture, TextureSource } from 'pixi.js';
 import { AIR, CAPS, CLIP, FIELD_AREA, LANE_HALF, PIECE, SKILL_FX, WALL, ZONE, boltPoints, createSkillFx, fxWord, pieceAlpha, zoneArea } from '../src/render/skillfx.js';
 import { FUSIONS } from '../src/sim/classes.js';
 import { FIELD, laneX } from '../src/config.js';
+import { has, tr } from '../src/i18n/index.js';
 
 const U = 30;
 const DT = 1 / 60;
@@ -79,7 +80,7 @@ test('every skillFx kind draws, and books its light first: ring, beam, bolt, sla
   assert.equal(sc.fx.bursts.at(-1).n, 14, 'a burst through fx (it books its own particles)');
   const alls = sc.fx.alls.length;
   sc.s.onEvent({ type: 'skillFx', fx: 'text', x: 0, y: 12, key: 'shatter', color: '#ffffff' });
-  assert.deepEqual(sc.s.drawn.texts.map((t) => t.word), ['Shatter']);
+  assert.deepEqual(sc.s.drawn.texts.map((t) => t.word), [fxWord('shatter')]);
   assert.ok(sc.fx.alls.length === alls + 1 && sc.fx.alls.at(-1).lit > 0, 'a word books its ink whole, or is skipped');
   assert.ok(sc.layers.fx.children.length >= 1 && sc.layers.numbers.children.length >= 1);
   // a slam shakes the screen a little (not under Reduce motion)
@@ -125,9 +126,14 @@ test('the lines and words are capped, and a word floats up and fades (in place u
 });
 
 test('a skill word comes from the tables (fx.<key>), else from its own key', () => {
-  assert.equal(fxWord('shatter'), 'Shatter');
-  assert.equal(fxWord('fx.panic'), 'Panic');
-  assert.equal(fxWord('wakeUp'), 'Wake up');
+  // a key the tables have: its word, the key given with its 'fx.' or without
+  assert.ok(has('fx.shatter'));
+  assert.equal(fxWord('shatter'), tr('fx.shatter'));
+  assert.equal(fxWord('fx.shatter'), tr('fx.shatter'));
+  // keys no table has (made up here, so new words never break this): their own words
+  assert.ok(!has('fx.zzTestOnlyWord') && !has('fx.zz.test-only'));
+  assert.equal(fxWord('zzTestOnlyWord'), 'Zz test only word');
+  assert.equal(fxWord('fx.zz.test-only'), 'Zz test only');
   assert.equal(fxWord(''), '');
 });
 
@@ -311,6 +317,10 @@ test('an id the sim gives to another kind of zone or minion gets a view of its o
 
 test('a zone’s area: a disc; r = Infinity the whole field; a sandstorm with lanes those lanes’ columns, from the parapet to the portals', () => {
   assert.deepEqual(zoneArea({ x: 1, y: 12, r: 3 }), { cx: 1, cy: 12, hx: 3, hy: 3, round: true, lanes: null });
+  for (const r of [undefined, null, NaN]) {
+    const small = zoneArea({ kind: 'lava', x: 1, y: 12, r });
+    assert.ok(small.round && small.hx === 1 && small.cx === 1, `r ${r}: a small disc where it stands, not the whole field`);
+  }
   const field = zoneArea({ kind: 'snow', x: 0, y: 12, r: Infinity });
   assert.deepEqual([field.round, field.cx, field.hx], [false, 0, FIELD_AREA.hx]);
   assert.ok(Math.abs(field.cy - field.hy - FIELD_AREA.y0) < 1e-9 && Math.abs(field.cy + field.hy - FIELD.spawnY) < 1e-9, 'parapet to portals');

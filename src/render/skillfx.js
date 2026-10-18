@@ -55,14 +55,18 @@ export const FIELD_AREA = { hx: FRAME_GEOM.towerIn, y0: FRAME_GEOM.parapet.wall,
 /** Where the skills' pieces may show (world units): the field and the keep, never over the towers. */
 export const CLIP = { hx: FRAME_GEOM.towerIn, y0: -FRAME_GEOM.keep.pad, y1: FIELD.spawnY + 0.6 };
 
+/** A zone's radius when it comes without one it can use (world units): a small disc, never the whole field. */
+const ZONE_R0 = 1;
+
 /**
  * Where a zone lies, in world units: a disc (its x, y, r); with r = Infinity the whole field (FIELD_AREA),
- * or with `lanes` (a sandstorm) those lanes' columns from the parapet to the portals.
+ * or with `lanes` (a sandstorm) those lanes' columns from the parapet to the portals. A missing r (or NaN)
+ * is a ZONE_R0 disc.
  * → { cx, cy, hx, hy, round, lanes }
  */
 export function zoneArea(z) {
-  if (Number.isFinite(z.r)) {
-    const r = Math.max(0.2, z.r);
+  if (z.r !== Infinity) {
+    const r = Math.max(0.2, Number.isFinite(z.r) ? z.r : ZONE_R0);
     return { cx: z.x, cy: z.y, hx: r, hy: r, round: true, lanes: null };
   }
   const cy = (FIELD_AREA.y0 + FIELD_AREA.y1) / 2;
@@ -258,7 +262,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     const v = { c, g, kind: z.kind, color: hex(z.color ?? ELEMENTS.fire.color), U: 0, r: 0, key: '', area: zoneArea(z), seed: (hash01i(++serial) * 1000) | 0, bits: [], spin: 0, dt: 0 };
     // the bits that move: puffs of a cloud or a sandstorm, a blizzard's flakes, a twister's rings
     const dot = tx.softDot();
-    const flakes = Math.max(10, Math.min(ZONE.flakes, Math.round((Number.isFinite(z.r) ? z.r : 99) ** 2 * 0.8))); // a blizzard over the whole field gets them all
+    const flakes = Math.max(10, Math.min(ZONE.flakes, Math.round((v.area.round ? v.area.hx : 99) ** 2 * 0.8))); // a blizzard over the whole field gets them all
     const lanes = v.area.lanes?.length ?? 1;
     const n = z.kind === 'cloud' ? ZONE.puffs : z.kind === 'sand' ? ZONE.puffs * Math.min(2, lanes) + ZONE.streaks * Math.min(2, lanes) : z.kind === 'snow' ? ZONE.snowHaze + flakes : z.kind === 'lava' ? 3 : 0;
     for (let i = 0; i < n; i++) {
