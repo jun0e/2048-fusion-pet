@@ -69,7 +69,7 @@ const clsKey = (cls = {}) =>
     .join('')}`;
 
 /** Where a block's pet is: on the field during a summon (v2: tile.summon), else nowhere. */
-const petAt = (t) => (t.summon ? `@${t.summon.x.toFixed(2)},${t.summon.y.toFixed(2)}` : '');
+const petAt = (t) => (t.summon ? `@${Number(t.summon.x ?? 0).toFixed(2)},${Number(t.summon.y ?? 0).toFixed(2)}` : '');
 
 /** What must match after a replay: the board (with classes, buffs, health and summoned pets), the economy, the deck, the spawn level. */
 export const fingerprint = (run) =>

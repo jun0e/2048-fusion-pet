@@ -588,7 +588,7 @@ async function start() {
       if (!tile) return select(null);
       select(tile.id === selected ? null : tile.id);
     },
-    choose: (i) => !paused && i < (run.pendingChoice?.offers.length ?? 0) && run.choose(i), // a key beyond the cards does nothing
+    choose: (i) => (demoChoice ? i < demoChoice.offers.length && pickDemo(i) : !paused && i < (run.pendingChoice?.offers.length ?? 0) && run.choose(i)), // a key beyond the cards does nothing
     nextWave: () => !paused && !run.pendingChoice && run.nextWave(),
     pause: () => (picker?.isOpen ? null : pause.menu === 'closed' ? openMenu() : pause.back()), // Escape / P: one step back (the keepsake picker already holds the game)
   });
@@ -646,7 +646,7 @@ async function start() {
       return showBuffed({ type: 'buffed', tileId: t?.id, gain: { fire: 1 }, buffs: { ...(t?.cls?.buffs ?? {}), fire: 1 }, x: t?.x, y: t?.y, tier: t?.tier });
     }
     closeResult();
-    demoChoice = mockChoice(kind, run.owned);
+    demoChoice = mockChoice(kind); // two offers whatever the deck has grown to (its fusions show with the run's deck)
   }
   /** A mock choice picked: it closes; a fusion's shows its skill gained, with the main element picked. */
   function pickDemo(i) {
