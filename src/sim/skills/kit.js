@@ -90,6 +90,8 @@ export function createKit(api) {
       leading: (list = api.alive()) => list.reduce((m, e) => (!m || e.s > m.s ? e : m), null),
       fastest: (list = api.alive()) => list.reduce((m, e) => (!m || speedOf(e) > speedOf(m) ? e : m), null),
       pick: (list) => (list.length ? list[Math.floor(rng.next() * list.length)] : null),
+      /** True `p` of the time (the defense's own random stream: replays stay exact). */
+      roll: (p) => rng.next() < p,
       laneX: (lane) => laneX(lane),
       laneOf: (x) => api.laneOfX(x),
       /** Where foes stop walking lanes and step onto the board (world y). */
@@ -153,10 +155,13 @@ export function createKit(api) {
       fear(e, sec) {
         if (!e.dead) e.fearT = Math.max(e.fearT, control(e, sec));
       },
-      /** Asleep: stands still and does not bite; the first hit wakes it for `wakeMult` × damage. */
-      sleep(e, sec, wakeMult = 1) {
+      /**
+       * Asleep: stands still and does not bite; the first hit wakes it for `wakeMult` × damage. A boss
+       * sleeps half as long, or `bossSec` when the skill names its own.
+       */
+      sleep(e, sec, wakeMult = 1, bossSec = null) {
         if (e.dead) return;
-        e.sleepT = Math.max(e.sleepT, control(e, sec));
+        e.sleepT = Math.max(e.sleepT, e.boss && bossSec != null ? bossSec : control(e, sec));
         e.sleepWake = Math.max(e.sleepT > 0 ? e.sleepWake : 1, wakeMult);
       },
       /** Its bites miss `missPct` of the time. */
