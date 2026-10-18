@@ -180,6 +180,25 @@ export const DEFENSE = {
   ],
 };
 
+// v2.1 (docs/v2/SPEC-v2.1.md section 5): waves grow in count all run, foes resist the player's top
+// elements, and after 8 minutes the waves steepen; from 10 they match the board's damage per second, so
+// nobody lasts past about 12. Tuned with tools/v21-probe.mjs.
+export const WAVES = {
+  perWave: 1.5, // foes a wave adds: 4 + 1.5 × wave, with no cap (v2 stopped at 30)
+  sizeCount: 1, // a bigger board brings more foes: × (size / 4) ^ sizeCount
+  gapPerWave: 0.012, // a wave's foes come this much faster each wave …
+  gapMin: 0.5, // … down to half v2's gap
+  // resistances: from wave `from`, a share of each wave (topStep a wave, up to topMax) resists the player's
+  // top element; from `secondFrom` also the second; bosses resist the top from `bossFrom`; `amount` of a hit
+  resist: { from: 10, topStep: 0.05, topMax: 0.5, secondFrom: 20, secondStep: 0.04, secondMax: 0.35, bossFrom: 15, amount: 0.5 },
+};
+export const V2_1 = {
+  // the ramp, in minutes of run time: from steepAt the waves' health is × e^(steepK · (m − steepAt)²);
+  // from dpsAt a wave also needs at least needS seconds of the board's whole firepower, needS starting at
+  // the run's own ratio then (at least needMin) and × needGrowth each minute
+  ramp: { steepAt: 8, dpsAt: 10, steepK: 0.2, needGrowth: 3, needMin: 10 },
+};
+
 // Random Dice-style economy: kills drop coins, every swipe costs coins (and
 // spawns a block). Tuned with tools/economy.mjs (npm run economy) so a player
 // spends each wave's coins in the following break instead of banking them:
