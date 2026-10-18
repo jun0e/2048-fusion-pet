@@ -100,8 +100,9 @@ test('every table is plain text (no HTML: the Nibble copy reads the same tables)
     }
   }
   for (const [lang, table] of Object.entries(LANGS)) {
-    assert.deepEqual(Object.keys(table).sort(), Object.keys(EN).sort(), `${lang} has every English key, and no other`);
-    for (const k of Object.keys(EN)) assert.deepEqual(placeholders(table[k]), placeholders(EN[k]), `${lang} ${k}: the same placeholders`);
+    // English as the game reads it: en.js plus v2's skill words (src/i18n/skills-en.js)
+    assert.deepEqual(Object.keys(table).sort(), Object.keys(LANGS.en).sort(), `${lang} has every English key, and no other`);
+    for (const k of Object.keys(LANGS.en)) assert.deepEqual(placeholders(table[k]), placeholders(LANGS.en[k]), `${lang} ${k}: the same placeholders`);
   }
 });
 
