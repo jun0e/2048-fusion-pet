@@ -114,6 +114,16 @@ test('a pure pet: its aura is on, and what it gains itself', () => {
   assert.equal(d.next, null);
 });
 
+test('the auras a block takes from pure pets: health and regen reach every block, the rest only pets', () => {
+  const aura = { fire: 0.25, earth: 0.3 };
+  assert.deepEqual(
+    describeTile(tile(6, { element: 'ice' }, { aura })).auras.map((a) => a.text),
+    ['Pure Fire: +25% damage', 'Pure Earth: +30% health'],
+  );
+  assert.deepEqual(describeTile(tile(5, {}, { aura })).auras.map((a) => a.text), ['Pure Earth: +30% health'], 'a plain block takes health, not damage');
+  assert.deepEqual(describeTile(tile(5, {}, { aura: null })).auras, []);
+});
+
 test('the summon: locked below 1024, then charging, ready, and out with its time left', () => {
   const young = tile(8, { element: 'ice', fusion: 'fire', buffs: {} });
   assert.deepEqual(skillState(young), { state: 'locked', charge: 0, left: 0, text: 'Unlocks at 1024 (2 more merges)' });

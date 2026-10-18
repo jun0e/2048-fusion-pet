@@ -204,6 +204,8 @@ export const VI = {
   'card.main': '{name} (chính)',
   'card.buffs': 'Tăng cường',
   'card.buffs.none': 'Chưa có tăng cường: gộp một thú cưng đơn vào nó.',
+  'card.auras': 'Từ thú cưng thuần khiết',
+  'card.aura': '{name}: {stat}',
   'card.skill.charging': 'Đang sạc: {pct}',
   'card.skill.ready': 'Đã sạc đầy: chạm thẻ tên của nó',
   'card.skill.out': 'Đang ở ngoài sân: còn {s}',

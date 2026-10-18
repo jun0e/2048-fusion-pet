@@ -189,6 +189,18 @@ function statsOf(tile, p) {
   ];
 }
 
+/**
+ * The auras a block takes from the pure pets on the board (tile.aura, set by the run: { [element]: v },
+ * every OTHER pure pet's value by its main element): health and regen reach every block, the rest only
+ * pets. → [{ element, text: "Pure Fire: +25% damage" }]
+ */
+export function auraLines(tile) {
+  const pet = !!tile.cls?.element;
+  return KEYS.filter((k) => tile.aura?.[k] > 0)
+    .filter((k) => pet || ['hp', 'regen'].includes(ELEMENT_STATS[k].stat))
+    .map((k) => ({ element: k, text: tr('card.aura', { name: pureName(k), stat: statText(k, tile.aura[k]) }) }));
+}
+
 /** A pet's pure form: its name, its aura, what it gains itself, and whether it is pure now (else when: "Pure Fire at 4096 (2 more merges)"). */
 const pureOf = (element, tile, active) => ({
   element,
@@ -204,7 +216,7 @@ const pureOf = (element, tile, active) => ({
 /**
  * The tile card's content for a block (docs/v2/SPEC.md section 7):
  *   { kind: plain | egg | single | fusion, value, title, subtitle?, petName?, desc, hint?, elements: [{ element, main }],
- *     stats: [{ label, value }], effects: [string], feed?, fuses?, buffs?, skill?, pure?, next, colors }
+ *     stats: [{ label, value }], effects: [string], auras: [{ element, text }], feed?, fuses?, buffs?, skill?, pure?, next, colors }
  * skill: skillWords + { cls, state, charge, left, stateText } (skillState); pure: { name, aura, self, active, at }
  * ctx: { petName (a, b) → name, tiles (the board, for the singles a pet can fuse with), skill: { charge, ready } }
  */
@@ -217,7 +229,7 @@ export function describeTile(tile, ctx = {}) {
   const shoots = p.shoots !== false && hatched;
   const stats = shoots && p.shoot ? statsOf(tile, p) : [];
   const effects = shoots ? effectLines(p) : [];
-  const base = { value, tier: tile.tier, stats, effects, elements: [], next: null };
+  const base = { value, tier: tile.tier, stats, effects, elements: [], auras: auraLines(tile), next: null };
 
   // a plain stone block: never an element; from 16 it shoots pebbles
   if (!cls.element) {

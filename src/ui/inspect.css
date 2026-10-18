@@ -283,10 +283,12 @@
   background: color-mix(in srgb, var(--c) 20%, var(--cream));
 }
 .inspect-buffs,
+.inspect-auras,
 .inspect-fuses {
   margin: 0 0 8px;
 }
 .inspect-buffs ul,
+.inspect-auras ul,
 .inspect-fuses ul {
   display: grid;
   gap: 4px;
@@ -294,7 +296,8 @@
   padding: 0;
   list-style: none;
 }
-.inspect-buffs li {
+.inspect-buffs li,
+.inspect-auras li {
   padding: 3px 8px;
   border-radius: 8px;
   background: #fff1c2;

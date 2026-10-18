@@ -267,6 +267,7 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
     const out = [];
     if (info.hint) out.push(`<p class="inspect-hint">${esc(info.hint)}</p>`);
     if (info.feed) out.push(`<p class="inspect-perk inspect-feed">${esc(info.feed)}</p>`);
+    if (info.auras?.length) out.push(`<div class="inspect-auras"><h4>${esc(tr('card.auras'))}</h4><ul>${info.auras.map((a) => `<li style="--c:${ELEMENTS[a.element].color}">${esc(a.text)}</li>`).join('')}</ul></div>`);
     if (info.buffs) {
       out.push(
         `<div class="inspect-buffs"><h4>${esc(tr('card.buffs'))}</h4>${

@@ -206,6 +206,8 @@ export const EN = {
   'card.main': '{name} (main)',
   'card.buffs': 'Buffs',
   'card.buffs.none': 'No buffs yet: merge a single pet into it.',
+  'card.auras': 'From pure pets',
+  'card.aura': '{name}: {stat}',
   'card.skill.charging': 'Charging: {pct}',
   'card.skill.ready': 'Ready: tap its namecard',
   'card.skill.out': 'Out on the field: {s} left',
