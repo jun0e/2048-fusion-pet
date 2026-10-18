@@ -52,9 +52,7 @@ export const SKILLS = {
     tick(ctx, dt) {
       const { p } = ctx;
       // re-showered every tick, so a block that joins the board mid-way fires faster too, till the time out ends
-      // (none on its last tick: a boost of 0 s would leave a block's boostPct set with no time on it)
-      const left = ctx.s.dur - ctx.t;
-      if (left > 0) ctx.boostBlocks(p.ratePct, left);
+      ctx.boostBlocks(p.ratePct, ctx.s.dur - ctx.t);
       for (let n = ctx.every('sneeze', SNEEZE, dt); n > 0; n--) {
         for (const e of ctx.foes()) {
           if (!ctx.roll(p.sneezePct)) continue;
@@ -62,6 +60,15 @@ export const SKILLS = {
           ctx.fx('burst', { x: e.x, y: e.y, n: 6 });
           ctx.fx('text', { x: e.x, y: e.y + 0.8, key: 'fx.sneeze' });
         }
+      }
+    },
+    end(ctx) {
+      // the pollen goes with the pet: at the end of its time out (its last tick's 0 s shower would leave
+      // boostPct set with no time on it) and when its tile leaves the board early; another Pollen Rain
+      // still out re-showers the blocks on its next tick
+      for (const t of ctx.blocks()) {
+        t.boostT = 0;
+        t.boostPct = 0;
       }
     },
   },
