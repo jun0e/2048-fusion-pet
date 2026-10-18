@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FUSION_SKILLS as P } from '../src/sim/skills/data.js';
-import { GRID } from '../src/config.js';
+import { GRID, PHYSICS } from '../src/config.js';
 import { skillHarness, fakeBlock } from './helpers/skill-harness.js';
 
 const HIT = 100;
@@ -74,4 +74,18 @@ test('Pollen Rain: every block fires faster for the time out; each second each f
   h.run(dur - h.pet.summon.t + 0.1);
   assert.equal(h.pet.summon.phase, 'back');
   for (const t of h.blocks) assert.ok(t.boostT === 0 && t.boostPct === 0, 'no longer once the pet heads home');
+});
+
+test("Pollen Rain: the boost goes with the pet when its tile leaves the board before its time out ends", () => {
+  const p = P['wind+nature'];
+  const other = fakeBlock(2, { col: 2, row: 3 });
+  const h = skillHarness('wind+nature', { hit: HIT, blocks: [other] });
+  h.foe(1, 3);
+  h.act();
+  h.run(1);
+  assert.equal(other.boostPct, p.ratePct);
+  h.blocks.splice(0, 1); // the pet's tile merges away while the pet is out
+  h.run(PHYSICS.dt);
+  assert.equal(h.events('petHome').at(-1)?.gone, true);
+  assert.ok(other.boostT === 0 && other.boostPct === 0, `the other blocks stop firing faster (${other.boostT} s left)`);
 });

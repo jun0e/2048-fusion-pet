@@ -2,6 +2,7 @@
 // the words in src/i18n/skills-*.js). Each entry: SKILLS[fusionKey] = { start(ctx), tick(ctx, dt), end(ctx) },
 // written only against the kit (./kit.js). See ./fire.js for worked examples.
 import { FIELD } from '../../config.js';
+import { busiestLane } from '../roam.js';
 import { CELL } from './kit.js';
 
 const VENOM = '#8fe53a';
@@ -9,7 +10,8 @@ const BOLT = ['lightning'];
 const RUN = 5; // Thunder Charge: the charge up the lane, cells/s …
 const TROT = 2.5; // … and the trot back down to the board for the next one
 const REACH = CELL * 0.5; // how far ahead (and behind) of the boar a foe counts as in its way
-const RECOIL = 0.5; // Railgun: seconds it stays in sight after a shot, before it vanishes to charge the next
+const RECOIL = 0.5; // Railgun: seconds it stays in sight after a shot, before it vanishes to charge the next …
+const LAST = 0.1; // … and its last shot is out at least this long before its time out ends
 
 export const SKILLS = {
   // Toxic Circuit (Fizzlebolt): each beat, venom on fresh foes, then a current through every poisoned foe on the field
@@ -56,10 +58,11 @@ export const SKILLS = {
       const { p, pet, state: st } = ctx;
       const low = ctx.boardTop + 0.5;
       const high = ctx.portalY - 1;
-      // the runs are spread over its time out; each takes the lane that is busiest when it starts
+      // the runs are spread over its time out; each takes the lane that is busiest when it starts, counting
+      // only the foes a run can reach (not those deep on the board, below where it sets off)
       for (let n = ctx.every('run', ctx.s.dur / p.charges, dt); n > 0 && st.runs < p.charges; n--) {
         st.runs += 1;
-        st.lane = ctx.busiestLane();
+        st.lane = busiestLane(ctx.foes().filter((e) => e.y >= low - REACH), ctx.laneOf(pet.x));
         st.hit = new Set(); // once a run per foe, though the push throws it ahead of the boar
         st.charging = true;
         const x = ctx.laneX(st.lane);
@@ -112,7 +115,8 @@ export const SKILLS = {
   'lightning+metal': {
     start(ctx) {
       ctx.state.fired = 0;
-      ctx.state.next = ctx.p.chargeS; // when the shot it is charging is ready
+      ctx.state.from = 0; // when it began charging its next shot …
+      ctx.state.next = ctx.p.chargeS; // … and when that shot is ready (it holds it until there is a foe)
       ctx.s.hidden = true; // the renderer fades the pet while this is set
     },
     tick(ctx) {
@@ -126,11 +130,14 @@ export const SKILLS = {
           for (const e of ctx.inLane(target.lane)) ctx.strike(e, p.hitPct, { kinds: ['lightning', 'metal'] });
           ctx.fx('beam', { x, y: ctx.portalY, x1: x, y1: FIELD.gateY, w: 0.5 });
           st.fired += 1;
-          st.next = ctx.t + RECOIL + p.chargeS;
+          // the next charge takes chargeS, or less when a held shot left too little time for all the rest
+          const room = (ctx.s.dur - LAST - ctx.t) / Math.max(1, p.shots - st.fired) - RECOIL;
+          st.from = ctx.t + RECOIL;
+          st.next = st.from + Math.max(0, Math.min(p.chargeS, room));
         } else if (ctx.s.hidden) ctx.moveTo(x, top, 4); // unseen, it creeps to the lane it will fire down
       }
       // charging (and so unseen) from RECOIL after a shot until the next one; in sight once the last is out
-      ctx.s.hidden = st.fired < p.shots && ctx.t >= st.next - p.chargeS - 1e-9;
+      ctx.s.hidden = st.fired < p.shots && ctx.t >= st.from - 1e-9;
     },
     end(ctx) {
       ctx.s.hidden = false;
@@ -153,8 +160,8 @@ export const SKILLS = {
       ctx.fx('bolt', { x: pet.x, y: pet.y, x1: prey.x, y1: prey.y });
       ctx.fx('text', { x: prey.x, y: prey.y + 0.8, key: 'fx.snap' });
       ctx.strike(prey, p.hitPct, { kinds: ['lightning', 'nature'] });
-      // the lightning jumps from the prey to the foes nearest it
-      const rest = ctx.foes().filter((e) => e !== prey);
+      // the lightning jumps from the prey to the foes nearest it, as far as the flower itself reaches
+      const rest = ctx.near(prey.x, prey.y, p.radiusCells).filter((e) => e !== prey);
       for (let i = 0; i < p.jumps && rest.length; i++) {
         const e = ctx.nearest(prey.x, prey.y, rest);
         rest.splice(rest.indexOf(e), 1);

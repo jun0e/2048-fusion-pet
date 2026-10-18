@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FUSION_SKILLS as P } from '../src/sim/skills/data.js';
-import { GRID, SIEGE, laneX } from '../src/config.js';
+import { FIELD, GRID, PHYSICS, SIEGE, laneX } from '../src/config.js';
 import { skillHarness } from './helpers/skill-harness.js';
 
 const HIT = 100;
@@ -11,6 +11,8 @@ const CELL = GRID.cell;
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
 /** The skill's own hits on one foe (the harness blocks do not shoot). */
 const blowsOn = (h, key) => (e) => h.events('hit').filter((x) => x.skill === key && x.id === e.id);
+/** Stunned for `sec`, give or take the steps since (a stun set this step has already ticked once). */
+const freshStun = (e, sec) => e.stunT > sec - 2 * PHYSICS.dt && e.stunT <= sec;
 
 test('Toxic Circuit: each beat it poisons `spits` foes, then a current hits and stuns every poisoned foe on the field', () => {
   const p = P['lightning+poison'];
@@ -25,8 +27,7 @@ test('Toxic Circuit: each beat it poisons `spits` foes, then a current hits and 
   for (const e of [...lit, old]) {
     assert.equal(zaps(e).length, 1, 'the current runs through every poisoned foe once');
     assert.ok(near(zaps(e)[0].amount, HIT * p.hitPct), `${zaps(e)[0].amount}`);
-    assert.ok(h.events('stun').some((x) => x.id === e.id), 'and stuns it');
-    assert.ok(e.stunT > 0 && e.stunT <= p.stunS);
+    assert.ok(h.events('stun').some((x) => x.id === e.id) && freshStun(e, p.stunS), `and stuns it for ${p.stunS} s (${e.stunT})`);
   }
   for (const e of clean.filter((f) => !lit.includes(f))) assert.equal(zaps(e).length, 0, 'a clean foe is spared');
   assert.equal(h.fx('bolt').length, lit.length + 1, 'a bolt to each foe on the circuit');
@@ -46,6 +47,7 @@ test('Thunder Charge: it charges up the busiest lane `charges` times; each foe i
   const s0 = lane2.map((e) => e.s);
   const blows = blowsOn(h, 'lightning+earth');
   h.act();
+  assert.ok(freshStun(lane2[2], p.stunS), `the foe at the foot of the lane is stunned for ${p.stunS} s at once (${lane2[2].stunT})`);
   h.run(1.2); // the first run is over
   for (const [i, e] of lane2.entries()) {
     assert.equal(blows(e).length, 1, 'hit once in the run, though the push throws it ahead of the pet');
@@ -67,23 +69,38 @@ test('Thunder Charge: it charges up the busiest lane `charges` times; each foe i
   for (const e of [...lane2, ...fresh]) assert.ok(blows(e).length <= p.charges);
 });
 
+test('Thunder Charge: the busiest lane it can reach, not one whose foes are all deep on the board below its run', () => {
+  const p = P['lightning+earth'];
+  const h = skillHarness('lightning+earth', { hit: HIT });
+  const deep = [h.foe(2, 14), h.foe(2, 14.5), h.foe(2, 15)]; // biting blocks low in column 2
+  const walker = h.foe(1, 5);
+  const blows = blowsOn(h, 'lightning+earth');
+  h.act();
+  h.run(1.2);
+  assert.equal(blows(walker).length, 1, 'it ran up lane 1');
+  assert.ok(near(blows(walker)[0].amount, HIT * p.hitPct));
+  for (const e of deep) assert.equal(blows(e).length, 0);
+});
+
 test('Storm Hop: every beat it hops to a foe it has not struck lately, hits it and splashes the foes around it', () => {
   const p = P['lightning+wind'];
   const h = skillHarness('lightning+wind', { hit: HIT });
+  const R = p.splashCells * CELL;
   const a = h.foe(0, 4);
-  const b = h.foe(0, 4.6); // within the splash of a
+  const b = h.foe(0, 4 + 0.9 * R); // just inside a's splash, straight down its lane
+  const d = h.foe(1, 4 - Math.sqrt((1.1 * R) ** 2 - CELL ** 2)); // just outside a's splash, one lane over
   const c = h.foe(3, 2); // alone
   const zaps = () => h.events('hit').filter((x) => x.skill === 'lightning+wind');
   h.act();
-  h.run(2 * p.periodS);
+  h.run(3 * p.periodS);
   const struck = zaps().filter((x) => near(x.amount, HIT * p.hitPct)).map((x) => x.id);
-  assert.equal(struck.length, 3, 'three hops');
-  assert.deepEqual([...struck].sort(), [a.id, b.id, c.id].sort(), 'each to another foe');
+  assert.equal(struck.length, 4, 'four hops');
+  assert.deepEqual([...struck].sort(), [a.id, b.id, c.id, d.id].sort(), 'each to another foe');
   const splash = zaps().filter((x) => near(x.amount, HIT * p.splashPct));
-  assert.deepEqual(splash.map((x) => x.id).sort(), [a.id, b.id].sort(), 'a and b splash each other; c stands alone');
-  assert.equal(zaps().length, 5, 'nothing else is hit');
+  assert.deepEqual(splash.map((x) => x.id).sort(), [a.id, b.id].sort(), `a and b splash each other; d is just over ${p.splashCells} cells off`);
+  assert.equal(zaps().length, 6, 'nothing else is hit');
   assert.ok(near(h.pet.summon.x, laneX(3)), 'the pet stands on its last mark');
-  assert.equal(h.fx('bolt').length, 3, 'a bolt each hop');
+  assert.equal(h.fx('bolt').length, 4, 'a bolt each hop');
   h.run(p.periodS);
   const next = zaps().filter((x) => near(x.amount, HIT * p.hitPct)).at(-1);
   assert.equal(next.id, struck[0], 'then back to the one struck longest ago');
@@ -127,12 +144,28 @@ test("Railgun: unseen, it charges; then a rail hits every foe down the toughest 
   assert.equal(h.pet.summon.hidden, false, 'seen on its way home');
 });
 
+test('Railgun: a shot held while the field is empty still goes, and the rest still fit in its time out', () => {
+  const p = P['lightning+metal'];
+  const h = skillHarness('lightning+metal', { hit: HIT });
+  const first = h.foe(1, 3, { hp: 1 });
+  h.go();
+  h.d.damage(first, 5, ['physical']); // the field empties as the pet goes out
+  h.run(h.pet.summon.hop + 3.5);
+  assert.equal(h.fx('beam').length, 0, 'nothing to shoot: it holds its charge');
+  assert.equal(h.pet.summon.hidden, true, 'unseen while it waits');
+  h.foe(2, 4);
+  h.run(0.1);
+  assert.equal(h.fx('beam').length, 1, 'the first foe to show up is shot at once');
+  h.run(h.pet.summon.dur - h.pet.summon.t + 0.1);
+  assert.equal(h.fx('beam').length, p.shots, `still ${p.shots} shots`);
+});
+
 test('Bloom Ambush: planted before the blocks, it snatches a foe in reach and lightning jumps to the nearest others; then it waits its cooldown', () => {
   const p = P['lightning+nature'];
   const h = skillHarness('lightning+nature', { hit: HIT });
   const prey = h.foe(1, 2, { speed: 1.5 }); // walks down lane 1 into the flower's reach
-  const others = [h.foe(0, 1), h.foe(2, 1), h.foe(1, 0)]; // they stay up the field: the nearest ones to the prey
-  const far = h.foe(3, 0); // one more, further off
+  const others = [h.foe(0, 1), h.foe(2, 1), h.foe(1, 0.5)]; // they stay up the field: the nearest ones to the prey
+  const fourth = h.foe(2, 0); // near the prey too, but further than those three
   const blows = blowsOn(h, 'lightning+nature');
   h.act();
   assert.equal(blows(prey).length, 1, 'snatched');
@@ -141,15 +174,37 @@ test('Bloom Ambush: planted before the blocks, it snatches a foe in reach and li
     assert.equal(blows(e).length, 1, 'lightning jumps to it');
     assert.ok(near(blows(e)[0].amount, HIT * p.jumpPct));
   }
-  assert.equal(blows(far).length, 0, `${p.jumps} jumps, no more`);
+  assert.equal(blows(fourth).length, 0, `${p.jumps} jumps, no more`);
   assert.equal(h.fx('bolt').length, 1 + p.jumps, 'a bolt to the prey, one for each jump');
   h.run(p.cooldownS - 0.1);
   assert.equal(blows(prey).length, 1, 'it waits its cooldown');
   h.run(0.2);
   assert.equal(blows(prey).length, 2, 'then strikes again');
   h.run(3);
-  for (const e of [...others, far]) assert.ok(blows(e).every((x) => near(x.amount, HIT * p.jumpPct)), 'a foe out of reach is never snatched');
+  for (const e of [...others, fourth]) assert.ok(blows(e).every((x) => near(x.amount, HIT * p.jumpPct)), 'a foe out of reach is never snatched');
   const s = h.pet.summon;
   assert.ok(near(s.x, laneX(1)), 'on the busiest lane');
   assert.ok(s.y > SIEGE.boardTop && s.y < SIEGE.boardTop + 1.5 * CELL, `just in front of the blocks (y ${s.y.toFixed(2)})`);
+});
+
+test("Bloom Ambush's reach: it snatches only within radiusCells, and its lightning jumps no further than that from the prey", () => {
+  const p = P['lightning+nature'];
+  const R = p.radiusCells * CELL;
+  const h = skillHarness('lightning+nature', { hit: HIT });
+  h.act();
+  h.run(1); // planted, with nothing to snatch yet
+  const { x, y } = h.pet.summon;
+  const sAt = (wy) => FIELD.spawnY - wy; // where along a lane a foe stands at world height wy
+  const inner = h.foe(1, sAt(y + 0.9 * R), { hp: HIT * p.hitPct * 0.8 }); // in reach: snatched, and felled by it
+  const outer = h.foe(1, sAt(y + 1.1 * R)); // just out of reach of the flower; right by the prey
+  const beyond = h.foe(3, sAt(y + 0.9 * R + Math.sqrt((1.1 * R) ** 2 - (laneX(3) - x) ** 2))); // 1.1 × reach from the prey
+  const blows = blowsOn(h, 'lightning+nature');
+  h.run(0.1);
+  assert.ok(inner.dead && near(blows(inner)[0].amount, HIT * p.hitPct), 'the foe in reach is snatched');
+  assert.equal(blows(outer).length, 1, 'lightning jumps to the foe beside it');
+  assert.ok(near(blows(outer)[0].amount, HIT * p.jumpPct));
+  assert.equal(blows(beyond).length, 0, `not to one ${p.radiusCells} cells and more from the prey`);
+  h.run(3);
+  assert.equal(blows(outer).length, 1, 'a foe just out of reach is never snatched');
+  assert.equal(blows(beyond).length, 0);
 });
