@@ -33,7 +33,7 @@ import { nextSpeed } from './ux/speed.js';
 import { createPause } from './ux/pause.js';
 import { inFrame, shareLine, shareRun } from './ux/share.js';
 import { createBossIntro } from './ui/boss-intro.js';
-import { LANGS, getLang, num, setLang, tr } from './i18n/index.js';
+import { LANGS, LANG_HASH, LANG_NAMES, getLang, num, setLang, tr } from './i18n/index.js';
 import { recordRun, restoreRun, loadSaved, saveRun, clearSaved } from './ux/resume.js';
 import { SIGNATURE_TINT, TEXT, popupFont, textInk } from './ux/photosafe.js';
 import { loadStore } from './ux/coach.js';
@@ -103,13 +103,34 @@ const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 async function waitForFonts() {
   if (!document.fonts?.load) return;
   const t = new Promise((r) => setTimeout(r, 1500));
-  await Promise.race([Promise.all([document.fonts.load('800 64px "Baloo 2"'), document.fonts.load('700 16px "Nunito"')]), t]);
+  // the language's name in itself as the sample: a font loads only the subsets its sample needs (the
+  // Vietnamese letters are one of their own), and the canvas draws its words with what has loaded
+  const say = LANG_NAMES[getLang()];
+  await Promise.race([Promise.all([document.fonts.load('800 64px "Baloo 2"', say), document.fonts.load('700 16px "Nunito"', say)]), t]);
 }
 
 // The loading screen in index.html (#boot): a message while loading, hidden after the first frame.
 const boot = document.getElementById('boot');
 const bootSay = (text) => boot && (boot.querySelector('.boot-msg').textContent = text);
-bootSay(tr('boot.loading')); // the page itself says it in English until the game's words load
+// index.html already says these in the language (its BOOT_WORDS); the tables are the source
+bootSay(tr('boot.loading'));
+if (boot) {
+  boot.querySelector('.boot-retry').textContent = tr('boot.retry');
+  boot.querySelector('.boot-new').textContent = tr('boot.newRun');
+}
+// A language switch reloads the page (the 'lang' setting). After it, the run comes back even
+// mid-opening (a first run's opening otherwise starts again after a reload), the opening at the step
+// it was on, and the player is back in Settings. For that one reload only: read once, then gone.
+const RELANG_KEY = 'siege:relang';
+function takeRelang() {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(RELANG_KEY) || 'null');
+    sessionStorage.removeItem(RELANG_KEY);
+    return v && typeof v === 'object' ? v : null;
+  } catch {
+    return null;
+  }
+}
 let failed = false; // after a failure: no more saves, and the loading screen stays up
 /** Loading failed, or a frame broke: the loading screen comes back with "Try again" and "New run". */
 function bootFail(err) {
@@ -189,7 +210,8 @@ async function start() {
   let run = null;
   let resumed = false;
   // ?tutorial replays the opening from scratch: a fresh run, not a resumed one
-  const found = canSave && !params.has('tutorial') && loadStore().guided ? loadSaved() : null;
+  const relang = takeRelang(); // { step }: this load follows a language switch
+  const found = canSave && !params.has('tutorial') && (loadStore().guided || relang) ? loadSaved() : null;
   // a run whose pets roam resumes only where pets are drawn (not under ?style=classic), and back
   const saved = found && !!found.log.roaming === roaming ? found : null;
   if (saved) {
@@ -261,8 +283,18 @@ async function start() {
         // the next language: saved as the player's choice; the page reloads in it (every screen and
         // table is built in the language as it loads), and the run restores itself (src/ux/resume.js)
         const langs = Object.keys(LANGS);
-        setLang(langs[(langs.indexOf(getLang()) + 1) % langs.length], true);
+        const next = langs[(langs.indexOf(getLang()) + 1) % langs.length];
+        const kept = setLang(next, true);
         saveNow();
+        try {
+          sessionStorage.setItem(RELANG_KEY, JSON.stringify({ step: tutorial.step }));
+        } catch {}
+        // where storage is blocked, the choice goes in the address instead (#lang-vi), which the
+        // reload keeps; a saved choice clears an address one, which would otherwise win
+        try {
+          if (!kept) location.hash = `lang-${next}`;
+          else if (LANG_HASH.test(location.hash)) history.replaceState(history.state, '', location.pathname + location.search);
+        } catch {}
         location.reload();
         return;
       }
@@ -502,10 +534,12 @@ async function start() {
     // upright again: the game waits for Resume, not the turn; an open menu stays on its page
     if (!e.matches && !run.over && pause.menu === 'closed' && !picker?.isOpen) openMenu();
   });
-  if (!kv) tutorial.start(run);
+  if (!kv) tutorial.start(run, { at: resumed ? relang?.step : null });
   else tutorial.setMuted(true); // the showcase has no tips
-  // a returning player (opening done) gets a goal: their best wave; a resumed run, the pause menu
-  if (resumed) {
+  // a returning player (opening done) gets a goal: their best wave; a resumed run, the pause menu;
+  // after a language switch, Settings again
+  if (resumed && relang) pause.show('settings');
+  else if (resumed) {
     pauseTitle = tr('pause.welcome');
     openMenu();
   } else if (!kv && !tutorial.active) {
@@ -863,7 +897,7 @@ async function start() {
     hud.setNext(Math.max(1, run.maxTier));
     hud.setStatus({
       wave: run.waveNo,
-      chapter: run.wave.chapter.name,
+      chapter: run.wave.chapter, // its key picks the skin; its name is the lintel's
       phase: run.phase,
       timer: run.timer,
       holding: run.holding,

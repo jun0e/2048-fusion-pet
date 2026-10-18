@@ -456,7 +456,7 @@ export function profileFor(ball) {
       const x = grownElement(c.ultimate, 3);
       addComponents(p, x, 2);
       p.signature = APEX[c.ultimate];
-      p.name = `${APEX[c.ultimate].name} ${p.name}`;
+      p.name = tr('legend.name', { apex: APEX[c.ultimate].name, fusion: p.name }); // the language orders the two
       p.colors.push(x.color);
       p.dmgMult *= 1.6;
     }

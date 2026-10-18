@@ -2,15 +2,20 @@
 
 The game's words live in one plain-text table per language: `src/i18n/en.js` and `src/i18n/vi.js`. They are read through `tr(key, vars)` in `src/i18n/index.js`. The name is `tr`, not `t`, because `t` is the code's usual name for a tile, a time and an interpolation.
 
-- **Another language** is one more table.
+- **Another language** is one more table. Its `@` keys tell the code about the language: `@name` (its name in itself, for the Language row), `@locale` (how it writes numbers, and its plural forms) and `@ordinal` (how it writes "4th").
 - **No HTML in a table:** the Nibble copy of the game reads the same tables, so each screen builds its markup around the words.
-- **Placeholders and plurals:** `{name}` is filled in by `tr()`. A plural is `{ one, other }`, picked by `vars.count`, else `vars.n`.
+- **Whole sentences:** a key is never the tail of another key's sentence. Where a screen puts markup inside a sentence (the pet's name in bold, Wave now's number), the table has a placeholder there, and the screen fills it.
+- **Placeholders and plurals:** `{name}` is filled in by `tr()`. A plural is `{ one, other }`, or whichever forms `Intl.PluralRules` names for the language. It is picked by `vars.count`, else `vars.n`.
 - **A missing key** falls back to English. `test/i18n.test.js` holds Vietnamese to every English key, with the same placeholders.
 
-- **First launch:** the game starts in Vietnamese when the phone lists Vietnamese among its languages, and in English otherwise.
-- **Changing it:** the Language row in Settings shows the language in its own words (English, Tiếng Việt). A tap moves to the next one and keeps the choice (`siege:lang`).
-- **Why a reload:** the page reloads in the new language, and the run restores itself (`src/ux/resume.js`). The language is settled as `src/i18n/index.js` loads, so every screen and table is built in it, with no screen left half-switched.
-- **Pet names stay as they are.** Fusion pets (Mistmaw, Frostjelly …) keep their names in both languages.
+- **First launch:** the game starts in the first language in the phone's list that it has. With Vietnamese above English, that is Vietnamese; otherwise it is English.
+- **Outside a browser** (the tests, the art pipeline's prompts) the game is always English. Node's `navigator` follows the shell's locale, so it is not read there.
+- **Changing it:** the Language row in Settings shows the language in its own words (English, Tiếng Việt). A tap moves to the next one and keeps the choice (`siege:lang`). Where storage is blocked, the choice goes in the page's address instead (`#lang-vi`).
+- **Why a reload:** the page reloads in the new language. The language is settled as `src/i18n/index.js` loads, so every screen and table is built in it, with no screen left half-switched.
+  - The run restores itself (`src/ux/resume.js`), even during the first run's opening. The opening picks up at the step it was on, and the player is back in Settings.
+  - That one reload is flagged in `sessionStorage` (`siege:relang`); any other reload during the opening still starts it again.
+- **The loading screen** speaks the language before the game has loaded. `index.html` holds its three lines (`BOOT_WORDS`) and picks the language the same way. `test/i18n.test.js` keeps those lines the same as the tables.
+- **Pet names stay as they are.** Fusion pets (Mistmaw, Frostjelly …) keep their names in both languages. A legend's skill puts its apex where the language does: "Sun Frostnova" in English, "Nova Băng Mặt Trời" in Vietnamese (`legend.name`).
 
 ## Glossary
 
@@ -29,7 +34,7 @@ One word for each thing, everywhere.
 | block | khối | A numbered block on the board. |
 | board | bàn | |
 | merge | gộp | |
-| swipe | vuốt | "Vuốt 5" on the coin bar: the price of a swipe. |
+| swipe | vuốt | "Vuốt 5" on the coin bar: the price of a swipe. Counted as "lần vuốt". |
 | coins | xu | |
 | foe | quái | Short, and what players say. |
 | boss | trùm | |
@@ -46,7 +51,10 @@ One word for each thing, everywhere.
 | level | cấp | The spawn level. The disc's "Lv" is "Cấp". |
 | XP | KN | kinh nghiệm |
 | skill | kỹ năng | |
-| ready | sẵn | The namecard pill (42 px at 14 px): "SẴN". |
+| ready (a skill) | đầy | The namecard pill (42 px at 14 px): "ĐẦY", a full charge. "SẴN" alone reads as a clipped "SẴN SÀNG". |
+| stacks | tầng | Burn and poison: "cộng dồn tối đa 5 tầng". Never "chồng", which also means husband. |
+| growth marks | vạch tiến hóa | The four marks a merge lights. "Vạch lớn" reads as "big marks". |
+| seconds | giây | The cards say "2,5 giây". The wave meter's countdown says "12s nữa", as a stopwatch would. |
 | top block | khối đỉnh | The chip says "Đỉnh". |
 | Overrun! | Thất thủ! | The game-over title. |
 
@@ -69,7 +77,7 @@ Kim and Mộc are the five-element words (Kim, Mộc, Thủy, Hỏa, Thổ). Bot
 
 - **Address the player as "bạn".** Keep it friendly and short, as the English is. Use no honorifics.
 - **Buttons say what they do:** Bán, Đập, Chi tiết, Chơi lại, Chia sẻ, Tiếp tục, Xong.
-- **Numbers:** Vietnamese writes 1.234 for one thousand two hundred and thirty-four (`num()` in `src/i18n/index.js`).
+- **Numbers:** Vietnamese writes 1.234 for one thousand two hundred and thirty-four, and 2,5 for two and a half (`num()` in `src/i18n/index.js`). The numbers drawn on the field follow it too: a boss's health, the damage numbers ("1,2k") and the freeze badge.
 - **Length:** Vietnamese is about a quarter longer than English. Every screen was checked at 360 × 640 (the die pick, both tile cards, pause, settings, How to play, the level and keepsake cards, game over).
 - **Tight spaces:** `test/i18n.test.js` holds the words in tight spaces to their room:
   - each die's one line, 30 characters;
@@ -77,4 +85,6 @@ Kim and Mộc are the five-element words (Kim, Mộc, Thủy, Hỏa, Thổ). Bot
   - Sell / Break and its labels, 10;
   - the top-block chip's caption, 4;
   - one word per element.
-- **Fonts:** Baloo 2 and Nunito both have the Vietnamese letters, and Google Fonts serves that subset by itself. Offline, the single-file game falls back to the phone's system font, which has them too.
+- **Fonts:** Baloo 2 and Nunito both have the Vietnamese letters, and Google Fonts serves that subset by itself.
+  - The game waits for that subset before its first frame. It loads the fonts with the language's name as a sample, because the canvas draws its words once (the deck slot's "ở").
+  - Offline, the single-file game falls back to the phone's system font, which has them too.

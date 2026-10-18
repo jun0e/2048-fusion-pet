@@ -101,10 +101,11 @@ test("the lintel's key changes with the boss's health, so its description never 
 });
 
 test("Wave now's label: the wave's number and the countdown in their own spans, none while held", () => {
-  assert.equal(fightLabel({ wave: 7, timer: 11.2 }), 'Wave<span class="fight-n"> 7</span> now ▶<span class="fight-t"> 12</span>');
+  assert.equal(fightLabel({ wave: 7, timer: 11.2 }), 'Wave <span class="fight-n">7</span> now ▶<span class="fight-t"> 12</span>');
   assert.equal(fightLabel({ wave: 5, boss: 'elfRuler', timer: 3 }), 'Boss now ▶<span class="fight-t"> 3</span>');
-  assert.equal(fightLabel({ wave: 1, timer: 15, holding: true }), 'Wave<span class="fight-n"> 1</span> now ▶', 'the held opening shows no frozen number');
+  assert.equal(fightLabel({ wave: 1, timer: 15, holding: true }), 'Wave <span class="fight-n">1</span> now ▶', 'the held opening shows no frozen number');
   // what a narrow phone shows once the number's span is hidden: the coach's own words, "Wave now"
-  const narrow = fightLabel({ wave: 23, timer: 20 }).replace(/<span class="fight-n">[^<]*<\/span>/, '').replace(/<[^>]+>/g, '');
+  // (the spaces either side of the hidden number collapse into one, as the browser lays text out)
+  const narrow = fightLabel({ wave: 23, timer: 20 }).replace(/<span class="fight-n">[^<]*<\/span>/, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
   assert.equal(narrow, 'Wave now ▶ 20');
 });

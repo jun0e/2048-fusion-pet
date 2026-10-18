@@ -59,7 +59,8 @@ export function createKeepsakePicker(root, { onStart }) {
     const k = keepsakeById(view ?? pick);
     const owned = k && isUnlocked(k.id, best);
     detail.innerHTML = k ? `<b>${k.name}</b>${owned ? '' : ` · ${tr('picker.locked')}`}<p>${k.desc}</p>${owned ? '' : `<p>${tr('picker.unlockHow', { value: num(tierValue(k.unlockTier)) })}</p>`}` : '';
-    startBtn.textContent = tr('picker.startWith', { name: keepsakeById(pick)?.name ?? tr('picker.noKeepsake') });
+    const picked = keepsakeById(pick);
+    startBtn.textContent = picked ? tr('picker.startWith', { name: picked.name }) : tr('picker.start');
   }
 
   function close() {

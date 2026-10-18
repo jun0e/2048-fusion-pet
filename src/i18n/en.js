@@ -1,6 +1,9 @@
-// English: the game's words (src/i18n/index.js). Plain text only; {name} is filled in by t(), and a
-// plural is { one, other }. Keys are grouped by where the words show.
+// English: the game's words (src/i18n/index.js). Plain text only; {name} is filled in by tr(), and a
+// plural is { one, other }. Keys are grouped by where the words show; the '@' keys describe the language.
 export const EN = {
+  '@name': 'English', // in itself (the Language row in Settings)
+  '@locale': 'en-US', // numbers (1,234.5) and plural forms
+  '@ordinal': { one: '{n}st', two: '{n}nd', few: '{n}rd', other: '{n}th' }, // Intl.PluralRules' ordinal forms
   'lang.row': 'Language',
   // the elements (src/sim/classes.js ELEMENTS)
   'el.fire': 'Fire',
@@ -73,6 +76,7 @@ export const EN = {
   'fusion.wind+nature': 'Pollenstorm',
   'fusion.metal+nature': 'Harvest',
   // the legends (APEX), keyed by their third element
+  'legend.name': '{apex} {fusion}', // a legend's skill: its apex's name with its fusion's
   'apex.fire': 'Sun',
   'apex.fire.desc': 'Every 2 s, burns every foe on the field.',
   'apex.ice': 'Timestop',
@@ -148,7 +152,7 @@ export const EN = {
   'card.range.line': '{cells} · {lanes}',
   'card.fx.burn': 'Burn: {pct} of a hit per second for {dur}, stacks up to {max}',
   'card.fx.poison': 'Poison: {pct} of a hit per second for {dur}, stacks up to {max}',
-  'card.fx.poison.weaken': '; at {max} stacks the foe bites {weaken} softer',
+  'card.fx.poisonWeaken': 'Poison: {pct} of a hit per second for {dur}, stacks up to {max}; at {max} stacks the foe bites {weaken} softer',
   'card.fx.puddle': 'Puddle: {r}-cell radius for {dur}; foes in it gain a stack every {every}',
   'card.fx.slow': 'Slow: {pct} for {dur}',
   'card.fx.freeze': 'Freeze: every {nth} hit freezes the foe for {dur}',
@@ -263,9 +267,9 @@ export const EN = {
   // the tile card (src/ui/inspect.js)
   'card.name': 'Block info',
   'card.details': 'Details',
-  'card.pet': 'Pet:',
-  'card.pet.out': ', out on the field',
-  'card.pet.hopping': ', hopping out',
+  'card.pet': 'Pet: {name}',
+  'card.pet.out': 'Pet: {name}, out on the field',
+  'card.pet.hopping': 'Pet: {name}, hopping out',
   'ui.close': 'Close',
   // the HUD (src/ui/hud.js): the lintel's meter, Wave now, the top bar, the coin bar
   'stage.1': 'Awakened',
@@ -285,7 +289,7 @@ export const EN = {
   'meter.say.next': 'Next wave in {n} seconds',
   'meter.defeat': 'Defeat',
   'fight.boss': 'Boss now ▶',
-  'fight.wave': 'Wave{n} now ▶',
+  'fight.wave': 'Wave {n} now ▶',
   'hud.pause': 'Pause',
   'hud.speed': 'Game speed x{n}',
   'hud.score': 'Score',
@@ -297,6 +301,7 @@ export const EN = {
   'hud.blocksLeft': 'Blocks left',
   'hud.coins': 'Coins',
   'hud.rotate': 'Turn your phone upright',
+  'hud.rotate.sub': '2048 Siege plays in portrait. The game waits.',
   'hud.combo': 'Combo',
   'coin.price': 'Price of the next swipe',
   'coin.swipe': 'Swipe',
@@ -346,6 +351,8 @@ export const EN = {
   // main.js: the loading screen, the pause title, the popups and the news ribbon's banners
   'boot.failed': 'Something went wrong. Try again to reload the game.',
   'boot.restoring': 'Restoring your run…',
+  'boot.retry': 'Try again',
+  'boot.newRun': 'New run',
   'share.copied': 'Copied!',
   'pause.welcome': 'Welcome back',
   'note.keepsakes': 'New: keepsakes! You bring the Iron Fist.',
@@ -423,7 +430,6 @@ export const EN = {
   'picker.locked': 'locked',
   'picker.unlockHow': 'Make a {value} in any run to unlock it.',
   'picker.startWith': 'Start run with {name}',
-  'picker.noKeepsake': 'no keepsake',
   'picker.sub': 'Your best block: {best}. A {value} unlocks the next.',
   // the tutorial's bubbles and How to play (src/ui/tutorial.js)
   'coach.skip': 'Skip tutorial',

@@ -187,9 +187,9 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, 
   });
 
   return {
-    /** A new run: guide it if the player hasn't finished the opening yet. */
-    start(r) {
-      coach.start(r);
+    /** A new run: guide it if the player hasn't finished the opening yet (`at`: a restored run's step, coach.start). */
+    start(r, opts) {
+      coach.start(r, opts);
       render();
     },
     /** Feed every run event. */
@@ -212,6 +212,10 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, 
     },
     get active() {
       return coach.active;
+    },
+    /** The opening's step on screen; null when it is not guiding. */
+    get step() {
+      return coach.step;
     },
     /** The guided opening is over (done or skipped): the store the coach plays from. */
     get openingDone() {

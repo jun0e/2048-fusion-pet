@@ -224,6 +224,20 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     show('guided', g.id, g.text, g.target, g, !reshow);
   }
 
+  /**
+   * Pick the opening up at step `i`, or further on as far as the run has got: a started wave ends the
+   * opening, a 16 ends the first step, and with no coins left only Wave now is still possible. After
+   * autoplay, and for a run restored mid-opening (a language switch reloads the page).
+   */
+  function catchUp(i) {
+    if (config.endOnWave && run().phase !== 'prep') return guide(GUIDED.length);
+    const was = guided;
+    while (i < GUIDED.length && GUIDED[i].doneOn === 'turret' && run().tiles.some((t) => stageFor(t.tier) >= 1)) i += 1;
+    if (config.brokeStep && run().coins < run().swipeCost) i = Math.max(i, GUIDED.findIndex((g) => g.id === config.brokeStep));
+    run().setHold?.(!GUIDED.slice(0, i + 1).some((g) => g.release)); // hold again until the release step
+    guide(i, { reshow: i === was });
+  }
+
   /** Jump forward to the step called `id` (never back). */
   function jump(id) {
     const i = GUIDED.findIndex((g) => g.id === id);
@@ -359,14 +373,19 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
   }
 
   return {
-    /** A new run: guide it if the player hasn't finished the opening yet. */
-    start(r) {
+    /**
+     * A new run: guide it if the player hasn't finished the opening yet. `at`: a run restored
+     * mid-opening picks the opening up at that step (or as far as the run has got since).
+     */
+    start(r, { at = null } = {}) {
       clearTips();
       hide();
       if (!store.guided) {
         r.setHold?.(!muted); // the opening waits for the player, not for autoplay
         if (config.guidedWave) r.setGuidedWave?.(true);
-        guide(0);
+        const i = at == null ? -1 : GUIDED.findIndex((g) => g.id === at);
+        if (i >= 0) catchUp(i);
+        else guide(0);
       } else {
         r.setHold?.(false);
         guided = -1;
@@ -520,6 +539,10 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
     get active() {
       return guided >= 0 && !muted;
     },
+    /** The opening's step on screen ('swipe', 'turret' …); null when it is not guiding. */
+    get step() {
+      return guided >= 0 ? GUIDED[guided].id : null;
+    },
     get store() {
       return store;
     },
@@ -540,15 +563,7 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
         return;
       }
       muted = false;
-      if (guided < 0) return;
-      // catch up with what autoplay did: a started wave ends the opening, a 16 ends the
-      // first step, and with no coins left only Wave now is still possible
-      if (config.endOnWave && run().phase !== 'prep') return guide(GUIDED.length);
-      let i = guided;
-      while (i < GUIDED.length && GUIDED[i].doneOn === 'turret' && run().tiles.some((t) => stageFor(t.tier) >= 1)) i += 1;
-      if (config.brokeStep && run().coins < run().swipeCost) i = Math.max(i, GUIDED.findIndex((g) => g.id === config.brokeStep));
-      run().setHold?.(!GUIDED.slice(0, i + 1).some((g) => g.release)); // hold again until the release step
-      guide(i, { reshow: i === guided });
+      if (guided >= 0) catchUp(guided); // catch up with what autoplay did
     },
   };
 }

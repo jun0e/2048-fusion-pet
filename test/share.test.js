@@ -33,7 +33,7 @@ function browser({ share = 'ok', copy = 'ok', command = false, policy } = {}) {
 }
 
 test('the line: the score in words, and the address only where a friend can open it', () => {
-  assert.equal(LINE.text, `I held the siege to wave 7 in 2048 Siege (${(12345).toLocaleString()} points). Can you beat it?`);
+  assert.equal(LINE.text, 'I held the siege to wave 7 in 2048 Siege (12,345 points). Can you beat it?', 'the game in English, as outside a browser');
   assert.equal(LINE.url, 'https://example.com/siege/');
   assert.equal(LINE.line, `${LINE.text} https://example.com/siege/`);
   // the viewer's sandbox and a file on disk are no link to send

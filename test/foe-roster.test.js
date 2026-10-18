@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { ENEMY_TYPES, CHAPTERS } from '../src/sim/enemies.js';
 import { FOE_ROSTER, CHAPTER_GOLDEN, FOE_SIZE_FLOOR, foeChapters, foeDrawSize } from '../src/art/foe-roster.js';
 import { CHAPTER_GROUNDS, CHAPTER_SKINS } from '../src/art/frame-kit.js';
+import { EN } from '../src/i18n/en.js';
 
 /** CIE L* of a #RRGGBB colour. */
 function lstar(hex) {
@@ -17,7 +18,7 @@ function lstar(hex) {
 test('every enemy is one roster animal with the same name, and no animal repeats', () => {
   assert.deepEqual(Object.keys(FOE_ROSTER).sort(), Object.keys(ENEMY_TYPES).sort());
   for (const [k, r] of Object.entries(FOE_ROSTER)) {
-    assert.equal(r.name, ENEMY_TYPES[k].name, `${k}: the sim and the art name it the same`);
+    assert.equal(r.name, EN[`foe.${k}`], `${k}: the art names it as the game does in English (its prompts are English)`);
     assert.equal(!!r.boss, !!ENEMY_TYPES[k].boss, `${k}: boss flags agree`);
   }
   assert.equal(new Set(Object.values(FOE_ROSTER).map((r) => r.animal)).size, Object.keys(FOE_ROSTER).length);

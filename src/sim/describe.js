@@ -37,11 +37,7 @@ function rangeText(shoot) {
 export function effectLines(p) {
   const out = [];
   if (p.burn) out.push(tr('card.fx.burn', { pct: pct(p.burn.dpsPct), dur: secs(p.burn.dur), max: p.burn.max }));
-  if (p.poison)
-    out.push(
-      tr('card.fx.poison', { pct: pct(p.poison.dpsPct), dur: secs(p.poison.dur), max: p.poison.max }) +
-        (p.poison.weaken ? tr('card.fx.poison.weaken', { max: p.poison.max, weaken: pct(p.poison.weaken) }) : ''),
-    );
+  if (p.poison) out.push(tr(p.poison.weaken ? 'card.fx.poisonWeaken' : 'card.fx.poison', { pct: pct(p.poison.dpsPct), dur: secs(p.poison.dur), max: p.poison.max, weaken: pct(p.poison.weaken ?? 0) }));
   if (p.puddle && p.shoot?.pattern === 'spit') out.push(tr('card.fx.puddle', { r: num(inCells(p.puddle.radius)), dur: secs(p.puddle.dur), every: secs(p.puddle.every) }));
   if (p.chill) out.push(tr('card.fx.slow', { pct: pct(p.chill.slow), dur: secs(p.chill.dur) }));
   if (p.freeze) out.push(tr('card.fx.freeze', { nth: ordinal(p.freeze.every), dur: secs(p.freeze.dur) }));

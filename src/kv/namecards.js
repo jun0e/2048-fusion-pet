@@ -156,7 +156,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     el.className = `kv-card${legend ? ' legend' : ''}`;
     el.style.setProperty('--c', fu.color);
     el.style.setProperty('--c2', ELEMENTS[t.cls.fusion].color);
-    const skill = legend ? `${APEX[t.cls.ultimate].name} ${fu.name}` : fu.name;
+    const skill = legend ? tr('legend.name', { apex: APEX[t.cls.ultimate].name, fusion: fu.name }) : fu.name;
     el.innerHTML = `
       <div class="kv-port">
         <img alt="" src="${art.portrait(t.cls)}" />

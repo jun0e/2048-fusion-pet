@@ -18,6 +18,7 @@
 // - a block under attack holds its red instead of blinking.
 // The in-game Reduce motion setting turns washes and large flashes off. tools/flash-audit.mjs
 // measures the real event stream against these rules.
+import { num } from '../i18n/index.js';
 
 export const FLASH = {
   gap: 1, // seconds of real time between two washes, and between two large flashes (the limit is 3 in a second)
@@ -196,7 +197,8 @@ export const numberScale = (kind, U) => Math.max(NUMBER.scales[kind], NUMBER.min
 /** A damage number's text: "7", "1.2k", "12k", "1.2M", with a prefix ("+" for coins) and "!" on a crit. */
 export function numberText(amount, { prefix = '', crit = false } = {}) {
   const n = amount;
-  const body = n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${Math.max(1, Math.round(n))}`;
+  // the decimal point as the language writes it ("1,2k" in Vietnamese): the Dmg font has both
+  const body = n >= 1e6 ? `${num(n / 1e6, 1)}M` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : n >= 1e3 ? `${num(n / 1e3, 1)}k` : `${Math.max(1, Math.round(n))}`;
   return prefix + body + (crit ? '!' : '');
 }
 

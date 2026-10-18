@@ -44,8 +44,13 @@ function tilePicture(tile, art) {
   return c;
 }
 
-/** Where a den's pet is: it roams the field (src/sim/roam.js); '' when the block has none. */
-const petWhere = (tile) => (!tile.roam ? '' : tr(tile.roam.hatch >= 1 ? 'card.pet.out' : 'card.pet.hopping'));
+/** The pet's line: its name in bold, and where it is when it roams the field (src/sim/roam.js). */
+function petLine(tile, name) {
+  const key = !tile.roam ? 'card.pet' : tile.roam.hatch >= 1 ? 'card.pet.out' : 'card.pet.hopping';
+  // the table's words around the name (the bold is the card's markup, not the table's)
+  const [before, after = ''] = tr(key, { name: '\u0000' }).split('\u0000');
+  return `${esc(before)}<b>${esc(name)}</b>${esc(after)}`;
+}
 
 export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
   const el = document.createElement('div');
@@ -285,7 +290,7 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
         <div class="inspect-titles">
           <h3>${esc(info.title)}</h3>
           <div class="inspect-sub">${chips}<span class="inspect-value">${info.value}</span></div>
-          ${info.petName ? `<div class="inspect-pet">${esc(tr('card.pet'))} <b>${esc(info.petName)}</b>${esc(petWhere(tile))}</div>` : ''}
+          ${info.petName ? `<div class="inspect-pet">${petLine(tile, info.petName)}</div>` : ''}
         </div>
       </div>
       ${grow ? `<div class="inspect-grow"><span class="inspect-meter${m.goal === 'legend' ? ' rose' : ''}" aria-hidden="true">${[0, 1, 2, 3].map((i) => `<i${i < m.lit ? ' class="lit"' : ''}></i>`).join('')}</span><span>${esc(grow)}</span></div>` : ''}

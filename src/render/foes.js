@@ -8,6 +8,7 @@ import { FOE_ROSTER, FOE_SIZE_FLOOR, foeDrawSize } from '../art/foe-roster.js';
 import { FRAME_GEOM } from '../art/frame-kit.js';
 import { enemyTex, shadowTex, shieldTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
 import { bossResistLevel } from '../sim/defense.js';
+import { num } from '../i18n/index.js';
 
 const STATUS_ORDER = ['freeze', 'burn', 'poison', 'chill', 'loot'];
 const GEN_FILL = 1; // a trimmed generated foe fills its box (the overhaul's sizes: 37–54 px, bosses 86–95)
@@ -356,7 +357,7 @@ export function createFoes(stage, fx) {
       v.barFg.tint = ratio > 0.5 ? 0x7be36a : ratio > 0.25 ? 0xf2c14e : 0xef5a5a;
       const lab = foeLabels({ U, boss: e.boss, barY, barH });
       if (e.boss) {
-        v.hpText.text = Math.ceil(e.hp).toLocaleString('en-US');
+        v.hpText.text = num(Math.ceil(e.hp)); // as the language writes it: 1,225 or 1.225 (the Dmg font has both)
         v.hpText.scale.set(lab.hpPx / 44);
         v.hpText.position.set(v.barX, barY);
       }
@@ -386,7 +387,7 @@ export function createFoes(stage, fx) {
         bv.b.visible = row.shown.includes(bv.k);
         if (!bv.b.visible) continue;
         bv.icon.width = bv.icon.height = bs;
-        bv.n.text = bv.k === 'freeze' ? `${val.toFixed(1)}` : bv.k === 'chill' ? `-${val}` : bv.k === 'loot' ? `+${val}` : `×${val}`;
+        bv.n.text = bv.k === 'freeze' ? num(val, 1) : bv.k === 'chill' ? `-${val}` : bv.k === 'loot' ? `+${val}` : `×${val}`;
         bv.n.scale.set(lab.badgePx / 44);
         bv.n.position.set(bs * 0.42, 0);
         bv.b.position.set(bx, 0);

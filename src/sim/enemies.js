@@ -2,7 +2,8 @@
 // Court, the Ember Peaks) that marches straight down the board's columns to hit the castle,
 // with a telegraphed boss every few days. Regular enemies differ mostly in HP, speed and
 // count; bosses carry the special rules. Keys are stable ids; each one's animal, look and
-// motion live in src/art/foe-roster.js, whose names must match these.
+// motion live in src/art/foe-roster.js, whose names are these in English (the language's table,
+// src/i18n: foe.<key>, gives the name the player sees).
 
 import { has, tr } from '../i18n/index.js';
 import { DEFENSE, FIELD } from '../config.js';
@@ -28,7 +29,6 @@ export const ENEMY_TYPES = {
   redDragon: { hp: 4.0, speed: 0.75, castle: 90, flying: true, element: 'fire', color: '#d84a3a', size: 0.62 },
   // Bosses (abilities beyond the intro cards are prototype defaults)
   elfRuler: {
-   
     boss: true,
     hp: 28,
     speed: 0.5,
@@ -39,7 +39,6 @@ export const ENEMY_TYPES = {
     heal: { every: 3, radius: 2.6, pct: 0.06 },
   },
   kiteNinja: {
-   
     boss: true,
     hp: 34,
     speed: 0.55,
@@ -51,7 +50,6 @@ export const ENEMY_TYPES = {
     summonOnDeath: { type: 'kiteMinion', count: 4 },
   },
   dragonRider: {
-   
     boss: true,
     hp: 46,
     speed: 0.45,

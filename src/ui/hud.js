@@ -165,8 +165,9 @@ export function popupPx(tier, scale = 1) {
 
 /** Wave now's label: "Wave 7 now ▶ 12". The wave's number (in its own span) gives way on a narrow phone. */
 export function fightLabel({ wave, boss = null, timer = 0, holding = false }) {
-  // the table's words around the wave's number (its span is the markup, not the table's)
-  const what = boss ? tr('fight.boss') : tr('fight.wave', { n: `<span class="fight-n"> ${wave}</span>` });
+  // the table's words around the wave's number (its span is the markup, not the table's; hidden, the
+  // spaces either side of it collapse into one)
+  const what = boss ? tr('fight.boss') : tr('fight.wave', { n: `<span class="fight-n">${wave}</span>` });
   return `${what}${holding ? '' : `<span class="fight-t"> ${Math.ceil(timer)}</span>`}`;
 }
 
@@ -193,7 +194,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     </div>
     <div class="statusbar">
       <div class="lintel">
-        <div class="day"><i class="crest" aria-hidden="true"></i><b class="day-n"><span class="day-word">${esc(tr('hud.wave'))}</span> <span class="day-num">1</span></b><span class="best-wave"></span><span class="chapter">Eternal Forest</span></div>
+        <div class="day"><i class="crest" aria-hidden="true"></i><b class="day-n"><span class="day-word">${esc(tr('hud.wave'))}</span> <span class="day-num">1</span></b><span class="best-wave"></span><span class="chapter">${esc(tr('chapter.forest'))}</span></div>
         <div class="phase meter" data-phase="prep" data-mode="incoming" role="img" aria-label="${esc(tr('meter.say.ready'))}">
           <span class="meter-face" hidden><img alt="" /></span>
           <span class="meter-bar"><i class="meter-fill"></i></span>
@@ -226,7 +227,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
       <div class="rotate-card">
         <i class="rotate-phone"></i>
         <b>${esc(tr('hud.rotate'))}</b>
-        <span>2048 Siege plays in portrait. The game waits.</span>
+        <span>${esc(tr('hud.rotate.sub'))}</span>
       </div>
     </div>
     <div class="scrim pause-scrim" role="dialog" aria-modal="true" aria-labelledby="pause-title">
