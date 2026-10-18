@@ -641,7 +641,12 @@ function recolorCanvas(src, el, el2, maxH) {
   const c = makeCanvas(w, h);
   const g = c.getContext('2d');
   g.drawImage(src, 0, 0, w, h);
-  const img = g.getImageData(0, 0, w, h);
+  let img;
+  try {
+    img = g.getImageData(0, 0, w, h);
+  } catch {
+    return c; // a canvas the browser will not read back (tainted, or out of memory): the egg in its own colours
+  }
   recolorEgg(img.data, w, h, eggRamp(ELEMENTS[el].color), el2 ? eggRamp(ELEMENTS[el2].color) : null);
   g.putImageData(img, 0, 0);
   return c;
