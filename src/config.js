@@ -229,7 +229,7 @@ export const ECONOMY = {
 // seen to work before the siege gets real.
 export const GUIDED_WAVE = { count: 4 };
 
-// Dice: the elements in the player's deck. You start with 2; spawn levels add more (V2.unlockLevels).
+// Dice: the elements in the player's deck. You start with 2; the level road adds more (V2.unlockLevels).
 export const DICE = {
   start: 2,
   // retired in v2 (new elements come from spawn levels): the run no longer reads it; kept only while
@@ -251,6 +251,6 @@ export const V2 = {
   // on the field this long using its skill (src/sim/skills/data.js FUSION_SKILLS)
   summon: { chargeS: 15, durS: 8, hopS: 0.6 },
   // the player's spawn levels that each offer a new element: a pick of `offers` (docs/v2/SPEC.md)
-  unlockLevels: [2, 3, 4, 5, 6, 7],
+  unlockLevels: [2, 4, 6, 8, 10, 13], // v2.1: the level road's element levels (src/sim/levels.js LEVEL_ROAD), for the words
   offers: 2,
 };
