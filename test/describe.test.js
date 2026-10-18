@@ -1,11 +1,13 @@
 // The tile card's content, v2 (docs/v2/SPEC.md section 7; src/sim/describe.js): a plain stone block, an
 // elemental egg, a fusion egg, a single pet, a fusion pet with its buffs, its summon skill and its state,
-// and its pure aura. The attack's numbers come from the sim's own profile (whatever S's rules make it),
-// so these tests read them from profileFor rather than copying them.
+// and its pure aura; v2.1 (docs/v2/SPEC-v2.1.md sections 3 and 6): the attack's strengths, and the stats as
+// chips (an icon's key and a number). The attack's numbers come from the sim's own profile (whatever its
+// rules make it), so these tests read them from profileFor rather than copying them.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buffBanner, buffList, buffStat, describeTile, effectLines, gainLine, gainTag, mergesTo, pureAura, singlesOf, skillHead, skillState, skillWords, statText, summonLeft } from '../src/sim/describe.js';
-import { ELEMENTS, FUSIONS, profileFor, turretDamage } from '../src/sim/classes.js';
+import { TRAITS, andList, boostChips, buffBanner, buffChip, buffChips, buffList, buffStat, describeTile, effectLines, gainLine, gainTag, mergesTo, pureAura, pureChip, singlesOf, skillHead, skillState, skillWords, statChip, statText, statValue, strengthsOf, summonLeft } from '../src/sim/describe.js';
+import { ELEMENTS, FUSIONS, TRAIT_KEYS, buffWorth, profileFor, turretDamage } from '../src/sim/classes.js';
+import { setLang } from '../src/i18n/index.js';
 import { ELEMENT_STATS, FUSION_SKILLS } from '../src/sim/skills/data.js';
 import { V2 } from '../src/config.js';
 
@@ -91,8 +93,16 @@ test('a fusion pet: its main and second element, its buffs, its skill in full, i
   ]);
   assert.deepEqual(
     d.buffs.map((b) => b.text),
-    ['+Ice: +10% slow', '+Nature ×2: heals 2% health per second'],
-    'in element order, each with what it gives',
+    ['+Ice: +10% slow', '+Nature ×2: heals 1.6% health per second'],
+    'in element order, each with what it gives (a second copy gives less: buffWorth)',
+  );
+  assert.deepEqual(
+    d.buffs.map((b) => [b.tag, b.chip.stat, b.chip.value]),
+    [
+      ['+Ice', 'slow', '+10%'],
+      ['+Nature ×2', 'regen', '+1.6%/s'],
+    ],
+    'each also as a chip',
   );
   assert.equal(d.skill.name, 'Plasma Barrage');
   assert.match(d.skill.text, /^Every 0\.8 s, punches the nearest foe for 120% damage/);
@@ -101,7 +111,11 @@ test('a fusion pet: its main and second element, its buffs, its skill in full, i
   assert.equal(d.skill.stateText, 'Charging: 42%');
   assert.equal(d.skill.text.includes('{'), false);
   assert.equal(d.pure.at, 'Pure Fire at 4096 (2 more merges)');
+  assert.deepEqual([d.pure.chip.stat, d.pure.chip.value, d.pure.chip.scope], ['dmg', '+25%', 'others']);
   assert.ok(d.stats.length === 5 && d.effects.length > 0);
+  assert.deepEqual(d.stats.map((st) => st.key), ['dmg', 'rate', 'dps', 'range', 'aim'], 'each stat names its icon');
+  assert.deepEqual(d.strengths.good, ['area', 'chain'], 'fire’s area, and lightning’s chain (SPEC-v2.1 section 3)');
+  assert.deepEqual(d.boosts.map((c) => c.stat), ['regen'], 'its nature buffs: regen');
 });
 
 test('a pure pet: its aura is on, and what it gains itself', () => {
@@ -110,15 +124,25 @@ test('a pure pet: its aura is on, and what it gains itself', () => {
   assert.equal(d.pure.name, 'Pure Nature');
   assert.equal(d.pure.aura, 'Every block: heals 1.5% health per second.');
   assert.equal(d.pure.self, 'Itself: +60% damage.');
+  assert.deepEqual([d.pure.selfChip.stat, d.pure.selfChip.value], ['dmg', '+60%']);
+  assert.deepEqual([d.pure.chip.stat, d.pure.chip.value, d.pure.chip.scope], ['regen', '+1.5%/s', 'blocks']);
   assert.equal(d.skill.state, 'ready');
   assert.equal(d.next, null);
 });
 
 test('the auras a block takes from pure pets: health and regen reach every block, the rest only pets', () => {
   const aura = { fire: 0.25, earth: 0.3 };
+  const auras = describeTile(tile(6, { element: 'ice' }, { aura })).auras;
   assert.deepEqual(
-    describeTile(tile(6, { element: 'ice' }, { aura })).auras.map((a) => a.text),
+    auras.map((a) => a.text),
     ['Pure Fire: +25% damage', 'Pure Earth: +30% health'],
+  );
+  assert.deepEqual(
+    auras.map((a) => [a.name, a.chip.stat, a.chip.value]),
+    [
+      ['Pure Fire', 'dmg', '+25%'],
+      ['Pure Earth', 'hp', '+30%'],
+    ],
   );
   assert.deepEqual(describeTile(tile(5, {}, { aura })).auras.map((a) => a.text), ['Pure Earth: +30% health'], 'a plain block takes health, not damage');
   assert.deepEqual(describeTile(tile(5, {}, { aura: null })).auras, []);
@@ -155,7 +179,8 @@ test('every fusion skill reads in full, its numbers filled from the data', () =>
 test('element stats, buffs and auras as words, from ELEMENT_STATS', () => {
   assert.equal(statText('fire', 0.2), '+20% damage');
   assert.equal(statText('poison', 2), '+2 poison stack per hit');
-  assert.equal(buffStat('ice', 3), `+${Math.round(ELEMENT_STATS.ice.buff * 3 * 100)}% slow`, 'stacks add up');
+  assert.equal(buffStat('ice', 3), `+${Math.round(ELEMENT_STATS.ice.buff * buffWorth(3) * 1000) / 10}% slow`, 'copies add up, each a little less (buffWorth)');
+  assert.equal(buffStat('ice', 3), '+19.6% slow');
   assert.equal(pureAura('fire'), 'Every other pet: +25% damage.');
   assert.equal(pureAura('earth'), 'Every block: +30% health.', 'health and regen reach every block');
   assert.equal(gainTag('fire', 2), '+Fire ×2');
@@ -167,17 +192,98 @@ test('element stats, buffs and auras as words, from ELEMENT_STATS', () => {
   assert.equal(mergesTo(8, 10), '2 more merges');
 });
 
-test('the buff banner: the pet, what it gained, and what that gives', () => {
-  assert.deepEqual(buffBanner({ fire: 1 }, 'Novakit'), { title: 'Novakit +Fire', sub: '+20% damage', gains: '+Fire' });
-  assert.deepEqual(buffBanner({ ice: 1, fire: 2 }, 'Mistmaw'), { title: 'Mistmaw +Fire ×2 +Ice', sub: '+40% damage, +10% slow', gains: '+Fire ×2 +Ice' });
+test('the buff banner: the pet, what it gained, and what that gives (as words, and as chips for the ribbon)', () => {
+  const one = buffBanner({ fire: 1 }, 'Novakit');
+  assert.deepEqual([one.title, one.sub, one.gains], ['Novakit +Fire', '+20% damage', '+Fire']);
+  assert.deepEqual(one.chips.map((c) => [c.stat, c.value]), [['dmg', '+20%']]);
+  const two = buffBanner({ ice: 1, fire: 2 }, 'Mistmaw');
+  assert.deepEqual([two.title, two.sub, two.gains], ['Mistmaw +Fire ×2 +Ice', '+32% damage, +10% slow', '+Fire ×2 +Ice']);
+  assert.deepEqual(
+    two.chips.map((c) => [c.stat, c.value]),
+    [
+      ['dmg', '+32%'],
+      ['slow', '+10%'],
+    ],
+  );
   assert.equal(buffBanner({ earth: 1 }, '').title, '+Earth', 'no pet name (its block gone): the gain alone');
 });
 
-test('effect lines cover every component a profile can carry, v2 stats too', () => {
+test('stat chips: an icon’s key and a short number, with the stat in words for a title', () => {
+  assert.equal(statValue('dmg', 0.2), '+20%');
+  assert.equal(statValue('poison', 1.6), '+1.6');
+  assert.equal(statValue('regen', 0.015), '+1.5%/s');
+  assert.deepEqual(statChip('wind', 0.15), { element: 'wind', stat: 'range', value: '+15%', words: '+15% range' });
+  assert.equal(statChip('nope', 1), null);
+  assert.deepEqual(buffChip('metal', 2), { element: 'metal', stat: 'crit', value: '+16%', words: '+16% crit chance (double damage)', n: 2, tag: '+Metal ×2' });
+  assert.deepEqual(
+    buffChips({ nature: 1, fire: 1 }).map((c) => c.element),
+    ['fire', 'nature'],
+    'in element order',
+  );
+  assert.equal(pureChip('earth').scope, 'blocks', 'health and regen auras reach every block');
+  assert.equal(pureChip('fire').scope, 'others');
+  assert.deepEqual(
+    boostChips({ critChance: 0.2, critMult: 2, regen: 0.015, hpMult: 1.25 }).map((c) => [c.stat, c.value, c.words]),
+    [
+      ['crit', '20% ×2', 'Crit: 20% chance of ×2 damage'],
+      ['regen', '+1.5%/s', 'Regen: heals 1.5% of its health per second in a wave'],
+      ['hp', '+25%', 'Health: +25%'],
+    ],
+  );
+  assert.deepEqual(boostChips({ hpMult: 1 }), []);
+  setLang('vi');
+  try {
+    assert.equal(statValue('regen', 0.01), '+1%/giây');
+  } finally {
+    setLang('en');
+  }
+});
+
+test('strengths: four, each lit or dim, and a line on what the pet is good and weak at', () => {
+  assert.deepEqual(TRAITS, TRAIT_KEYS, 'the sim’s four, in its order');
+  const st = strengthsOf({ far: true, lanes: true, area: false, chain: false });
+  assert.deepEqual(st.list, [
+    { key: 'far', on: true },
+    { key: 'lanes', on: true },
+    { key: 'area', on: false },
+    { key: 'chain', on: false },
+  ]);
+  assert.deepEqual([st.good, st.weak], [['far', 'lanes'], ['area', 'chain']]);
+  assert.equal(st.line, 'Good at reaching far and hitting other lanes. Weak at hitting crowds and chaining foe to foe.');
+  assert.equal(strengthsOf({ area: true }).line, 'Good at hitting crowds. Weak at reaching far, hitting other lanes and chaining foe to foe.');
+  assert.equal(strengthsOf({}).line, 'No strengths: one foe at a time, in its own lane.');
+  assert.equal(strengthsOf({ far: 1, lanes: 1, area: 1, chain: 1 }).line, 'Good at reaching far, hitting other lanes, hitting crowds and chaining foe to foe.');
+  assert.equal(strengthsOf(null), null);
+  assert.equal(andList(['a', 'b', 'c']), 'a, b and c');
+  setLang('vi');
+  try {
+    assert.equal(strengthsOf({ lanes: true, area: true }).line, 'Giỏi đánh sang làn khác và đánh cả đám. Yếu khi bắn xa và nảy từ quái này sang quái khác.');
+  } finally {
+    setLang('en');
+  }
+});
+
+test('the tile card shows the strengths of a block that shoots, from the sim’s profile', () => {
+  const of = (tier, cls) => describeTile(tile(tier, cls)).strengths;
+  assert.equal(of(3, {}), null, 'a block below 16 does not shoot');
+  assert.equal(of(2, { element: 'fire' }), null, 'nor does an egg');
+  assert.deepEqual(of(4, {}).good, [], 'a stone turret: none');
+  assert.deepEqual(of(4, { element: 'fire' }).good, ['area']);
+  assert.deepEqual(of(4, { element: 'ice' }).good, ['far'], 'ice reaches other lanes from 64');
+  assert.deepEqual(of(6, { element: 'ice' }).good, ['far', 'lanes']);
+  assert.deepEqual(of(8, { element: 'metal', fusion: 'poison', buffs: {} }).good, ['lanes', 'area'], 'a fusion: its main shape, and its second element’s first missing strength');
+  for (const [a, b] of [['earth', 'ice'], ['wind', 'metal'], ['lightning', 'nature']]) {
+    const st = of(9, { element: a, fusion: b, buffs: {} });
+    assert.equal(st.good.length, 2, `${a} + ${b}: exactly two`);
+    assert.deepEqual(st.good, TRAIT_KEYS.filter((k) => profileFor(tile(9, { element: a, fusion: b, buffs: {} })).traits[k]));
+  }
+});
+
+test('effect lines cover every component an attack can carry; the v2 stats are chips, not lines', () => {
   const lines = effectLines({ burn: { dpsPct: 0.32, dur: 3, max: 3 }, chain: { jumps: 2, range: 2.6, falloff: 0.8 }, loot: { pct: 0.6, dur: 3 }, heal: { chance: 0.2, pct: 0.12 }, knockback: 0.5, pierce: { len: 1.6 } });
   assert.equal(lines.length, 6);
   assert.match(lines.find((l) => l.startsWith('Chain')), /2 more foes within 1.3 cells, 20% less per jump/, 'distances in cells');
-  assert.deepEqual(effectLines({ critChance: 0.2, critMult: 2, regen: 0.015, hpMult: 1.25 }), ['Crit: 20% chance of ×2 damage', 'Regen: heals 1.5% of its health per second in a wave', 'Health: +25%']);
+  assert.deepEqual(effectLines({ critChance: 0.2, critMult: 2, regen: 0.015, hpMult: 1.25 }), [], 'crit, regen and health: boostChips');
 });
 
 test('attack speeds show their exact design value: Horn Arc 0.85 / s, not 0.8', () => {

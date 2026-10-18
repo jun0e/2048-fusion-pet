@@ -137,10 +137,11 @@ export const COACH = {
 };
 
 // How to play's rules: [title, words], from the language's table (src/i18n, the help.* keys); the v2
-// numbers come from the config (docs/v2/SPEC.md)
+// numbers come from the config (docs/v2/SPEC.md). Which levels bring what is the level road's
+// (src/sim/levels.js LEVEL_ROAD): the level card shows it, so these words name no level.
 const HELP_VARS = {
   skills: { summon: 2 ** V2.summonTier, pure: 2 ** V2.pureTier },
-  unlocks: { start: DICE.start, from: V2.unlockLevels[0], to: V2.unlockLevels.at(-1), n: V2.offers },
+  unlocks: { start: DICE.start, n: V2.offers },
 };
 export const HELP = ['swipe', 'turrets', 'siege', 'elements', 'upgrades', 'skills', 'unlocks', 'coins', 'level', 'keepsakes', 'bosses'].map((k) => [tr(`help.${k}.title`), tr(`help.${k}`, HELP_VARS[k])]);
 

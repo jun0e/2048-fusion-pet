@@ -4,7 +4,7 @@ import './ui/cards.css'; // v2: the choices, the skill gained, the namecard's ti
 import { Assets } from 'pixi.js';
 import { createRun } from './sim/run.js';
 import { ENEMY_TYPES } from './sim/enemies.js';
-import { ELEMENTS, FUSIONS, fusionKey, profileFor } from './sim/classes.js';
+import { ELEMENTS, FUSIONS, fusionKey, profileFor, traitsOf } from './sim/classes.js';
 import { FIELD, GRID, GRID_TOP, PHYSICS, cellX, cellY } from './config.js';
 import { createStage } from './render/stage.js';
 import { createScenery } from './render/scenery.js';
@@ -18,15 +18,15 @@ import { createFx } from './render/fx.js';
 import { createSkillFx } from './render/skillfx.js';
 import { loadGeneratedAssets, readyVfx } from './render/textures.js';
 import { createDiagnostics } from './render/diagnostics.js';
-import { createHud, bossHealth } from './ui/hud.js';
+import { createHud, bossHealth, iconToken } from './ui/hud.js';
 import { createTutorial } from './ui/tutorial.js';
 import { createJourney } from './ux/journey.js';
 import { GAME_OVER_DELAY, causeLine, lossHint, returnGoal } from './ux/journey-tuning.js';
 import { createInspect } from './ui/inspect.js';
-import { buffBanner } from './sim/describe.js';
+import { buffBanner, strengthsOf } from './sim/describe.js';
 import { petName } from './art/tokens.js';
-import { DEMO_DECK, createDemoPanel, mockChoice, presetBoard, shimSummons } from './ui/v2demo.js';
-import { createRunBadges } from './ui/run-badges.js';
+import { DEMO_DECK, DEMO_LEVELS, createDemoPanel, mockChoice, presetBoard, shimSummons } from './ui/v2demo.js';
+import { createRunBadges, rewardsLine } from './ui/run-badges.js';
 import { createKeepsakePicker } from './ui/keepsake-picker.js';
 import { loadMeta, saveMeta, recordBest, isFirstRun, unseenKeepsakes } from './ux/meta.js';
 import { STARTER_KEEPSAKE } from './sim/keepsakes.js';
@@ -76,8 +76,8 @@ const saveBestWave = (v) => {
 };
 
 // ?seed=123 replays a run; ?debug starts with a single pet, a fusion at 1024 and a pure pet at 4096.
-// ?v2demo: every kind of v2 block on the board, and buttons that open each v2 card with mock choices
-// (src/ui/v2demo.js; window.__mb.card(kind) does the same).
+// ?v2demo: every kind of v2 block on the board, and buttons that open each v2 card with mock choices,
+// the level card at several levels, and the v2.1 news (src/ui/v2demo.js; window.__mb.card(kind) does the same).
 const params = new URLSearchParams(location.search);
 const seedParam = params.has('seed') ? Number(params.get('seed')) >>> 0 : undefined;
 const v2demo = params.has('v2demo');
@@ -375,10 +375,9 @@ async function start() {
   // the pets layer (after the HUD, whose markup would drop its namecard strip)
   const pets = roaming ? setupPets({ stage, fx, art, hudEl: document.getElementById('hud'), getRun: () => run }) : null;
 
-  // the spawn level (above the coins: XP is bought with them) and the keepsake (above Wave now)
+  // the level (above the coins) and the keepsake (above Wave now)
   badges = createRunBadges(document.getElementById('hud'), {
     stage,
-    onBuyXp: () => !paused && run.buyXp(),
     onOpen: () => select(null, { keepCard: true }), // one card at a time
   });
 
@@ -484,6 +483,9 @@ async function start() {
     const bar = hudEl.querySelector('.statusbar');
     const low = Math.min(...['.coinbar', '.fight'].map((s) => hudEl.querySelector(s).offsetTop));
     stage.setInsets({ top: bar.offsetTop + bar.offsetHeight + 4, bottom: hudEl.clientHeight - low + 4 });
+    // a docked card (the fusion pet to keep) starts under the lintel, over the news ribbon (hud.css)
+    const lintel = hudEl.querySelector('.lintel').getBoundingClientRect();
+    hudEl.style.setProperty('--dock-top', `${Math.round(lintel.bottom - hudEl.getBoundingClientRect().top + 4)}px`);
   }
   fitStage();
   addEventListener('resize', fitStage);
@@ -501,7 +503,7 @@ async function start() {
   /** A swipe from the player or the autoplay bot. */
   function doSwipe(dir) {
     select(null);
-    if (paused) return false;
+    if (paused || demoChoice) return false; // (a mock card of ?v2demo waits like a real one: the board under it holds still)
     if (!run.move(dir)) {
       if (boardRefused(run)) blocks.nudge(dir); // the board refused it: every plaque bumps that way and back
       return false;
@@ -611,7 +613,7 @@ async function start() {
   function queueResult(tile, e) {
     const cls = tile?.cls?.fusion ? tile.cls : null;
     if (!cls || auto.on || kv) return;
-    results.push({ cls: { element: cls.element, fusion: cls.fusion }, tier: tile.tier ?? e.tier });
+    results.push({ cls: { element: cls.element, fusion: cls.fusion }, tier: tile.tier ?? e.tier, strengths: strengthsOf(profileFor(tile).traits) });
   }
   function nextResult() {
     // not under the pause menu or the keepsake picker (a modal card would take their taps): after them
@@ -620,7 +622,7 @@ async function start() {
   }
   function openResult(r) {
     resultOn = r;
-    hud.showResult(r.cls, { tier: r.tier });
+    hud.showResult(r.cls, { tier: r.tier, strengths: r.strengths, chargeS: run.defense?.chargeS });
     pause.hold('result', true); // the game waits while the player reads it
   }
   function closeResult() {
@@ -634,7 +636,7 @@ async function start() {
     const t = run.tiles.find((x) => x.id === e.tileId);
     const pet = t?.cls?.fusion ? petName(t.cls.element, t.cls.fusion) : '';
     const b = buffBanner(e.gain ?? {}, pet);
-    hud.banner(b.title, b.sub, 'good');
+    hud.banner(b.title, b.chips.map((c) => `${iconToken(c.stat)}${c.value}`).join(' '), 'good'); // each stat as its icon and number
     const first = Object.keys(e.gain ?? {})[0];
     const at = e.x != null ? e : t; // the block's place (the event's, else the block's own)
     if (first && at) {
@@ -644,29 +646,55 @@ async function start() {
     }
     sfx.choose(1);
   }
-  /** ?v2demo, and window.__mb.card(kind): open a card with mock data. */
+  /** ?v2demo, and window.__mb.card(kind): open a card with mock data, or play a piece of v2.1 news. */
   function openDemo(kind) {
     select(null);
     if (kind === 'result') {
       closeResult();
       demoChoice = null;
-      return openResult({ cls: { element: 'fire', fusion: 'ice' }, tier: 5 }); // over any choice the sim has open
+      // two singles just fused (over any choice the sim has open): the card a fusion brings, with its strengths
+      const cls = { element: 'fire', fusion: 'ice', buffs: {} };
+      return openResult({ cls, tier: 5, strengths: strengthsOf(traitsOf(cls, true, 5)) });
     }
     if (kind === 'buffed') {
       const t = demoTiles?.fusion ?? run.tiles.find((x) => x.cls?.fusion);
-      return showBuffed({ type: 'buffed', tileId: t?.id, gain: { fire: 1 }, buffs: { ...(t?.cls?.buffs ?? {}), fire: 1 }, x: t?.x, y: t?.y, tier: t?.tier });
+      return showBuffed({ type: 'buffed', tileId: t?.id, gain: { fire: 1, metal: 2 }, buffs: { ...(t?.cls?.buffs ?? {}), fire: 1, metal: 2 }, x: t?.x, y: t?.y, tier: t?.tier });
     }
+    if (kind === 'level') {
+      // the level card at the next of the demo's levels (DEMO_LEVELS), on the run's level road
+      const at = DEMO_LEVELS.indexOf(demoLevel?.level ?? 0);
+      const level = DEMO_LEVELS[(at + 1) % DEMO_LEVELS.length];
+      const need = 10 + level * 4;
+      demoLevel = { level, need, xp: Math.round(need * 0.6) };
+      return badges.show('level');
+    }
+    if (kind === 'grow') return growNews({ type: 'grow', size: Math.min(6, (run.size ?? 4) + 1), from: run.size ?? 4 });
+    if (kind === 'steep' || kind === 'dps') return rampNews({ type: 'ramp', phase: kind });
+    if (kind === 'levelUp') return run.addXp?.(Math.max(1, run.xpNeed - run.xp)); // the real level up: its news, and its pick when it brings one
     closeResult();
-    demoChoice = mockChoice(kind); // two offers whatever the deck has grown to (its fusions show with the run's deck)
+    demoChoice = mockChoice(kind, undefined, { tileId: demoTiles?.young?.id }); // two offers whatever the deck has grown to (its fusions show with the run's deck)
   }
-  /** A mock choice picked: it closes; a fusion's shows its skill gained, with the main element picked. */
-  function pickDemo(i) {
-    const c = demoChoice;
+  let demoLevel = null; // ?v2demo: the level card's numbers at a level of the road ({ level, xp, need })
+  /** A mock choice picked: it closes. */
+  function pickDemo() {
     demoChoice = null;
-    if (c?.kind === 'fusion') {
-      const o = c.offers[Math.max(0, Math.min(c.offers.length - 1, i))];
-      results.unshift({ cls: { element: o.element, fusion: o.fusion }, tier: c.tier });
-    }
+  }
+  /** A level up: the disc pops; the ribbon says the level and what it brings (no spawn odds: SPEC-v2.1 section 6). */
+  function levelNews(e) {
+    badges.levelUp();
+    sfx.choose(1);
+    const rewards = e.rewards ?? run.road?.find((r) => r.level === e.level)?.rewards ?? [];
+    hud.banner(tr('ban.level', { n: e.level }), rewardsLine(rewards, iconToken), 'good');
+  }
+  /** The board grew (SPEC-v2.1 section 1): the keep grid follows the run's size; the ribbon says so. */
+  function growNews(e) {
+    hud.banner(`${iconToken('grow')}${tr('ban.grow', { size: e.size })}`, tr('ban.grow.sub'), 'good');
+    sfx.milestone();
+  }
+  /** The siege's ramp (SPEC-v2.1 section 5): its fiercer phases, as the ribbon says them. */
+  function rampNews(e) {
+    if (e.phase !== 'steep' && e.phase !== 'dps') return;
+    hud.banner(`${iconToken(e.phase === 'dps' ? 'dps' : 'steep')}${tr(`ban.${e.phase}`)}`, tr(`ban.${e.phase}.sub`), 'boss');
   }
   if (v2demo) createDemoPanel(hudEl, { open: openDemo });
 
@@ -765,7 +793,7 @@ async function start() {
           hud.announce(e.info);
           sfx.choose(e.stage);
           if (e.stage >= 2) stage.shake(4 + e.stage * 2);
-          // a fusion made (its main element picked, or no pick): the skill it gained, in full
+          // a fusion made (v2.1: two singles fuse at once, the pair fixes its main element): the skill it gained, in full
           if (e.stage === 2) queueResult(run.tiles.find((t) => t.id === e.tileId) ?? null, e);
           break;
         }
@@ -808,22 +836,16 @@ async function start() {
           fx.ring(e.x, e.y + 0.4, 0xdfe8f2, 0.35, 1.6, 0.35);
           break;
         }
-        case 'levelUp': {
-          // the spawn level rose (src/sim/levels.js): the disc pops; the ribbon says the new odds
-          badges.levelUp();
-          sfx.choose(1);
-          hud.banner(tr('ban.level', { n: e.level }), tr('ban.level.sub', { odds: e.odds.map((o) => `${o.value} ${o.pct}%`).join(' · ') }), 'good');
+        case 'levelUp':
+          // a level on the level road (src/sim/levels.js LEVEL_ROAD): the disc pops; the ribbon says what it brings
+          levelNews(e);
           break;
-        }
+        case 'ramp':
+          rampNews(e); // v2.1 (screens): the siege's fiercer phases
+          break;
         case 'no2':
           hud.banner(tr('ban.no2s'), tr('ban.no2s.sub'), 'good');
           break;
-        case 'buyXp': {
-          sfx.coin();
-          const c = badges.center('level');
-          popup(c.x + 26, c.y - 26, tr('pop.xp', { n: e.xp }), 3, '#ffcf4a');
-          break;
-        }
         case 'punch': {
           // Iron Fist: the block that slid in lands a punch (sparks thrown the way it moved)
           const toward = { up: Math.PI / 2, down: -Math.PI / 2, left: Math.PI, right: 0 }[e.dir] ?? 0;
@@ -836,6 +858,9 @@ async function start() {
           badges.pulseKeepsake();
           break;
         }
+        case 'grow':
+          growNews(e); // v2.1 (screens): the ribbon says the keep grew (the board views' rebuild joins this case at merge)
+          break;
         case 'stomp':
           // Quake Boots: the board shakes and every monster on it is stunned
           fx.ring(0, GRID_TOP / 2, 0xc9a582, 1, 6, 0.45);
@@ -1035,23 +1060,17 @@ async function start() {
       bestWave,
       total: run.wave.count, // the foes meter's full mark
       bossHp: bossHealth(run.enemies), // the lintel's boss bar
+      size: run.size ?? 4, // the keep grid: as big as the board (v2.1: it grows)
     });
     hud.setEconomy(run.coins, run.swipeCost, run.swipes); // the swipes count drives the price step tick
     // a choice waits while the skill a fusion gained is on screen; then the next skill card, if any
     hud.setChoice(gameOverShown || resultOn ? null : (demoChoice ?? run.pendingChoice), { deck: run.owned });
     nextResult();
     badges.update({
-      level: run.level,
-      xp: run.xp,
-      need: run.xpNeed,
-      cap: run.levelCap,
-      spawnLevel: run.spawnLevel,
-      maxTier: run.maxTier,
-      no2: run.no2,
+      ...(demoLevel ?? { level: run.level, xp: run.xp, need: run.xpNeed }),
+      road: run.road ?? [], // the level road (src/sim/levels.js LEVEL_ROAD): what the next level brings
       keepsake: run.keepsake,
       phoenixReady: run.phoenixReady,
-      coins: run.coins,
-      price: run.buyXpPrice,
       bestTier: meta.bestTier,
       levelsOn: run.levelsOn,
       hidden: !!kv,
@@ -1068,10 +1087,10 @@ async function start() {
     if (selected != null && (!picked || run.pendingChoice || demoChoice)) select(null);
     scenery.showRange(picked ? { x: picked.x, y: picked.y, shoot: profileFor(picked).shoot } : null);
     // no card in the guided opening (its Break would undo the first lesson's 8s)
-    const skill = picked && run.skillCharge ? { charge: run.skillCharge(picked.id), ready: !!run.skillReady?.(picked.id) } : null; // a fusion's summon line (v2)
+    const skill = picked && run.skillCharge ? { charge: run.skillCharge(picked.id), ready: !!run.skillReady?.(picked.id), chargeS: run.defense?.chargeS } : null; // a fusion's summon line (v2); its charge time (the level road shortens it)
     inspect.show(picked && !run.pendingChoice && !gameOverShown && !pause.paused && !tutorial.active ? picked : null, picked ? { price: run.discardPrice(picked.id), coins: run.coins, last: run.tiles.length <= 1, tiles: run.tiles, skill } : {}, dt, { kept: !!picked });
 
-    const perLane = [0, 0, 0, 0];
+    const perLane = new Array(FIELD.lanes).fill(0); // one lane per board column (v2.1: 4 to 6)
     for (const e of run.enemies) if (!e.dead && !e.gone) perLane[e.lane] += 1;
     scenery.update(dt, { lanes: run.wave.lanes, bossLane: run.wave.bossLane, phase: run.phase, perLane, run }); // run: chapter skin, gate chips, deck slot
     kv?.update(run, dt);
@@ -1129,7 +1148,7 @@ async function start() {
       return tutorial.slowmo;
     },
     openPicker: () => picker && openPicker('restart'),
-    /** Open a v2 card with mock data: 'die' | 'fusion' | 'keep' | 'result' | 'buffed' (src/ui/v2demo.js). */
+    /** Open a v2 card with mock data, or play v2.1 news: 'die' | 'keep' | 'result' | 'buffed' | 'level' | 'levelUp' | 'grow' | 'steep' | 'dps' (src/ui/v2demo.js). */
     card: (kind) => openDemo(kind),
     coins: (n) => run.addCoins(n),
     /** The full-screen wash on screen now (0 = none): photosafe checks. */

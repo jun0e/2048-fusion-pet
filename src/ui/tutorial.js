@@ -8,7 +8,7 @@
 // let anyone replay it.
 // Progress is kept in localStorage; `?tutorial` in the URL resets it.
 import { tr } from '../i18n/index.js';
-import { FIELD, GRID_TOP, laneX } from '../config.js';
+import { FIELD, GRID, GRID_TOP, laneX } from '../config.js';
 import { createCoach, loadStore, saveStore, HELP } from '../ux/coach.js';
 import { bubbleWidth, placeBubble } from '../ux/placement.js';
 
@@ -74,7 +74,8 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, 
   };
   const tileRect = (id) => {
     const t = run().tiles.find((x) => x.id === id);
-    return t ? worldRect(t.x - 0.95, t.y + 0.95, t.x + 0.95, t.y - 0.95) : null;
+    const h = GRID.cell * 0.475; // just inside its cell, whatever the board's size (v2.1: cells shrink as it grows)
+    return t ? worldRect(t.x - h, t.y + h, t.x + h, t.y - h) : null;
   };
   function targetRect(target) {
     if (!target) return null;
@@ -89,7 +90,7 @@ export function createTutorial(root, { stage, getRun, onPause, onReplay, onLog, 
     if (target === 'keepsake') return domRect('.ks-badge:not([hidden])'); // the keepsake disc (src/ui/run-badges.js)
     if (target === 'level') return domRect('.lv-badge:not([hidden])');
     if (target.tile != null) return tileRect(target.tile);
-    if (target.lane != null) return worldRect(laneX(target.lane) - 0.9, FIELD.spawnY + 1.2, laneX(target.lane) + 0.9, FIELD.spawnY - 0.4);
+    if (target.lane != null) return worldRect(laneX(target.lane) - GRID.cell * 0.45, FIELD.spawnY + 1.2, laneX(target.lane) + GRID.cell * 0.45, FIELD.spawnY - 0.4);
     return null;
   }
 

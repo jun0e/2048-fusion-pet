@@ -1,11 +1,13 @@
 // ?v2demo (a developer's page, never a normal game): a board with every kind of v2 block (docs/v2/SPEC.md
-// section 1), mock choices in the SPEC's shapes, and a row of buttons that open each v2 card (a new
-// element, a fusion's main element, the fusion to keep, the skill gained, the buff banner), so the cards
-// can be checked in the browser before the sim's v2 rules land, and after. A run without the sim's
-// summons yet gets a stand-in (shimSummons), so the namecards' charging, ready and out states show too.
+// section 1), mock choices in the SPEC's shapes, and a column of buttons that open each card (a new
+// element, the fusion to keep, the skill gained, the buff banner, the level card at several levels) and
+// play the v2.1 news (a level up, the board growing, the siege's ramp), plus a sheet of every stat icon,
+// so the screens can be checked in the browser at rest. A run without the sim's summons gets a stand-in
+// (shimSummons), so the namecards' charging, ready and out states show too.
 import { PHYSICS, V2 } from '../config.js';
-import { ELEMENTS, FUSIONS, fusionKey } from '../sim/classes.js';
+import { ELEMENTS, fusionKey } from '../sim/classes.js';
 import { esc } from './cards.js';
+import { ICON_KEYS, icon, iconWord } from './icons.js';
 
 /** The demo's deck: four elements, so a new element's card shows its fusions with them. */
 export const DEMO_DECK = ['fire', 'ice', 'lightning', 'nature'];
@@ -46,22 +48,27 @@ const keepOffer = (kept, other) => {
   return { cls: { element: kept.element, fusion: kept.fusion, buffs }, gain };
 };
 
-/** A mock choice of `kind` ('die' | 'fusion' | 'keep'), in the SPEC's shapes (section 3). */
-export function mockChoice(kind, deck = DEMO_DECK) {
+/**
+ * A mock choice of `kind` ('die' | 'keep'), in the SPEC's shapes (section 3; v2.1 has no fusion pick).
+ * `tileId`: the block a keep card is about (a demo block, so the board can highlight it).
+ */
+export function mockChoice(kind, deck = DEMO_DECK, { tileId = -2 } = {}) {
   if (kind === 'die') {
     const free = Object.keys(ELEMENTS).filter((e) => !deck.includes(e));
     return { kind: 'die', level: 3, offers: free.slice(0, V2.offers).map(offerOf) };
   }
-  if (kind === 'fusion') {
-    const key = fusionKey('fire', 'ice');
-    const offer = (a, b) => ({ element: a, fusion: b, key, name: FUSIONS[key].name, color: FUSIONS[key].color });
-    return { kind: 'fusion', tileId: -1, tier: 5, parts: [{ element: 'fire', tier: 4 }, { element: 'ice', tier: 4 }], offers: [offer('fire', 'ice'), offer('ice', 'fire')] };
-  }
   // a heavy merge (the most a keep card shows): five and four gains, buffs on both sides
   const mover = { element: 'fire', fusion: 'ice', buffs: { lightning: 1, wind: 1 } };
   const stayer = { element: 'earth', fusion: 'metal', buffs: { poison: 2, nature: 1, wind: 1 } };
-  return { kind: 'keep', tileId: -2, tier: 9, offers: [keepOffer(mover, stayer), keepOffer(stayer, mover)] };
+  return { kind: 'keep', tileId, tier: 9, offers: [keepOffer(mover, stayer), keepOffer(stayer, mover)] };
 }
+
+/**
+ * The levels the demo's level card shows in turn (each card shows what the NEXT level brings on the
+ * run's road): an element pick, values that start spawning, the 5×5 board, values that stop, faster
+ * summons, the top level, and the top reached.
+ */
+export const DEMO_LEVELS = [1, 2, 10, 11, 14, 19, 20];
 
 /**
  * The sim's summons as a stand-in, for a run that has none yet (src/sim/run.js before v2's summons
@@ -100,21 +107,52 @@ export function shimSummons(run) {
   return true;
 }
 
-/** The row of buttons that opens each card (`open(kind)`): kinds 'die' | 'fusion' | 'keep' | 'result' | 'buffed'. */
+/** Every stat icon at the sizes the screens use (14–20 px), and at 32 px, on clay and on the skill's slate. */
+export function iconSheetHtml() {
+  const row = (k) => `<div class="v2i-row"><span class="v2i-clay">${[14, 16, 20, 32].map((s) => icon(k, { size: s })).join('')}</span><span class="v2i-slate">${icon(k, { size: 18 })}</span><small>${esc(k)} · ${esc(iconWord(k))}</small></div>`;
+  return `<div class="v2i-grid">${ICON_KEYS.map(row).join('')}</div>`;
+}
+
+/**
+ * The row of buttons that opens each card (`open(kind)`): kinds 'die' | 'keep' | 'result' | 'buffed' |
+ * 'level' (the level card at the next of DEMO_LEVELS) | 'levelUp' | 'grow' | 'steep' | 'dps' (the v2.1
+ * news); 'icons' shows every stat icon.
+ */
 export function createDemoPanel(root, { open }) {
   const el = document.createElement('div');
   el.className = 'v2demo';
   const kinds = [
     ['die', 'Element'],
-    ['fusion', 'Fusion'],
     ['keep', 'Keep'],
     ['result', 'Skill'],
     ['buffed', 'Buff'],
+    ['level', 'Level'],
+    ['levelUp', 'Lv up'],
+    ['grow', 'Grow'],
+    ['steep', 'Steep'],
+    ['dps', 'DPS'],
+    ['icons', 'Icons'],
   ];
   el.innerHTML = kinds.map(([k, label]) => `<button data-demo="${k}">${esc(label)}</button>`).join('');
+  let sheet = null; // the icon sheet, over the field (a tap closes it)
+  const toggleSheet = () => {
+    if (sheet) {
+      sheet.remove();
+      sheet = null;
+      return;
+    }
+    sheet = document.createElement('div');
+    sheet.className = 'v2demo-icons';
+    sheet.innerHTML = iconSheetHtml();
+    sheet.addEventListener('click', toggleSheet);
+    sheet.addEventListener('pointerdown', (e) => e.stopPropagation());
+    root.appendChild(sheet);
+  };
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-demo]');
-    if (b) open(b.dataset.demo);
+    if (!b) return;
+    if (b.dataset.demo === 'icons') toggleSheet();
+    else open(b.dataset.demo);
   });
   el.addEventListener('pointerdown', (e) => e.stopPropagation()); // a tap here never swipes the board
   root.appendChild(el);

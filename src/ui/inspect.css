@@ -155,15 +155,31 @@
 .inspect-stats div:nth-child(n + 4) {
   grid-column: span 3; /* range · targets */
 }
-/* the captions in sentence case: at 13 px "Damage" fits a third of the narrowest card (240 px) */
+/* each stat's icon in place of its caption (v2.1), over its value: the icon says the word to a screen reader */
 .inspect-stats dt {
-  font: 800 13px/1.2 var(--font-display);
-  color: var(--ink-soft);
+  display: flex;
+  height: 20px;
+  align-items: center;
 }
 .inspect-stats dd {
+  min-width: 0;
   margin: 0;
   font: 800 16px/1.25 var(--font-display);
   font-variant-numeric: tabular-nums;
+}
+/* what buffs and auras add beyond the attack's numbers: crit, regen, health, as chips */
+.inspect-boosts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: -2px 0 8px;
+}
+/* the attack's strengths (src/ui/cards.js strengthsHtml), under the head */
+.inspect .traits {
+  margin: 0 0 8px;
+}
+.inspect-head + .traits {
+  margin-top: 10px;
 }
 .inspect-fx {
   margin: 0 0 8px;
@@ -327,6 +343,17 @@
   background: #fff1c2;
   box-shadow: inset 3px 0 0 var(--c);
 }
+/* a buff: its element tag, then what it gives as a chip */
+.inspect-buffs li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px 8px;
+}
+.inspect-buffs li b {
+  font: 800 14px/1.3 var(--font-display);
+}
 .inspect-buffs p,
 .inspect-fuses p {
   margin: 0;
@@ -336,7 +363,7 @@
   margin: 0 0 8px;
 }
 .inspect-head + .skill-tip {
-  margin-top: 10px; /* a fusion pet's card opens on its skill */
+  margin-top: 10px; /* a block whose card opens on its skill */
 }
 .inspect-pure {
   margin: 0 0 8px;
