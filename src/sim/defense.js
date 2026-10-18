@@ -982,10 +982,26 @@ export function createDefense({ rng }) {
     return n;
   }
 
+  // v2 summons (docs/v2/SPEC.md section 5-6): stubs until the summon framework lands
+  const zones = [];
+  const walls = [];
+  const traps = [];
+  const minions = [];
+  const tethers = [];
+
   return {
     enemies,
     shots,
     puddles,
+    zones,
+    walls,
+    traps,
+    minions,
+    tethers,
+    /** A fusion's summon charge, 0..1 (v2). */
+    skillCharge: () => 0,
+    /** Send a fusion's pet out with its skill (v2): true when it went. */
+    summon: () => false,
     spawn,
     damage,
     step,

@@ -183,3 +183,19 @@ export const DICE = {
   start: 2,
   unlockTiers: [6, 8, 9], // 64, 256, 512 (the projection puts them around waves 4, 10 and 15)
 };
+
+// v2 (docs/v2/SPEC.md): elemental eggs, one single pet per element, fusions by merging two single pets,
+// element buffs fed into fusions, a summon skill at 1024, a pure form at 4096, element unlocks by level.
+export const V2 = {
+  // a new block is an elemental egg this often, when the deck has an element with no single egg or pet
+  // on the board (one single per element at a time; fusions do not count)
+  eggChance: 0.22,
+  summonTier: 10, // 1024: a fusion's summon skill unlocks (its namecard)
+  pureTier: 12, // 4096: a pet becomes the pure form of its main element (an aura for every other pet)
+  // the summon: charges over this much wave time (only while foes are on the field), then the pet is out
+  // on the field this long using its skill (src/sim/skills/data.js FUSION_SKILLS)
+  summon: { chargeS: 15, durS: 8, hopS: 0.6 },
+  // the player's spawn levels that each offer a new element: a pick of `offers` (docs/v2/SPEC.md)
+  unlockLevels: [2, 3, 4, 5, 6, 7],
+  offers: 2,
+};

@@ -5,10 +5,14 @@
 // builds its markup around the words. tr(key, vars) fills {name} placeholders; a plural is
 // { one, other } (or whichever forms Intl.PluralRules names for the language), picked by vars.count,
 // else vars.n; a key missing from a language falls back to English.
-import { EN } from './en.js';
+import { EN as EN_BASE } from './en.js';
 import { VI } from './vi.js';
+import { SKILLS_EN } from './skills-en.js';
+import { SKILLS_VI } from './skills-vi.js';
 
-export const LANGS = { en: EN, vi: VI };
+// v2's skill words live in tables of their own (src/sim/skills/data.js has their numbers)
+const EN = { ...EN_BASE, ...SKILLS_EN };
+export const LANGS = { en: EN, vi: { ...VI, ...SKILLS_VI } };
 /** Each language's name, in itself (the Language row in Settings). */
 export const LANG_NAMES = Object.fromEntries(Object.entries(LANGS).map(([code, table]) => [code, table['@name']]));
 export const LANG_KEY = 'siege:lang';
