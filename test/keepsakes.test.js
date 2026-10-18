@@ -161,7 +161,7 @@ test('Spiked Collar: every block has 30% more hidden health; Lucky Clover: spawn
 test('Phoenix Feather: the last block rises once, as the biggest block lost this run, and blasts the board clear', () => {
   const r = createRun({ seed: 3, empty: true, keepsake: 'phoenixFeather', levels: false, dice: ['fire', 'ice'], autoChoose: true });
   const big = r.spawnDebug(9, 0, 0);
-  big.cls = { element: 'fire', fusion: 'ice' };
+  big.cls = { element: 'fire', fusion: 'ice', buffs: { earth: 1 } };
   const last = r.spawnDebug(1, 3, 3);
   const e = foeAt(r, 3, 5);
   e.mode = 'hunt';
@@ -175,8 +175,8 @@ test('Phoenix Feather: the last block rises once, as the biggest block lost this
   assert.ok(ev.some((x) => x.type === 'phoenix' && x.tier === 9));
   assert.equal(r.over, false);
   assert.equal(last.tier, 9, 'it came back as the 512');
-  assert.deepEqual(last.cls, { element: 'fire', fusion: 'ice' });
-  assert.ok(['fire', 'ice'].every((e) => last.mats.includes(e)), 'with the lost block\'s material');
+  assert.deepEqual(last.cls, { element: 'fire', fusion: 'ice', buffs: { earth: 1 } }, 'with its class and buffs');
+  assert.equal(last.maxHp, Math.round(maxHpFor(9) * 1.25), 'its earth buff still counts');
   assert.equal(last.hp, last.maxHp);
   assert.equal(e.mode, 'lane', 'the monster was thrown back up its lane');
   assert.ok(e.s <= 1.1, 'to the gates');
@@ -397,21 +397,28 @@ test('Lucky Clover: no XP for sale once the odds are at the top; a punch kill pa
   const c = createRun({ seed: 3, empty: true, keepsake: 'luckyClover' });
   c.spawnDebug(12, 0, 0); // a 4096: the cap is level 9
   c.addCoins(1e6);
-  while (c.buyXp());
+  while (c.buyXp() || (c.pendingChoice && c.choose(0)));
   assert.equal(c.spawnLevel, 9);
   assert.equal(c.level, 7, 'level 7 + the clover = the top odds: buying stops there');
   assert.equal(c.buyXpPrice, null);
 
-  // the swipe makes the first 64 (a die card opens) and punches a weak monster to death
-  const r = createRun({ seed: 3, empty: true, keepsake: 'ironFist', levels: false });
-  r.spawnDebug(5, 1, 0);
-  r.spawnDebug(5, 1, 1);
+  // the swipe makes the first 32: the full level bar takes level 2 (an element card opens), and the
+  // swipe punches a weak monster to death
+  const r = createRun({ seed: 3, empty: true, keepsake: 'ironFist' });
+  r.spawnDebug(4, 1, 0);
+  r.spawnDebug(4, 1, 1);
+  r.nextWave();
+  for (let i = 0; i < 60 * 120 && r.phase !== 'break'; i++) {
+    for (const f of r.enemies) if (!f.dead) r.defense.damage(f, 1e9, ['fire']);
+    r.step();
+  }
+  assert.equal(r.xp, 2, 'a full bar, waiting at the cap');
   foeAt(r, 1, 6, 1);
   const coins = r.coins;
   r.drainEvents();
   assert.ok(r.move('up'));
   const ev = r.drainEvents();
-  assert.ok(r.pendingChoice, 'a die card is up');
+  assert.equal(r.pendingChoice?.kind, 'die', 'an element card is up');
   assert.ok(ev.some((x) => x.type === 'kill'), 'the kill is in the same swipe');
-  assert.equal(r.coins, coins - swipeCostFor(0) + killCoinsFor(1, false));
+  assert.equal(r.coins, coins - swipeCostFor(0) + killCoinsFor(r.waveNo, false));
 });

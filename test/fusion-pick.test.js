@@ -1,150 +1,211 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRun } from '../src/sim/run.js';
-import { fusionKey, fusionOffers, materialOf, mergeMaterial } from '../src/sim/classes.js';
-import { describeTile } from '../src/sim/describe.js';
+import { FUSIONS } from '../src/sim/classes.js';
 import { recordRun, replayRun, fingerprint } from '../src/ux/resume.js';
 
-/** A block placed with its element and the material that went into it. */
-function block(r, tier, col, row, element, mats) {
+const DECK = ['fire', 'ice', 'lightning', 'metal'];
+const run = (opts = {}) => createRun({ seed: 1, empty: true, levels: false, dice: DECK, ...opts });
+/** A block with a class, at (col, row). */
+function block(r, tier, col, row, cls = {}) {
   const t = r.spawnDebug(tier, col, row);
-  t.cls = { element };
-  t.mats = mats;
+  t.cls = structuredClone(cls);
   return t;
 }
-const run = (opts = {}) => createRun({ seed: 1, empty: true, levels: false, dice: ['fire', 'ice', 'lightning'], ...opts });
+const fusion = (element, second, buffs = {}) => ({ element, fusion: second, buffs });
+/** Only `keep` stays on the board (the swipe's random new block goes). */
+const clearBut = (r, keep) => {
+  for (const t of r.tiles) if (t !== keep) r.grid.remove(t);
+  r.drainEvents();
+};
 
-test('a block keeps its material: the elements of every elemental block merged into it', () => {
-  assert.deepEqual(mergeMaterial(['ice'], ['fire', 'metal'], ['ice']), ['fire', 'ice', 'metal']);
-  assert.deepEqual(materialOf({ cls: { element: 'fire', fusion: 'ice' } }), ['fire', 'ice'], 'a block without a record counts its own elements');
-  assert.deepEqual(materialOf({ mats: [], cls: { element: 'fire' } }), ['fire'], 'and so does a block given its class directly (presets, ?debug)');
+test('two single pets of different elements: a fusion choice; the block holds offer 0 (the mover main) until the pick', () => {
   const r = run();
-  block(r, 4, 0, 0, 'fire', ['fire']);
-  block(r, 4, 1, 0, 'ice', ['ice']);
-  assert.ok(r.move('left'));
-  const t = r.tiles.find((x) => x.tier === 5);
-  assert.equal(t.cls.element, 'ice', 'the block that slid in keeps its element (as before)');
-  assert.deepEqual(t.mats, ['fire', 'ice'], 'but the fire is remembered');
-});
-
-test('fusion offers come from the material only: the merge rule\'s pick first, then the other pairs', () => {
-  const offers = fusionOffers({ element: 'ice', fusion: 'fire' }, ['fire', 'ice', 'lightning']);
+  block(r, 5, 0, 0, { element: 'fire' });
+  block(r, 5, 1, 0, { element: 'ice' });
+  r.drainEvents();
+  assert.ok(r.move('left')); // the ice pet slides into the fire pet
+  const ev = r.drainEvents();
+  const c = r.pendingChoice;
+  assert.equal(c.kind, 'fusion');
+  assert.equal(c.tier, 6);
+  assert.deepEqual(c.parts, [
+    { element: 'ice', tier: 5 },
+    { element: 'fire', tier: 5 },
+  ]);
   assert.deepEqual(
-    offers.map((o) => [o.element, o.fusion]),
+    c.offers.map((o) => [o.element, o.fusion, o.name]),
     [
-      ['ice', 'fire'],
-      ['ice', 'lightning'],
-      ['fire', 'lightning'],
+      ['ice', 'fire', FUSIONS['fire+ice'].name],
+      ['fire', 'ice', FUSIONS['fire+ice'].name],
     ],
   );
-  assert.equal(offers[0].name, 'Frostnova');
-  assert.equal(offers[0].key, fusionKey('fire', 'ice'));
-  assert.deepEqual(
-    fusionOffers({ element: 'fire', fusion: 'ice' }, ['fire', 'poison']).map((o) => o.fusion),
-    ['poison'],
-    'an element that is not in the material is never offered',
-  );
-  assert.equal(fusionOffers({ element: 'fire' }, ['fire', 'ice', 'lightning', 'poison', 'earth']).length, 4, 'at most 4 cards');
-});
-
-test('reaching 256 with three elements in the material opens a fusion pick; the pick sets the fusion', () => {
-  const r = run();
-  block(r, 7, 0, 0, 'fire', ['fire', 'lightning']);
-  block(r, 7, 1, 0, 'ice', ['ice']);
-  r.drainEvents();
-  assert.ok(r.move('left'));
-  const ev = r.drainEvents();
-  assert.ok(!ev.some((e) => e.type === 'classed' && e.stage === 2), 'not announced before the pick');
-  assert.ok(!ev.some((e) => e.type === 'override'), 'no "Ice over Fire" while the player is choosing');
-  const pick = r.pendingChoice;
-  assert.equal(pick.kind, 'fusion');
-  assert.equal(pick.offers.length, 3);
-  assert.ok(ev.some((e) => e.type === 'choice' && e.kind === 'fusion'));
-  const t = r.tiles.find((x) => x.id === pick.tileId);
-  assert.deepEqual([t.cls.element, t.cls.fusion], ['ice', 'fire'], 'meanwhile it holds the merge rule\'s pick');
+  assert.ok(ev.some((e) => e.type === 'choice' && e.kind === 'fusion' && e.tileId === c.tileId));
+  assert.ok(!ev.some((e) => e.type === 'classed'), 'announced once picked');
+  const t = r.tiles.find((x) => x.id === c.tileId);
+  assert.deepEqual(t.cls, fusion('ice', 'fire'));
   assert.equal(r.move('right'), false, 'the game waits for the pick');
-
-  assert.ok(r.choose(2)); // Plasma: fire + lightning
-  assert.deepEqual(t.cls, { element: 'fire', fusion: 'lightning' });
-  const classed = r.drainEvents().find((e) => e.type === 'classed');
-  assert.ok(classed && classed.stage === 2 && classed.chosen && classed.info.name === 'Plasma');
-  // the first 256 also unlocked dice: those cards come after the fusion pick
-  assert.equal(r.pendingChoice?.kind, 'die');
-});
-
-test('no pick when the material allows one fusion; a same-element merge still fuses from the material', () => {
-  const r = run();
-  block(r, 7, 0, 0, 'fire', ['fire', 'poison']);
-  block(r, 7, 1, 0, 'fire', ['fire']);
-  r.drainEvents();
-  assert.ok(r.move('left'));
-  const t = r.tiles.find((x) => x.tier === 8);
-  assert.deepEqual(t.cls, { element: 'fire', fusion: 'poison' }, 'the poison it was built from, not a rolled die');
-  assert.ok(r.drainEvents().some((e) => e.type === 'classed' && e.stage === 2 && e.info.name === 'Brimstone'));
-  assert.notEqual(r.pendingChoice?.kind, 'fusion');
-});
-
-test('a block made of one element only fuses with a rolled die, as before', () => {
-  const r = run({ dice: ['fire', 'ice'] });
-  block(r, 7, 0, 0, 'fire', ['fire']);
-  block(r, 7, 1, 0, 'fire', ['fire']);
-  assert.ok(r.move('left'));
-  const t = r.tiles.find((x) => x.tier === 8);
-  assert.deepEqual(t.cls, { element: 'fire', fusion: 'ice' }, 'the only other die');
-  assert.deepEqual(t.mats, ['fire', 'ice']);
-});
-
-test('autoplay and tests (autoChoose) take the first card: the merge rule\'s own pick', () => {
-  const r = run({ autoChoose: true });
-  block(r, 7, 0, 0, 'fire', ['fire', 'lightning']);
-  block(r, 7, 1, 0, 'ice', ['ice']);
-  assert.ok(r.move('left'));
+  const time = r.time;
   r.step();
-  const t = r.tiles.find((x) => x.tier === 8);
-  assert.deepEqual(t.cls, { element: 'ice', fusion: 'fire' });
+  assert.equal(r.time, time, 'paused');
+
+  assert.ok(r.choose(1));
+  assert.deepEqual(t.cls, fusion('fire', 'ice'));
+  const classed = r.drainEvents().filter((e) => e.type === 'classed');
+  assert.equal(classed.length, 1);
+  assert.deepEqual([classed[0].stage, classed[0].chosen, classed[0].tileId, classed[0].info.name], [2, true, t.id, 'Frostnova']);
   assert.equal(r.pendingChoice, null);
 });
 
-test('a boss x2 that lifts a block to 256 also offers the pick from its material', () => {
-  const r = createRun({ seed: 4, empty: true, levels: false, dice: ['fire', 'ice', 'lightning'] });
-  r.spawnDebug(8, 0, 0).cls = { element: 'metal', fusion: 'earth' }; // the biggest block: the reward grows the others up to it
-  block(r, 7, 3, 3, 'fire', ['fire', 'ice', 'lightning']);
-  r.nextWave();
-  r.step(); // the 256 already on the board unlocks dice: their cards first
-  while (r.pendingChoice) r.choose(0);
-  const boss = r.defense.spawn('elfRuler', { hpScale: 1 });
-  r.defense.damage(boss, 1e9, ['fire']);
-  r.step();
-  const pick = r.pendingChoice;
-  assert.equal(pick?.kind, 'fusion');
-  assert.ok(pick.promoted);
-  assert.ok(pick.offers.every((o) => ['fire', 'ice', 'lightning'].includes(o.element) && ['fire', 'ice', 'lightning'].includes(o.fusion)));
+test('a single fed into a fusion (either way): one buff of its element, a buffed event, no choice', () => {
+  const r = run();
+  block(r, 6, 0, 0, fusion('fire', 'ice', { metal: 1 }));
+  block(r, 6, 1, 0, { element: 'metal' });
+  r.drainEvents();
+  assert.ok(r.move('left'));
+  assert.equal(r.pendingChoice, null);
+  const t = r.grid.at(0, 0);
+  assert.deepEqual(t.cls, fusion('fire', 'ice', { metal: 2 }));
+  const b = r.drainEvents().find((e) => e.type === 'buffed');
+  assert.deepEqual(b, { type: 'buffed', tileId: t.id, gain: { metal: 1 }, buffs: { metal: 2 }, x: t.x, y: t.y, tier: 7 });
+
+  const other = run();
+  block(other, 6, 0, 0, { element: 'lightning' });
+  block(other, 6, 1, 0, fusion('fire', 'ice'));
+  assert.ok(other.move('left')); // the fusion slides into the single
+  assert.deepEqual(other.grid.at(0, 0).cls, fusion('fire', 'ice', { lightning: 1 }));
+});
+
+test('two fusions: a keep choice; the kept one gains the other’s two elements and all its buffs (buffed once chosen)', () => {
+  const r = run();
+  block(r, 8, 0, 0, fusion('fire', 'ice', { metal: 1 }));
+  block(r, 8, 1, 0, fusion('lightning', 'metal'));
+  r.drainEvents();
+  assert.ok(r.move('left')); // Railgun slides into Frostnova
+  const c = r.pendingChoice;
+  assert.equal(c.kind, 'keep');
+  assert.deepEqual(
+    c.offers.map((o) => [o.cls.element, o.cls.fusion]),
+    [
+      ['lightning', 'metal'],
+      ['fire', 'ice'],
+    ],
+  );
+  assert.deepEqual(c.parts.map((p) => p.cls), [fusion('lightning', 'metal'), fusion('fire', 'ice', { metal: 1 })]);
+  const t = r.tiles.find((x) => x.id === c.tileId);
+  assert.deepEqual(t.cls, c.offers[0].cls, 'it holds the mover’s until the pick');
+  assert.ok(!r.drainEvents().some((e) => e.type === 'buffed' || e.type === 'classed'));
   assert.ok(r.choose(1));
-  const t = r.tiles.find((x) => x.id === pick.tileId);
-  assert.equal(t.tier, 8);
-  assert.deepEqual([t.cls.element, t.cls.fusion], [pick.offers[1].element, pick.offers[1].fusion]);
+  assert.deepEqual(t.cls, fusion('fire', 'ice', { metal: 2, lightning: 1 }));
+  const b = r.drainEvents().find((e) => e.type === 'buffed');
+  assert.deepEqual([b.tileId, b.gain, b.buffs], [t.id, { lightning: 1, metal: 1 }, { metal: 2, lightning: 1 }]);
 });
 
-test('the block card lists the fusions its material allows', () => {
-  const d = describeTile({ tier: 6, cls: { element: 'ice' }, mats: ['fire', 'ice', 'lightning'] });
-  assert.match(d.next, /it can become Frostnova, .+ or Plasma, from the elements merged into it \(you pick\)/);
-  const one = describeTile({ tier: 6, cls: { element: 'ice' }, mats: ['ice'] });
-  assert.match(one.next, /Fuses with a second element at 256/);
+test('autoChoose (and the bot) take offer 0: the mover’s', () => {
+  const r = run({ autoChoose: true });
+  block(r, 5, 0, 0, { element: 'fire' });
+  block(r, 5, 1, 0, { element: 'ice' });
+  assert.ok(r.move('left'));
+  r.step();
+  assert.deepEqual(r.grid.at(0, 0).cls, fusion('ice', 'fire'));
+  assert.equal(r.pendingChoice, null);
 });
 
-test('a run with a fusion pick saves and replays exactly', () => {
+test('eggs fuse below 16 with the same choice; a fusion egg hatches at 16 as its fusion', () => {
+  const r = run();
+  block(r, 2, 0, 0, { element: 'fire' });
+  block(r, 2, 1, 0, { element: 'metal' });
+  assert.ok(r.move('left'));
+  assert.equal(r.pendingChoice?.kind, 'fusion');
+  r.choose(0);
+  const egg = r.grid.at(0, 0);
+  assert.deepEqual([egg.tier, egg.cls], [3, fusion('metal', 'fire')]);
+  clearBut(r, egg);
+  block(r, 3, 1, 0);
+  assert.ok(r.move('left'));
+  const hatch = r.drainEvents().filter((e) => e.type === 'classed');
+  assert.deepEqual(
+    hatch.map((e) => [e.stage, e.info.name]),
+    [[1, FUSIONS['fire+metal'].name]],
+  );
+
+  // two 8-eggs: one choice, then the fusion news only (it hatched as a fusion pet)
+  const two = run();
+  block(two, 3, 0, 0, { element: 'ice' });
+  block(two, 3, 1, 0, { element: 'lightning' });
+  assert.ok(two.move('left'));
+  two.drainEvents();
+  two.choose(0);
+  assert.deepEqual(
+    two.drainEvents().filter((e) => e.type === 'classed').map((e) => e.stage),
+    [2],
+  );
+});
+
+test('a merge that reaches 4096 announces the pure form: at once, or after its choice', () => {
+  const r = run();
+  block(r, 11, 0, 0, { element: 'fire' });
+  block(r, 11, 1, 0, { element: 'ice' });
+  assert.ok(r.move('left'));
+  r.drainEvents();
+  r.choose(1); // fire main
+  const t = r.grid.at(0, 0);
+  assert.deepEqual(t.cls, { ...fusion('fire', 'ice'), pure: true });
+  assert.deepEqual(
+    r.drainEvents().filter((e) => e.type === 'classed').map((e) => [e.stage, e.info.name]),
+    [
+      [2, 'Frostnova'],
+      [3, 'Pure Fire'],
+    ],
+  );
+
+  const kept = run();
+  block(kept, 11, 0, 0, fusion('fire', 'ice'));
+  block(kept, 11, 1, 0, fusion('lightning', 'metal'));
+  assert.ok(kept.move('left'));
+  kept.drainEvents();
+  kept.choose(0);
+  assert.deepEqual(
+    kept.drainEvents().filter((e) => ['buffed', 'classed'].includes(e.type)).map((e) => e.type + (e.stage ?? '')),
+    ['buffed', 'classed3'],
+  );
+  assert.equal(kept.grid.at(0, 0).cls.pure, true);
+
+  const single = run();
+  block(single, 11, 0, 0, { element: 'nature' });
+  block(single, 11, 1, 0);
+  assert.ok(single.move('left'));
+  const ev = single.drainEvents().find((e) => e.type === 'classed');
+  assert.deepEqual([ev.stage, ev.info.name], [3, 'Pure Nature']);
+  assert.equal(single.pendingChoice, null);
+});
+
+test('a run with fusion and keep choices saves and replays exactly', () => {
   const setup = (r) => {
-    block(r, 7, 0, 0, 'fire', ['fire', 'lightning']);
-    block(r, 7, 1, 0, 'ice', ['ice']);
+    r.addCoins(1e4);
+    block(r, 5, 0, 0, { element: 'fire' });
+    block(r, 5, 1, 0, { element: 'ice' });
+    block(r, 6, 2, 3, fusion('lightning', 'metal'));
     return r;
   };
   const r = setup(run());
   const log = recordRun(r);
   assert.ok(r.move('left'));
-  r.choose(2);
-  while (r.pendingChoice) r.choose(0);
-  for (let i = 0; i < 120; i++) r.step();
-  const copy = replayRun((opts) => setup(createRun({ ...opts, empty: true, levels: false, dice: ['fire', 'ice', 'lightning'] })), JSON.parse(JSON.stringify(log)));
+  r.choose(1);
+  let chosen = 1;
+  for (let i = 0; i < 60; i++) {
+    ['down', 'left', 'right', 'up'].some((d) => r.move(d));
+    while (r.pendingChoice) {
+      r.choose(1);
+      chosen += 1;
+    }
+    r.step();
+  }
+  assert.ok(chosen >= 1);
+  const copy = replayRun((opts) => setup(createRun({ ...opts, empty: true, levels: false, dice: DECK })), JSON.parse(JSON.stringify(log)));
   assert.equal(fingerprint(copy), fingerprint(r));
-  assert.ok(copy.tiles.some((t) => t.cls.element === 'fire' && t.cls.fusion === 'lightning'));
+  assert.deepEqual(
+    copy.tiles.map((t) => t.cls),
+    r.tiles.map((t) => t.cls),
+  );
 });

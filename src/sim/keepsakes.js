@@ -3,8 +3,8 @@
 // changes a single rule of the run; the run reads its numbers from here
 // (createRun({ keepsake })). Pure data.
 //
-// Unlock steps from tools/level-probe.mjs (48 bot games): 128 comes in 90% of
-// games, 256 in 73%, 512 in 54%, 1024 in 38%, 2048 in 10%. So a new player gets
+// Unlock steps from tools/v2-probe.mjs (96 bot games): 128 comes in 96% of
+// games, 256 in 91%, 512 in 68%, 1024 in 44%, 2048 in 24%. So a new player gets
 // a second keepsake in the first run or two, and the last one is a real feat.
 import { tr } from '../i18n/index.js';
 export const KEEPSAKES = [

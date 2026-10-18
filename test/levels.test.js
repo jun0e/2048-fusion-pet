@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { createRun, swipeCostFor } from '../src/sim/run.js';
 import { LEVELS, buyXpPrice, levelCap, spawnOdds, spawnTable, xpNeeded } from '../src/sim/levels.js';
 import { levelCard } from '../src/ui/run-badges.js';
-import { ECONOMY, PHYSICS } from '../src/config.js';
+import { ECONOMY, PHYSICS, V2 } from '../src/config.js';
+import { ELEMENT_KEYS } from '../src/sim/classes.js';
 
 const stepUntil = (run, cond, maxSeconds = 120) => {
   for (let i = 0; i < maxSeconds / PHYSICS.dt && !cond(); i++) run.step();
@@ -102,7 +103,7 @@ test('Buy XP: not without the coins, not at the cap, not at the top level, never
   const top = createRun({ seed: 4, empty: true });
   top.spawnDebug(12, 0, 0);
   top.addCoins(1e6);
-  while (top.buyXp());
+  while (top.buyXp() || (top.pendingChoice && top.choose(0)));
   assert.equal(top.level, LEVELS.max);
   assert.equal(top.xp, 0);
   assert.equal(top.buyXpPrice, null);
@@ -148,26 +149,6 @@ test('the first 512 says so once, and no 2 spawns after it', () => {
   assert.ok(!spawned.includes(1), 'no 2 after the 512');
 });
 
-test('a spawned 16 hatches like a merged one: an element from the deck, announced', () => {
-  const saved = LEVELS.odds[0];
-  LEVELS.odds[0] = [0, 0, 0, 100]; // every new block is a 16 (restored below)
-  try {
-    const r = createRun({ seed: 2, empty: true, dice: ['fire', 'ice'] });
-    r.spawnDebug(1, 0, 0);
-    r.spawnDebug(2, 3, 3);
-    r.drainEvents();
-    assert.ok(r.move('right'));
-    const ev = r.drainEvents();
-    const hatch = ev.find((e) => e.type === 'classed' && e.spawned);
-    assert.ok(hatch, 'announced');
-    const t = r.tiles.find((x) => x.id === hatch.tileId);
-    assert.equal(t.tier, 4);
-    assert.ok(['fire', 'ice'].includes(t.cls.element));
-  } finally {
-    LEVELS.odds[0] = saved;
-  }
-});
-
 test('the level card: the odds now and next, Buy XP, the cap, the top', () => {
   const base = { level: 2, xp: 3, need: 12, cap: 4, spawnLevel: 2, maxTier: 7, no2: false, keepsake: null, coins: 100, price: 10 };
   const c = levelCard(base);
@@ -206,4 +187,74 @@ test('levels off keep the classic spawns (the showcase): nothing levels', () => 
   assert.equal(r.level, 1);
   assert.equal(r.spawnLevel, 0);
   assert.equal(ECONOMY.startCoins > 0, true);
+});
+
+test('levels in V2.unlockLevels each offer a new element: a pick of 2 (1 when one is left); the other levels none', () => {
+  assert.equal(V2.offers, 2);
+  const r = createRun({ seed: 4, empty: true, dice: ['fire', 'ice'] });
+  r.spawnDebug(12, 0, 0); // a 4096: no level cap
+  r.addCoins(1e6);
+  r.drainEvents();
+  const seen = [];
+  let guard = 0;
+  while ((r.buyXp() || r.pendingChoice) && guard++ < 200) {
+    const c = r.pendingChoice;
+    if (!c) continue;
+    assert.equal(c.kind, 'die');
+    for (const o of c.offers) assert.ok(!r.owned.includes(o.element), `${o.element} is new`);
+    seen.push([c.level, c.offers.length]);
+    const ev = r.drainEvents();
+    assert.ok(ev.some((e) => e.type === 'levelUp' && e.level === c.level));
+    assert.ok(ev.some((e) => e.type === 'choice' && e.kind === 'die' && e.level === c.level));
+    const pick = c.offers.at(-1).element;
+    r.choose(c.offers.length - 1);
+    assert.equal(r.owned.at(-1), pick);
+    assert.ok(r.drainEvents().some((e) => e.type === 'dieGained' && e.element === pick && e.level === c.level));
+  }
+  assert.equal(r.level, LEVELS.max);
+  assert.deepEqual(seen, [
+    [2, 2],
+    [3, 2],
+    [4, 2],
+    [5, 2],
+    [6, 2],
+    [7, 1],
+  ]);
+  assert.deepEqual([...r.owned].sort(), [...ELEMENT_KEYS].sort(), 'the whole deck by level 7');
+});
+
+test('a full deck is offered nothing; a run without spawn levels never unlocks an element', () => {
+  const full = createRun({ seed: 4, empty: true, dice: ELEMENT_KEYS });
+  full.spawnDebug(12, 0, 0);
+  full.addCoins(1e6);
+  while (full.buyXp() || (full.pendingChoice && full.choose(0)));
+  assert.equal(full.level, LEVELS.max);
+  assert.equal(full.pendingChoice, null);
+
+  const classic = createRun({ seed: 4, empty: true, levels: false, dice: ['fire'] });
+  classic.spawnDebug(10, 0, 0);
+  classic.step();
+  assert.equal(classic.pendingChoice, null);
+});
+
+test('element picks that queue together never offer an element already owned', () => {
+  const saved = LEVELS.buy.xp;
+  LEVELS.buy.xp = 100; // one purchase climbs from level 1 to 5 (restored below)
+  try {
+    const r = createRun({ seed: 8, empty: true, dice: ['fire', 'ice'] });
+    r.spawnDebug(12, 0, 0);
+    r.addCoins(1e4);
+    assert.ok(r.buyXp());
+    assert.equal(r.level, 5);
+    const picked = [];
+    while (r.pendingChoice) {
+      for (const o of r.pendingChoice.offers) assert.ok(!r.owned.includes(o.element), `${o.element} offered twice`);
+      picked.push(r.pendingChoice.level);
+      r.choose(0);
+    }
+    assert.deepEqual(picked, [2, 3, 4, 5]);
+    assert.equal(new Set(r.owned).size, 6);
+  } finally {
+    LEVELS.buy.xp = saved;
+  }
 });
