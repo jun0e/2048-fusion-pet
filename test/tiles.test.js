@@ -36,6 +36,7 @@ import {
   walkRoundRect,
 } from '../src/art/plaque.js';
 import { range, scene } from './helpers/board-scene.js';
+import { num, tr } from '../src/i18n/index.js';
 
 const EPS = 1e-9;
 const H = PLAQUE.size / 2; // the plaque's half side (cells)
@@ -88,10 +89,12 @@ test('the growth meter: a fusion pet fills gold toward its summon at 1024, any p
   [4, 8, 9, 10, 11].forEach((tier) => assert.deepEqual([meterOf(tier, single).lit, meterOf(tier, single).goal], [Math.max(0, tier - 8), 'pure']));
   assert.deepEqual(meterOf(9), meterOf(9, single), 'a tier alone counts as a single pet');
   assert.notEqual(meterOf(6, fusion).color, meterOf(9, single).color, 'gold and rose');
-  // the words come from the language's table once it has them; until then no growth row
-  assert.equal(growthWords(2, single), null);
-  const w = growthWords(9, fusion);
-  assert.ok(w === null || /3/.test(w), `${w}`);
+  // the words come from the language's table (grow.summon, grow.pure): how many of the four merges are lit, and the goal's value
+  assert.equal(growthWords(2, single), null, 'an egg has no growth row');
+  assert.equal(growthWords(12, { ...single, pure: true }), null, 'nor a pure form');
+  assert.equal(growthWords(9, fusion), tr('grow.summon', { lit: 3, value: num(1024) }));
+  assert.equal(growthWords(9, single), tr('grow.pure', { lit: 1, value: num(4096) }));
+  assert.notEqual(growthWords(9, fusion), 'grow.summon', 'the table has the words');
   // four equal segments, centred in the top rail, inside the plaque
   const m = meterSegments();
   const widths = m.segs.map((s) => s.x1 - s.x0);
