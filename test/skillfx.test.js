@@ -292,3 +292,15 @@ test('reset clears every piece, line and word', () => {
   const d = sc.s.drawn;
   assert.equal(d.zones.length + d.walls.length + d.lines + d.texts.length, 0);
 });
+
+test('an id the sim gives to another kind of zone or minion gets a view of its own kind', () => {
+  const sc = scene();
+  sc.run.defense.zones = [{ id: 1, kind: 'lava', x: 0, y: 12, r: 1, color: '#ff9f1c' }];
+  sc.run.defense.minions = [{ id: 1, kind: 'locust', x: 0, y: 12, color: '#d4e157' }];
+  sc.step(0.2);
+  sc.run.defense.zones = [{ id: 1, kind: 'web', x: 0, y: 12, r: 1, color: '#6b8e23' }];
+  sc.run.defense.minions = [{ id: 1, kind: 'spider', x: 0, y: 12, color: '#6b8e23' }];
+  sc.step();
+  assert.deepEqual(sc.s.drawn.zones.map((z) => z.kind), ['web']);
+  assert.deepEqual(sc.s.drawn.minions.map((m) => m.kind), ['spider']);
+});

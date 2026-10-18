@@ -144,6 +144,12 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
       }
       seen.add(id);
       let v = map.get(id);
+      if (v && it.kind != null && v.kind != null && it.kind !== v.kind && (map === zones || map === minions)) {
+        // the sim gave this id to another kind of piece: a new view for it
+        v.c.destroy({ children: true });
+        map.delete(id);
+        v = null;
+      }
       if (!v) {
         v = make(it);
         if (!v) continue;
