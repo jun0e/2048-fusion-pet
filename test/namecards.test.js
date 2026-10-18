@@ -130,7 +130,7 @@ test('v2: a card reads its state from the sim: charging, ready, then out with th
 test('v2: a tap on a ready card hands the cast to its creator (pets.js: run.castSkill); else it nudges', async () => {
   const { readFileSync } = await import('node:fs');
   const js = readFileSync(new URL('../src/kv/namecards.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ''); // the code, not its comments
-  assert.match(js, /if \(card\.lost \|\| card\.state !== 'ready'\) return nudge\(\);\s*card\.castAt = performance\.now\(\);[^\n]*\n\s*onCast\(card\);/, 'onCast only when ready');
+  assert.match(js, /if \(card\.lost \|\| card\.state !== 'ready' \|\| \(run\.skillReady && !run\.skillReady\(card\.id\)\)\) return nudge\(\);\s*card\.castAt = performance\.now\(\);[^\n]*\n\s*onCast\(card\);/, 'onCast only when ready, as drawn and in the sim now');
   assert.doesNotMatch(js, /castSkill\(/, 'one caster: the creator (a second castSkill would find the pet out and skip its beam)');
   assert.doesNotMatch(js, /CHARGE|ultimate|APEX/, 'no charge of its own, no v1 legends');
 });

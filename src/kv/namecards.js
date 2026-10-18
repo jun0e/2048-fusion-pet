@@ -209,7 +209,9 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     // ready card hands the cast to its creator (src/kv/pets.js onCast: run.castSkill(card.id), and the
     // beam to the pet); the cut-in comes when the sim sends the pet out (sync)
     const press = () => {
-      if (card.lost || card.state !== 'ready') return nudge();
+      const run = getRun();
+      // ready as last drawn, and still ready now (the sim may have moved on since that frame)
+      if (card.lost || card.state !== 'ready' || (run.skillReady && !run.skillReady(card.id))) return nudge();
       card.castAt = performance.now(); // the stack's face holds a moment (FACE_HOLD_MS)
       onCast(card);
       el.classList.add('fire');
