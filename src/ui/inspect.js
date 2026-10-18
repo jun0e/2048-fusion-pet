@@ -396,7 +396,11 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
       if (fresh) {
         const popped = key.startsWith(`${look}:`);
         key = k;
+        // the same block drawn again (its pet hopped, the singles on the board changed): the player's
+        // place in a scrolled card stays
+        const scroll = popped ? el.scrollTop : 0;
         render(tile);
+        el.scrollTop = scroll;
         if (!popped) {
           el.classList.remove('pop');
           void el.offsetWidth;
