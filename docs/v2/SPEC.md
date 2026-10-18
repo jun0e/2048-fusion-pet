@@ -134,7 +134,9 @@ Then the element stats (`ELEMENT_STATS`, data.js) from **buffs** (each count × 
 - The skill runs from `SKILL_IMPL[key]` (src/sim/skills/index.js): `{ start(ctx), tick(ctx, dt), end(ctx) }`
   through the kit (src/sim/skills/kit.js). Numbers from `FUSION_SKILLS[key]`; damage from the tile's
   profile damage (`ctx.hit`).
-- Events: `{ type: 'summon', tileId, key, x, y, durS }`, `{ type: 'summonEnd', tileId }`,
+- Events: `{ type: 'petOut', tileId, key, x, y, durS }`, `{ type: 'petHome', tileId, gone }` (`gone`: its
+  tile left the board while the pet was out). Not `summon`: that name is v1's enemy split event.
+  `tile.summon.left` = seconds until the pet is home (for the namecard),
   `{ type: 'skillFx', … }` (section 6), plus the usual `hit` / `kill` / `stun` events.
 - Kill rewards a skill can change: `kill` events may carry `coinMult` and `xp` (Bumper Harvest; the run
   pays them) and `loot` as v1.

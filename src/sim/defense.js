@@ -17,16 +17,23 @@
 // Stomp (a 3-lane shockwave: knockback, stun). Plain blocks shoot pebbles.
 // Statuses: burn, poison (+ weaken at full stacks), chill, freeze, stun, root, loot.
 
-import { DEFENSE, FIELD, GRID, LANE_LENGTH, SIEGE, laneAt, laneX } from '../config.js';
+import { DEFENSE, FIELD, GRID, LANE_LENGTH, SIEGE, V2, laneAt, laneX } from '../config.js';
 import { ENEMY_TYPES } from './enemies.js';
 import { profileFor } from './classes.js';
+import { SKILL_IMPL } from './skills/index.js';
+import { createKit } from './skills/kit.js';
+import { frontSpot, moveSummon } from './roam.js';
 
 const HIT_RADIUS = 0.35;
 
 /** How many of DEFENSE.bossPushResist's steps a boss has reached after `pushes` pushes (0–3): its shield mark, I–III. */
 export const bossResistLevel = (pushes = 0) => DEFENSE.bossPushResist.filter((r) => pushes >= r.after).length;
 
-export function createDefense({ rng }) {
+/**
+ * @param rng      the defense's random stream
+ * @param profile  a block's attack profile (classes.js profileFor; tests may hand in their own)
+ */
+export function createDefense({ rng, profile: profileOf = profileFor }) {
   const enemies = [];
   const shots = [];
   const events = [];
@@ -38,6 +45,17 @@ export function createDefense({ rng }) {
   let nextEnemy = 1;
   let nextPuddle = 1;
   let nextShot = 1;
+  // v2 summons (docs/v2/SPEC.md section 5): a fusion at 1024+ charges its summon; its pet goes out with its skill
+  const charge = new Map(); // tile id → seconds charged toward its summon
+  const out = new Map(); // tile id → { tile, ctx, impl }: pets out on the field
+  // what skills leave on the field (SPEC section 6; the renderer reads them), each owned by its tile
+  const zones = [];
+  const walls = [];
+  const traps = [];
+  const minions = [];
+  const tethers = [];
+  const hooks = { bite: [], kill: [], down: [] }; // set by skills while their pet is out
+  let nextPiece = 1;
 
   function place(e) {
     const p = laneAt(e.lane, e.s);
@@ -86,6 +104,19 @@ export function createDefense({ rng }) {
       lootT: 0, // Metal's mark: seconds left
       lootPct: 0, // … and the coin bonus it pays on death
       healT: 0,
+      // v2 skill statuses (docs/v2/SPEC.md section 6): seconds left, 0 = none
+      vulnT: 0, // takes vulnPct more damage
+      vulnPct: 0,
+      fearT: 0, // runs back up its lane
+      sleepT: 0, // asleep: no moving, no biting; the first hit wakes it for sleepWake × damage
+      sleepWake: 1,
+      blindT: 0, // its bites miss blindMiss of the time
+      blindMiss: 0,
+      bleedT: 0, // loses bleedPer for every cell it moves
+      bleedPer: 0,
+      tauntT: 0, // bites the taunting pet instead of the blocks (tauntReflect back per bite)
+      tauntBy: null,
+      tauntReflect: 0,
       mode: 'lane', // 'lane' while walking down the field, 'hunt' once on the board
       atk: def.castle * SIEGE.attackPerCastle * (def.boss ? SIEGE.bossAttack : 1) * atkScale, // damage per hit on a block
       attacking: false,
@@ -112,6 +143,13 @@ export function createDefense({ rng }) {
       if (kinds.includes('ice')) m *= 1.5;
       else if (kinds.length === 1 && kinds[0] === 'fire') m *= 0.5;
     }
+    if (e.vulnT > 0) m *= 1 + e.vulnPct; // a skill melted its armour (v2)
+    if (!dot && e.sleepT > 0) {
+      // a lullaby's sleeper wakes on the first real hit, and that hit lands hard (v2)
+      m *= e.sleepWake;
+      e.sleepT = 0;
+      e.sleepWake = 1;
+    }
     const dealt = amount * m;
     e.hp -= dealt;
     if (!dot) e.flash = 0.12;
@@ -122,7 +160,15 @@ export function createDefense({ rng }) {
   function kill(e) {
     e.dead = true;
     e.hp = 0;
-    events.push({ type: 'kill', id: e.id, x: e.x, y: e.y, enemy: e, boss: e.boss, bounty: Math.round(e.maxHp / 3), loot: e.lootT > 0 ? e.lootPct : 0 });
+    const ev = { type: 'kill', id: e.id, x: e.x, y: e.y, enemy: e, boss: e.boss, bounty: Math.round(e.maxHp / 3), loot: e.lootT > 0 ? e.lootPct : 0 };
+    // v2: a skill out on the field may add to the reward (coinMult: the most; xp: all of it)
+    for (const h of hooks.kill) {
+      const add = h.fn(e);
+      if (!add) continue;
+      if (add.coinMult) ev.coinMult = Math.max(ev.coinMult ?? 1, add.coinMult);
+      if (add.xp) ev.xp = (ev.xp ?? 0) + add.xp;
+    }
+    events.push(ev);
     const sm = e.def.summonOnDeath;
     if (sm) {
       for (let i = 0; i < sm.count; i++) {
@@ -266,16 +312,23 @@ export function createDefense({ rng }) {
         e.hitT += dt;
         if (e.hitT >= SIEGE.biteEvery) {
           e.hitT -= SIEGE.biteEvery;
-          const bite = e.atk * (e.weakT > 0 ? 1 - e.weakPct : 1);
-          t.hp -= bite;
-          events.push({ type: 'tileHit', id: t.id, x: t.x, y: t.y, amount: bite, from: { x: e.x, y: e.y } });
+          let bite = e.atk * (e.weakT > 0 ? 1 - e.weakPct : 1);
+          if (e.blindT > 0 && rng.next() < e.blindMiss) {
+            bite = 0; // blinded by a sandstorm: the bite misses (v2)
+            events.push({ type: 'skillFx', fx: 'text', key: 'fx.miss', x: e.x, y: e.y + 0.6, color: '#d9c48f' });
+          }
+          for (const h of hooks.bite) if (bite > 0) bite = h.fn(e, t, bite); // v2 skills: rime armour, moss roots
+          if (bite > 0) {
+            t.hp -= bite;
+            events.push({ type: 'tileHit', id: t.id, x: t.x, y: t.y, amount: bite, from: { x: e.x, y: e.y } });
+          }
           // Bramble Shell: biting a thorny block hurts
-          const tp = t.cls ? profileFor(t) : null;
+          const tp = t.cls ? profileOf(t) : null;
           if (tp?.thorns && tp.shoots) {
             const dealt = damage(e, tp.damage * tp.thorns.pct, ['nature']);
             events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#4cd964'], crit: false, thorns: true });
           }
-          if (t.hp <= 0 && !t.downed) {
+          if (t.hp <= 0 && !t.downed && !hooks.down.some((h) => h.fn(t))) {
             t.downed = true;
             events.push({ type: 'tileDown', id: t.id, x: t.x, y: t.y, tier: t.tier, by: e.id });
           }
@@ -327,6 +380,7 @@ export function createDefense({ rng }) {
       d *= prof.bite.mult;
       events.push({ type: 'bite', id: e.id, x: e.x, y: e.y });
     }
+    if (prof.critChance && rng.next() < prof.critChance) d *= prof.critMult ?? 2; // v2 crits
     if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur);
     const dealt = damage(e, d, prof.kinds);
     applyStatuses(e, prof, d, origin);
@@ -430,6 +484,7 @@ export function createDefense({ rng }) {
         d *= prof.bite.mult;
         events.push({ type: 'bite', id: e.id, x: e.x, y: e.y });
       }
+      if (prof.critChance && rng.next() < prof.critChance) d *= prof.critMult ?? 2; // v2 crits
       if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur); // before the damage, so Metal's own killing blow pays out
       const dealt = damage(e, d, prof.kinds);
       applyStatuses(e, prof, d, origin);
@@ -531,9 +586,9 @@ export function createDefense({ rng }) {
   function fireTurrets(dt, blocks) {
     const pool = alive();
     for (const tile of blocks) {
-      // a fusion that roams the field (the pets layer) shoots from where it stands
-      const b = tile.roam ? { ...tile, x: tile.roam.x, y: tile.roam.y } : tile;
-      const prof = profileFor(tile);
+      // v2: a block always fires from its tile, its pet home or out on a summon
+      const b = tile;
+      const prof = profileOf(tile);
       if (!prof.shoots) continue; // blocks below 16 don't shoot
       const shoot = prof.shoot;
       let c = (cool.get(b.id) ?? 0) - dt;
@@ -637,7 +692,7 @@ export function createDefense({ rng }) {
               launch(b, prof, target, { tileRef: tile }); // single, sniper: straight homing shots
           }
           events.push({ type: 'fire', id: b.id, x: b.x, y: b.y, colors: prof.colors, tier: b.tier, pattern: shoot.pattern, target: { x: target.x, y: target.y } });
-          c = 1 / prof.rate;
+          c = 1 / (prof.rate * (1 + (tile.boostT > 0 ? tile.boostPct : 0))); // pollen: faster (v2)
         }
       }
       cool.set(b.id, Math.max(c, 0));
@@ -858,6 +913,8 @@ export function createDefense({ rng }) {
       }
       const frozen = e.freezeT > 0;
       if (frozen) e.freezeT = Math.max(0, e.freezeT - dt);
+      const px = e.x;
+      const py = e.y;
       const held = e.stunT > 0 || e.rootT > 0;
       const speed = frozen || held ? 0 : e.speed * (1 - (e.chillT > 0 ? e.chillSlow : 0));
       if (e.stunT > 0) e.stunT = Math.max(0, e.stunT - dt);
@@ -868,11 +925,14 @@ export function createDefense({ rng }) {
         e.weakT = Math.max(0, e.weakT - dt);
         if (e.weakT === 0) e.weakPct = 0;
       }
-      if (e.mode === 'lane') {
-        e.s += speed * dt;
+      if (tickSkillStatus(e, dt, frozen)) {
+        // afraid, asleep or taunted: a skill took its turn (v2)
+      } else if (e.mode === 'lane') {
+        e.s = wallStop(e, e.s + speed * dt); // a skill's wall holds its lanes (v2)
         place(e);
         if (e.y <= SIEGE.boardTop) e.mode = 'hunt'; // reached the board: go for the blocks
       } else hunt(e, speed, frozen, dt);
+      bleedFrom(e, px, py);
       if (e.chillT > 0) {
         e.chillT = Math.max(0, e.chillT - dt);
         if (e.chillT === 0) e.chillSlow = 0;
@@ -909,10 +969,300 @@ export function createDefense({ rng }) {
     for (let i = puddles.length - 1; i >= 0; i--) if (puddles[i].t <= 0) puddles.splice(i, 1);
   }
 
+  // --- v2: skill statuses, summons and the pieces skills leave ----------------
+
+  /** The skill statuses that take a foe's turn (afraid, asleep, taunted), and the timers of the rest. → whether one took it. */
+  function tickSkillStatus(e, dt, frozen) {
+    if (e.vulnT > 0) {
+      e.vulnT = Math.max(0, e.vulnT - dt);
+      if (e.vulnT === 0) e.vulnPct = 0;
+    }
+    if (e.blindT > 0) {
+      e.blindT = Math.max(0, e.blindT - dt);
+      if (e.blindT === 0) e.blindMiss = 0;
+    }
+    if (e.bleedT > 0) {
+      e.bleedT = Math.max(0, e.bleedT - dt);
+      if (e.bleedT === 0) e.bleedPer = 0;
+    }
+    if (e.sleepT > 0) {
+      e.sleepT = Math.max(0, e.sleepT - dt);
+      if (e.sleepT === 0) e.sleepWake = 1;
+      e.attacking = e.wasAttacking = false;
+      return true;
+    }
+    if (e.fearT > 0) {
+      e.fearT = Math.max(0, e.fearT - dt);
+      e.attacking = e.wasAttacking = false;
+      if (frozen || e.stunT > 0) return true;
+      if (e.mode !== 'lane') {
+        // off the board and back onto its lane
+        e.mode = 'lane';
+        e.lane = laneOfX(e.x);
+        e.s = Math.max(0, FIELD.spawnY - e.y);
+      }
+      e.s = Math.max(0, e.s - e.speed * (1 - (e.chillT > 0 ? e.chillSlow : 0)) * dt);
+      place(e);
+      return true;
+    }
+    if (e.tauntT > 0) {
+      e.tauntT = Math.max(0, e.tauntT - dt);
+      if (e.tauntT === 0 || !out.has(e.tauntBy)) {
+        e.tauntT = 0;
+        e.tauntBy = null;
+        return false;
+      }
+      if (frozen || e.stunT > 0) return true;
+      // it stops and bites the pet instead (the pet takes no harm); each bite costs it
+      if (!e.wasAttacking) e.hitT = SIEGE.biteEvery - SIEGE.firstBite;
+      e.attacking = e.wasAttacking = true;
+      e.hitT += dt;
+      if (e.hitT >= SIEGE.biteEvery) {
+        e.hitT -= SIEGE.biteEvery;
+        const dealt = damage(e, e.tauntReflect, ['physical']);
+        events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#9fb3c8'], crit: false, thorns: true });
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /** A bleeding foe loses health for the ground it covered this step. */
+  function bleedFrom(e, px, py) {
+    if (e.bleedT <= 0 || e.dead || e.gone) return;
+    const moved = Math.hypot(e.x - px, e.y - py);
+    if (moved > 1e-6) damage(e, (moved / GRID.cell) * e.bleedPer, ['physical'], { dot: true });
+  }
+
+  /** A wall across a foe's lane stops it just short of the wall. → where along its lane it gets to. */
+  function wallStop(e, next) {
+    for (const w of walls) {
+      if (!w.lanes.includes(e.lane)) continue;
+      const stop = FIELD.spawnY - w.y - 0.45;
+      if (e.s <= stop + 1e-6 && next > stop) return stop;
+    }
+    return next;
+  }
+
+  const kit = createKit({
+    events,
+    rng,
+    alive: () => alive(),
+    damage,
+    knock,
+    addBurn,
+    addPoison,
+    place,
+    laneOfX: (x) => laneOfX(x),
+    blocks: () => blocksNow,
+    zones,
+    walls,
+    traps,
+    minions,
+    tethers,
+    hooks,
+    nextId: () => nextPiece++,
+  });
+
+  /** A fusion's summon charge, 0..1. */
+  function skillCharge(id) {
+    return Math.min(1, (charge.get(id) ?? 0) / V2.summon.chargeS);
+  }
+
+  /** Send a fusion's pet out with its skill: it must have one (1024+), be charged and be home. → whether it went. */
+  function summon(tile, { force = false } = {}) {
+    const prof = profileOf(tile);
+    if (!prof.summon || tile.summon || (!force && skillCharge(tile.id) < 1)) return false;
+    const spot = frontSpot(tile, alive());
+    const { hopS: hop, durS: dur } = V2.summon;
+    tile.summon = {
+      key: prof.summon,
+      phase: 'out',
+      t: 0,
+      hop,
+      dur,
+      left: hop * 2 + dur,
+      x: tile.x,
+      y: tile.y,
+      z: 0,
+      x0: tile.x,
+      y0: tile.y,
+      tx: spot.x,
+      ty: spot.y,
+      lane: spot.lane,
+      speed: 0,
+      moving: false,
+      facing: spot.x >= tile.x ? 1 : -1,
+      home: { x: tile.x, y: tile.y },
+      state: {},
+    };
+    charge.set(tile.id, 0);
+    out.set(tile.id, { tile, ctx: null, impl: SKILL_IMPL[prof.summon] ?? null });
+    events.push({ type: 'petOut', tileId: tile.id, key: prof.summon, x: tile.x, y: tile.y, durS: dur });
+    return true;
+  }
+
+  /** Everything a pet's skill left that goes with it (bound pieces, hooks, taunts). */
+  function release(owner) {
+    for (const list of [zones, walls, traps, minions, tethers]) {
+      for (let i = list.length - 1; i >= 0; i--) if (list[i].owner === owner && list[i].bound) list.splice(i, 1);
+    }
+    for (const k of Object.keys(hooks)) hooks[k] = hooks[k].filter((h) => h.owner !== owner);
+    for (const e of enemies) {
+      if (e.tauntBy !== owner) continue;
+      e.tauntT = 0;
+      e.tauntBy = null;
+    }
+  }
+
+  /** The pet is home (or its tile left the board while it was out: `gone`). */
+  function endSummon(tile, gone) {
+    const o = out.get(tile.id);
+    if (o?.ctx && tile.summon?.phase === 'act') o.impl?.end?.(o.ctx);
+    release(tile.id);
+    out.delete(tile.id);
+    delete tile.summon;
+    events.push({ type: 'petHome', tileId: tile.id, gone });
+  }
+
+  /** One step of a pet that is out: hop out, act with its skill, hop home. */
+  function advance(tile, dt) {
+    const s = tile.summon;
+    const o = out.get(tile.id);
+    s.t += dt;
+    s.left = Math.max(0, s.left - dt);
+    if (s.phase === 'out') {
+      moveSummon(s, dt);
+      if (s.t >= s.hop) {
+        s.phase = 'act';
+        s.t = 0;
+        s.x = s.tx;
+        s.y = s.ty;
+        s.z = 0;
+        o.ctx = kit.ctxFor(tile, s, profileOf(tile));
+        o.impl?.start?.(o.ctx);
+      }
+    } else if (s.phase === 'act') {
+      o.ctx.prof = profileOf(tile); // a buff fed in while it is out counts at once
+      o.impl?.tick?.(o.ctx, dt);
+      moveSummon(s, dt);
+      if (s.t >= s.dur) {
+        o.impl?.end?.(o.ctx);
+        release(tile.id);
+        s.phase = 'back';
+        s.t = 0;
+        s.x0 = s.x;
+        s.y0 = s.y;
+      }
+    } else {
+      s.home = { x: tile.x, y: tile.y }; // its tile may have slid while it was out
+      moveSummon(s, dt);
+      if (s.t >= s.hop) endSummon(tile, false);
+    }
+  }
+
+  /** Charge the summons, run the pets that are out, and the blocks' skill timers. */
+  function stepSummons(dt, blocks) {
+    const foes = enemies.some((e) => !e.dead && !e.gone);
+    const live = new Set();
+    for (const tile of blocks) {
+      live.add(tile.id);
+      if (tile.boostT > 0) {
+        tile.boostT = Math.max(0, tile.boostT - dt);
+        if (tile.boostT === 0) tile.boostPct = 0;
+      }
+      if (tile.guardT > 0) tile.guardT = Math.max(0, tile.guardT - dt);
+      if (tile.summon) {
+        if (out.has(tile.id)) advance(tile, dt);
+        else delete tile.summon; // a stale pet (a restored tile): home at once
+        continue;
+      }
+      const prof = profileOf(tile);
+      if (!prof.summon) {
+        charge.delete(tile.id);
+        continue;
+      }
+      if (!charge.has(tile.id)) {
+        // a merged block keeps the most charge its two parts had built
+        const from = (tile.mergedFrom ?? []).map((m) => charge.get(m.id) ?? 0);
+        charge.set(tile.id, from.length ? Math.max(...from) : 0);
+      }
+      if (foes) charge.set(tile.id, Math.min(V2.summon.chargeS, charge.get(tile.id) + dt));
+    }
+    // a pet whose tile left the board (merged, sold, broken) is gone at once
+    for (const [id, o] of out) if (!live.has(id)) endSummon(o.tile, true);
+    for (const id of charge.keys()) if (!live.has(id)) charge.delete(id);
+  }
+
+  /** The pieces skills leave: zones act on the foes inside, walls run out, traps spring, minions hunt, tethers drain. */
+  function tickPieces(dt) {
+    if (!zones.length && !walls.length && !traps.length && !minions.length && !tethers.length) return;
+    const pool = alive();
+    for (const z of zones) {
+      z.t -= dt;
+      z.onStep?.(z, dt);
+      if (!z.onTick) continue;
+      for (const e of pool) if (!e.dead && (z.r === Infinity || Math.hypot(e.x - z.x, e.y - z.y) <= z.r)) z.onTick(e, dt, z);
+    }
+    for (let i = zones.length - 1; i >= 0; i--) if (zones[i].t <= 0) zones.splice(i, 1);
+    for (const w of walls) w.t -= dt;
+    for (let i = walls.length - 1; i >= 0; i--) {
+      if (walls[i].t > 0) continue;
+      const w = walls.splice(i, 1)[0];
+      w.onEnd?.(w);
+    }
+    for (let i = traps.length - 1; i >= 0; i--) {
+      const tr = traps[i];
+      const e = pool.find((f) => !f.dead && Math.hypot(f.x - tr.x, f.y - tr.y) <= tr.r);
+      if (!e) continue;
+      traps.splice(i, 1);
+      tr.onTrigger?.(e, tr);
+    }
+    for (const m of minions) {
+      m.t -= dt;
+      if (m.done || m.t <= 0) continue;
+      let tgt = enemies.find((e) => e.id === m.targetId && !e.dead && !e.gone);
+      if (!tgt) {
+        tgt = pool.filter((e) => !e.dead).reduce((b, e) => (!b || Math.hypot(e.x - m.x, e.y - m.y) < Math.hypot(b.x - m.x, b.y - m.y) ? e : b), null);
+        m.targetId = tgt?.id ?? null;
+      }
+      if (!tgt) continue;
+      const d = Math.hypot(tgt.x - m.x, tgt.y - m.y);
+      const stepLen = m.speed * dt;
+      if (d <= stepLen + 0.35) {
+        m.x = tgt.x;
+        m.y = tgt.y;
+        m.done = m.onReach?.(tgt, m) !== true; // onReach returns true (exactly) to keep hunting
+        if (!m.done) m.targetId = null;
+      } else {
+        m.x += ((tgt.x - m.x) / d) * stepLen;
+        m.y += ((tgt.y - m.y) / d) * stepLen;
+      }
+    }
+    for (let i = minions.length - 1; i >= 0; i--) if (minions[i].done || minions[i].t <= 0) minions.splice(i, 1);
+    for (const tt of tethers) {
+      const e = enemies.find((f) => f.id === tt.enemyId);
+      if (!e || e.dead || e.gone) {
+        tt.dead = true;
+        continue;
+      }
+      if (tt.slowPct) {
+        const v = e.boss ? tt.slowPct * 0.5 : tt.slowPct;
+        e.chillSlow = e.chillT > 0 ? Math.max(e.chillSlow, v) : v;
+        e.chillT = Math.max(e.chillT, 0.25);
+      }
+      const pct = e.boss ? tt.bossDrainPct : tt.drainPct;
+      if (pct) e.dot.poison += damage(e, e.maxHp * pct * dt, ['poison'], { dot: true });
+    }
+    for (let i = tethers.length - 1; i >= 0; i--) if (tethers[i].dead) tethers.splice(i, 1);
+  }
+
   function step(dt, blocks) {
     blocksNow = blocks;
     fireTurrets(dt, blocks);
+    stepSummons(dt, blocks);
     moveShots(dt);
+    tickPieces(dt);
     tickPuddles(dt);
     updateEnemies(dt);
     for (const p of pendingSpawns.splice(0)) spawn(p.type, p);
@@ -930,9 +1280,9 @@ export function createDefense({ rng }) {
    * its element effects. Returns how many foes it caught.
    */
   function cast(tile, { radius = 2.8, mult = 5 } = {}) {
-    const prof = profileFor(tile);
+    const prof = profileOf(tile);
     if (!prof.shoots) return 0;
-    const o = tile.roam ? { ...tile, x: tile.roam.x, y: tile.roam.y } : tile;
+    const o = tile;
     const caught = alive().filter((e) => Math.hypot(e.x - o.x, e.y - o.y) <= radius);
     events.push({ type: 'skill', id: tile.id, x: o.x, y: o.y, radius, colors: prof.colors, name: prof.name, hits: caught.length });
     for (const e of caught) resolve(prof, prof.damage * mult, e, o, 'skill', { heal: false });
@@ -982,13 +1332,6 @@ export function createDefense({ rng }) {
     return n;
   }
 
-  // v2 summons (docs/v2/SPEC.md section 5-6): stubs until the summon framework lands
-  const zones = [];
-  const walls = [];
-  const traps = [];
-  const minions = [];
-  const tethers = [];
-
   return {
     enemies,
     shots,
@@ -999,9 +1342,9 @@ export function createDefense({ rng }) {
     minions,
     tethers,
     /** A fusion's summon charge, 0..1 (v2). */
-    skillCharge: () => 0,
+    skillCharge,
     /** Send a fusion's pet out with its skill (v2): true when it went. */
-    summon: () => false,
+    summon,
     spawn,
     damage,
     step,

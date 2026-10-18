@@ -441,34 +441,15 @@ test('Venom Spit lobs its glob and poisons the foe it lands on', () => {
   assert.ok(e.poison.stacks > 0, 'it lands and poisons');
 });
 
-test('a roaming fusion (key-visual demo) shoots from where it stands, not from its den', () => {
+test('v2: a fusion fires from its tile, even while its pet is out on a summon', () => {
   const d = createDefense({ rng: createRng(3) });
-  // the den sits in column 0; its creature roams up the field in lane 3
-  const den = sturdy(block(0, 8, { element: 'fire', fusion: 'ice' }, 1, 0));
-  den.roam = { x: laneX(3), y: 12 };
-  const e = d.spawn('pixie', { lane: 3, hpScale: 1e6, s: sAtY(14) });
+  const den = sturdy(block(1, 8, { element: 'fire', fusion: 'ice' }, 1, 3)); // the top row: its breath reaches the field
+  den.summon = { x: laneX(3), y: 12, phase: 'act' }; // (a pet out on the field)
+  d.spawn('pixie', { lane: 1, hpScale: 1e6, s: sAtY(9.5) });
   run(d, [den], 1.5);
   const fire = d.drainEvents().filter((x) => x.type === 'fire');
-  assert.ok(fire.length > 0, 'it fires at a foe its den could never reach');
-  assert.ok(fire.every((f) => f.x === laneX(3) && f.y === 12), 'every shot leaves from the creature');
-  assert.ok(e.hp < e.maxHp);
-});
-
-test('a namecard skill hits every foe around the creature with its element effects', () => {
-  const d = createDefense({ rng: createRng(4) });
-  const den = sturdy(block(1, 9, { element: 'fire', fusion: 'ice' }, 1, 0));
-  den.roam = { x: laneX(1), y: 12 };
-  const near = d.spawn('pixie', { lane: 1, hpScale: 1e6, s: sAtY(13) });
-  const side = d.spawn('pixie', { lane: 2, hpScale: 1e6, s: sAtY(12.5) });
-  const far = d.spawn('pixie', { lane: 1, hpScale: 1e6, s: sAtY(16.5) });
-  const caught = d.cast(den, { radius: 2.8, mult: 5 });
-  assert.equal(caught, 2);
-  assert.ok(near.hp < near.maxHp && side.hp < side.maxHp, 'foes in the circle are hit');
-  assert.equal(far.hp, far.maxHp, 'a foe outside the circle is not');
-  assert.ok(near.dot.burn > 0 || near.burn?.stacks > 0 || near.chillT > 0, 'Frostnova burns and chills');
-  const ev = d.drainEvents().find((x) => x.type === 'skill');
-  assert.equal(ev.hits, 2);
-  assert.equal(d.cast(block(0, 2, {}, 9), {}), 0, 'blocks below 16 have no skill');
+  assert.ok(fire.length > 0, 'it fires');
+  assert.ok(fire.every((f) => f.x === den.x && f.y === den.y), 'every shot leaves from the tile, not from the pet');
 });
 
 test('fusions keep every effect whatever their first shape: bite on a cone, chain and regrow on a glob', () => {
