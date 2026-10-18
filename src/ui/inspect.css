@@ -64,7 +64,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  padding-right: 38px;
+  padding-right: 44px; /* the × (40 px, 6 px in) */
 }
 .inspect-pic {
   flex: 0 0 56px;
@@ -109,55 +109,14 @@
   margin-top: 4px;
   align-items: center;
 }
-.inspect-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 8px 0;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--c) 55%, white);
-  font: 800 14px/1.45 var(--font-display);
-  color: #2b1d2e;
-}
 .inspect-value {
   font: 800 14px var(--font-display);
   color: var(--ink-soft);
   margin-left: 2px;
 }
-/* the growth row: the tile's 4-segment meter, and the same in words (at 48 px the meter is at its
-   limit): the card's main progress line, at the body floor (14 px, 700) */
-.inspect-grow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-  align-items: center;
-  margin-top: 8px;
-  font: 700 14px/1.3 var(--font-body);
-  color: var(--ink-soft);
-}
-.inspect-meter {
-  display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-  border-radius: 999px;
-  background: #2b1d2e55;
-}
-.inspect-meter i {
-  width: 14px;
-  height: 7px;
-  border-radius: 3px;
-  background: #2b1d2e44;
-  box-shadow: inset 0 0 0 1px #2b1d2e99;
-}
-.inspect-meter i.lit {
-  background: var(--gold);
-}
-.inspect-meter.rose i.lit {
-  background: #ff8fa3; /* toward the legend at 4096, as on the tile */
-}
-.inspect-pet {
-  margin-top: 2px;
-  font-size: 13px;
+.inspect-kicker {
+  margin-top: 1px;
+  font: 800 13px/1.2 var(--font-body);
   color: var(--ink-soft);
 }
 .inspect-desc {
@@ -210,12 +169,6 @@
   border-radius: 50%;
   background: var(--c);
   box-shadow: 0 0 0 1.5px #2b1d2e55;
-}
-.inspect-special {
-  margin: 0 0 8px;
-  padding: 7px 9px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--c) 22%, var(--cream));
 }
 .inspect-next {
   margin: 0;
@@ -312,11 +265,70 @@
   color: var(--ink-soft);
 }
 
-.inspect-chip img {
-  width: 18px;
-  height: 18px;
-  margin-left: -4px;
-  object-fit: contain;
+/* v2 (docs/v2/SPEC.md section 7): an egg's hint, what a pet gives a fusion, a fusion's buffs, its skill
+   (the cards' tooltip, src/ui/cards.css) with its live summon line, its pure aura, and a single pet's
+   fusions with the singles on the board */
+.inspect h4 {
+  margin: 0 0 4px;
+  font: 800 14px/1.2 var(--font-display);
+}
+.inspect-hint {
+  margin: 0 0 8px;
+  color: var(--ink-soft);
+}
+.inspect-perk {
+  margin: 0 0 8px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c) 20%, var(--cream));
+}
+.inspect-buffs,
+.inspect-fuses {
+  margin: 0 0 8px;
+}
+.inspect-buffs ul,
+.inspect-fuses ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.inspect-buffs li {
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: #fff1c2;
+  box-shadow: inset 3px 0 0 var(--c);
+}
+.inspect-buffs p,
+.inspect-fuses p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+.inspect .skill-tip {
+  margin: 0 0 8px;
+}
+.inspect-pure {
+  margin: 0 0 8px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c) 14%, var(--cream-2));
+}
+.inspect-pure.on {
+  background: #fff1c2;
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+.inspect-pure p {
+  margin: 0;
+}
+.inspect-fuses li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.inspect-fuses small {
+  font-size: 13px;
+  color: var(--ink-soft);
 }
 
 /* The short card, the one a tap opens: a row with the picture, the name and value and the ×, and a

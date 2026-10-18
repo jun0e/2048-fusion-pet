@@ -13,6 +13,7 @@ import { keepsakeById } from '../sim/keepsakes.js';
 import { punchTargets, punchingSwipes, slidePaths } from '../sim/punch.js';
 import { FLASH_SECONDS } from './journey-tuning.js';
 import { tr } from '../i18n/index.js';
+import { DICE, V2 } from '../config.js';
 
 export const TIPS_BASELINE = {
   merge: 'Merged! A bigger block is a stronger turret.',
@@ -135,8 +136,13 @@ export const COACH = {
   hold: { fist: FIST_SECONDS }, // these tips stay up this long (or until done)
 };
 
-// How to play's rules: [title, words], from the language's table (src/i18n, the help.* keys)
-export const HELP = ['swipe', 'turrets', 'siege', 'elements', 'upgrades', 'unlocks', 'coins', 'level', 'keepsakes', 'bosses'].map((k) => [tr(`help.${k}.title`), tr(`help.${k}`)]);
+// How to play's rules: [title, words], from the language's table (src/i18n, the help.* keys); the v2
+// numbers come from the config (docs/v2/SPEC.md)
+const HELP_VARS = {
+  skills: { summon: 2 ** V2.summonTier, pure: 2 ** V2.pureTier },
+  unlocks: { start: DICE.start, from: V2.unlockLevels[0], to: V2.unlockLevels.at(-1), n: V2.offers },
+};
+export const HELP = ['swipe', 'turrets', 'siege', 'elements', 'upgrades', 'skills', 'unlocks', 'coins', 'level', 'keepsakes', 'bosses'].map((k) => [tr(`help.${k}.title`), tr(`help.${k}`, HELP_VARS[k])]);
 
 export const STORE_KEY = 'siege:tutorial';
 export const wordCount = (text) => (text ? text.trim().split(/\s+/).length : 0);

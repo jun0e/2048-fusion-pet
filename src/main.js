@@ -1,9 +1,10 @@
 import './ui/hud.css';
 import './ui/keepsakes.css'; // the level and keepsake discs, their cards and the keepsake picker
+import './ui/cards.css'; // v2: the choices, the skill gained, the namecard's time out
 import { Assets } from 'pixi.js';
 import { createRun } from './sim/run.js';
 import { ENEMY_TYPES } from './sim/enemies.js';
-import { ELEMENTS, profileFor } from './sim/classes.js';
+import { ELEMENTS, FUSIONS, fusionKey, profileFor } from './sim/classes.js';
 import { FIELD, GRID, GRID_TOP, PHYSICS, cellX, cellY } from './config.js';
 import { createStage } from './render/stage.js';
 import { createScenery } from './render/scenery.js';
@@ -14,6 +15,7 @@ import { createTrails } from './render/trails.js';
 import { createAttacks } from './render/attacks.js';
 import { createDeck } from './render/deck.js';
 import { createFx } from './render/fx.js';
+import { createSkillFx } from './render/skillfx.js';
 import { loadGeneratedAssets, readyVfx } from './render/textures.js';
 import { createDiagnostics } from './render/diagnostics.js';
 import { createHud, bossHealth } from './ui/hud.js';
@@ -21,6 +23,9 @@ import { createTutorial } from './ui/tutorial.js';
 import { createJourney } from './ux/journey.js';
 import { GAME_OVER_DELAY, causeLine, lossHint, returnGoal } from './ux/journey-tuning.js';
 import { createInspect } from './ui/inspect.js';
+import { buffBanner } from './sim/describe.js';
+import { petName } from './art/tokens.js';
+import { DEMO_DECK, createDemoPanel, mockChoice, presetBoard, shimSummons } from './ui/v2demo.js';
 import { createRunBadges } from './ui/run-badges.js';
 import { createKeepsakePicker } from './ui/keepsake-picker.js';
 import { loadMeta, saveMeta, recordBest, isFirstRun, unseenKeepsakes } from './ux/meta.js';
@@ -70,10 +75,13 @@ const saveBestWave = (v) => {
   } catch {}
 };
 
-// ?seed=123 replays a run; ?debug starts with a 16, a 256 and a 4096 to try every class stage.
+// ?seed=123 replays a run; ?debug starts with a single pet, a fusion at 1024 and a pure pet at 4096.
+// ?v2demo: every kind of v2 block on the board, and buttons that open each v2 card with mock choices
+// (src/ui/v2demo.js; window.__mb.card(kind) does the same).
 const params = new URLSearchParams(location.search);
 const seedParam = params.has('seed') ? Number(params.get('seed')) >>> 0 : undefined;
-const debugStart = params.has('debug');
+const v2demo = params.has('v2demo');
+const debugStart = params.has('debug') || v2demo;
 // The game draws its pets with the sticker art (Gemini sprites from tools/pipeline.mjs when
 // generated): creatures on tiles, roaming fusions, namecards. ?style=classic brings back the
 // plain blocks. ?kv: the key-visual demo (preset board, style switcher; see src/kv/index.js)
@@ -160,6 +168,8 @@ async function start() {
   const foes = createFoes(stage, fx);
   const shots = createShots(stage, fx, trails, attacks);
   const deck = createDeck(stage);
+  // v2: what the fusion skills do on the field (zones, walls, traps, minions, tethers, skillFx events: U2)
+  const skillFx = createSkillFx({ stage, fx, art });
   const sfx = createSfx();
   const haptics = createHaptics();
   // a game, not a page: no long-press menu or image callout (but the share line, shown to copy by hand)
@@ -199,6 +209,11 @@ async function start() {
   let savedInputs = -1; // inputs in the last save
   let run = null;
   let resumed = false;
+  // v2: fusions made, waiting to show the skill they gained ([{ cls, tier }]), and the one on screen
+  const results = [];
+  let resultOn = null;
+  let demoChoice = null; // ?v2demo: a mock choice on screen (src/ui/v2demo.js)
+  let demoTiles = null; // ?v2demo: the preset's blocks
   // ?tutorial replays the opening from scratch: a fresh run, not a resumed one. A language switch
   // reloads the page: its run comes back even mid-opening, the opening at its step, and Settings again
   const relang = takeRelang(); // { step }, once, after a language switch
@@ -247,19 +262,23 @@ async function start() {
    */
   function newRun(keepsake = meta.keepsake, { remember = true, count = true } = {}) {
     if (kv) return kv.preset(createRun({ seed: seedParam ?? 2048, empty: true, dice: KV_DICE, roaming: true, levels: false })); // it draws its pets
-    const r = createRun({ seed: seedParam, empty: debugStart, roaming, keepsake });
+    const r = createRun({ seed: seedParam, empty: debugStart, roaming, keepsake, ...(v2demo ? { dice: DEMO_DECK } : {}) });
     runUnlocks = [];
     if (canSave) {
       if (remember) meta.keepsake = keepsake;
       if (count) meta.runs += 1;
       saveMeta(meta);
     }
-    if (debugStart) {
-      // one block per class stage, built from the deck's colours
-      const [a, b, c] = r.owned;
+    if (v2demo) {
+      demoTiles = presetBoard(r);
+      shimSummons(r); // the namecards' states before the sim has summons (none once it has)
+      r.setHold(true); // the cards are checked at rest: the first wave waits for Wave now
+    } else if (debugStart) {
+      // a single pet, a fusion at 1024 (its summon), a pure pet at 4096, a plain block: from the deck's elements
+      const [a, b] = r.owned;
       r.spawnDebug(4, 0, 0).cls = { element: a };
-      r.spawnDebug(8, 1, 0).cls = { element: a, fusion: b };
-      r.spawnDebug(12, 2, 0).cls = { element: a, fusion: b, ultimate: c };
+      r.spawnDebug(10, 1, 0).cls = { element: a, fusion: b, buffs: {} };
+      r.spawnDebug(12, 2, 0).cls = { element: b, fusion: a, buffs: { [a]: 1 }, pure: true };
       r.spawnDebug(1, 3, 1);
     }
     runLog = canSave ? recordRun(r) : null;
@@ -318,7 +337,8 @@ async function start() {
       if (on) run.setHold(false);
       return on;
     },
-    onChoose: (i) => !paused && run.choose(i),
+    onChoose: (i) => (demoChoice ? pickDemo(i) : !paused && run.choose(i)),
+    onResult: () => closeResult(),
     dev: devMode,
   });
 
@@ -415,6 +435,8 @@ async function start() {
     stats = freshStats();
     resetSpeed();
     hud.clearBanners();
+    results.length = 0; // the skills a fusion of the old run gained: not this run's news
+    closeResult();
     run = newRun(keepsake, opts);
     journey.onRunStart();
     blocks.reset();
@@ -422,13 +444,14 @@ async function start() {
     shots.reset();
     attacks.reset();
     fx.reset();
+    skillFx.reset();
     kv?.reset();
     pets?.reset();
     bossIntro.hide();
     hud.hideGameOver();
     gameOverShown = false;
     select(null);
-    if (!kv) tutorial.start(run);
+    if (!kv && !v2demo) tutorial.start(run);
     // after a loss, the retry opens with one lesson from how that run ended
     if (!kv && lastLoss) tutorial.note(lossHint(lastLoss), 'board');
     lastLoss = null;
@@ -519,6 +542,7 @@ async function start() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) return;
     saveNow();
+    if (v2demo) return; // the cards' check page stays as it is (a hidden preview pane hides it often)
     if (!run.over && pause.menu === 'closed' && !picker?.isOpen) openMenu(); // the keepsake picker already holds the game
   });
   addEventListener('pagehide', () => saveNow());
@@ -530,8 +554,9 @@ async function start() {
     // upright again: the game waits for Resume, not the turn; an open menu stays on its page
     if (!e.matches && !run.over && pause.menu === 'closed' && !picker?.isOpen) openMenu();
   });
-  if (!kv) tutorial.start(run, { at: resumed ? relang?.step : null });
-  else tutorial.setMuted(true); // the showcase has no tips
+  if (!kv && !v2demo) tutorial.start(run, { at: resumed ? relang?.step : null });
+  else tutorial.setMuted(true); // the showcase and the cards' check page have no tips
+  if (v2demo) run.setHold(true); // (muting the tips lets the countdown go: the cards' page waits for Wave now)
   // a returning player (opening done) gets a goal: their best wave; a resumed run, the pause menu;
   // after a language switch, Settings again
   if (resumed && relang) {
@@ -543,7 +568,7 @@ async function start() {
   } else if (resumed) {
     pauseTitle = tr('pause.welcome');
     openMenu();
-  } else if (!kv && !tutorial.active) {
+  } else if (!kv && !v2demo && !tutorial.active) {
     // a player who learned the game before keepsakes existed: name the one they bring
     if (firstRun) tutorial.note(tr('note.keepsakes'), 'keepsake');
     tutorial.note(returnGoal(bestWave));
@@ -572,6 +597,68 @@ async function start() {
 
   const client = (x, y) => stage.toClient(x, y);
 
+  // --- v2: the skill a new fusion gained (a card the game waits behind), the buff banner, the demo ---
+  /** A fusion was made: its skill card comes once no choice is open (the bot plays on without it). */
+  function queueResult(tile, e) {
+    const cls = tile?.cls?.fusion ? tile.cls : null;
+    if (!cls || auto.on || kv) return;
+    results.push({ cls: { element: cls.element, fusion: cls.fusion }, tier: tile.tier ?? e.tier });
+  }
+  function nextResult() {
+    if (resultOn || !results.length || run.pendingChoice || demoChoice || gameOverShown) return;
+    openResult(results.shift());
+  }
+  function openResult(r) {
+    resultOn = r;
+    hud.showResult(r.cls, { tier: r.tier });
+    pause.hold('result', true); // the game waits while the player reads it
+  }
+  function closeResult() {
+    if (!resultOn) return;
+    resultOn = null;
+    hud.showResult(null);
+    pause.hold('result', false);
+  }
+  /** A single pet's element fed into a fusion, or a fusion kept: "Novakit +Fire: +20% damage". */
+  function showBuffed(e) {
+    const t = run.tiles.find((x) => x.id === e.tileId);
+    const pet = t?.cls?.fusion ? petName(t.cls.element, t.cls.fusion) : '';
+    const b = buffBanner(e.gain ?? {}, pet);
+    hud.banner(b.title.trim(), b.sub, 'good');
+    const first = Object.keys(e.gain ?? {})[0];
+    if (first && e.x != null) {
+      fx.ring(e.x, e.y, hex(ELEMENTS[first].color), 0.4, 2, 0.4);
+      const p = client(e.x, e.y + 1);
+      popup(p.x, p.y, b.title.slice(pet.length).trim() || b.title, 3, ELEMENTS[first].color);
+    }
+    sfx.choose(1);
+  }
+  /** ?v2demo, and window.__mb.card(kind): open a card with mock data. */
+  function openDemo(kind) {
+    select(null);
+    if (kind === 'result') {
+      closeResult();
+      demoChoice = null;
+      return openResult({ cls: { element: 'fire', fusion: 'ice' }, tier: 5 }); // over any choice the sim has open
+    }
+    if (kind === 'buffed') {
+      const t = demoTiles?.fusion ?? run.tiles.find((x) => x.cls?.fusion);
+      return showBuffed({ type: 'buffed', tileId: t?.id, gain: { fire: 1 }, buffs: { ...(t?.cls?.buffs ?? {}), fire: 1 }, x: t?.x, y: t?.y, tier: t?.tier });
+    }
+    closeResult();
+    demoChoice = mockChoice(kind, run.owned);
+  }
+  /** A mock choice picked: it closes; a fusion's shows its skill gained, with the main element picked. */
+  function pickDemo(i) {
+    const c = demoChoice;
+    demoChoice = null;
+    if (c?.kind === 'fusion') {
+      const o = c.offers[Math.max(0, Math.min(c.offers.length - 1, i))];
+      results.unshift({ cls: { element: o.element, fusion: o.fusion }, tier: c.tier });
+    }
+  }
+  if (v2demo) createDemoPanel(hudEl, { open: openDemo });
+
   function handleEvents() {
     for (const e of run.drainEvents()) {
       tally(e);
@@ -580,6 +667,7 @@ async function start() {
       blocks.onEvent(e);
       kv?.onEvent(e);
       pets?.onEvent(e);
+      skillFx.onEvent(e); // v2: skillFx events and the summons' moments (src/render/skillfx.js)
       switch (e.type) {
         case 'merge': {
           fx.burst(e.x, e.y, [0xffffff, 0xffe27a], 10 + e.tier * 2, { speed: 4, size: 0.24, life: 0.45, gravity: 0 });
@@ -659,15 +747,31 @@ async function start() {
           }
           break;
         case 'classed': {
-          // a merge awakened an element, made a fusion or an ultimate: announce the combination
+          // an egg hatched, a fusion was made or a pet turned pure: announce the combination
           const color = hex(ELEMENTS[e.element].color);
           fx.ring(e.x, e.y, color, 0.8, 3, 0.6);
           fx.burst(e.x, e.y, e.info.colors.map(hex), 34, { speed: 5, size: 0.3, life: 0.6, gravity: 0 });
           hud.announce(e.info);
           sfx.choose(e.stage);
           if (e.stage >= 2) stage.shake(4 + e.stage * 2);
+          // a fusion made (its main element picked, or no pick): the skill it gained, in full
+          if (e.stage === 2) queueResult(run.tiles.find((t) => t.id === e.tileId) ?? null, e);
           break;
         }
+        case 'egg': {
+          // a new elemental egg (docs/v2/SPEC.md section 2): a light cue in its element's colour
+          const c = hex(ELEMENTS[e.element]?.color ?? '#fffaf2');
+          fx.ring(e.x, e.y, c, 0.3, 1.5, 0.35);
+          fx.burst(e.x, e.y, [c, 0xffffff], 8, { speed: 2, size: 0.18, life: 0.4, gravity: -2 });
+          break;
+        }
+        case 'buffed':
+          showBuffed(e);
+          break;
+        case 'summonEnd':
+          // the pet is home again (src/render/skillfx.js draws its hop)
+          fx.ring(e.x ?? 0, e.y ?? 0, 0xfffaf2, 0.3, 1.4, 0.3);
+          break;
         case 'override': {
           // the sliding block's colour wins: show who took over
           const p = client(e.x, e.y + 1.6);
@@ -824,7 +928,14 @@ async function start() {
           fx.ring(e.x, e.y, 0x9dff9d, 0.3, e.radius * 2, 0.6);
           break;
         case 'summon':
-          fx.burst(e.x, e.y, [0xc04848, 0xffd36b], 20, { speed: 4, size: 0.24, life: 0.5, gravity: 0 });
+          if (e.tileId != null) {
+            // v2: a fusion's pet goes out to the front with its skill (its namecard plays the cut-in)
+            const t = run.tiles.find((x) => x.id === e.tileId);
+            const c = t?.cls?.fusion ? hex(FUSIONS[fusionKey(t.cls.element, t.cls.fusion)].color) : 0xffe27a;
+            fx.ring(e.x, e.y, c, 0.5, 2.6, 0.45);
+            sfx.choose(2);
+            haptics.play('merge');
+          } else fx.burst(e.x, e.y, [0xc04848, 0xffd36b], 20, { speed: 4, size: 0.24, life: 0.5, gravity: 0 }); // a foe's minions
           break;
         case 'tileDown': {
           // remember what broke the block, for the game-over card's cause line
@@ -910,7 +1021,9 @@ async function start() {
       bossHp: bossHealth(run.enemies), // the lintel's boss bar
     });
     hud.setEconomy(run.coins, run.swipeCost, run.swipes); // the swipes count drives the price step tick
-    hud.setChoice(gameOverShown ? null : run.pendingChoice);
+    // a choice waits while the skill a fusion gained is on screen; then the next skill card, if any
+    hud.setChoice(gameOverShown || resultOn ? null : (demoChoice ?? run.pendingChoice), { deck: run.owned });
+    nextResult();
     badges.update({
       level: run.level,
       xp: run.xp,
@@ -926,7 +1039,7 @@ async function start() {
       bestTier: meta.bestTier,
       levelsOn: run.levelsOn,
       hidden: !!kv,
-      blocked: paused || !!run.pendingChoice || gameOverShown,
+      blocked: paused || !!run.pendingChoice || !!demoChoice || gameOverShown,
     });
     if (!picker?.isOpen) tutorial.update(live ? dt : 0); // no tip opens behind the keepsake picker
     hud.update(live && !run.pendingChoice ? dt : 0); // banners wait behind a die card, too
@@ -936,10 +1049,11 @@ async function start() {
 
     // a picked block shows its range (and its inspect card); a die card or a lost block puts it down
     const picked = selected != null && run.tiles.find((t) => t.id === selected);
-    if (selected != null && (!picked || run.pendingChoice)) select(null);
+    if (selected != null && (!picked || run.pendingChoice || demoChoice)) select(null);
     scenery.showRange(picked ? { x: picked.x, y: picked.y, shoot: profileFor(picked).shoot } : null);
     // no card in the guided opening (its Break would undo the first lesson's 8s)
-    inspect.show(picked && !run.pendingChoice && !gameOverShown && !pause.paused && !tutorial.active ? picked : null, picked ? { price: run.discardPrice(picked.id), coins: run.coins, last: run.tiles.length <= 1 } : {}, dt, { kept: !!picked });
+    const skill = picked && run.skillCharge ? { charge: run.skillCharge(picked.id), ready: !!run.skillReady?.(picked.id) } : null; // a fusion's summon line (v2)
+    inspect.show(picked && !run.pendingChoice && !gameOverShown && !pause.paused && !tutorial.active ? picked : null, picked ? { price: run.discardPrice(picked.id), coins: run.coins, last: run.tiles.length <= 1, tiles: run.tiles, skill } : {}, dt, { kept: !!picked });
 
     const perLane = [0, 0, 0, 0];
     for (const e of run.enemies) if (!e.dead && !e.gone) perLane[e.lane] += 1;
@@ -948,6 +1062,7 @@ async function start() {
     pets?.update(run, dt, Math.max(0, run.time - t0)); // skills charge on sim time
     blocks.sync(run, dt);
     deck.sync(run, dt);
+    skillFx.update(run, dt); // the skills' standing pieces: zones, walls, traps, minions, tethers (U2)
     foes.sync(run.enemies, dt);
     shots.sync(run.shots, dt, run.defense.puddles);
     attacks.update(dt); // and the trails
@@ -998,6 +1113,8 @@ async function start() {
       return tutorial.slowmo;
     },
     openPicker: () => picker && openPicker('restart'),
+    /** Open a v2 card with mock data: 'die' | 'fusion' | 'keep' | 'result' | 'buffed' (src/ui/v2demo.js). */
+    card: (kind) => openDemo(kind),
     coins: (n) => run.addCoins(n),
     /** The full-screen wash on screen now (0 = none): photosafe checks. */
     get wash() {

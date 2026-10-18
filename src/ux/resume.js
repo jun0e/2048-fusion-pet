@@ -11,7 +11,7 @@
 /** Also in index.html: New run on the failure screen removes this key itself (it must work without main.js). */
 export const RESUME_KEY = 'siege:run';
 /** Bump when a change makes old logs replay differently (renamed inputs, sim rules). */
-export const SAVE_VERSION = 5; // 2: the basic attacks and sell / break (art fork merge); 3: roaming pets are sim state; 4: spawn levels and keepsakes; 5: fusion picks from a block's material
+export const SAVE_VERSION = 6; // 2: the basic attacks and sell / break (art fork merge); 3: roaming pets are sim state; 4: spawn levels and keepsakes; 5: fusion picks from a block's material; 6: v2 (docs/v2/SPEC.md: eggs, fusions of two pets, buffs, summons, pure forms)
 /** Run methods that change the sim from outside (debug helpers are not saved). */
 export const RESUME_INPUTS = ['move', 'nextWave', 'choose', 'setHold', 'setGuidedWave', 'discard', 'castSkill', 'buyXp'];
 
@@ -61,7 +61,17 @@ export function replayRun(createRun, log, { onEvents = () => {} } = {}) {
   return run;
 }
 
-/** What must match after a replay: the board (with classes, health and roaming pets), the economy, the deck, the spawn level. */
+/** A block's class as one key: its main and second element, its buffs (in key order), its pure form. */
+const clsKey = (cls = {}) =>
+  `${cls.element ?? ''}${cls.fusion ?? ''}${cls.pure ? '*' : ''}${Object.keys(cls.buffs ?? {})
+    .sort()
+    .map((k) => `${k}${cls.buffs[k]}`)
+    .join('')}`;
+
+/** Where a block's pet is: on the field during a summon (v2: tile.summon), else nowhere. */
+const petAt = (t) => (t.summon ? `@${t.summon.x.toFixed(2)},${t.summon.y.toFixed(2)}` : '');
+
+/** What must match after a replay: the board (with classes, buffs, health and summoned pets), the economy, the deck, the spawn level. */
 export const fingerprint = (run) =>
   [
     run.waveNo,
@@ -72,7 +82,7 @@ export const fingerprint = (run) =>
     run.kills,
     run.owned.join('+'),
     `${run.keepsake ?? ''}L${run.level ?? 1}:${run.xp ?? 0}`,
-    run.tiles.map((t) => `${t.id}:${t.tier}:${t.cls.element ?? ''}${t.cls.fusion ?? ''}${t.cls.ultimate ?? ''}/${(t.mats ?? []).join('')}:${Math.round(t.hp)}${t.roam ? `@${t.roam.x.toFixed(2)},${t.roam.y.toFixed(2)}` : ''}`).join(','),
+    run.tiles.map((t) => `${t.id}:${t.tier}:${clsKey(t.cls)}:${Math.round(t.hp)}${petAt(t)}`).join(','),
   ].join('|');
 
 /**

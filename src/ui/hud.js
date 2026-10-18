@@ -2,8 +2,9 @@
 // the top-block chip), the head (the chapter lintel: crest and wave, the foes meter that becomes the
 // boss's health bar, the 4×4 keep grid of blocks alive; and under it the news ribbon in the sky,
 // where banners and class announcements queue, src/ux/banners.js), the bottom bar (the coin plate
-// with the swipe price and its step tick, Wave now), the die pick, floating popups, the red edge
-// pulse, the pause menu and the game-over card. Nothing here sits over a lane: the combo tally hangs
+// with the swipe price and its step tick, Wave now), the choices (a new element, a fusion's main
+// element, the fusion pet to keep: src/ui/cards.js builds them) and the card with the skill a new
+// fusion gained, floating popups, the red edge pulse, the pause menu and the game-over card. Nothing here sits over a lane: the combo tally hangs
 // on the left tower, the namecard rail on the right one (src/kv/namecards.js).
 // Pure presentation; main.js feeds it. All markup is built from constants and numbers from
 // config/sim data (no user input), so innerHTML is safe here.
@@ -13,9 +14,7 @@ import { createBannerQueue, bannerTimes } from '../ux/banners.js';
 import { TEXT, popupFont } from '../ux/photosafe.js';
 import { chapterKeyFor, skinFor } from '../art/frame-kit.js';
 import { generatedUrl } from '../render/textures.js';
-import { ELEMENTS } from '../sim/classes.js';
-import { portraitId, spriteId } from '../art/sprite-ids.js';
-import { petName } from '../art/tokens.js';
+import { choiceHtml, choiceKey, choiceLabel, fusionColor, resultCardHtml } from './cards.js';
 import { LANG_NAMES, getLang, num, tr } from '../i18n/index.js';
 
 const STAGE_LABEL = { 1: tr('stage.1'), 2: tr('stage.2'), 3: tr('stage.3') };
@@ -23,12 +22,6 @@ const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 function chipHtml(tier, cls = '') {
   return `<div class="chip ${cls}" style="--c:${TIER_COLORS[tier]}">${tierValue(tier)}</div>`;
-}
-
-/** An element's badge (its glyph on its colour: the colour-blind channel), when the pipeline made it. */
-function badgeImg(element) {
-  const url = element ? generatedUrl(`badge.${element}`) : null;
-  return url ? `<img alt="" src="${esc(url)}" />` : '';
 }
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg>';
@@ -174,7 +167,7 @@ export function fightLabel({ wave, boss = null, timer = 0, holding = false }) {
 /**
  * @param dev  show developer controls (the Auto button): `?dev` in the URL
  */
-export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed, onNextWave, onChoose, onAuto, dev = false }) {
+export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed, onNextWave, onChoose, onResult = () => {}, onAuto, dev = false }) {
   // (Sound is a setting in the pause menu: the top bar holds Pause and Speed only)
   root.innerHTML = `
     <div class="vignette"></div>
@@ -218,10 +211,10 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     </div>
     <button class="fight" data-act="fight">${fightLabel({ wave: 1, holding: true })}</button>
     <div class="scrim choice-scrim" role="dialog" aria-modal="true" aria-label="${esc(tr('die.name'))}">
-      <div class="choice">
-        <div class="choice-head"><div class="choice-chip"></div><div><h2 class="choice-title"></h2><p class="choice-sub"></p></div></div>
-        <div class="options"></div>
-      </div>
+      <div class="choice"></div>
+    </div>
+    <div class="scrim result-scrim" role="dialog" aria-modal="true" aria-labelledby="result-pet">
+      <div class="card result-card"></div>
     </div>
     <div class="rotate" role="status">
       <div class="rotate-card">
@@ -287,6 +280,9 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   const vignette = $('.vignette');
   const overScrim = $('.over-scrim');
   const choiceScrim = $('.choice-scrim');
+  const choiceEl = $('.choice');
+  const resultScrim = $('.result-scrim');
+  const resultCard = $('.result-card');
   const fightBtn = $('.fight');
   const meterEl = $('.meter');
   const meterFill = $('.meter-fill');
@@ -312,6 +308,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   // Closed dialogs must not hold focus while invisible.
   overScrim.inert = true;
   choiceScrim.inert = true;
+  resultScrim.inert = true;
   pauseScrim.inert = true;
 
   // The open dialog keeps the focus: while the menu is up (its card, or How to play over
@@ -454,6 +451,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     }
     if (act === 'fight') onNextWave();
     if (act === 'pick') onChoose(Number(btn.dataset.i));
+    if (act === 'result-ok') onResult();
     // Space/Enter are the drop keys: a button that kept focus would turn the
     // next drop into another click (e.g. restart). Hand focus back to the game.
     btn.blur();
@@ -467,7 +465,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   let shownBest = -1;
   let shownNext = 0;
   let shownStatus = '';
-  let choiceKey = null;
+  let choiceKey_ = null; // the choice on screen (cards.js choiceKey)
   let shownCoins = -1;
   let shownCost = -1;
   let shownSwipes = -1;
@@ -489,38 +487,6 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     el.classList.remove(cls);
     void el.offsetWidth; // reflow so the animation replays
     el.classList.add(cls);
-  }
-
-  /**
-   * A block reached 256: the player picks its fusion from the pairs its material can make
-   * (src/sim/classes.js fusionOffers). Each card shows the fusion's pet (its generated portrait,
-   * else the two element badges), its name, the two elements and what it does.
-   */
-  function showFusionPick(choice) {
-    choiceScrim.setAttribute('aria-label', tr('fusionPick.name'));
-    $('.choice-chip').innerHTML = chipHtml(choice.tier);
-    $('.choice-title').textContent = tr('fusionPick.title');
-    $('.choice-sub').textContent = tr('fusionPick.sub', { value: num(tierValue(choice.tier)) });
-    $('.options').innerHTML = choice.offers
-      .map((o, i) => {
-        const a = ELEMENTS[o.element];
-        const b = ELEMENTS[o.fusion];
-        const pic = generatedUrl(portraitId({ element: o.element, fusion: o.fusion }));
-        const art = pic ? `<i class="pet" style="--c:${o.color}"><img alt="" src="${esc(pic)}" /></i>` : `<i style="--c:${a.color}">${badgeImg(o.element)}</i><i style="--c:${b.color}">${badgeImg(o.fusion)}</i>`;
-        return `
-        <button class="option fusion-option" data-act="pick" data-i="${i}">
-          <span class="swatches">${art}</span>
-          <span class="opt-text">
-            <b>${esc(o.name)}</b>
-            <em>${esc(a.name)} + ${esc(b.name)} · ${esc(petName(o.element, o.fusion))}</em>
-            <small>${esc(tr('fusionPick.line', { tags: o.tags, el: a.name, attack: a.attack }))}</small>
-          </span>
-          <kbd>${i + 1}</kbd>
-        </button>`;
-      })
-      .join('');
-    choiceScrim.inert = false;
-    choiceScrim.classList.add('open');
   }
 
   /** The chapter's skin: the lintel's crest and the stone of the HUD (CSS custom properties). */
@@ -702,47 +668,49 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     setDanger(level) {
       vignette.style.opacity = String(level * 0.9);
     },
-    /** Show (or keep showing) the pending pick: a new die, or a new fusion; null hides it. */
-    setChoice(choice) {
-      const key = choice ? `${choice.kind}:${choice.tier}:${choice.tileId ?? ''}` : null;
-      if (key === choiceKey) return;
-      choiceKey = key;
+    /**
+     * Show (or keep showing) the pending choice (docs/v2/SPEC.md section 3): a new element, a fusion's
+     * main element, or the fusion pet to keep; null hides it. `deck`: the run's elements (a new
+     * element's card shows the fusions it makes with them).
+     */
+    setChoice(choice, { deck = [] } = {}) {
+      const key = choiceKey(choice);
+      if (key === choiceKey_) return;
+      choiceKey_ = key;
       root.classList.toggle('choosing', !!choice);
       if (!choice) {
         choiceScrim.classList.remove('open');
         choiceScrim.inert = true;
         return;
       }
-      if (choice.kind === 'fusion') {
-        showFusionPick(choice);
-        return;
-      }
-      choiceScrim.setAttribute('aria-label', tr('die.name'));
-      $('.choice-chip').innerHTML = chipHtml(choice.tier);
-      $('.choice-title').textContent = tr('die.title');
-      $('.choice-sub').textContent = tr('die.sub', { value: num(tierValue(choice.tier)) });
-      // each die: its baby pet with the element's badge (the badge alone without the art), its name and
-      // attack on one line, and what it does in one short line (src/sim/classes.js ELEMENTS line); the
-      // long description shows on a mouse's hover (title), and on the block's full card once it hatches
-      $('.options').innerHTML = choice.offers
-        .map((o, i) => {
-          const baby = generatedUrl(spriteId({ kind: 'baby', el: o.element, stage: 0 }));
-          const art = baby
-            ? `<i class="pet" style="--c:${o.colors[0]}"><img alt="" src="${esc(baby)}" /><span class="pet-badge">${badgeImg(o.element)}</span></i>`
-            : `<i style="--c:${o.colors[0]}">${badgeImg(o.element)}</i>`;
-          return `
-        <button class="option die-option" data-act="pick" data-i="${i}" title="${esc(o.desc)}">
-          <span class="swatches">${art}</span>
-          <span class="opt-text">
-            <span class="opt-head"><b>${esc(o.name)}</b> <em>${esc(o.attack)}</em></span>
-            <small>${esc(o.line)}</small>
-          </span>
-          <kbd>${i + 1}</kbd>
-        </button>`;
-        })
-        .join('');
+      choiceScrim.setAttribute('aria-label', choiceLabel(choice));
+      choiceEl.dataset.kind = choice.kind;
+      choiceEl.innerHTML = choiceHtml(choice, { deck });
+      choiceEl.scrollTop = 0;
       choiceScrim.inert = false;
       choiceScrim.classList.add('open');
+    },
+    /**
+     * The skill a new fusion pet gained, in full (src/ui/cards.js resultCardHtml), with OK (onResult);
+     * null closes it. `tier`: the block's, for the merges until its summon unlocks.
+     */
+    showResult(cls, { tier = null } = {}) {
+      if (!cls) {
+        resultScrim.classList.remove('open');
+        resultScrim.inert = true;
+        return;
+      }
+      resultCard.style.setProperty('--c', fusionColor(cls.element, cls.fusion));
+      resultCard.innerHTML = resultCardHtml(cls, { tier });
+      resultCard.scrollTop = 0;
+      resultScrim.inert = false;
+      resultScrim.classList.add('open');
+      // a keyboard player's Enter or Space closes it (the click handler blurs the button after)
+      setTimeout(() => resultScrim.classList.contains('open') && resultCard.querySelector('.rc-ok')?.focus({ preventScroll: true }), 250);
+    },
+    /** The result card is on screen. */
+    get resultOpen() {
+      return resultScrim.classList.contains('open');
     },
     /**
      * Announce a class combination on the news ribbon: "[Fusion] Fire + Ice → Blue Flame".
