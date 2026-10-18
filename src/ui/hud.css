@@ -2072,57 +2072,7 @@ body {
 }
 
 
-/* the die pick (T8): each die's baby pet on its colour with the element's badge in its corner, its
-   name and attack on one line, and one short line of what it does (src/ui/hud.js setChoice) */
-.die-option .swatches i.pet {
-  position: relative;
-  overflow: visible; /* the badge sits on the corner (the size and colour: with the fusion pick's, below) */
-}
-.die-option .swatches i.pet > img {
-  border-radius: 14px;
-}
-.die-option .pet-badge {
-  position: absolute;
-  right: -5px;
-  bottom: -5px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--c); /* a colour dot, where the badge's art is missing */
-  box-shadow: 0 0 0 2px var(--cream);
-  overflow: hidden;
-}
-.die-option .pet-badge img {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.die-option .opt-head {
-  display: block;
-  line-height: 1.15;
-}
-.die-option .opt-head b,
-.die-option .opt-head em {
-  display: inline;
-}
-.die-option .opt-head em {
-  margin-left: 4px;
-  white-space: nowrap; /* "Pride Pounce" never breaks in two */
-}
-
-.die-option .opt-text small {
-  text-wrap: pretty; /* where the line wraps (a 320 px phone, a mouse's 1-2-3 column), no word alone */
-}
-
-/* the fusion pick's pet portrait and the die pick's baby pet: on their colour, bigger than a swatch
-   (src/ui/hud.js showFusionPick, setChoice) */
-.fusion-option .swatches i.pet,
-.die-option .swatches i.pet {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--c) 35%, var(--cream));
-}
+/* (the choices' cards, v2: src/ui/cards.css) */
 
 /* --- the boss intro card (T6, src/ui/boss-intro.js) ---------------------------------------
    The boss's portrait, its name and what it does, over the field for 2.6 s of play as a boss wave
