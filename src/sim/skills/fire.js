@@ -166,6 +166,12 @@ export const SKILLS = {
   'fire+nature': {
     start(ctx) {
       const { p, pet } = ctx;
+      // each locust goes for a foe of its own, the small fry nearest first (a swarm, not a pile on the boss)
+      const prey = (x, y) => {
+        const taken = new Set(ctx.minions().map((m) => m.targetId));
+        const free = ctx.foes().filter((e) => !taken.has(e.id));
+        return ctx.nearest(x, y, free.filter((e) => !e.boss)) ?? ctx.nearest(x, y, free);
+      };
       const locust = (x, y) =>
         ctx.minion({
           kind: 'locust',
@@ -173,9 +179,10 @@ export const SKILLS = {
           y,
           speed: 4,
           ttl: ctx.s.dur,
+          target: prey(x, y),
           onReach(e) {
+            ctx.burn(e); // set alight first: a foe the burst kills dies burning, and hatches the next locust
             ctx.strike(e, p.hitPct, { kinds: KIND.fire });
-            ctx.burn(e);
             ctx.fx('burst', { x: e.x, y: e.y, n: 10 });
           },
         });

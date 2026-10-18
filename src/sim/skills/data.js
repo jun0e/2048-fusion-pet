@@ -19,7 +19,7 @@ export const FUSION_SKILLS = {
   'fire+earth': { id: 'magmaBurrow', periodS: 1.5, hitPct: 2.5, radiusCells: 1.2, stunS: 0.8, poolS: 3, poolCells: 1 },
   'fire+wind': { id: 'fireTwister', pullCells: 1.5, dpsPct: 0.8, speedCells: 1.2 },
   'fire+metal': { id: 'moltenJaws', periodS: 2, holdS: 1.5, hitPct: 3, vulnPct: 0.5, vulnS: 6 },
-  'fire+nature': { id: 'emberSwarm', count: 5, hitPct: 1.2, max: 12 },
+  'fire+nature': { id: 'emberSwarm', count: 5, hitPct: 2, max: 12 },
   // --- ice ----------------------------------------------------------------------------------
   'ice+lightning': { id: 'cryoLance', periodS: 1.5, hitPct: 2, freezeS: 1 },
   'ice+poison': { id: 'venomTendrils', count: 4, rangeCells: 4, slowPct: 0.6, drainPct: 0.03, bossDrainPct: 0.015 },

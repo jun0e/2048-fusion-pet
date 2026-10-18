@@ -247,11 +247,11 @@ export function createKit(api) {
         return tr;
       },
       /**
-       * A little helper that hunts the nearest foe at `speed` cells/s; onReach(e, m) when it gets there,
-       * and it is gone unless onReach returns `true` (then it picks the next nearest foe).
+       * A little helper that hunts `target` (else the nearest foe) at `speed` cells/s; onReach(e, m) when it
+       * gets there, and it is gone unless onReach returns `true` (then it picks the next nearest foe).
        */
-      minion({ kind, x, y, speed, ttl, onReach, bound = true }) {
-        const m = own({ kind, x, y, speed: speed * CELL, t: ttl, color, onReach, targetId: null }, bound);
+      minion({ kind, x, y, speed, ttl, onReach, target = null, bound = true }) {
+        const m = own({ kind, x, y, speed: speed * CELL, t: ttl, color, onReach, targetId: target?.id ?? null }, bound);
         api.minions.push(m);
         return m;
       },
