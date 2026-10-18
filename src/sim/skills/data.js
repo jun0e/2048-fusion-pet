@@ -32,7 +32,7 @@ export const FUSION_SKILLS = {
   'lightning+earth': { id: 'thunderCharge', charges: 3, hitPct: 2.5, pushCells: 2, stunS: 1 },
   'lightning+wind': { id: 'stormHop', periodS: 0.5, hitPct: 2.4, splashPct: 0.5, splashCells: 1 },
   'lightning+metal': { id: 'railgun', chargeS: 2, shots: 3, hitPct: 12 },
-  'lightning+nature': { id: 'bloomAmbush', radiusCells: 2.5, hitPct: 5, jumps: 3, jumpPct: 0.6, cooldownS: 1.2 },
+  'lightning+nature': { id: 'bloomAmbush', radiusCells: 2, hitPct: 6, jumps: 3, jumpPct: 0.6, cooldownS: 1 },
   // --- poison -------------------------------------------------------------------------------
   'poison+earth': { id: 'bogWeb', radiusCells: 1.5, slowPct: 0.5, spiders: 2, hitPct: 1 },
   'poison+wind': { id: 'panicCloud', radiusCells: 2.2, fearS: 1, cooldownS: 4 },
