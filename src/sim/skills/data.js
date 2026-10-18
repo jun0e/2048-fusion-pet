@@ -88,7 +88,10 @@ export function skillVars(params, { num, tr }) {
     const n = Math.round(v * 100) / 100;
     if (u === 's') out[k] = tr('unit.s', { n: num(n) });
     else if (u === 'cells') out[k] = tr('unit.cells', { n: num(n), count: n === 1 ? 1 : 2 });
-    else if (u === 'pct') out[k] = `${num(Math.round(v * 1000) / 10)}%`;
+    else if (u === 'pct') {
+      const pc = Math.round(v * 1000) / 10;
+      out[k] = `${pc >= 1000 ? String(pc) : num(pc)}%`; // 1200%, never "1.200%" (read as 1.2 in Vietnamese)
+    }
     else out[k] = num(n);
   }
   return out;
