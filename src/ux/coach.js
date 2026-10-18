@@ -57,7 +57,7 @@ export const COACH_BASELINE = {
 // Tips (pass 2): ≤ 12 words, shown for their reading time, 15 s apart, and the
 // urgent ones (a block hit or lost, out of coins) jump the queue.
 // the words come from the language's table (src/i18n, the tip.* keys)
-const TIP_IDS = ['merge', 'lanes', 'attacked', 'lost', 'coins', 'broke', 'break', 'colour', 'awaken', 'unlock', 'fusion', 'ultimate', 'boss', 'milestone', 'fist', 'fistDone', 'level'];
+const TIP_IDS = ['merge', 'lanes', 'attacked', 'lost', 'coins', 'broke', 'break', 'colour', 'awaken', 'unlock', 'fusion', 'ultimate', 'boss', 'milestone', 'fist', 'fistDone', 'level', 'resist'];
 export const TIPS = Object.fromEntries(TIP_IDS.map((id) => [id, tr(`tip.${id}`)]));
 
 /** The Iron Fist tip names the swipe that punches now: "Iron Fist: swipe up to punch it!" */
@@ -480,6 +480,12 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
         case 'milestone':
           offer('milestone', 'board');
           break;
+        case 'resisted': {
+          // v2.1: the first foe that shrugs off part of a hit (its shield): mix in other elements
+          const foe = run().enemies?.find((f) => f.id === e.id);
+          offer('resist', { lane: foe?.lane ?? 0 });
+          break;
+        }
       }
     },
     /** A swipe that moved the board. */

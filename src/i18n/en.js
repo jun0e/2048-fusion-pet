@@ -273,6 +273,7 @@ export const EN = {
   'tip.fist': 'Iron Fist: slide a block into the monster to punch it!',
   'tip.fistDone': 'Punch! Bigger blocks punch harder.',
   'tip.level': 'Level up! Tap Lv to see the next reward.',
+  'tip.resist': 'Shielded foes resist your strongest element. Mix in other elements!',
   'guide.swipe': 'Swipe to merge the two 8s.',
   'guide.turret': 'Your egg hatched a pet! 16+ blocks shoot.',
   'guide.grow': 'Keep merging. Each swipe costs coins.',
