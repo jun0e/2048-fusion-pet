@@ -92,7 +92,7 @@ test('a generated pet stands 1.0 cell tall and up to 1.6 cells wide, with its ro
   const croc = generatedRoamerFit({ element: 'fire', fusion: 'metal' });
   assert.deepEqual(croc, { feet: 0.97, height: 1, maxW: 1.6, view: 'profile', move: 'crawl' });
   assert.deepEqual(generatedRoamerFit({ element: 'metal', fusion: 'fire' }), croc, 'either merge order');
-  const legend = generatedRoamerFit({ element: 'ice', fusion: 'poison', ultimate: 'wind' });
+  const legend = generatedRoamerFit({ element: 'ice', fusion: 'poison', buffs: {}, pure: true });
   assert.equal(legend.height, 1.15);
   assert.ok(Math.abs(legend.maxW - 1.15 * 1.6) < 1e-9);
   assert.equal(legend.view, 'front', 'the jellyfish is drawn from the front');

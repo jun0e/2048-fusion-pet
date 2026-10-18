@@ -1,38 +1,48 @@
 // 2048 block views: slide animation between cells, merge (both parents slide into the target cell,
-// then the new block pops), class glow, a legend's signature charge, recoil + muzzle flash when
+// then the new block pops), class glow, a fusion pet's summon charge, recoil + muzzle flash when
 // firing. The creature on the tile sells its attack's stage (src/art/attack-vfx.js petPose): a
 // wind-up before each shot (WIND_UP s of real time at any speed: 16 hops, 32–64 crouch, 128
 // crouches and recoils), and a Pride Pounce cub leaps onto its prey and back, with an afterimage
 // from 32.
+// v2 (docs/v2/SPEC.md sections 1 and 7): a plain block is a stone number block at every value; an
+// elemental egg sits in its nest in its element's colours (a fusion egg in both); single and fusion
+// pets stay on their tiles, at any value from 16. A fusion pet's summon charge (from 1024) fills its
+// frame with cream, clockwise from the top; while its pet is summoned out on the field (tile.summon,
+// drawn by src/kv/roam.js) the tile shows its empty den: the altar rises as the pet hops out, its
+// paw prints lead off it, and the pet pops back onto its tile when it lands. A pure form (4096)
+// wears its main element's halo, turning slowly behind it, a gold frame and a soft aura ring round
+// its pit. A skill's marks on a block: rime armour coats it in ice (tile.guardT), pollen makes it
+// sparkle (tile.boostT), and a sprout marks a block Moss Spring has saved (tile.saved).
 // The sticker tile is a clay plaque seated in its flagstone pit (reports/art/tiles/tile-spec.md; the
 // geometry and motion rules are src/art/plaque.js). Its shadow is cast inside the pit. A new block
-// drops into its pit with two sand puffs; a picked block lifts on a longer shadow inside cream corner
-// brackets, red and dashed while its Sell / Break is armed (the plaque wobbles: about to go); a
-// refused swipe nudges every plaque that way and back. A hit tints the plaque (not the creature) and
-// shudders it; a 16 shows its scared face, 32–128 a sweat drop, an egg wobbles harder. A repair drops
-// leaves. A sold block lifts out of its pit; a destroyed one cracks from the bite, drops into the pit
-// and crumbles, leaving rubble for a while; a broken one crumbles in sand. An egg hatches out of its
-// shell; a boss x2 flips the numeral like a card; the meter's new segment gets a cream wipe; a 16
-// blinks now and then. A den's altar rises as its pet hops out, and the pet's paw prints lead off
-// it while it roams; the den does not recoil when its pet fires (the pet does).
-// Nothing is additive: the class glow is a tinted soft dot under the tile and the muzzle flash a
-// white silhouette of the plaque, both in normal blend below the flash thresholds (photosafe.js
-// TILE_GLOW); the small bits (puffs, chips, leaves, shells, the wipe, the cracks) book their light
-// with fx first. Reduce motion: no shudder, no drop-in (a fade), no wobble, no nudge, no poses, no
-// leaves; the brackets hold still and a departure fades in place.
+// drops into its pit with two sand puffs (an elemental egg with a glint of its colour); a picked
+// block lifts on a longer shadow inside cream corner brackets, red and dashed while its Sell / Break
+// is armed (the plaque wobbles: about to go); a refused swipe nudges every plaque that way and back.
+// A hit tints the plaque (not the creature) and shudders it; a 16 shows its scared face, 32–128 a
+// sweat drop, an egg wobbles harder. A repair drops leaves. A sold block lifts out of its pit; a
+// destroyed one cracks from the bite, drops into the pit and crumbles, leaving rubble for a while; a
+// broken one crumbles in sand. An egg hatches out of its shell; a boss x2 flips the numeral like a
+// card; the meter's new segment gets a cream wipe; a 16 blinks now and then; a fusion fed a single
+// pops with a few sparks of the element it gained.
+// Nothing is additive: the class glow is a tinted soft dot under the tile, the aura a tinted soft
+// ring and the muzzle flash a white silhouette of the plaque, all in normal blend below the flash
+// thresholds (photosafe.js TILE_GLOW); the small bits (puffs, chips, leaves, shells, sparks, pollen,
+// the wipe, the cracks) book their light with fx first. Reduce motion: no shudder, no drop-in (a
+// fade), no wobble, no nudge, no poses, no leaves, no halo turn, no aura breath; the brackets hold
+// still and a departure fades in place.
 // The classic and pixel styles keep their own plates, and the 4-piece border for their progress.
 import { Container, Graphics, GraphicsContext, Sprite, Texture } from 'pixi.js';
-import { GRID, cellX, cellY } from '../config.js';
-import { ELEMENTS, fusionOf, milestonePieces } from '../sim/classes.js';
+import { GRID, V2, cellX, cellY } from '../config.js';
+import { ELEMENTS, fusionOf } from '../sim/classes.js';
 import { LADDER, createSimRate, has, ladderStage, leapAt, petPose, windUpAt } from '../art/attack-vfx.js';
-import { blockTex, softDot, sparkTex, vfxTex, BLOCK_PX } from './textures.js';
+import { auraTex, blockTex, softDot, sparkTex, vfxTex, BLOCK_PX } from './textures.js';
 import { createAfterimage } from './trails.js';
 import { BRACKET_CORNERS, drawBracket } from './brackets.js';
-import { BURST, DOT, HIT_TINT, TILE_GLOW, spriteLit } from '../ux/photosafe.js';
+import { DOT, BURST, HIT_TINT, TILE_GLOW, spriteLit } from '../ux/photosafe.js';
 import { tileDecor } from '../art/index.js';
 import { chapterKeyFor, skinFor } from '../art/frame-kit.js';
 import { tone } from '../art/tokens.js';
-import { BLINK, CRACKS, DEPART_TIME, PAW_MIN_PX, PLAQUE, TILE_COLORS, appearPose, blinkGap, bracketOffset, departPose, isDen, meterOf, meterSegments, nudgeAt, numberFit, plateColor, seatShadow, shudderAt, walkRoundRect, wobbleAt } from '../art/plaque.js';
+import { BLINK, CRACKS, DEPART_TIME, PAW_MIN_PX, PLAQUE, TILE_COLORS, appearPose, blinkGap, bracketOffset, departPose, isDen, isEgg, isFusion, isPet, isPure, meterOf, meterSegments, nudgeAt, numberFit, plateColor, seatShadow, shudderAt, walkRoundRect, wobbleAt } from '../art/plaque.js';
 
 const METER = meterSegments(); // the growth meter's segments (cells)
 
@@ -43,14 +53,23 @@ const FLIP = 0.3; // seconds: a boss x2 flips the numeral
 const WIPE = 0.2; // seconds: the meter's new segment lights with a cream wipe
 const SWAP = 0.3; // seconds: a colour override slides the loser's badge out
 const RUBBLE = { rise: DEPART_TIME, hold: 4, fall: 1, alpha: 0.7 };
-const CHARGE_STEPS = 64; // a legend's charge stroke grows in this many steps round its frame
+const CHARGE_STEPS = 64; // a summon's charge stroke grows in this many steps round its frame
 const SHELL_LIFE = 0.45; // seconds: an egg's shell halves fly
 const SHELL_LIT = 2 * spriteLit(0.32, 0.32, 0.9); // what they light (world units²: two 0.32 sprites)
+/**
+ * A skill's marks on a block, faded in and out over `fade` s (rime armour coats a whole board at once:
+ * a slow rise and fall, never a flash pair): the rime coat's fill and rim alphas, a pollen mote every
+ * `mote` s from a boosted block, and the ready charge's breath (alpha 1 → `ready`, at `hz`).
+ */
+export const BLOCK_MARKS = { fade: 0.4, coat: 0.3, rim: 0.85, mote: 0.4, moteSize: 0.16, ready: 0.65, hz: 1.2 };
 const ease = (t) => 1 - (1 - t) ** 3;
 const smooth = (t) => t * t * (3 - 2 * t);
 const hex = (c) => parseInt(c.replace('#', ''), 16);
 const INK = hex(TILE_COLORS.ink);
 const CREAM = hex(TILE_COLORS.cream);
+const RIME = 0xbfeaff;
+const POLLEN = 0xffe066;
+const MOSS = 0x5fbf4a;
 /** A refused swipe's direction on screen (y down). */
 const DIRS = { left: { x: -1, y: 0 }, right: { x: 1, y: 0 }, up: { x: 0, y: -1 }, down: { x: 0, y: 1 } };
 
@@ -85,11 +104,14 @@ function whiteOf(tex) {
   return out;
 }
 
-/** The classic and pixel tiles' progress: a 4-piece border, one piece per merge toward the next milestone. */
-function drawMilestone(g, tier, U) {
+/**
+ * The classic and pixel tiles' progress: a 4-piece border, one piece per merge toward the next
+ * milestone (plaque.js meterOf: gold toward a fusion pet's summon, pink toward the pure form).
+ */
+function drawMilestone(g, tier, cls, U) {
   g.clear();
-  const lit = milestonePieces(tier);
-  if (lit < 0) return; // below 16 (no class yet) or an ultimate (nothing left to reach)
+  const m = meterOf(tier, cls);
+  if (!m) return; // a plain block or an egg, or a pure form (nothing left to reach)
   const half = GRID.cell * U * 0.43;
   const inset = GRID.cell * U * 0.13;
   const w = 0.12 * U;
@@ -100,19 +122,28 @@ function drawMilestone(g, tier, U) {
     [half - inset, half, -half + inset, half],
     [-half, half - inset, -half, -half + inset],
   ];
-  const goal = tier < 8 ? 0xffe27a : 0xffb3ff; // gold toward fusion, pink toward the ultimate
+  const goal = m.goal === 'summon' ? 0xffe27a : 0xffb3ff;
   sides.forEach(([x0, y0, x1, y1], i) => {
     g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: w + 0.07 * U, color: 0x2a1c22, alpha: 0.85, cap: 'round' });
-    g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: w, color: i < lit ? goal : 0xffffff, alpha: i < lit ? 1 : 0.22, cap: 'round' });
+    g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: w, color: i < m.lit ? goal : 0xffffff, alpha: i < m.lit ? 1 : 0.22, cap: 'round' });
   });
 }
 
+/** A fusion pet that can be summoned: from V2.summonTier (1024). */
+const summons = (t) => isPet(t) && isFusion(t) && t.tier >= V2.summonTier;
+
+/** Its summon charge, 0–1 (docs/v2/SPEC.md section 5: run.skillCharge, else the defense's). */
+function chargeOf(run, id) {
+  const v = run.skillCharge?.(id) ?? run.defense?.skillCharge?.(id) ?? 0;
+  return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+}
+
 /** The textures the blocks draw with (tests pass stand-ins). */
-const TILE_TEXTURES = { softDot, sparkTex, blockTex, vfxTex, decor: tileDecor };
+const TILE_TEXTURES = { softDot, sparkTex, blockTex, vfxTex, auraTex, decor: tileDecor };
 
 export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {}) {
-  // under every block: the class glows, then the plaques' shadows in their pits and a lost block's
-  // rubble, so they never darken a neighbour; over every block: the pick's brackets
+  // under every block: the class glows and auras, then the plaques' shadows in their pits and a lost
+  // block's rubble, so they never darken a neighbour; over every block: the pick's brackets
   const glowLayer = new Container();
   const seatLayer = new Container();
   const layer = new Container();
@@ -124,6 +155,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   const echoLayer = new Container(); // a leaping cub's afterimage, over the field
   stage.layers.shots.addChild(echoLayer);
   const seatCtx = new GraphicsContext(); // one plaque silhouette, shared by every shadow (redrawn per U)
+  const markCtx = { rime: new GraphicsContext(), pollen: new GraphicsContext(), sprout: new GraphicsContext() }; // the skills' marks, shared (redrawn per U)
   const views = new Map();
   const ghosts = [];
   const rubble = []; // { c, x, y, t }: a destroyed block's chips, dark in its pit
@@ -137,6 +169,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   let armed = null; // tile id whose Sell / Break is armed (the inspect card)
   let nudgeDir = DIRS.left;
   let seatU = 0;
+  let markU = 0;
   let pickU = 0;
   let pickArmed = null;
   let lastEvent = null; // main.js hands tileHit and tileHeal over twice: a bit is made once
@@ -144,7 +177,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   let skinKey = 'forest';
   const scratch = {}; // reused: appearPose, departPose
   const shadow = {}; // reused: seatShadow
-  let chargePen = null; // the context a legend's charge step is being drawn into
+  let chargePen = null; // the context a summon's charge step is being drawn into
   const chargeContexts = new Map(); // step (negative: the classic and pixel frame) → its shared context
   let chargeCell = 0;
   const penLine = (x, y) => chargePen.lineTo(x, y);
@@ -163,20 +196,31 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     c.addChild(p);
     const glow = new Sprite(tx.softDot()); // normal blend: a tinted haze, at most TILE_GLOW.glow
     glow.anchor.set(0.5);
-    glowLayer.addChild(glow);
+    const aura = new Sprite(tx.auraTex()); // a pure form's soft ring round its pit
+    aura.anchor.set(0.5);
+    aura.visible = false;
+    glowLayer.addChild(glow, aura);
     const seat = new Graphics(seatCtx); // the plaque's shadow in its pit
     seat.visible = false;
     seatLayer.addChild(seat);
     const body = sprite();
     body.visible = true;
     const motif = sprite(); // a den's altar
-    const paws = sprite(); // the paw prints of its roaming pet
+    const paws = sprite(); // the paw prints of its summoned pet
     const wipe = sprite(0, 0.5); // the meter's cream wipe
     wipe.texture = Texture.WHITE;
     wipe.tint = CREAM;
+    const halo = sprite(); // a pure form's halo, behind its pet
     const creature = sprite(0.5, 1); // it peeks over the bottom sill
     const sweat = sprite(); // a hit on a 32–128
     const nest = sprite(); // an egg nest's front
+    const rime = new Graphics(markCtx.rime); // rime armour's coat (tile.guardT)
+    const pollen = new Graphics(markCtx.pollen); // pollen on a boosted block (tile.boostT)
+    const sprout = new Graphics(markCtx.sprout); // Moss Spring saved this block (tile.saved)
+    for (const m of [rime, pollen, sprout]) {
+      m.visible = false;
+      m.alpha = 0;
+    }
     const overlay = sprite(); // the pixel style's numeral and badges
     const badgeA = sprite();
     const badgeB = sprite();
@@ -186,23 +230,28 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     const flash = sprite(); // the muzzle flash: a white silhouette of the plaque, normal blend
     flash.alpha = 0;
     const milestone = new Graphics(); // the classic and pixel tiles' 4-piece border
-    const charge = new Graphics(); // a legend's charge (a shared step: chargeContext)
+    const charge = new Graphics(); // a summon's charge (a shared step: chargeContext)
     charge.visible = false;
-    p.addChild(body, motif, paws, wipe, creature, sweat, nest, overlay, badgeA, badgeB, loser, number, numberOld, flash, milestone, charge);
+    p.addChild(body, motif, paws, wipe, halo, creature, sweat, nest, rime, pollen, sprout, overlay, badgeA, badgeB, loser, number, numberOld, flash, milestone, charge);
     layer.addChild(c);
     // wind: the wind-up (0–1); left/period: the sim's cooldown as last seen and its full length; pose/hop: reused each frame
     return {
       c,
       p,
       glow,
+      aura,
       seat,
       body,
       motif,
       paws,
       wipe,
+      halo,
       creature,
       sweat,
       nest,
+      rime,
+      pollen,
+      sprout,
       overlay,
       badgeA,
       badgeB,
@@ -216,19 +265,19 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       kTier: -1,
       kEl: null,
       kFu: null,
-      kUlt: null,
+      kPure: null,
+      kDen: null,
       kStyle: null,
       kSkin: null,
-      msKey: -1,
-      glowTints: [],
+      msKey: '',
       glowTint: -1,
       tint: 0xffffff,
       glowBig: 1.4,
       glowA: 0,
+      auraTint: 0xffffff,
       sticker: false,
       den: false,
-      legend: false,
-      roams: false,
+      pure: false,
       baseTex: null,
       faces: null,
       spots: null,
@@ -264,8 +313,11 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       hatch: -1,
       shells: false,
       loserK: -1,
-      denWait: 0,
+      outAt: null, // the sim time its pet was first seen summoned out (the den's altar rises over the hop)
       pawsA: 0,
+      haloTurn: 0,
+      marks: { rime: 0, pollen: 0, sprout: 0 }, // the skills' marks, faded 0 → 1
+      moteT: 0,
       blinkAt: 0,
       blinkN: 0,
       chargeQ: -1,
@@ -287,6 +339,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   const dropView = (v) => {
     v.c.destroy({ children: true });
     v.glow.destroy();
+    v.aura.destroy();
     v.seat.destroy();
     v.echo?.destroy();
   };
@@ -303,7 +356,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
    * if no shot comes; the follow-through falls after a shot. None under Reduce motion. → petPose or null
    */
   function windUp(v, t, run, dt, reduced, rate) {
-    if (reduced || !t.cls.element || t.tier < 4) {
+    if (reduced || !isPet(t)) {
       v.wind = v.follow = 0;
       return null;
     }
@@ -316,28 +369,31 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     return petPose(ladderStage(t.tier), smooth(v.wind), v.follow, v.aim, v.pose);
   }
 
-  /** The tile's textures, when its tier, class, style or chapter skin changed. */
+  /** The tile's textures, when its tier, class, den, style or chapter skin changed. */
   function look(v, t, useArt, skinKey) {
     const wasDen = v.den;
     v.kTier = t.tier;
     v.kEl = t.cls.element;
     v.kFu = t.cls.fusion;
-    v.kUlt = t.cls.ultimate;
+    v.kPure = !!t.cls.pure;
+    v.kDen = isDen(t);
     v.kStyle = useArt ? art.style : 'classic';
     v.kSkin = skinKey;
     v.den = isDen(t);
-    v.legend = !!t.cls.ultimate;
-    v.msKey = -1;
+    v.pure = isPure(t);
+    v.msKey = '';
     v.numTier = -1;
     v.wipe.visible = v.loser.visible = v.sweat.visible = false;
-    // the class glow: its colours (a fusion's own; a legend's three take turns), size and strength
-    const els = t.tier >= 4 ? [t.cls.element, t.cls.fusion, t.cls.ultimate].filter(Boolean) : [];
-    const fu = els.length === 2 ? fusionOf(t.cls) : null;
-    v.glowTints = els.map((el) => hex(fu ? fu.color : ELEMENTS[el].color));
-    v.glowBig = els.length === 3 ? 1.9 : els.length === 2 ? 1.6 : 1.4;
-    // with creature art the glow is a whisper: colour and shape carry the class
-    // photosafe: at most TILE_GLOW.glow, so a legend's colours taking turns stay below the threshold
-    v.glowA = Math.min(TILE_GLOW.glow, (els.length === 3 ? 0.6 : els.length === 2 ? 0.42 : 0.26) * (useArt ? 0.3 : 1));
+    // the class glow: a pet's element colour (a fusion's own), its size and strength; plain blocks and eggs have none
+    const pet = isPet(t);
+    const fu = pet && isFusion(t) ? fusionOf(t.cls) : null;
+    v.glowTint = pet ? hex(fu ? fu.color : ELEMENTS[t.cls.element].color) : -1;
+    v.glow.tint = v.glowTint >= 0 ? v.glowTint : 0xffffff;
+    v.glowBig = v.pure ? 1.7 : fu ? 1.6 : 1.4;
+    // with creature art the glow is a whisper: colour and shape carry the class (photosafe: at most TILE_GLOW.glow)
+    v.glowA = Math.min(TILE_GLOW.glow, (v.pure ? 0.6 : fu ? 0.42 : 0.26) * (useArt ? 0.3 : 1));
+    v.auraTint = v.pure ? hex(ELEMENTS[t.cls.element].color) : 0xffffff;
+    v.aura.tint = v.auraTint;
     if (useArt) {
       const a = art.tile(t);
       v.sticker = !!a.plaque;
@@ -350,25 +406,28 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       v.baseTex = a.creature ?? Texture.EMPTY;
       v.creature.texture = v.baseTex;
       v.creature.visible = !!a.creature;
+      v.halo.texture = a.halo ?? Texture.EMPTY;
+      v.halo.visible = !!a.halo;
       v.faces = a.faces ?? null;
       v.nest.texture = a.nestFront ?? Texture.EMPTY;
       v.nest.visible = !!a.nestFront;
       v.crop = a.crop;
       v.maxW = a.maxW ?? Infinity;
-      v.egg = a.egg;
+      v.egg = !!a.egg;
       v.spots = a.badges ?? null;
       const [s0, s1] = v.spots ?? [];
       v.badgeA.visible = !!s0;
       v.badgeB.visible = !!s1;
-      if (s0) v.badgeA.texture = art.badge(s0.el, s0.el2); // a den's is split between its two elements
+      if (s0) v.badgeA.texture = art.badge(s0.el, s0.el2); // a fusion's is split between its two elements
       if (s1) v.badgeB.texture = art.badge(s1.el);
       v.number.visible = v.sticker;
     } else {
       v.sticker = false;
       v.body.texture = tx.blockTex(t.tier, t.cls);
-      for (const s of [v.motif, v.paws, v.overlay, v.creature, v.nest, v.badgeA, v.badgeB, v.number, v.sweat]) s.visible = false;
+      for (const s of [v.motif, v.paws, v.overlay, v.creature, v.halo, v.nest, v.badgeA, v.badgeB, v.number, v.sweat]) s.visible = false;
       v.faces = null;
       v.spots = null;
+      v.egg = false;
     }
     v.flash.texture = whiteOf(v.body.texture) ?? Texture.EMPTY; // the same size as the tile's: it scales with it
     v.seat.visible = v.sticker;
@@ -377,19 +436,27 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       v.milestone.clear();
       v.milestone.visible = false;
     }
-    // a block that just became a den in a run without roaming pets: its altar shows after a moment
-    if (v.den && !wasDen && !t.roam) v.denWait = 0.4;
+    if (v.den && !wasDen) {
+      v.outAt = null; // its pet hops out: the altar rises from the next frame's sim time
+      v.pawsA = 0;
+    } else if (!v.den && wasDen) {
+      v.outAt = null;
+      v.pop = 1; // the pet lands back on its tile
+    }
   }
 
   /** Book `lit` world units² for `life` s (from `delay` s on) in the light budget, whole or not at all. */
   const book = (lit, life, delay = 0) => fx.flashAll(lit, life, delay);
 
-  /** Two sand puffs at the groove as a block drops into its pit. */
+  /** Two sand puffs at the groove as a block drops into its pit; an elemental egg adds a glint of its colour. */
   function puffs(t) {
     const size = 0.2;
     const grow = 0.25;
-    if (!book(2 * (size + grow) ** 2 * DOT.share, 0.3)) return;
-    for (const s of [-1, 1]) fx.particle(tx.softDot(), t.x + s * 0.72, t.y - 0.84, { vx: s * 0.9, vy: 0.35, life: 0.3, size, grow, alpha: 0.5, color: hex(TILE_COLORS.sand) });
+    if (book(2 * (size + grow) ** 2 * DOT.share, 0.3)) for (const s of [-1, 1]) fx.particle(tx.softDot(), t.x + s * 0.72, t.y - 0.84, { vx: s * 0.9, vy: 0.35, life: 0.3, size, grow, alpha: 0.5, color: hex(TILE_COLORS.sand) });
+    if (isEgg(t) && book(3 * BURST.spark * 0.3 * 0.3, 0.4)) {
+      const color = hex(ELEMENTS[t.cls.element].color);
+      for (let i = 0; i < 3; i++) fx.particle(tx.sparkTex(), t.x - 0.45 + i * 0.45, t.y + 0.3 + (i % 2) * 0.25, { vy: 0.8, life: 0.4, size: 0.3, grow: -0.2, color });
+    }
   }
 
   /** Six chips fly from a block that breaks: its clay (destroyed) or sand (broken). */
@@ -419,6 +486,18 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       [0.16, 1.24, 0.5],
       [0.6, 1.0, 0.1],
     ].forEach(([x, y, rot], i) => fx.particle(leaf, e.x + x, e.y + y, { vy: -2, life: 0.5, size: 0.28, rot, spin: i % 2 ? 1.5 : -1.5 }));
+  }
+
+  /** A fusion fed a single: a few sparks of the element it gained rise off it. */
+  function sparks(e, el, reduced) {
+    const n = 5;
+    if (!ELEMENTS[el] || !book(n * BURST.spark * 0.34 * 0.34, 0.55)) return;
+    const color = hex(ELEMENTS[el].color);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const o = reduced ? { vy: 0.4 } : { vx: Math.cos(a) * 1.2, vy: 1.4 + Math.sin(a) * 0.6, drag: 1.5 };
+      fx.particle(tx.sparkTex(), e.x + Math.cos(a) * 0.5, e.y + Math.sin(a) * 0.4, { life: 0.55, size: 0.34, grow: -0.2, color, ...o });
+    }
   }
 
   /** A destroyed block's rubble: five dark chips left in its pit (dark on dark: below the flash threshold). */
@@ -486,6 +565,78 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     return g;
   }
 
+  /**
+   * The skills' marks, drawn once per cell size into shared contexts: rime armour's ice coat over the
+   * plaque (a pale fill, a white rim, two glints and a snowflake at its lower left), pollen's yellow
+   * cluster at its upper right, Moss Spring's sprout at its upper left.
+   */
+  function drawMarks(cell) {
+    const h = (PLAQUE.size / 2 + 0.012) * cell;
+    const r = (PLAQUE.r + 0.012) * cell;
+    const L = (x) => x * cell;
+    markCtx.rime
+      .clear()
+      .roundRect(-h, -h, 2 * h, 2 * h, r)
+      .fill({ color: RIME, alpha: BLOCK_MARKS.coat })
+      .roundRect(-h, -h, 2 * h, 2 * h, r)
+      .stroke({ width: L(0.03), color: 0xffffff, alpha: BLOCK_MARKS.rim })
+      .moveTo(L(-0.33), L(-0.05))
+      .lineTo(L(-0.22), L(-0.17))
+      .moveTo(L(-0.33), L(0.06))
+      .lineTo(L(-0.27), L(-0.01))
+      .stroke({ width: L(0.025), color: 0xffffff, alpha: 0.9, cap: 'round' });
+    // the snowflake: three strokes through its centre, ink under white (a stroke takes the path drawn since the last one)
+    const fx0 = L(-0.31);
+    const fy0 = L(0.3);
+    for (const [width, color] of [
+      [L(0.03), INK],
+      [L(0.016), 0xffffff],
+    ]) {
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI) / 3;
+        markCtx.rime.moveTo(fx0 - Math.cos(a) * L(0.06), fy0 - Math.sin(a) * L(0.06)).lineTo(fx0 + Math.cos(a) * L(0.06), fy0 + Math.sin(a) * L(0.06));
+      }
+      markCtx.rime.stroke({ width, color, cap: 'round' });
+    }
+    markCtx.pollen.clear();
+    for (const [x, y, rr] of [
+      [0.29, -0.32, 0.034],
+      [0.355, -0.27, 0.03],
+      [0.36, -0.35, 0.026],
+    ])
+      markCtx.pollen.circle(L(x), L(y), L(rr)).fill({ color: POLLEN }).stroke({ width: L(0.012), color: INK });
+    markCtx.sprout
+      .clear()
+      .moveTo(L(-0.31), L(-0.26))
+      .quadraticCurveTo(L(-0.315), L(-0.31), L(-0.3), L(-0.35))
+      .stroke({ width: L(0.02), color: INK, cap: 'round' })
+      .ellipse(L(-0.345), L(-0.345), L(0.04), L(0.022))
+      .fill({ color: MOSS })
+      .stroke({ width: L(0.012), color: INK })
+      .ellipse(L(-0.265), L(-0.36), L(0.04), L(0.022))
+      .fill({ color: MOSS })
+      .stroke({ width: L(0.012), color: INK });
+  }
+
+  /** The skills' marks on a block: each fades in while its timer runs and out after (BLOCK_MARKS.fade), pollen motes rise from a boosted block. */
+  function marksAt(v, t, dt, reduced) {
+    const step = dt / BLOCK_MARKS.fade;
+    const want = { rime: (t.guardT ?? 0) > 0, pollen: (t.boostT ?? 0) > 0, sprout: !!t.saved };
+    for (const k of ['rime', 'pollen', 'sprout']) {
+      const m = v.marks;
+      m[k] = want[k] ? Math.min(1, m[k] + step) : Math.max(0, m[k] - step);
+      const g = v[k];
+      g.visible = m[k] > 0 && v.shown;
+      g.alpha = m[k];
+    }
+    if (!want.pollen || reduced || !v.shown) return;
+    v.moteT -= dt;
+    if (v.moteT > 0) return;
+    v.moteT = BLOCK_MARKS.mote;
+    const s = BLOCK_MARKS.moteSize;
+    if (book(DOT.share * s * s, 0.9)) fx.particle(tx.softDot(), t.x + (Math.random() - 0.5) * 1.3, t.y + 0.2 + (Math.random() - 0.5) * 0.8, { vy: 0.7, vx: (Math.random() - 0.5) * 0.4, life: 0.9, size: s, grow: -0.05, color: POLLEN, drag: 0.5 });
+  }
+
   function sync(run, dt) {
     time += dt;
     const U = stage.view.U;
@@ -499,6 +650,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     slideT = Math.min(1, slideT + dt / SLIDE);
     const e = ease(slideT);
     const rate = simRate.update(run.time ?? 0, dt);
+    const simTime = run.time ?? time;
     // a den's altar is in the keep's stone: the chapter's skin
     if (run.wave?.chapter !== chapter) {
       chapter = run.wave?.chapter;
@@ -509,6 +661,10 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       seatU = U;
       const h = (PLAQUE.size / 2) * cell;
       seatCtx.clear().roundRect(-h, -h, 2 * h, 2 * h, PLAQUE.r * cell).fill({ color: INK });
+    }
+    if (markU !== cell) {
+      markU = cell;
+      drawMarks(cell);
     }
     // the numeral is drawn for its size on screen (device px per cell, in steps of 16)
     const numPx = Math.max(32, Math.ceil((cell * (stage.app?.renderer?.resolution ?? 1)) / 16) * 16);
@@ -542,13 +698,14 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
         }
       }
       const style = useArt ? art.style : 'classic';
-      const skin = useArt && isDen(t) ? skinKey : '';
-      if (t.tier !== v.kTier || t.cls.element !== v.kEl || t.cls.fusion !== v.kFu || t.cls.ultimate !== v.kUlt || style !== v.kStyle || skin !== v.kSkin) look(v, t, useArt, skin);
+      const den = isDen(t);
+      const skin = useArt && den ? skinKey : '';
+      if (t.tier !== v.kTier || t.cls.element !== v.kEl || t.cls.fusion !== v.kFu || !!t.cls.pure !== v.kPure || den !== v.kDen || style !== v.kStyle || skin !== v.kSkin) look(v, t, useArt, skin);
+      if (v.den && v.outAt == null) v.outAt = simTime;
       if (v.wantWipe) {
         v.wantWipe = false;
-        startWipe(v, t.tier, Math.max(0, v.delay));
+        startWipe(v, t, Math.max(0, v.delay));
       }
-      v.roams = !!t.roam;
       v.frame = frame;
 
       // position: slide from the previous cell
@@ -556,6 +713,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       const fy0 = cellY(t.fromRow);
       v.c.position.set(stage.sx(fx0 + (t.x - fx0) * e), stage.sy(fy0 + (t.y - fy0) * e));
       v.glow.position.copyFrom(v.c.position);
+      v.aura.position.copyFrom(v.c.position);
 
       // timers. Siege: a hit holds its red while hits keep coming and then fades (photosafe: no
       // blinking with every hit); a repair tints green below the flash threshold
@@ -631,31 +789,36 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
 
       if (v.sticker) {
         stickerParts(v, t, cell, numPx, reduced, 1 + v.punch * 0.07, 1 - v.punch * 0.05);
-        if (v.den) denParts(v, t, cell, reduced, dt, sx, sy, !!run.roaming);
+        if (v.den) denParts(v, t, cell, reduced, dt, sx, sy, simTime);
       } else {
-        // the classic and pixel tiles: the 4-piece border, one piece per merge toward the next milestone.
-        // 16 → 32 → 64 → 128 → 256 (fusion), then 512 → 1024 → 2048 → 4096 (ultimate)
-        const msKey = t.tier * 1e6 + Math.round(U * 10);
+        // the classic and pixel tiles: the 4-piece border, one piece per merge toward the next milestone
+        const msKey = `${t.tier}.${!!t.cls.element}.${!!t.cls.fusion}.${!!t.cls.pure}.${Math.round(U * 10)}`;
         if (msKey !== v.msKey) {
           v.msKey = msKey;
-          drawMilestone(v.milestone, t.tier, U);
+          drawMilestone(v.milestone, t.tier, t.cls, U);
         }
       }
 
       if (v.creature.visible) creatureAt(v, t, run, dt, reduced, rate, cell, U);
+      if (v.halo.visible) haloAt(v, dt, reduced, cell);
+      marksAt(v, t, dt, reduced);
 
-      // class glow: a soft dot in the class colour under the tile (a legend's colours take turns)
-      const tints = v.glowTints;
-      if (tints.length) {
+      // class glow: a soft dot in the class colour under the tile
+      if (v.glowTint >= 0) {
         v.glow.visible = v.shown;
-        const glowTint = tints[Math.floor(time * 1.5) % tints.length];
-        if (glowTint !== v.glowTint) v.glow.tint = v.glowTint = glowTint;
         v.glow.width = v.glow.height = cell * v.glowBig * popS * (1 + 0.06 * Math.sin(time * 4 + t.id));
         v.glow.alpha = v.glowA;
       } else v.glow.visible = false;
+      // a pure form's aura: a soft ring round its pit in its element's colour, breathing slowly
+      v.aura.visible = v.pure && v.shown;
+      if (v.aura.visible) {
+        const A = PLAQUE.aura;
+        v.aura.width = v.aura.height = 2 * (A.r + A.w / 2) * cell * popS;
+        v.aura.alpha = A.alpha * (reduced ? 0.85 : 0.7 + 0.3 * Math.sin(time * Math.PI * 2 * A.hz + t.id));
+      }
 
-      // a legend's signature charge: its frame fills with cream, clockwise from the top
-      chargeAt(v, t, run, cell);
+      // a fusion pet's summon charge: its frame fills with cream, clockwise from the top
+      chargeAt(v, t, run, cell, reduced);
     }
 
     views.forEach(dropStale);
@@ -696,8 +859,8 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
    * The meter's new segment lights with a cream wipe (not under Reduce motion), `delay` s from now:
    * it books one segment's area (world units²: a cell is GRID.cell wide), whole or not at all.
    */
-  function startWipe(v, tier, delay = 0) {
-    const lit = meterOf(tier)?.lit ?? 0;
+  function startWipe(v, t, delay = 0) {
+    const lit = meterOf(t.tier, t.cls)?.lit ?? 0;
     if (lit < 1 || stage.reduced || !v.sticker) return;
     const seg = METER.segs[lit - 1];
     if (!book((seg.x1 - seg.x0) * (METER.y1 - METER.y0) * GRID.cell * GRID.cell, WIPE, delay)) return;
@@ -778,31 +941,32 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   }
 
   /**
-   * A den: its altar rises as the pet hops out (sim/roam.js hatch), then the pet's paw prints lead
-   * off it. In a run whose pets roam, a new den waits for its pet (a die card can hold the sim, and
-   * with it the pet, for as long as the player reads it); in one whose pets stay, it shows after a
-   * moment.
+   * A den (its pet summoned out): the altar rises as the pet hops out (over V2.summon.hopS of sim
+   * time from when the den was first seen), then the pet's paw prints lead off it; they fade as the
+   * pet hops back (the summon's 'back' phase), and the den gives way to the pet when it lands.
    */
-  function denParts(v, t, cell, reduced, dt, sx, sy, roaming) {
-    let k = 1;
-    if (t.roam) {
-      k = t.roam.hatch;
-      v.denWait = 0;
-    } else if (roaming) k = 0;
-    else if (v.denWait > 0) {
-      v.denWait -= dt;
-      k = 0;
-    }
+  function denParts(v, t, cell, reduced, dt, sx, sy, simTime) {
+    const hop = V2.summon?.hopS ?? 0.6;
+    const k = hop > 0 ? Math.max(0, Math.min(1, (simTime - (v.outAt ?? simTime)) / hop)) : 1;
     v.motif.scale.set(sx, sy);
     v.motif.alpha = k;
     v.motif.position.set(0, reduced ? 0 : (1 - ease(k)) * PLAQUE.altar.rise * PLAQUE.size * cell);
-    const out = !!t.roam && t.roam.hatch >= 1 && cell >= PAW_MIN_PX;
-    v.pawsA = out ? Math.min(1, v.pawsA + dt * 4) : 0;
+    const out = k >= 1 && t.summon?.phase !== 'back' && cell >= PAW_MIN_PX;
+    v.pawsA = out ? Math.min(1, v.pawsA + dt * 4) : Math.max(0, v.pawsA - dt * 4);
     v.paws.visible = v.pawsA > 0;
     if (v.paws.visible) {
       v.paws.scale.set(sx, sy);
       v.paws.alpha = v.pawsA;
     }
+  }
+
+  /** A pure form's halo: behind its pet, turning slowly (still under Reduce motion), popping with it. */
+  function haloAt(v, dt, reduced, cell) {
+    const H = PLAQUE.halo;
+    if (!reduced) v.haloTurn += dt * H.turn * Math.PI * 2;
+    v.halo.rotation = v.haloTurn;
+    v.halo.position.set(0, H.y * cell);
+    v.halo.scale.set(((H.w * cell) / Math.max(1, v.halo.texture.width, v.halo.texture.height)) * (1 + Math.sin(v.pop * Math.PI) * 0.12));
   }
 
   /** The creature: its bob, the attack's wind-up and follow-through, the leap; a hit's face; the blink. */
@@ -868,19 +1032,21 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   }
 
   /**
-   * A legend's charge: a cream stroke on its frame from the top centre clockwise, in CHARGE_STEPS
-   * steps. Each step is one shared GraphicsContext (built once per cell size and frame shape), so a
-   * charging legend swaps a context instead of rebuilding its path every frame.
+   * A fusion pet's summon charge (from 1024, while its pet is home): a cream stroke on its frame from
+   * the top centre clockwise, in CHARGE_STEPS steps; full, it breathes (not under Reduce motion). Each
+   * step is one shared GraphicsContext (built once per cell size and frame shape), so a charging pet
+   * swaps a context instead of rebuilding its path every frame.
    */
-  function chargeAt(v, t, run, cell) {
-    if (!(t.cls.ultimate && t.prof?.signature)) {
+  function chargeAt(v, t, run, cell, reduced) {
+    if (!summons(t) || v.den) {
       if (v.chargeQ !== -1) {
         v.charge.visible = false;
         v.chargeQ = -1;
       }
       return;
     }
-    const q = Math.round(Math.min(1, run.defense.sigCharge(t.id) / t.prof.signature.period) * CHARGE_STEPS);
+    const q = Math.round(chargeOf(run, t.id) * CHARGE_STEPS);
+    v.charge.alpha = q >= CHARGE_STEPS && !reduced ? BLOCK_MARKS.ready + (1 - BLOCK_MARKS.ready) * (0.5 + 0.5 * Math.cos(time * Math.PI * 2 * BLOCK_MARKS.hz)) : 1;
     if (q === v.chargeQ && cell === v.chargeU) return;
     v.chargeQ = q;
     v.chargeU = cell;
@@ -890,7 +1056,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
 
   function chargeContext(q, cell, sticker) {
     if (chargeCell !== cell) {
-      chargeContexts.clear(); // a new size (not destroyed: a departing legend may still draw its last step)
+      chargeContexts.clear(); // a new size (not destroyed: a departing pet may still draw its last step)
       chargeCell = cell;
     }
     const key = sticker ? q : -q;
@@ -944,14 +1110,15 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
         if (!v) continue;
         views.delete(id);
         v.glow.visible = false;
+        v.aura.visible = false;
         const x0 = (v.c.position.x - stage.view.ox) / stage.view.U;
         const y0 = (stage.view.oy - v.c.position.y) / stage.view.U;
         ghosts.push({ v, x0, y0, x1: e.x, y1: e.y, t: 0 });
       }
     } else if (e.type === 'fire') {
+      // the block fires from its tile, its pet home or out on the field (v2: the tile keeps shooting)
       const v = views.get(e.id);
-      if (v && !v.roams) {
-        // a den's pet fires from the field: the den itself stays still
+      if (v) {
         v.punch = 1;
         v.wind = 0;
         v.follow = 1;
@@ -981,6 +1148,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       if (v) {
         views.delete(e.id);
         v.glow.visible = false;
+        v.aura.visible = false;
         if (d.kind === 'destroyed') v.cracks = crack(v, cell);
         ghosts.push({ v, x0: e.x, y0: e.y, x1: e.x, y1: e.y, t: 0, depart: e.reason, lift: v.lift });
       }
@@ -1011,7 +1179,8 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       }
     } else if (e.type === 'classed') {
       // an egg hatched: its shell's light is booked now, before the announcement's ring and burst
-      // (main.js), from when the hatchling shows (a merged block: after the slide)
+      // (main.js), from when the hatchling shows (a merged block: after the slide); a fusion made and a
+      // pure form reached pop
       const v = views.get(e.tileId);
       const shellsOk = e.stage === 1 && book(SHELL_LIT, SHELL_LIFE + 0.05, v ? 0 : SLIDE * 0.75);
       if (v) {
@@ -1021,6 +1190,15 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
           v.shells = shellsOk;
         }
       } else if (e.stage === 1) pending.set(e.tileId, { ...pending.get(e.tileId), hatch: true, shells: shellsOk }); // a merged block, drawn from the next frame
+    } else if (e.type === 'buffed') {
+      // a single fed into a fusion (or a fusion kept): it pops, with sparks of the element it gained
+      const v = views.get(e.tileId);
+      if (v) {
+        v.pop = 1;
+        if (!reduced) v.bump = 1;
+      }
+      const el = Object.keys(e.gain ?? {})[0];
+      if (el && e.x != null) sparks(e, el, reduced);
     } else if (e.type === 'promote') {
       const v = views.get(e.id);
       if (v) {
@@ -1029,7 +1207,8 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
           v.flip = 1;
           v.flipFrom = v.numTex;
         }
-        startWipe(v, e.tier);
+        const t = { tier: e.tier, cls: e.cls ?? { element: v.kEl, fusion: v.kFu, pure: v.kPure } };
+        startWipe(v, t);
       }
     } else if (e.type === 'override') {
       const v = views.get(e.tileId);

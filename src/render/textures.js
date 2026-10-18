@@ -123,6 +123,18 @@ export const ringTex = () =>
     g.stroke();
   });
 
+/** A soft ring, white (tinted when drawn): clear inside, its peak at 80 % of its radius, fading out to its edge. A pure form's aura. */
+export const auraTex = () =>
+  tex('aura', 128, 128, (g) => {
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,0)');
+    gr.addColorStop(0.6, 'rgba(255,255,255,0)');
+    gr.addColorStop(0.8, 'rgba(255,255,255,1)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 128, 128);
+  });
+
 export const sparkTex = () =>
   tex('spark', 64, 64, (g) => {
     const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30);
@@ -1157,10 +1169,15 @@ export function boomFrames(kind) {
 
 export const BLOCK_PX = 160;
 
-/** Tile body with number, element icons and class pips. Cached per tier+class. */
+/**
+ * Tile body with number, element icons and class pips (the classic style). Cached per tier+class. A
+ * plain block takes its value's colour; an elemental egg (below 16) a pale one of its element's; a
+ * fusion its own colour; a pure form wears a gold border.
+ */
 export function blockTex(tier, cls) {
-  const els = [cls.element, cls.fusion, cls.ultimate].filter(Boolean);
-  const key = `block.${tier}.${els.join('+')}`;
+  const els = [cls.element, cls.fusion].filter(Boolean);
+  const pure = !!cls.pure && els.length > 0;
+  const key = `block.${tier}.${els.join('+')}${pure ? '.pure' : ''}`;
   return tex(key, BLOCK_PX, BLOCK_PX, (g, W) => {
     const pad = 8;
     const size = W - pad * 2;
@@ -1168,9 +1185,9 @@ export function blockTex(tier, cls) {
     const base = TIER_COLORS[Math.min(tier, TIER_COLORS.length - 1)];
     // below 16 a block is dormant: a pale version of its die colour until its element awakens
     const dormant = tier < 4;
-    // a fusion (without an ultimate yet) is one unique element: one solid colour of its own
+    // a fusion is one unique element: one solid colour of its own
     const fu = els.length === 2 ? fusionOf(cls) : null;
-    const elColors = fu ? [fu.color] : els.map((e) => (dormant ? lightenHex(ELEMENTS[e].color, 0.4) : ELEMENTS[e].color));
+    const elColors = fu ? [dormant ? lightenHex(fu.color, 0.4) : fu.color] : els.map((e) => (dormant ? lightenHex(ELEMENTS[e].color, 0.4) : ELEMENTS[e].color));
     // drop shadow
     g.fillStyle = 'rgba(30,18,40,0.35)';
     g.beginPath();
@@ -1178,7 +1195,7 @@ export function blockTex(tier, cls) {
     g.fill();
     // body: unclassed blocks use the tier colour; classed blocks take their
     // element colour (Random Dice: a die's colour is its type); fusions split
-    // diagonally, ultimates get three bands. The number shows the tier.
+    // diagonally. The number shows the tier.
     g.save();
     g.beginPath();
     g.roundRect(pad, pad, size, size, r);
@@ -1237,13 +1254,13 @@ export function blockTex(tier, cls) {
     g.fill();
     g.restore();
     // border
-    g.lineWidth = 5;
-    g.strokeStyle = els.length === 3 ? '#ffe27a' : 'rgba(40,24,30,0.55)';
+    g.lineWidth = pure ? 7 : 5;
+    g.strokeStyle = pure ? '#ffe27a' : 'rgba(40,24,30,0.55)';
     g.beginPath();
     g.roundRect(pad, pad, size, size, r);
     g.stroke();
     // element icons along the top (white badge so they read on their own colour)
-    const iconS = els.length === 3 ? 34 : 40;
+    const iconS = 40;
     const rowW = els.length * (iconS + 2);
     els.forEach((e, i) => {
       const ix = W / 2 - rowW / 2 + i * (iconS + 2);
