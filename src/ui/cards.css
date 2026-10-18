@@ -145,7 +145,7 @@
   gap: 5px;
   padding: 8px 8px 8px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--c) 34%, var(--cream)) 0 44px, transparent 44px),
+    linear-gradient(180deg, color-mix(in srgb, var(--c) 34%, var(--cream)) 0 40px, transparent 40px),
     var(--cream);
 }
 
@@ -160,8 +160,8 @@
 .dc-art {
   position: relative;
   flex: 0 0 auto;
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border: 2px solid var(--ink);
   border-radius: 16px;
   background:
@@ -266,7 +266,7 @@
 .dc-fuses {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-  gap: 4px;
+  gap: 3px;
 }
 
 .fuse-chip {
@@ -274,15 +274,15 @@
   gap: 6px;
   align-items: center;
   min-width: 0;
-  padding: 2px 6px 2px 2px;
+  padding: 1px 6px 1px 1px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--c) 18%, var(--cream-2));
 }
 
 .fc-pic {
   position: relative;
-  flex: 0 0 28px;
-  height: 28px;
+  flex: 0 0 26px;
+  height: 26px;
   border-radius: 10px;
   border: 2px solid var(--ink);
   background: var(--c);
@@ -310,7 +310,7 @@
 
 .fuse-chip small {
   min-width: 0;
-  font: 800 13px/1.15 var(--font-body);
+  font: 800 13px/1.1 var(--font-body);
 }
 
 /* --- a fusion's main element: the two pets being merged, then the pet they make ---------------- */

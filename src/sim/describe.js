@@ -66,12 +66,15 @@ export const gainLine = (element, n = 1) => tr(n > 1 ? 'buff.gainN' : 'buff.gain
 /** A buffs map ({ fire: 2 }) as a list in element order: [{ element, n }]. */
 export const buffList = (buffs) => KEYS.filter((k) => buffs?.[k] > 0).map((k) => ({ element: k, n: buffs[k] }));
 
-/** The buff banner of a `buffed` event: { title: "Novakit +Fire", sub: "+20% damage" }. */
+/**
+ * The buff banner of a `buffed` event: { title: "Novakit +Fire", sub: "+20% damage" }. Several gains
+ * are joined with commas: the ribbon pages a long line at its words, and a page never starts with a dot.
+ */
 export function buffBanner(gain, pet) {
   const g = buffList(gain);
   return {
     title: tr('ban.buffed', { pet, gains: g.map((x) => gainTag(x.element, x.n)).join(' ') }),
-    sub: g.map((x) => buffStat(x.element, x.n)).join(' · '),
+    sub: g.map((x) => buffStat(x.element, x.n)).join(', '),
   };
 }
 
