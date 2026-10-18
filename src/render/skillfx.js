@@ -11,18 +11,22 @@
 // Photosafe (src/ux/photosafe.js): every instant effect books its light first and is drawn thinner,
 // smaller, fewer or not at all when the budget is short; nothing is additive. A standing piece never
 // flashes: it rises over PIECE.rise, holds at least PIECE.hold and falls over PIECE.fall (its rise and
-// its fall more than a second apart at any game speed), at alphas a stain or a haze would have.
+// its fall more than a second apart at any game speed), and books its rise as a decal does: what its
+// full look lights to 10% or more (pieceLit), its rise waiting until the budget has room. Its hazes
+// and faint fills stay under the threshold over every ground, as a puddle does (hazeAlpha), and book
+// nothing; a lava pool's melt is held to LAVA.lit, a faint scorch reaching the rest of its area.
 // Reduce motion: nothing sweeps or races (an effect fades in place), zones and minions hold still.
 // Light on phones: a piece is one container with a shape drawn once (again only when the stage
 // resizes) that is moved, turned and faded each frame; at most CAPS of each are drawn.
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { FIELD, GRID, laneX } from '../config.js';
-import { FRAME_GEOM } from '../art/frame-kit.js';
+import { CHAPTER_SKINS, FRAME_GEOM } from '../art/frame-kit.js';
 import { ELEMENTS, fusionOf } from '../sim/classes.js';
 import { has, tr } from '../i18n/index.js';
 import { tone } from '../art/tokens.js';
-import { BURST, DOT, LINE, TEXT, textInk } from '../ux/photosafe.js';
+import { DOT, LINE, PUDDLE, TEXT, overlayStep, textInk } from '../ux/photosafe.js';
 import { softDot } from './textures.js';
+import { PUDDLE_GROUNDS } from './shots.js';
 import { blobPts, hash01i, smooth } from './vfx-fallback.js';
 
 const INK = 0x2b1d2e;
@@ -55,6 +59,35 @@ export const FIELD_AREA = { hx: FRAME_GEOM.towerIn, y0: FRAME_GEOM.parapet.wall,
 /** Where the skills' pieces may show (world units): the field and the keep, never over the towers. */
 export const CLIP = { hx: FRAME_GEOM.towerIn, y0: -FRAME_GEOM.keep.pad, y1: FIELD.spawnY + 0.6 };
 
+/** The grounds a standing piece may lie on: the lanes' tones and hedges (a puddle's grounds), the keeps' floors and pits. */
+export const PIECE_GROUNDS = [...new Set([...PUDDLE_GROUNDS, ...Object.values(CHAPTER_SKINS).flatMap((k) => [k.floor, k.pit]).map((c) => hex(c))])];
+const hazes = new Map(); // tint → its most alpha
+/**
+ * The most alpha a haze or a stain of `tint` may have (at most `most`, to 0.005): every ground's
+ * luminance changes by less than PUDDLE.step under it (a puddle's rule, photosafe.js puddleAlpha), so it
+ * never flashes and books nothing.
+ */
+export function hazeAlpha(tint, most = 1) {
+  if (!hazes.has(tint)) {
+    let ok = 0;
+    for (let a = 0.005; a <= 1 + 1e-9; a += 0.005) {
+      if (PIECE_GROUNDS.some((g) => overlayStep(g, tint, a) >= PUDDLE.step)) break;
+      ok = Math.round(a * 1000) / 1000;
+    }
+    hazes.set(tint, ok);
+  }
+  return Math.min(most, hazes.get(tint));
+}
+
+/**
+ * A lava pool (world units): its melt (everything in it lights to 10% or more) is at most `lit` across
+ * whatever its reach, so one pool's rise fits the light budget with room; a `scorch` under the threshold
+ * reaches the rest of its area.
+ */
+export const LAVA = { lit: 6, scorch: 0x5a2a1a };
+/** The radius of a lava pool's melt (world units), for a pool reaching `r`. */
+export const lavaCore = (r) => Math.min(r, Math.sqrt(LAVA.lit / Math.PI));
+
 /** A zone's radius when it comes without one it can use (world units): a small disc, never the whole field. */
 const ZONE_R0 = 1;
 
@@ -80,8 +113,36 @@ export function zoneArea(z) {
   return { cx: 0, cy, hx: FIELD_AREA.hx, hy, round: false, lanes: null };
 }
 
+/** How many flakes a blizzard over `area` draws (zoneArea): one over the whole field gets them all. */
+const flakeCount = (area) => Math.max(10, Math.min(ZONE.flakes, Math.round((area.round ? area.hx : 99) ** 2 * 0.8)));
+/** What the lines and bits a zone draws light to 10% or more (world units² per world unit of its radius, or each). */
+const LIT = { web: 0.035 * 23.8, twister: 0.05 * 2 * Math.PI * 0.67, funnel: 2.84, ring: 0.07 * 2 * Math.PI * 0.55, streak: 0.65 * 0.1 * DOT.share, flake: DOT.share * 0.26 ** 2, bubble: DOT.share * 0.48 ** 2 };
+
+/**
+ * What a zone's full look lights to 10% or more (world units²), booked for its rise: a lava pool's
+ * melt and bubbles, a web's threads, a twister's funnel and its swirl on the ground, a field's dashed
+ * ring, a sandstorm's streaks, a blizzard's flakes. Its fills, a cloud's puffs and the sandstorm's and
+ * blizzard's hazes stay under the threshold (hazeAlpha) and light nothing.
+ */
+export function zoneLit(z) {
+  const area = zoneArea(z);
+  const R = area.hx;
+  if (z.kind === 'sand') return ZONE.streaks * Math.min(2, area.lanes?.length ?? 1) * LIT.streak;
+  if (z.kind === 'snow') return flakeCount(area) * LIT.flake;
+  if (!area.round || z.kind === 'cloud') return 0;
+  if (z.kind === 'lava') return Math.PI * lavaCore(R) ** 2 + 3 * LIT.bubble;
+  if (z.kind === 'web') return LIT.web * R + Math.PI * (0.08 * R) ** 2;
+  if (z.kind === 'twister') return LIT.twister * R + LIT.funnel;
+  return LIT.ring * R; // a field (and a kind not known yet): its dashed ring
+}
+
 /** A glacier wall (world units): its blocks' height, standing this far below its line (foes stop 0.45 above it: their heads show over it). */
 export const WALL = { h: 0.85, sink: 0.1 };
+
+/** What a wall, a flower trap or a tether `length` long lights to 10% or more (world units²), booked for its rise. */
+export const wallLit = (w) => (w.lanes?.length ?? 0) * 2 * LANE_HALF * (WALL.h + 0.16);
+export const trapLit = (p) => 0.4 + 0.05 * 2 * Math.PI * 0.45 * Math.max(0.3, p.r ?? 1);
+export const tetherLit = (length) => 0.15 * length + 0.06;
 /**
  * The instant effects (world units, seconds): a ring's stroke and life, a beam's race and life, a bolt's
  * width and life, a slam's life and cracks, a sweep's crossing, a word's height and life.
@@ -188,7 +249,9 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
   /**
    * Keep `map`'s views in step with the sim's `list`: a new piece makes its view, a kept one updates,
    * one the sim dropped holds until its least `hold` is up (a zone: PIECE.hold; a flower, a minion or
-   * a wall ends at once: `end` bursts it), then falls; a fallen view is destroyed.
+   * a wall ends at once: `end` bursts it), then falls; a fallen view is destroyed. A view's rise waits
+   * until the light budget takes what it lights (its `lit`, world units², for PIECE.rise: a decal's
+   * rule); one the sim drops before it rose is gone at once, never shown.
    */
   function keep(map, list, cap, make, update, end, hold = 0) {
     const seen = new Set();
@@ -221,7 +284,13 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
       v.it = it;
     }
     for (const [id, v] of map) {
-      v.age += v.dt;
+      if (!v.booked) v.booked = !(v.lit > 0) || fx.flashAll(v.lit, PIECE.rise);
+      if (!v.booked && !seen.has(id)) {
+        v.c.destroy({ children: true });
+        map.delete(id);
+        continue;
+      }
+      if (v.booked) v.age += v.dt;
       if (!seen.has(id)) {
         if (v.gone == null) {
           v.gone = 0;
@@ -261,10 +330,14 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     const g = new Graphics();
     c.addChild(g);
     (AIR.has(z.kind) ? air : ground).addChild(c);
-    const v = { c, g, kind: z.kind, color: hex(z.color ?? ELEMENTS.fire.color), U: 0, r: 0, key: '', area: zoneArea(z), seed: (hash01i(++serial) * 1000) | 0, bits: [], spin: 0, dt: 0 };
+    const v = { c, g, kind: z.kind, color: hex(z.color ?? ELEMENTS.fire.color), U: 0, r: 0, key: '', area: zoneArea(z), seed: (hash01i(++serial) * 1000) | 0, bits: [], spin: 0, dt: 0, lit: zoneLit(z) };
+    // its hazes under the light threshold over every ground, in each tint they wear (they book nothing);
+    // a lava pool's scorch too, under the pool's own alpha
+    v.puffA = z.kind === 'snow' ? hazeAlpha(0xffffff, ZONE.haze * 0.55) : Math.min(hazeAlpha(v.color, ZONE.haze), hazeAlpha(toneN(v.color, z.kind === 'sand' ? -0.3 : -0.25), ZONE.haze));
+    v.scorchA = hazeAlpha(LAVA.scorch) / ZONE.lava;
     // the bits that move: puffs of a cloud or a sandstorm, a blizzard's flakes, a twister's rings
     const dot = tx.softDot();
-    const flakes = Math.max(10, Math.min(ZONE.flakes, Math.round((v.area.round ? v.area.hx : 99) ** 2 * 0.8))); // a blizzard over the whole field gets them all
+    const flakes = flakeCount(v.area);
     const lanes = v.area.lanes?.length ?? 1;
     const n = z.kind === 'cloud' ? ZONE.puffs : z.kind === 'sand' ? ZONE.puffs * Math.min(2, lanes) + ZONE.streaks * Math.min(2, lanes) : z.kind === 'snow' ? ZONE.snowHaze + flakes : z.kind === 'lava' ? 3 : 0;
     for (let i = 0; i < n; i++) {
@@ -298,9 +371,15 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
       if (area.lanes) for (const l of area.lanes) g.roundRect((laneX(l) - area.cx - LANE_HALF) * u, -area.hy * u, 2 * LANE_HALF * u, 2 * area.hy * u, 0.3 * u).fill({ color: wash, alpha: ZONE.fill * 1.5 });
       else g.roundRect(-R, -area.hy * u, 2 * R, 2 * area.hy * u, 0.4 * u).fill({ color: wash, alpha: ZONE.fill });
     } else if (v.kind === 'lava') {
-      // a molten pool: a dark basalt rim, the red melt glowing yellow at its heart, dark crust plates
-      // floating on it with bright seams between them
-      const pts = (k, amp, seed, cx = 0, cy = 0) => blobPts(cx, cy, R * k, 11, amp, v.seed + seed);
+      // a molten pool, its melt at most LAVA.lit (photosafe): a faint scorch reaches the rest of its
+      // area; a dark basalt rim, the red melt glowing yellow at its heart, dark crust plates floating
+      // on it with bright seams between them
+      const Rc = lavaCore(area.hx) * u;
+      if (Rc < R - 0.5) {
+        smooth(g, blobPts(0, 0, R, 13, 0.08, v.seed + 7));
+        g.fill({ color: LAVA.scorch, alpha: v.scorchA });
+      }
+      const pts = (k, amp, seed, cx = 0, cy = 0) => blobPts(cx, cy, Rc * k, 11, amp, v.seed + seed);
       smooth(g, pts(1, 0.12, 1));
       g.fill({ color: 0x3a1d16 }).stroke({ width: 0.045 * u, color: INK, alpha: 0.8 });
       smooth(g, pts(0.86, 0.14, 2));
@@ -311,8 +390,8 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
       g.fill({ color: 0xffe27a });
       for (let i = 0; i < 4; i++) {
         const a = (i / 4) * Math.PI * 2 + v.seed * 0.01;
-        const d = R * (0.52 + 0.12 * (i % 2));
-        smooth(g, blobPts(Math.cos(a) * d, Math.sin(a) * d * 0.9, R * 0.17, 7, 0.3, v.seed + 10 + i));
+        const d = Rc * (0.52 + 0.12 * (i % 2));
+        smooth(g, blobPts(Math.cos(a) * d, Math.sin(a) * d * 0.9, Rc * 0.17, 7, 0.3, v.seed + 10 + i));
         g.fill({ color: 0x4a2318 }).stroke({ width: 0.03 * u, color: 0xffb347, alpha: 0.9 });
       }
     } else if (v.kind === 'web') {
@@ -407,7 +486,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
           s.width = s.height = Math.min(R, RY) * (0.9 + b.k * 0.5);
         }
         s.tint = i % 3 === 2 ? toneN(v.color, -0.25) : v.color;
-        s.alpha = ZONE.haze * (0.8 + 0.2 * Math.sin(t * 0.9 + i));
+        s.alpha = v.puffA * (0.8 + 0.2 * Math.sin(t * 0.9 + i));
       } else if (v.kind === 'sand') {
         const lanes = area.lanes;
         if (puff) {
@@ -423,7 +502,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
             s.width = s.height = R * (0.7 + b.k * 0.5);
           }
           s.tint = i % 2 ? toneN(v.color, -0.3) : v.color; // ochre and sand: the storm darkens the lane
-          s.alpha = ZONE.haze;
+          s.alpha = v.puffA;
         } else {
           // a streak blowing across, wrapping inside the storm: dark grit and pale dust in turn, so it reads on the sand lanes
           let x;
@@ -457,7 +536,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
           s.width = s.height = Math.min(R, RY) * (1.1 + b.k * 0.4);
         }
         s.tint = 0xffffff;
-        s.alpha = ZONE.haze * 0.55;
+        s.alpha = v.puffA;
       } else if (v.kind === 'snow') {
         // flakes falling slant through the blizzard, wrapping inside it
         const fall = still ? b.d : wrap(b.d + t * (0.12 + b.k * 0.1));
@@ -472,7 +551,8 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
         s.alpha = 0.95 * Math.sqrt(inside);
       } else if (v.kind === 'lava') {
         const cycle = still ? 0.5 : (t * (0.45 + b.k * 0.3) + b.d) % 1;
-        s.position.set(Math.cos(b.a) * R * 0.45 * b.d, Math.sin(b.a) * R * 0.45 * b.d);
+        const Rc = lavaCore(area.hx) * u;
+        s.position.set(Math.cos(b.a) * Rc * 0.45 * b.d, Math.sin(b.a) * Rc * 0.45 * b.d);
         s.width = s.height = (0.18 + cycle * 0.3) * u;
         s.tint = toneN(v.color, 0.6);
         s.alpha = 0.75 * Math.sin(cycle * Math.PI);
@@ -487,7 +567,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     // embers off the lava now and then (booked, small)
     if (v.kind === 'lava' && area.round && !still && a > 0.5 && Math.random() < v.dt * 2.5 && fx.flashAll(DOT.share * 0.16 * 0.16, 0.6)) {
       const ang = Math.random() * Math.PI * 2;
-      fx.particle(tx.softDot(), z.x + Math.cos(ang) * area.hx * 0.5, z.y + Math.sin(ang) * area.hx * 0.4, { vy: 1.2, vx: (Math.random() - 0.5) * 0.4, life: 0.6, size: 0.16, grow: -0.1, color: Math.random() < 0.5 ? 0xffd36b : 0xff7a3d });
+      fx.particle(tx.softDot(), z.x + Math.cos(ang) * lavaCore(area.hx) * 0.5, z.y + Math.sin(ang) * lavaCore(area.hx) * 0.4, { vy: 1.2, vx: (Math.random() - 0.5) * 0.4, life: 0.6, size: 0.16, grow: -0.1, color: Math.random() < 0.5 ? 0xffd36b : 0xff7a3d });
     }
   }
 
@@ -500,7 +580,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     const cracks = new Graphics();
     c.addChild(g, cracks);
     depth.addChild(c);
-    return { c, g, cracks, color: hex(w.color ?? '#9fc5e8'), U: 0, key: '', born: time, dt: 0 };
+    return { c, g, cracks, color: hex(w.color ?? '#9fc5e8'), U: 0, key: '', born: time, dt: 0, lit: wallLit(w) };
   }
 
   function shapeWall(v, w) {
@@ -569,7 +649,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     const flower = new Graphics();
     c.addChild(ring, flower);
     depth.addChild(c);
-    return { c, ring, flower, color: hex(p.color ?? '#7fffd4'), U: 0, r: 0, seed: ++serial, dt: 0 };
+    return { c, ring, flower, color: hex(p.color ?? '#7fffd4'), U: 0, r: 0, seed: ++serial, dt: 0, lit: trapLit(p) };
   }
 
   function shapeTrap(v, p) {
@@ -689,12 +769,15 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
 
   // --- tethers: from a summoned pet to its foe ---------------------------------------------------------
 
-  function makeTether(t) {
+  function makeTether(t, run) {
     const c = new Container();
     const g = new Graphics();
     c.addChild(g);
     air.addChild(c);
-    return { c, g, seed: hash01i(++serial) * 6, color: 0xffffff, a: null, b: null, dt: 0 };
+    const s = run?.tiles?.find((x) => x.id === t.tileId)?.summon;
+    const foe = (run?.enemies ?? []).find((e) => e.id === t.enemyId);
+    const length = s && foe ? Math.hypot(foe.x - s.x, foe.y + 0.3 - (s.y + 0.55)) : 0;
+    return { c, g, seed: hash01i(++serial) * 6, color: 0xffffff, a: null, b: null, dt: 0, lit: tetherLit(length) };
   }
 
   function updateTether(v, t, a, run) {
@@ -817,7 +900,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
       path();
       g.stroke({ width: B.core * k * u, color: 0xffffff, alpha, cap: 'round', join: 'round' });
     });
-    if (fx.flashAll(2 * BURST.spark * 0.3 * 0.3, 0.3)) fx.burst(x1, y1, [color, 0xffffff], 4, { speed: 2.5, size: 0.24, life: 0.3, gravity: 0 });
+    fx.burst(x1, y1, [color, 0xffffff], 4, { speed: 2.5, size: 0.24, life: 0.3, gravity: 0 }); // it books its own particles
   }
 
   function slam(e, color) {
@@ -852,7 +935,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     if (fx.flashAll(4 * DOT.share * 0.4 * 0.4, 0.5)) {
       for (let i = 0; i < 4; i++) {
         const a = (i / 4) * Math.PI * 2 + 0.4;
-        fx.particle(tx.softDot(), e.x + Math.cos(a) * r * 0.5, e.y + Math.sin(a) * r * 0.4, { vx: still ? 0 : Math.cos(a) * 1.5, vy: still ? 0 : Math.sin(a) * 1.2 + 0.4, life: 0.5, size: 0.4, grow: 0.2, color: dust, alpha: 0.7, drag: 2 });
+        fx.particle(tx.softDot(), e.x + Math.cos(a) * r * 0.5, e.y + Math.sin(a) * r * 0.4, { vx: still ? 0 : Math.cos(a) * 1.5, vy: still ? 0 : Math.sin(a) * 1.2 + 0.4, life: 0.5, size: 0.4, color: dust, alpha: 0.7, drag: 2 }); // the size it books
       }
     }
   }
@@ -955,7 +1038,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     keep(walls, d.walls ?? run?.walls, CAPS.walls, (w) => { const v = makeWall(w); v.dt = dt; v.simDt = simDt; return v; }, updateWall, endWall);
     keep(traps, d.traps ?? run?.traps, CAPS.traps, (p) => { const v = makeTrap(p); v.dt = dt; return v; }, updateTrap, endTrap);
     keep(minions, d.minions ?? run?.minions, CAPS.minions, (m) => { const v = makeMinion(m); v.dt = dt; return v; }, updateMinion, endMinion);
-    keep(tethers, d.tethers ?? run?.tethers, CAPS.tethers, (t) => { const v = makeTether(t); v.dt = dt; return v; }, (v, t, a) => updateTether(v, t, a, run));
+    keep(tethers, d.tethers ?? run?.tethers, CAPS.tethers, (t) => { const v = makeTether(t, run); v.dt = dt; return v; }, (v, t, a) => updateTether(v, t, a, run));
     // the instant lines, and the words floating up
     for (let i = lines.length - 1; i >= 0; i--) {
       const l = lines[i];

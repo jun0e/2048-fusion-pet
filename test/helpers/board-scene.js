@@ -23,9 +23,10 @@ export function scene({ reduced = false, u = U, grant = true } = {}) {
   const bursts = [];
   const numbers = []; // the numerals asked of the art: tier, px per cell, size (cells)
   const fx = {
+    grant, // what the light budget grants (a test may change it as it goes)
     flashAll(lit, life) {
       books.push({ lit, life });
-      return grant;
+      return this.grant;
     },
     particle(t, x, y, o = {}) {
       parts.push({ t, x, y, o });
@@ -85,7 +86,7 @@ export function scene({ reduced = false, u = U, grant = true } = {}) {
       blocks.sync(run, 1 / 60);
     }
   };
-  return { blocks, run, stage, art, add, step, books, parts, bursts, faces, halo, numbers, cell: GRID.cell * u };
+  return { blocks, run, stage, art, fx, add, step, books, parts, bursts, faces, halo, numbers, cell: GRID.cell * u };
 }
 
 /** The extremes of a view field over `seconds` of frames. */

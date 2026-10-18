@@ -7,11 +7,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ELEMENTS, ELEMENT_KEYS, FUSIONS } from '../src/sim/classes.js';
-import { V2 } from '../src/config.js';
+import { GRID, V2 } from '../src/config.js';
 import { INK, contrast, luminance, tone } from '../src/art/tokens.js';
 import { PEBBLE_TAG, PLAQUE, STONE, badgeSpots, isDen, isEgg, isFusion, isPet, isPlain, isPure, numberBox, plateColor, stonePlate } from '../src/art/plaque.js';
 import { EGG_KEEP, EGG_SEAM, creatureSpecOf, eggKeep, eggRamp, eggSeamY, recolorEgg } from '../src/art/index.js';
-import { BLOCK_MARKS } from '../src/render/blocks.js';
+import { BLOCK_MARKS, MARK_LIT } from '../src/render/blocks.js';
+import { PUDDLE, overlayStep } from '../src/ux/photosafe.js';
 import { range, scene } from './helpers/board-scene.js';
 
 const EPS = 1e-9;
@@ -364,6 +365,34 @@ test('the skills’ marks: rime armour coats a block in ice, pollen sparkles on 
   still.add(1, 6, 1, 1, { element: 'fire' }, { boostT: 5 });
   still.step(1);
   assert.ok(still.blocks.viewOf(1).pollen.visible && !still.parts.some((p) => p.o.color === 0xffe066));
+});
+
+test('the marks book their light as they fade in, waiting for room; the rime coat itself changes no plate by the light threshold', () => {
+  const s = scene({ grant: false });
+  const t = s.add(1, 6, 1, 1, { element: 'fire' });
+  s.step(0.2);
+  const v = s.blocks.viewOf(1);
+  t.guardT = 5;
+  t.boostT = 5;
+  s.step(0.3);
+  assert.ok(!v.rime.visible && !v.pollen.visible, 'refused: they wait');
+  const asked = s.books.filter((b) => b.life === BLOCK_MARKS.fade).map((b) => b.lit);
+  assert.ok(asked.includes(MARK_LIT.rime * GRID.cell ** 2) && asked.includes(MARK_LIT.pollen * GRID.cell ** 2), 'each asked for its light');
+  s.fx.grant = true;
+  s.step(BLOCK_MARKS.fade / 2);
+  assert.ok(v.rime.visible && v.rime.alpha > 0.3 && v.rime.alpha < 0.7, 'room: it fades in');
+  // the coat: under PUDDLE.step on every plate a tile can have (its rim, glints and snowflake book)
+  const plates = new Set();
+  for (let tier = 1; tier <= 13; tier++) {
+    plates.add(plateColor({ tier, cls: {} }));
+    for (const el of ELEMENT_KEYS) {
+      plates.add(plateColor({ tier, cls: { element: el } }));
+      for (const fu of ELEMENT_KEYS) if (fu !== el) plates.add(plateColor({ tier, cls: fusion(el, fu) }));
+      if (tier >= 12) plates.add(plateColor({ tier, cls: { element: el, pure: true } }));
+    }
+  }
+  const rime = 0xbfeaff;
+  for (const p of plates) assert.ok(overlayStep(parseInt(String(p).replace('#', ''), 16), rime, BLOCK_MARKS.coat) < PUDDLE.step, `over ${p}`);
 });
 
 test('a fusion fed a single pops with sparks of the element it gained; an elemental egg lands with a glint of its colour; both book their light', () => {

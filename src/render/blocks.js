@@ -58,10 +58,17 @@ const SHELL_LIFE = 0.45; // seconds: an egg's shell halves fly
 const SHELL_LIT = 2 * spriteLit(0.32, 0.32, 0.9); // what they light (world units²: two 0.32 sprites)
 /**
  * A skill's marks on a block, faded in and out over `fade` s (rime armour coats a whole board at once:
- * a slow rise and fall, never a flash pair): the rime coat's fill and rim alphas, a pollen mote every
- * `mote` s from a boosted block, and the ready charge's breath (alpha 1 → `ready`, at `hz`).
+ * a slow rise and fall, never a flash pair): the rime coat's fill and rim alphas (the fill changes no
+ * plate's luminance by PUDDLE.step: test/tile-looks.test.js), a pollen mote every `mote` s from a
+ * boosted block, and the ready charge's breath (alpha 1 → `ready`, at `hz`).
  */
-export const BLOCK_MARKS = { fade: 0.4, coat: 0.3, rim: 0.85, mote: 0.4, moteSize: 0.16, ready: 0.65, hz: 1.2 };
+export const BLOCK_MARKS = { fade: 0.4, coat: 0.22, rim: 0.85, mote: 0.4, moteSize: 0.16, ready: 0.65, hz: 1.2 };
+/**
+ * What each mark lights to 10% or more (cells²), booked for its fade-in, which waits for room in the
+ * light budget (a decal's rule): the rime coat's rim, glints and snowflake, the pollen's three dots,
+ * the sprout's two leaves.
+ */
+export const MARK_LIT = { rime: 0.13, pollen: 0.01, sprout: 0.01 };
 const ease = (t) => 1 - (1 - t) ** 3;
 const smooth = (t) => t * t * (3 - 2 * t);
 const hex = (c) => parseInt(c.replace('#', ''), 16);
@@ -634,6 +641,11 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     const want = { rime: (t.guardT ?? 0) > 0, pollen: (t.boostT ?? 0) > 0, sprout: !!t.saved };
     for (const k of ['rime', 'pollen', 'sprout']) {
       const m = v.marks;
+      // its fade-in books its light first, on a block on show (else it waits)
+      if (want[k] && m[k] === 0 && !(v.shown && book(MARK_LIT[k] * GRID.cell * GRID.cell, BLOCK_MARKS.fade))) {
+        v[k].visible = false;
+        continue;
+      }
       m[k] = want[k] ? Math.min(1, m[k] + step) : Math.max(0, m[k] - step);
       const g = v[k];
       g.visible = m[k] > 0 && v.shown;

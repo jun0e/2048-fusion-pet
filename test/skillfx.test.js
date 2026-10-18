@@ -5,8 +5,9 @@
 // end; Reduce motion holds them still; everything is capped. On stand-ins: Node has no canvas.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Container, Texture, TextureSource } from 'pixi.js';
-import { AIR, CAPS, CLIP, FIELD_AREA, LANE_HALF, PIECE, SKILL_FX, WALL, ZONE, boltPoints, createSkillFx, fxWord, pieceAlpha, zoneArea } from '../src/render/skillfx.js';
+import { Container, Sprite, Texture, TextureSource } from 'pixi.js';
+import { AIR, CAPS, CLIP, FIELD_AREA, LANE_HALF, LAVA, PIECE, PIECE_GROUNDS, SKILL_FX, WALL, ZONE, boltPoints, createSkillFx, fxWord, hazeAlpha, lavaCore, pieceAlpha, tetherLit, trapLit, wallLit, zoneArea, zoneLit } from '../src/render/skillfx.js';
+import { DOT, POINT, PUDDLE, overlayStep } from '../src/ux/photosafe.js';
 import { FUSIONS } from '../src/sim/classes.js';
 import { FIELD, laneX } from '../src/config.js';
 import { has, tr } from '../src/i18n/index.js';
@@ -22,6 +23,7 @@ function scene({ reduced = false, grant = 1 } = {}) {
   const shakes = [];
   const stage = { layers, reduced, view: { U, ox: 300, oy: 900 }, sx: (x) => 300 + x * U, sy: (y) => 900 - y * U, shake: (px) => shakes.push(px) };
   const fx = {
+    grant, // what the budget grants (a test may change it as it goes)
     shares: [],
     alls: [],
     bursts: [],
@@ -29,11 +31,11 @@ function scene({ reduced = false, grant = 1 } = {}) {
     flashShare(lit, life, min = 0) {
       // as the real budget (src/ux/photosafe.js book): a share at or under its least is refused
       this.shares.push({ lit, life, min });
-      return grant > min && grant > 0 ? grant : 0;
+      return this.grant > min && this.grant > 0 ? this.grant : 0;
     },
     flashAll(lit, life) {
       this.alls.push({ lit, life });
-      return grant >= 1;
+      return this.grant >= 1;
     },
     burst(x, y, colors, n) {
       this.bursts.push({ x, y, colors, n });
@@ -374,4 +376,113 @@ test('a glacier wall stands on its line: foes stopped just above it show over it
   const top = wall.position.y + wall.getLocalBounds().minY * wall.scale.y;
   assert.ok(top > sc.stage.sy(9 + 0.45 + 0.6), 'its top lies below a stopped foe’s head');
   assert.ok(WALL.h < 1, 'a low barrier');
+});
+
+// --- photosafe: the standing pieces book their rise ---------------------------------------------------
+
+test('a standing piece books what it lights for its rise, and rises only once the budget has room; one dropped before that is never shown', () => {
+  const sc = scene({ grant: 0 });
+  sc.run.defense.zones = [{ id: 1, kind: 'lava', x: 0, y: 12, r: 2, color: '#ff9f1c' }];
+  sc.run.defense.walls = [{ id: 2, lanes: [1, 2], y: 9.4, dur: 6, color: '#9fc5e8' }];
+  sc.run.defense.traps = [{ id: 3, kind: 'flower', x: 1, y: 11, r: 1.5, color: '#7fffd4' }];
+  sc.step(0.5);
+  const booked = sc.fx.alls.filter((b) => b.life === PIECE.rise).map((b) => b.lit);
+  for (const lit of [zoneLit(sc.run.defense.zones[0]), wallLit(sc.run.defense.walls[0]), trapLit(sc.run.defense.traps[0])]) assert.ok(booked.some((b) => Math.abs(b - lit) < 1e-9), `it asked for ${lit.toFixed(2)}`);
+  const d = sc.s.drawn;
+  assert.ok(d.zones[0].alpha === 0 && d.walls[0].alpha === 0 && d.traps[0].alpha === 0, 'refused: it waits, unseen');
+  sc.fx.grant = 1;
+  sc.step();
+  assert.ok(sc.s.drawn.zones[0].alpha > 0 && sc.s.drawn.zones[0].alpha < 0.2, 'room: it starts to rise');
+  sc.step(PIECE.rise);
+  assert.ok(Math.abs(sc.s.drawn.zones[0].alpha - ZONE.lava) < 1e-9 && sc.s.drawn.walls[0].alpha === 1);
+  // its least hold counts from its rise: dropped at once, it still holds
+  sc.run.defense.zones = [];
+  sc.step(PIECE.hold - 0.1);
+  assert.ok(Math.abs(sc.s.drawn.zones[0].alpha - ZONE.lava) < 1e-9, 'it holds');
+  // never risen, then dropped: gone at once, without bursting
+  const never = scene({ grant: 0 });
+  never.run.defense.walls = [{ id: 1, lanes: [0], y: 9, dur: 2, color: '#9fc5e8' }];
+  never.run.defense.zones = [{ id: 2, kind: 'web', x: 0, y: 12, r: 2, color: '#6b8e23' }];
+  never.step(0.3);
+  never.run.defense.walls = [];
+  never.run.defense.zones = [];
+  never.step();
+  assert.equal(never.s.drawn.walls.length + never.s.drawn.zones.length, 0);
+  assert.equal(never.fx.bursts.length, 0, 'no shards for a wall never seen');
+  // minions move (as the foes do): they book nothing and show at once
+  const bugs = scene({ grant: 0 });
+  bugs.run.defense.minions = [{ id: 1, kind: 'locust', x: 0, y: 12, color: '#d4e157' }];
+  bugs.step();
+  assert.ok(bugs.s.drawn.minions[0].alpha > 0);
+});
+
+test('what each piece lights fits the budget: a lava pool’s melt is held to LAVA.lit whatever its reach, its scorch reaches the rest', () => {
+  for (const r of [1, 2, 3, 6]) {
+    const lit = zoneLit({ kind: 'lava', x: 0, y: 12, r });
+    assert.ok(lit <= LAVA.lit + 3 * DOT.share * 0.48 ** 2 + 1e-9 && lit < POINT.cap * 0.7, `a pool of reach ${r}: ${lit.toFixed(2)} u²`);
+    assert.ok(Math.PI * lavaCore(r) ** 2 <= LAVA.lit + 1e-9 && lavaCore(r) <= r);
+  }
+  assert.equal(lavaCore(1), 1, 'a small pool is all melt');
+  for (const z of [
+    { kind: 'web', r: 3 },
+    { kind: 'twister', r: 2.2 },
+    { kind: 'field', r: 6 },
+    { kind: 'sand', r: Infinity, lanes: [0, 1, 2, 3] },
+    { kind: 'snow', r: Infinity },
+  ])
+    assert.ok(zoneLit({ x: 0, y: 12, ...z }) > 0 && zoneLit({ x: 0, y: 12, ...z }) < POINT.cap * 0.5, `${z.kind}: ${zoneLit({ x: 0, y: 12, ...z }).toFixed(2)} u²`);
+  assert.equal(zoneLit({ kind: 'cloud', x: 0, y: 12, r: 4.4 }), 0, 'a cloud is all haze');
+  assert.ok(wallLit({ lanes: [0, 1, 2, 3] }) < POINT.cap && trapLit({ r: 3 }) < 1.5 && tetherLit(10) < 2);
+  // a scorched pool: its melt inside, the scorch out to its reach
+  const sc = scene();
+  sc.run.defense.zones = [{ id: 1, kind: 'lava', x: 0, y: 12, r: 3, color: '#ff9f1c' }];
+  sc.step(PIECE.rise + 0.1);
+  const g = sc.groundZones()[0].children[0];
+  const b = g.getLocalBounds();
+  assert.ok(Math.abs(b.width / 2 / U - 3) < 0.35, `the scorch reaches its reach (${(b.width / 2 / U).toFixed(2)})`);
+});
+
+test('the hazes and the faint fills stay under the light threshold over every ground, so they book nothing', () => {
+  const step = (c, a) => Math.max(...PIECE_GROUNDS.map((g) => overlayStep(g, c, a)));
+  assert.ok(PIECE_GROUNDS.length >= 20, 'every chapter’s lanes, hedges, floor and pit');
+  for (const color of ['#c39bd3', '#e6c88a', '#ff9f1c', '#6b8e23', '#f24c00', '#ffffff']) {
+    const c = parseInt(color.slice(1), 16);
+    const a = hazeAlpha(c);
+    assert.ok(a > 0.05 && step(c, a) < PUDDLE.step && step(c, a + 0.005) >= PUDDLE.step - 1e-9, `${color}: ${a}`);
+  }
+  assert.ok(step(LAVA.scorch, hazeAlpha(LAVA.scorch)) < PUDDLE.step, 'the scorch');
+  // the drawn puffs keep to it (a cloud breathes under it), in every tint they wear
+  const sc = scene();
+  sc.run.defense.zones = [
+    { id: 1, kind: 'cloud', x: 0, y: 12, r: 4.4, color: '#c39bd3' },
+    { id: 2, kind: 'sand', x: 0, y: 12, r: Infinity, lanes: [1, 2], color: '#e6c88a' },
+    { id: 3, kind: 'snow', x: 0, y: 12.6, r: Infinity, color: '#e0f7ff' },
+  ];
+  sc.step(PIECE.rise + 1);
+  const puffs = [...sc.groundZones(), ...sc.layers.shots.children.flatMap((c) => c.children)].flatMap((c) => c.children).filter((s) => s instanceof Sprite && s.alpha > 0 && s.width > 1.2 * U);
+  assert.ok(puffs.length >= 10, `${puffs.length} puffs`);
+  for (const s of puffs) assert.ok(step(s.tint, s.alpha * s.parent.alpha) < PUDDLE.step, `a puff ${s.tint.toString(16)} at ${(s.alpha * s.parent.alpha).toFixed(3)}`);
+  // and the fills under them
+  for (const [c, a] of [
+    [0xc39bd3, ZONE.fill],
+    [0xe6c88a, ZONE.fill * 1.5],
+    [0xffffff, ZONE.fill],
+    [0x6b8e23, 0.12 * ZONE.web],
+    [0xf24c00, 0.12],
+    [0xffffff, ZONE.fill * ZONE.field],
+  ])
+    assert.ok(step(c, a) < PUDDLE.step, `a fill ${c.toString(16)} at ${a}`);
+});
+
+test('a bolt books its sparks once (fx.burst books them), and a slam’s dust is drawn at the size it books', () => {
+  const sc = scene();
+  const alls = sc.fx.alls.length;
+  sc.s.onEvent({ type: 'skillFx', fx: 'bolt', x: 1, y: 11, x1: 3, y1: 14, color: '#9fa8ff' });
+  assert.equal(sc.fx.alls.length, alls, 'no second booking for its sparks');
+  assert.equal(sc.fx.bursts.at(-1).n, 4);
+  sc.s.onEvent({ type: 'skillFx', fx: 'slam', x: 1, y: 12, r: 2.4, color: '#ff9f1c' });
+  const book = sc.fx.alls.at(-1);
+  const dust = sc.fx.parts.slice(-4);
+  assert.equal(dust.length, 4);
+  for (const p of dust) assert.ok(!p.o.grow && Math.abs(4 * DOT.share * p.o.size ** 2 - book.lit) < 1e-9, 'it never grows past what it booked');
 });
