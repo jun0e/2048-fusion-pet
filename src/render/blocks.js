@@ -31,8 +31,15 @@
 // fade), no wobble, no nudge, no poses, no leaves, no halo turn, no aura breath; the brackets hold
 // still and a departure fades in place.
 // The classic and pixel styles keep their own plates, and the 4-piece border for their progress.
+// v2.1 (docs/v2/SPEC-v2.1.md sections 1 and 6): every size and every bit follows the board's cell
+// (GRID.cell, read each frame), so a 5×5 or 6×6 board draws its smaller tiles alike. When the board
+// grows (the `grow` event, in a break) the tiles ease from their old places and sizes to their new ones
+// over GROW.time, as the keep's pits do (src/render/frame.js); under Reduce motion they are there at once
+// (the stage cross-fades). While a `keep` choice is open the merged pet's tile is highlighted
+// (highlight): a gold outline round its pit and a small gold pointer over it, breathing in position,
+// never in brightness, over a soft gold glow; its plaque lifts as a picked one does.
 import { Container, Graphics, GraphicsContext, Sprite, Texture } from 'pixi.js';
-import { GRID, V2, cellX, cellY } from '../config.js';
+import { BOARD_SPAN, DESIGN_CELL, GRID, V2, cellX, cellY } from '../config.js';
 import { ELEMENTS, fusionOf } from '../sim/classes.js';
 import { LADDER, createSimRate, has, ladderStage, leapAt, petPose, windUpAt } from '../art/attack-vfx.js';
 import { auraTex, blockTex, softDot, sparkTex, vfxTex, BLOCK_PX } from './textures.js';
@@ -40,7 +47,7 @@ import { createAfterimage } from './trails.js';
 import { BRACKET_CORNERS, drawBracket } from './brackets.js';
 import { DOT, BURST, HIT_TINT, TILE_GLOW, spriteLit } from '../ux/photosafe.js';
 import { tileDecor } from '../art/index.js';
-import { chapterKeyFor, skinFor } from '../art/frame-kit.js';
+import { GROW, cellXAt, cellYAt, chapterKeyFor, growEase, skinFor } from '../art/frame-kit.js';
 import { tone } from '../art/tokens.js';
 import { BLINK, CRACKS, DEPART_TIME, PAW_MIN_PX, PLAQUE, TILE_COLORS, appearPose, blinkGap, bracketOffset, departPose, isDen, isEgg, isFusion, isPet, isPure, meterOf, meterSegments, nudgeAt, numberFit, plateColor, seatShadow, shudderAt, walkRoundRect, wobbleAt } from '../art/plaque.js';
 
@@ -69,6 +76,15 @@ export const BLOCK_MARKS = { fade: 0.4, coat: 0.22, rim: 0.85, mote: 0.4, moteSi
  * the sprout's two leaves.
  */
 export const MARK_LIT = { rime: 0.13, pollen: 0.01, sprout: 0.01 };
+/**
+ * The keep card's highlight (in cells unless named): a gold outline `width` wide (ink `ink` under it) round
+ * the pit, `gap` off its edge, its gap breathing by `breathe` at `hz` (in position, never in brightness); a
+ * gold pointer `pointer.w` × `pointer.h` over the tile, its tip `pointer.y` above the tile's centre, bobbing
+ * `pointer.bob` at `pointer.hz`; never under `minPx` (CSS px); a soft gold glow `glow` cells across at
+ * `glowA` (below the flash thresholds, photosafe.js TILE_GLOW.glow). It fades in over `fade` s, booking what
+ * the outline and the pointer light (`lit`, cells²) first, and fades out as fast. Reduce motion: it holds still.
+ */
+export const HIGHLIGHT = { fade: 0.25, gap: 0.035, breathe: 0.02, hz: 0.8, width: 0.045, ink: 0.03, pointer: { w: 0.3, h: 0.2, y: 0.5, bob: 0.05, hz: 1 }, minPx: { width: 2, pointer: 14 }, glow: 1.75, glowA: 0.2, lit: 0.28 };
 const ease = (t) => 1 - (1 - t) ** 3;
 const smooth = (t) => t * t * (3 - 2 * t);
 const hex = (c) => parseInt(c.replace('#', ''), 16);
@@ -76,6 +92,7 @@ const INK = hex(TILE_COLORS.ink);
 const CREAM = hex(TILE_COLORS.cream);
 const RIME = 0xbfeaff;
 const POLLEN = 0xffe066;
+const GOLD = hex(TILE_COLORS.gold);
 const MOSS = 0x5fbf4a;
 /** A refused swipe's direction on screen (y down). */
 const DIRS = { left: { x: -1, y: 0 }, right: { x: 1, y: 0 }, up: { x: 0, y: -1 }, down: { x: 0, y: 1 } };
@@ -115,12 +132,12 @@ function whiteOf(tex) {
  * The classic and pixel tiles' progress: a 4-piece border, one piece per merge toward the next
  * milestone (plaque.js meterOf: gold toward a fusion pet's summon, pink toward the pure form).
  */
-function drawMilestone(g, tier, cls, U) {
+function drawMilestone(g, tier, cls, U, cell = GRID.cell * U) {
   g.clear();
   const m = meterOf(tier, cls);
   if (!m) return; // a plain block or an egg, or a pure form (nothing left to reach)
-  const half = GRID.cell * U * 0.43;
-  const inset = GRID.cell * U * 0.13;
+  const half = cell * 0.43;
+  const inset = cell * 0.13;
   const w = 0.12 * U;
   // top, right, bottom, left: each piece runs along the middle of one edge
   const sides = [
@@ -160,7 +177,18 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   pick.visible = false;
   const corners = BRACKET_CORNERS.map(() => new Graphics());
   pick.addChild(...corners);
-  stage.layers.tiles.addChild(glowLayer, seatLayer, layer, pick);
+  // the keep card's highlight: its glow under the tiles, its outline and pointer over them
+  const hlGlow = new Sprite(tx.softDot());
+  hlGlow.anchor.set(0.5);
+  hlGlow.tint = GOLD;
+  hlGlow.visible = false;
+  const hl = new Container();
+  hl.visible = false;
+  const hlRing = new Graphics();
+  const hlPointer = new Graphics();
+  hl.addChild(hlRing, hlPointer);
+  stage.layers.tiles.addChild(glowLayer, seatLayer, layer, pick, hl);
+  glowLayer.addChild(hlGlow);
   const echoLayer = new Container(); // a leaping cub's afterimage, over the field
   stage.layers.shots.addChild(echoLayer);
   const seatCtx = new GraphicsContext(); // one plaque silhouette, shared by every shadow (redrawn per U)
@@ -189,6 +217,9 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   let chargePen = null; // the context a summon's charge step is being drawn into
   const chargeContexts = new Map(); // step (negative: the classic and pixel frame) → its shared context
   let chargeCell = 0;
+  let grow = null; // the board's grow moment: { from, to, t }
+  let marked = null; // the tile the keep card highlights (highlight)
+  const lit = { k: 0, booked: false, cell: 0, x: 0, y: 0 }; // its fade (0–1), its booking, the cell its shapes were drawn for, where it shows
   const penLine = (x, y) => chargePen.lineTo(x, y);
   const penArc = (cx, cy, r, a0, a1) => chargePen.arc(cx, cy, r, a0, a1);
 
@@ -459,24 +490,29 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   /** Book `lit` world units² for `life` s (from `delay` s on) in the light budget, whole or not at all. */
   const book = (lit, life, delay = 0) => fx.flashAll(lit, life, delay);
 
+  /** The board's scale (1 on the 4×4 board): the bits a block throws are sized and placed for its cell. */
+  const bitK = () => GRID.cell / DESIGN_CELL;
+
   /** Two sand puffs at the groove as a block drops into its pit; an elemental egg adds a glint of its colour. */
   function puffs(t) {
-    const size = 0.2;
-    const grow = 0.25;
-    if (book(2 * (size + grow) ** 2 * DOT.share, 0.3)) for (const s of [-1, 1]) fx.particle(tx.softDot(), t.x + s * 0.72, t.y - 0.84, { vx: s * 0.9, vy: 0.35, life: 0.3, size, grow, alpha: 0.5, color: hex(TILE_COLORS.sand) });
-    if (isEgg(t) && book(3 * BURST.spark * 0.3 * 0.3, 0.4)) {
+    const k = bitK();
+    const size = 0.2 * k;
+    const grow = 0.25 * k;
+    if (book(2 * (size + grow) ** 2 * DOT.share, 0.3)) for (const s of [-1, 1]) fx.particle(tx.softDot(), t.x + s * 0.72 * k, t.y - 0.84 * k, { vx: s * 0.9 * k, vy: 0.35 * k, life: 0.3, size, grow, alpha: 0.5, color: hex(TILE_COLORS.sand) });
+    if (isEgg(t) && book(3 * BURST.spark * (0.3 * k) ** 2, 0.4)) {
       const color = hex(ELEMENTS[t.cls.element].color);
-      for (let i = 0; i < 3; i++) fx.particle(tx.sparkTex(), t.x - 0.45 + i * 0.45, t.y + 0.3 + (i % 2) * 0.25, { vy: 0.8, life: 0.4, size: 0.3, grow: -0.2, color });
+      for (let i = 0; i < 3; i++) fx.particle(tx.sparkTex(), t.x + (i - 1) * 0.45 * k, t.y + (0.3 + (i % 2) * 0.25) * k, { vy: 0.8 * k, life: 0.4, size: 0.3 * k, grow: -0.2 * k, color });
     }
   }
 
   /** Six chips fly from a block that breaks: its clay (destroyed) or sand (broken). */
   function chips(x, y, color) {
-    if (!book(6 * spriteLit(0.16, 0.16, 1), 0.5)) return;
+    const k = bitK();
+    if (!book(6 * spriteLit(0.16 * k, 0.16 * k, 1), 0.5)) return;
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + 0.4;
-      const sp = 2.4 + 0.8 * ((i * 7) % 3) / 2;
-      fx.particle(tx.decor('chip'), x + Math.cos(a) * 0.36, y + Math.sin(a) * 0.25, { vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7 + 2.2, gravity: -11, life: 0.45 + 0.05 * (i % 2), size: 0.16, color, spin: (i % 2 ? 1 : -1) * 7, rot: i });
+      const sp = (2.4 + 0.8 * ((i * 7) % 3) / 2) * k;
+      fx.particle(tx.decor('chip'), x + Math.cos(a) * 0.36 * k, y + Math.sin(a) * 0.25 * k, { vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7 + 2.2 * k, gravity: -11 * k, life: 0.45 + 0.05 * (i % 2), size: 0.16 * k, color, spin: (i % 2 ? 1 : -1) * 7, rot: i });
     }
   }
 
@@ -487,33 +523,36 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
    */
   function shells(t, reduced) {
     const shell = (el) => (ELEMENTS[el] ? hex(tone(ELEMENTS[el].color, 0.45)) : 0xffffff);
+    const k = bitK();
     for (const s of [-1, 1]) {
-      const o = reduced ? {} : { vx: s * 1.6, vy: 3.2, gravity: -14, spin: s * 5 };
+      const o = reduced ? {} : { vx: s * 1.6 * k, vy: 3.2 * k, gravity: -14 * k, spin: s * 5 };
       const color = shell(s < 0 ? t.cls.element : (t.cls.fusion ?? t.cls.element));
-      fx.particle(tx.decor(s < 0 ? 'shellL' : 'shellR'), t.x + s * 0.4, t.y - 0.1, { life: reduced ? 0.35 : SHELL_LIFE, size: 0.32, color, ...o });
+      fx.particle(tx.decor(s < 0 ? 'shellL' : 'shellR'), t.x + s * 0.4 * k, t.y - 0.1 * k, { life: reduced ? 0.35 : SHELL_LIFE, size: 0.32 * k, color, ...o });
     }
   }
 
   /** Nature's repair: three leaves fall onto the block. */
   function leaves(e) {
-    if (!book(3 * spriteLit(0.28, 0.28, 0.95), 0.5)) return;
+    const k = bitK();
+    if (!book(3 * spriteLit(0.28 * k, 0.28 * k, 0.95), 0.5)) return;
     const leaf = tx.vfxTex('nature', 'leaf');
     [
       [-0.56, 1.1, -0.4],
       [0.16, 1.24, 0.5],
       [0.6, 1.0, 0.1],
-    ].forEach(([x, y, rot], i) => fx.particle(leaf, e.x + x, e.y + y, { vy: -2, life: 0.5, size: 0.28, rot, spin: i % 2 ? 1.5 : -1.5 }));
+    ].forEach(([x, y, rot], i) => fx.particle(leaf, e.x + x * k, e.y + y * k, { vy: -2 * k, life: 0.5, size: 0.28 * k, rot, spin: i % 2 ? 1.5 : -1.5 }));
   }
 
   /** A fusion fed a single: a few sparks of the element it gained rise off it. */
   function sparks(e, el, reduced) {
     const n = 5;
-    if (!ELEMENTS[el] || !book(n * BURST.spark * 0.34 * 0.34, 0.55)) return;
+    const k = bitK();
+    if (!ELEMENTS[el] || !book(n * BURST.spark * (0.34 * k) ** 2, 0.55)) return;
     const color = hex(ELEMENTS[el].color);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
-      const o = reduced ? { vy: 0.4 } : { vx: Math.cos(a) * 1.2, vy: 1.4 + Math.sin(a) * 0.6, drag: 1.5 };
-      fx.particle(tx.sparkTex(), e.x + Math.cos(a) * 0.5, e.y + Math.sin(a) * 0.4, { life: 0.55, size: 0.34, grow: -0.2, color, ...o });
+      const o = reduced ? { vy: 0.4 * k } : { vx: Math.cos(a) * 1.2 * k, vy: (1.4 + Math.sin(a) * 0.6) * k, drag: 1.5 };
+      fx.particle(tx.sparkTex(), e.x + Math.cos(a) * 0.5 * k, e.y + Math.sin(a) * 0.4 * k, { life: 0.55, size: 0.34 * k, grow: -0.2 * k, color, ...o });
     }
   }
 
@@ -528,10 +567,10 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
         c.addChild(s);
       }
       seatLayer.addChild(c);
-      r = { c, x: 0, y: 0, t: 0 };
+      r = { c, ci: 0, ri: 0, t: 0 };
       rubble.push(r);
     }
-    Object.assign(r, { x, y, t: 0, seed });
+    Object.assign(r, { ci: (x - cellX(0)) / GRID.cell, ri: (y - cellY(0)) / GRID.cell, t: 0, seed }); // in board cells: it stays in its pit as the board grows
     r.c.visible = true;
     const dark = hex(tone(skinFor(art?.skin ?? 'forest').pit, -0.25));
     r.c.alpha = 0;
@@ -541,7 +580,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     });
   }
 
-  function updateRubble(dt, cell) {
+  function updateRubble(dt, cell, cellW) {
     for (let k = 0; k < rubble.length; k++) {
       const r = rubble[k];
       if (!r.c.visible) continue;
@@ -552,7 +591,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
         continue;
       }
       r.c.alpha = RUBBLE.alpha * (r.t < RUBBLE.rise ? r.t / RUBBLE.rise : r.t < RUBBLE.rise + RUBBLE.hold ? 1 : 1 - (r.t - RUBBLE.rise - RUBBLE.hold) / RUBBLE.fall);
-      r.c.position.set(stage.sx(r.x), stage.sy(r.y));
+      r.c.position.set(stage.sx(cellXAt(r.ci, cellW)), stage.sy(cellYAt(r.ri, cellW)));
       for (let i = 0; i < r.c.children.length; i++) {
         const s = r.c.children[i];
         const a = (i / 5) * Math.PI * 2 + 0.9 + r.seed;
@@ -564,7 +603,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
 
   /** The cracks of a destroyed block, from the side its last bite came from. */
   function crack(v, cell) {
-    if (!book(0.1, 0.25)) return null;
+    if (!book(0.1 * bitK() ** 2, 0.25)) return null;
     const g = new Graphics();
     const turn = Math.atan2(v.biteY, v.biteX) - Math.atan2(-0.05, -0.1);
     const cos = Math.cos(turn);
@@ -655,8 +694,9 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     v.moteT -= dt;
     if (v.moteT > 0) return;
     v.moteT = BLOCK_MARKS.mote;
-    const s = BLOCK_MARKS.moteSize;
-    if (book(DOT.share * s * s, 0.9)) fx.particle(tx.softDot(), t.x + (Math.random() - 0.5) * 1.3, t.y + 0.2 + (Math.random() - 0.5) * 0.8, { vy: 0.7, vx: (Math.random() - 0.5) * 0.4, life: 0.9, size: s, grow: -0.05, color: POLLEN, drag: 0.5 });
+    const k = bitK();
+    const s = BLOCK_MARKS.moteSize * k;
+    if (book(DOT.share * s * s, 0.9)) fx.particle(tx.softDot(), t.x + (Math.random() - 0.5) * 1.3 * k, t.y + (0.2 + (Math.random() - 0.5) * 0.8) * k, { vy: 0.7 * k, vx: (Math.random() - 0.5) * 0.4 * k, life: 0.9, size: s, grow: -0.05 * k, color: POLLEN, drag: 0.5 });
   }
 
   function sync(run, dt) {
@@ -671,6 +711,15 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     }
     slideT = Math.min(1, slideT + dt / SLIDE);
     const e = ease(slideT);
+    // the grow moment: the board's cell eases from the old board's to the new one's; every tile keeps its
+    // column and row, so it is drawn on the eased cell, at the eased size (its view scaled by gs)
+    if (grow) {
+      grow.t += dt;
+      if (grow.t >= GROW.time) grow = null;
+    }
+    const gk = grow ? growEase(grow.t / GROW.time) : 1;
+    const cellW = grow ? BOARD_SPAN / grow.from + (BOARD_SPAN / grow.to - BOARD_SPAN / grow.from) * gk : GRID.cell;
+    const gs = cellW / GRID.cell;
     const rate = simRate.update(run.time ?? 0, dt);
     const simTime = run.time ?? time;
     // a den's altar is in the keep's stone: the chapter's skin
@@ -679,8 +728,8 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       skinKey = chapterKeyFor(chapter);
     }
     if (art && art.skin !== skinKey) art.setSkin?.(skinKey);
-    if (seatU !== U) {
-      seatU = U;
+    if (seatU !== cell) {
+      seatU = cell;
       const h = (PLAQUE.size / 2) * cell;
       seatCtx.clear().roundRect(-h, -h, 2 * h, 2 * h, PLAQUE.r * cell).fill({ color: INK });
     }
@@ -730,10 +779,14 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       }
       v.frame = frame;
 
-      // position: slide from the previous cell
-      const fx0 = cellX(t.fromCol);
-      const fy0 = cellY(t.fromRow);
-      v.c.position.set(stage.sx(fx0 + (t.x - fx0) * e), stage.sy(fy0 + (t.y - fy0) * e));
+      // position: slide from the previous cell (while the board grows, on its eased cell)
+      if (grow) v.c.position.set(stage.sx(cellXAt(t.fromCol + (t.col - t.fromCol) * e, cellW)), stage.sy(cellYAt(t.fromRow + (t.row - t.fromRow) * e, cellW)));
+      else {
+        const fx0 = cellX(t.fromCol);
+        const fy0 = cellY(t.fromRow);
+        v.c.position.set(stage.sx(fx0 + (t.x - fx0) * e), stage.sy(fy0 + (t.y - fy0) * e));
+      }
+      v.c.scale.set(gs);
       v.glow.position.copyFrom(v.c.position);
       v.aura.position.copyFrom(v.c.position);
 
@@ -764,7 +817,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       v.bump = Math.max(0, v.bump - dt * 10);
       v.nudge = Math.max(0, v.nudge - dt / PLAQUE.nudge.time);
       v.flip = Math.max(0, v.flip - dt / FLIP);
-      const target = t.id === selected || t.id === armed ? PLAQUE.lift : 0;
+      const target = t.id === selected || t.id === armed || t.id === marked ? PLAQUE.lift : 0;
       v.lift += (target - v.lift) * Math.min(1, dt * 16);
 
       // the plaque and all on it: seated, lifted when picked, dropping in when new, nudged by a
@@ -790,7 +843,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       v.p.rotation = t.id === armed ? wobbleAt(time, reduced) : 0;
 
       // its shadow, cast inside the pit: longer while the plaque is lifted (picked, or dropping in)
-      if (v.sticker) seatAt(v, v.lift + drop, cell, alpha);
+      if (v.sticker) seatAt(v, v.lift + drop, cell, alpha, gs);
 
       const tint = v.hurt > 0.02 ? mixColor(0xffffff, 0xff6a6a, v.hurt) : v.healed > 0.02 ? mixColor(0xffffff, 0x8dff9d, v.healed * TILE_GLOW.heal) : 0xffffff; // the heal's green stays below the flash threshold
       if (tint !== v.tint) {
@@ -814,10 +867,10 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
         if (v.den) denParts(v, t, cell, reduced, dt, sx, sy, simTime);
       } else {
         // the classic and pixel tiles: the 4-piece border, one piece per merge toward the next milestone
-        const msKey = `${t.tier}.${!!t.cls.element}.${!!t.cls.fusion}.${!!t.cls.pure}.${Math.round(U * 10)}`;
+        const msKey = `${t.tier}.${!!t.cls.element}.${!!t.cls.fusion}.${!!t.cls.pure}.${Math.round(cell * 10)}`;
         if (msKey !== v.msKey) {
           v.msKey = msKey;
-          drawMilestone(v.milestone, t.tier, t.cls, U);
+          drawMilestone(v.milestone, t.tier, t.cls, U, cell);
         }
       }
 
@@ -828,14 +881,14 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       // class glow: a soft dot in the class colour under the tile
       if (v.glowTint >= 0) {
         v.glow.visible = v.shown;
-        v.glow.width = v.glow.height = cell * v.glowBig * popS * (1 + 0.06 * Math.sin(time * 4 + t.id));
+        v.glow.width = v.glow.height = cell * gs * v.glowBig * popS * (1 + 0.06 * Math.sin(time * 4 + t.id));
         v.glow.alpha = v.glowA;
       } else v.glow.visible = false;
       // a pure form's aura: a soft ring round its pit in its element's colour, breathing slowly
       v.aura.visible = v.pure && v.shown;
       if (v.aura.visible) {
         const A = PLAQUE.aura;
-        v.aura.width = v.aura.height = 2 * (A.r + A.w / 2) * cell * popS;
+        v.aura.width = v.aura.height = 2 * (A.r + A.w / 2) * cell * gs * popS;
         v.aura.alpha = A.alpha * (reduced ? 0.85 : 0.7 + 0.3 * Math.sin(time * Math.PI * 2 * A.hz + t.id));
       }
 
@@ -873,8 +926,9 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       }
     }
 
-    updateRubble(dt, cell);
-    pickAt(cell, reduced);
+    updateRubble(dt, cell * gs, cellW);
+    pickAt(cell, reduced, gs);
+    highlightAt(dt, cell, reduced, gs);
   }
 
   /**
@@ -890,12 +944,12 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     v.wipeK = 1;
   }
 
-  /** The plaque's shadow in its pit, `lift` cells up (picked, dropping in, lifting out). */
-  function seatAt(v, lift, cell, alpha) {
+  /** The plaque's shadow in its pit, `lift` cells up (picked, dropping in, lifting out); `gs`: its view's scale while the board grows. */
+  function seatAt(v, lift, cell, alpha, gs = 1) {
     const sh = seatShadow(lift, shadow);
     v.seat.visible = alpha > 0;
-    v.seat.position.set(v.c.position.x + ((sh.x0 + sh.x1) / 2) * cell, v.c.position.y + ((sh.y0 + sh.y1) / 2) * cell);
-    v.seat.scale.set((sh.x1 - sh.x0) / PLAQUE.size, (sh.y1 - sh.y0) / PLAQUE.size);
+    v.seat.position.set(v.c.position.x + ((sh.x0 + sh.x1) / 2) * cell * gs, v.c.position.y + ((sh.y0 + sh.y1) / 2) * cell * gs);
+    v.seat.scale.set(((sh.x1 - sh.x0) / PLAQUE.size) * gs, ((sh.y1 - sh.y0) / PLAQUE.size) * gs);
     v.seat.alpha = sh.alpha * alpha;
   }
 
@@ -1102,11 +1156,12 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
   }
 
   /** The pick's brackets round the picked (or armed) block's pit; their gap breathes, still under Reduce motion. */
-  function pickAt(cell, reduced) {
+  function pickAt(cell, reduced, gs = 1) {
     const id = armed ?? selected;
     const v = id != null ? views.get(id) : null;
     pick.visible = !!v && v.shown;
     if (!pick.visible) return;
+    pick.scale.set(gs);
     const isArmed = id === armed;
     if (pickU !== cell || pickArmed !== isArmed) {
       pickU = cell;
@@ -1116,6 +1171,68 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     pick.position.copyFrom(v.c.position);
     const c = (PLAQUE.pit / 2 + bracketOffset(time, reduced)) * cell;
     for (let i = 0; i < 4; i++) corners[i].position.set(BRACKET_CORNERS[i][0] * c, BRACKET_CORNERS[i][1] * c);
+  }
+
+  /** What the highlight's outline and pointer light to 10% or more (world units²), booked for its fade-in. */
+  const highlightLit = () => HIGHLIGHT.lit * GRID.cell * GRID.cell;
+
+  /** The highlight's outline round the pit and its pointer, drawn once per cell size (px per cell). */
+  function drawHighlight(cell) {
+    const H = HIGHLIGHT;
+    const half = (PLAQUE.pit / 2 + H.gap) * cell;
+    const r = (PLAQUE.pitR + H.gap) * cell;
+    const w = Math.max(H.minPx.width, H.width * cell);
+    hlRing.clear().roundRect(-half, -half, 2 * half, 2 * half, r).stroke({ width: w + 2 * Math.max(1, H.ink * cell), color: INK, alpha: 0.85 }).roundRect(-half, -half, 2 * half, 2 * half, r).stroke({ width: w, color: GOLD });
+    // the pointer: a rounded gold wedge pointing down at the tile, its tip at the origin
+    const pw = Math.max(H.minPx.pointer, H.pointer.w * cell);
+    const ph = pw * (H.pointer.h / H.pointer.w);
+    const ink = Math.max(1.5, H.ink * cell);
+    hlPointer
+      .clear()
+      .moveTo(0, 0)
+      .lineTo(-pw / 2, -ph)
+      .quadraticCurveTo(0, -ph * 1.18, pw / 2, -ph)
+      .closePath()
+      .fill({ color: GOLD })
+      .stroke({ width: ink, color: INK, join: 'round' });
+  }
+
+  /**
+   * The keep card's highlight on its tile: it fades in (booking its outline and pointer first, whole or not
+   * at all: it waits for room) while the tile is on show, and out once the card closes; its outline's gap
+   * breathes and its pointer bobs, in position only (still under Reduce motion); a soft gold glow under it.
+   */
+  function highlightAt(dt, cell, reduced, gs) {
+    const H = HIGHLIGHT;
+    const v = marked != null ? views.get(marked) : null;
+    let want = !!v && v.shown;
+    if (want && lit.k === 0 && !lit.booked) {
+      lit.booked = book(highlightLit(), H.fade);
+      if (!lit.booked) want = false; // it waits for room in the light budget
+    }
+    lit.k = want ? Math.min(1, lit.k + dt / H.fade) : Math.max(0, lit.k - dt / H.fade);
+    if (lit.k === 0) lit.booked = false;
+    hl.visible = hlGlow.visible = lit.k > 0;
+    if (!hl.visible) return;
+    if (v) {
+      lit.x = v.c.position.x;
+      lit.y = v.c.position.y;
+    }
+    if (lit.cell !== cell) {
+      lit.cell = cell;
+      drawHighlight(cell);
+    }
+    const breathe = reduced ? 0 : Math.sin(time * Math.PI * 2 * H.hz);
+    const half = PLAQUE.pit / 2 + H.gap;
+    hl.position.set(lit.x, lit.y);
+    hl.scale.set(gs);
+    hl.alpha = lit.k;
+    hlRing.scale.set(1 + (H.breathe * (0.5 + 0.5 * breathe)) / half);
+    const bob = reduced ? 0 : H.pointer.bob * (0.5 + 0.5 * Math.sin(time * Math.PI * 2 * H.pointer.hz));
+    hlPointer.position.set(0, -(H.pointer.y + bob) * cell - Math.max(0, H.minPx.pointer * (H.pointer.h / H.pointer.w) - H.pointer.h * cell) * 0.5);
+    hlGlow.position.set(lit.x, lit.y);
+    hlGlow.width = hlGlow.height = H.glow * cell * gs * (1 + 0.04 * breathe);
+    hlGlow.alpha = H.glowA * lit.k;
   }
 
   /** A colour override: the loser's badge slides out of the collar slot and fades; the winner's bumps. */
@@ -1163,7 +1280,8 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
         const dy = e.target.y - e.y;
         const d = Math.hypot(dx, dy) || 1;
         // the muzzle spark takes from the light budget (many turrets fire at once)
-        if (fx.flashAll(BURST.spark * 0.36, 0.12)) fx.particle(tx.sparkTex(), e.x + (dx / d) * 0.75, e.y + (dy / d) * 0.75, { life: 0.12, size: 0.6, grow: -0.3, color: e.colors.at(-1) });
+        const k = bitK();
+        if (fx.flashAll(BURST.spark * (0.6 * k) ** 2, 0.12)) fx.particle(tx.sparkTex(), e.x + (dx / d) * 0.75 * k, e.y + (dy / d) * 0.75 * k, { life: 0.12, size: 0.6 * k, grow: -0.3 * k, color: e.colors.at(-1) });
       }
     } else if (e.type === 'remove') {
       // sold: the block lifts out of its pit in a puff of gold; destroyed: it cracks from the bite,
@@ -1208,7 +1326,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       // (main.js), from when the hatchling shows (a merged block: after the slide); a fusion made and a
       // pure form reached pop
       const v = views.get(e.tileId);
-      const shellsOk = e.stage === 1 && book(SHELL_LIT, SHELL_LIFE + 0.05, v ? 0 : SLIDE * 0.75);
+      const shellsOk = e.stage === 1 && book(SHELL_LIT * bitK() ** 2, SHELL_LIFE + 0.05, v ? 0 : SLIDE * 0.75);
       if (v) {
         v.pop = 1;
         if (e.stage === 1) {
@@ -1240,6 +1358,10 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       const v = views.get(e.tileId);
       if (v) setLoser(v, e.loser, reduced);
       else pending.set(e.tileId, { ...pending.get(e.tileId), loser: e.loser });
+    } else if (e.type === 'grow') {
+      // the board grew (in a break): every tile eases from its old place and size to its new one, on the
+      // keep's eased cell (src/render/frame.js does the same with the pits); under Reduce motion, at once
+      grow = !reduced && e.from > 0 && e.size > e.from ? { from: e.from, to: e.size, t: 0 } : null;
     }
   }
 
@@ -1253,6 +1375,11 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     lastMoves = -1;
     armed = null;
     pick.visible = false;
+    grow = null;
+    marked = null;
+    lit.k = 0;
+    lit.booked = false;
+    hl.visible = hlGlow.visible = false;
   }
 
   return {
@@ -1278,6 +1405,21 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       if (stage.reduced || !DIRS[dir]) return;
       nudgeDir = DIRS[dir];
       for (const v of views.values()) v.nudge = 1;
+    },
+    /**
+     * Highlight the tile the keep card is about (its id), or none (null): a gold outline round its pit and a
+     * small pointer over it, its plaque lifted (docs/v2/SPEC-v2.1.md section 6). It fades in and out.
+     */
+    highlight(id) {
+      marked = id ?? null;
+    },
+    /** The highlight as drawn (for tests and checks): its tile, whether it shows, its fade, where (px). */
+    get highlighted() {
+      return { id: marked, visible: hl.visible, k: lit.k, x: hl.position.x, y: hl.position.y, glow: hlGlow.visible ? hlGlow.alpha : 0, pointerY: hlPointer.position.y, ring: hlRing.scale.x };
+    },
+    /** Is the grow moment playing? */
+    get growing() {
+      return !!grow;
     },
     /** A tile's view (for tests and checks): its containers and motion state. */
     viewOf: (id) => views.get(id) ?? null,
