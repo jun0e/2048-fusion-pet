@@ -519,7 +519,7 @@ export const EN = {
   'fx.freeze': 'Freeze!',
   'fx.stun': 'Stun!',
   'fx.bloom': 'Bloom!',
-  'fx.snatch': 'Snatch!',
+  'fx.snap': 'Snap!',
   'fx.wall': 'Wall!',
   'fx.boom': 'Boom!',
 };

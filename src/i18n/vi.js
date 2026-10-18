@@ -517,7 +517,7 @@ export const VI = {
   'fx.freeze': 'Đóng băng!',
   'fx.stun': 'Choáng!',
   'fx.bloom': 'Nở hoa!',
-  'fx.snatch': 'Vồ!',
+  'fx.snap': 'Táp!',
   'fx.wall': 'Tường băng!',
   'fx.boom': 'Bùm!',
 };
