@@ -106,7 +106,9 @@ async function waitForFonts() {
   // every letter of the language's words as the sample: a font loads only the subsets its sample needs
   // (Vietnamese letters span two), and the canvas draws its words with what has loaded by then
   const say = letters();
-  await Promise.race([Promise.all([document.fonts.load('800 64px "Baloo 2"', say), document.fonts.load('700 16px "Nunito"', say)]), t]);
+  // a font that cannot load (blocked fonts, a flaky network) is no failure: the game draws with the fallback
+  const load = (font) => document.fonts.load(font, say).catch(() => {});
+  await Promise.race([Promise.all([load('800 64px "Baloo 2"'), load('700 16px "Nunito"')]), t]);
 }
 
 // The loading screen in index.html (#boot): a message while loading, hidden after the first frame.
@@ -268,7 +270,7 @@ async function start() {
   const hud = createHud(document.getElementById('hud'), {
     onRestart: () => restart(),
     onMenu: (page) => (page === 'main' && pause.menu === 'closed' ? openMenu() : pause.show(page)),
-    onSetting: (name) => {
+    onSetting: (name, { keyboard = false } = {}) => {
       if (name === 'lang') {
         // the next language: the player's choice (saved, or where storage is blocked, in the address);
         // the page reloads in it (every screen and table is built in the language as it loads), and
@@ -279,10 +281,16 @@ async function start() {
         const langs = Object.keys(LANGS);
         setLang(langs[(langs.indexOf(getLang()) + 1) % langs.length], true);
         saveNow();
-        markRelang(tutorial.step);
-        // the loading screen at once, in the new language: it answers the tap, and covers the row
+        markRelang({ step: tutorial.step, keyboard });
+        // the loading screen at once, in the new language: it answers the tap, and covers the row. A
+        // reload that is stopped (the browser's Stop) leaves it up: Try again then finishes the switch
         boot?.classList.remove('done');
         bootSay(tr('boot.loading'));
+        if (boot) {
+          boot.querySelector('.boot-retry').textContent = tr('boot.retry');
+          boot.querySelector('.boot-new').textContent = tr('boot.newRun');
+          setTimeout(() => boot.classList.add('slow'), 5000);
+        }
         location.reload();
         return;
       }
@@ -528,7 +536,10 @@ async function start() {
   // after a language switch, Settings again
   if (resumed && relang) {
     pause.show('settings');
-    hudEl.querySelector('[data-act="set-lang"]')?.focus({ preventScroll: true }); // the row the player was on
+    // a keyboard player is back on the row they were on; after a tap, no focus at all (the page has
+    // seen no input since it loaded, so a focused button would show its focus ring)
+    if (relang.keyboard) hudEl.querySelector('[data-act="set-lang"]')?.focus({ preventScroll: true });
+    else document.activeElement?.blur?.();
   } else if (resumed) {
     pauseTitle = tr('pause.welcome');
     openMenu();

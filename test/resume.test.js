@@ -106,11 +106,11 @@ test('a language switch: its flag lives for one reload, and carries the openingâ
   const store = new Map();
   const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
   assert.equal(takeRelang(storage), null, 'an ordinary reload: no flag');
-  markRelang('grow', storage);
-  assert.deepEqual(takeRelang(storage), { step: 'grow' });
+  markRelang({ step: 'grow' }, storage);
+  assert.deepEqual(takeRelang(storage), { step: 'grow', keyboard: false });
   assert.equal(takeRelang(storage), null, 'read once: the next reload is an ordinary one');
-  markRelang(null, storage);
-  assert.deepEqual(takeRelang(storage), { step: null }, 'after the opening: a switch, with no step');
+  markRelang({ step: null, keyboard: true }, storage);
+  assert.deepEqual(takeRelang(storage), { step: null, keyboard: true }, 'after the opening, from the keyboard: no step, and the focus comes back');
   storage.setItem(RELANG_KEY, '{broken');
   assert.equal(takeRelang(storage), null, 'a flag that does not parse is no switch');
   assert.equal(storage.getItem(RELANG_KEY), null, 'â€¦ and it is gone too');
@@ -127,7 +127,7 @@ test('a language switch: its flag lives for one reload, and carries the openingâ
       throw new Error('blocked');
     },
   };
-  assert.doesNotThrow(() => markRelang('grow', blocked));
+  assert.doesNotThrow(() => markRelang({ step: 'grow' }, blocked));
   assert.equal(takeRelang(blocked), null, 'blocked storage: no flag, and nothing throws');
 });
 

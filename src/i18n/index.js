@@ -68,8 +68,9 @@ function startup() {
   const hash = location.hash;
   const lang = startLang({ hash, saved, languages: navigator.languages?.length ? navigator.languages : [navigator.language] });
   // chosen while storage was blocked, and it works now: saved, and the address let go (it would
-  // outrank every later choice)
-  if (LANG_HASH.exec(hash)?.[1] === lang && save(lang)) address(null);
+  // outrank every later choice); a language the game does not have is let go at once
+  const named = LANG_HASH.exec(hash)?.[1];
+  if (named && (!known(named) || (named === lang && save(lang)))) address(null);
   return lang;
 }
 

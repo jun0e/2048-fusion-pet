@@ -330,7 +330,7 @@ export function describeStage(cls, stage, tier) {
   const el = (k) => ({ key: k, name: ELEMENTS[k].name, color: ELEMENTS[k].color });
   if (stage === 1) {
     const e = ELEMENTS[cls.element];
-    return { stage, parts: [{ name: String(2 ** tier), color: null }, el(cls.element)], name: e.attack, colors: [e.color], desc: e.desc, tags: TAGS[cls.element] };
+    return { stage, parts: [{ name: String(2 ** tier), color: null }, el(cls.element)], name: e.attack, colors: [e.color], tags: TAGS[cls.element] };
   }
   const fu = FUSIONS[fusionKey(cls.element, cls.fusion)];
   const fusion = fu.name;
@@ -340,7 +340,6 @@ export function describeStage(cls, stage, tier) {
       parts: [el(cls.element), el(cls.fusion)],
       name: fusion,
       colors: [fu.color],
-      desc: tr('card.fusion.desc', { tags: `${TAGS[cls.element]} + ${TAGS[cls.fusion]}` }),
       tags: `${TAGS[cls.element]} · ${TAGS[cls.fusion]}`,
     };
   }
@@ -350,7 +349,6 @@ export function describeStage(cls, stage, tier) {
     parts: [{ name: fusion, color: fu.color }, el(cls.ultimate)],
     name: apex.name,
     colors: [fu.color, ELEMENTS[cls.ultimate].color],
-    desc: apex.desc,
     tags: `${TAGS[cls.element]} · ${TAGS[cls.fusion]} · ${TAGS[cls.ultimate]}`,
   };
 }

@@ -138,14 +138,17 @@ function session() {
   }
 }
 
-/** Before a language switch's reload: `step` is the opening's step on screen (null when it is not guiding). */
-export function markRelang(step, storage = session()) {
+/**
+ * Before a language switch's reload: `step` is the opening's step on screen (null when it is not
+ * guiding); `keyboard`, whether the switch came from the keyboard (its focus comes back after).
+ */
+export function markRelang({ step = null, keyboard = false } = {}, storage = session()) {
   try {
-    storage?.setItem(RELANG_KEY, JSON.stringify({ step: step ?? null }));
+    storage?.setItem(RELANG_KEY, JSON.stringify({ step: step ?? null, keyboard: !!keyboard }));
   } catch {}
 }
 
-/** After a reload: { step } if the reload was a language switch, else null. Read once: the flag goes either way. */
+/** After a reload: { step, keyboard } if the reload was a language switch, else null. Read once: the flag goes either way. */
 export function takeRelang(storage = session()) {
   let raw = null;
   try {
@@ -154,7 +157,7 @@ export function takeRelang(storage = session()) {
   } catch {}
   try {
     const v = JSON.parse(raw || 'null');
-    return v && typeof v === 'object' && (v.step == null || typeof v.step === 'string') ? { step: v.step ?? null } : null;
+    return v && typeof v === 'object' && (v.step == null || typeof v.step === 'string') ? { step: v.step ?? null, keyboard: v.keyboard === true } : null;
   } catch {
     return null;
   }

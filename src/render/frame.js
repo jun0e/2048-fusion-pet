@@ -491,12 +491,6 @@ export function createFrame(stage, { fx = null } = {}) {
   const gateLayer = new Container();
   const fireLayer = new Container();
   layers.board.addChild(wallG, deckG, deckText, gateLayer, fireLayer);
-  // a font (a language's own letters) that arrives after the first frame: the deck text is drawn
-  // again with it (a canvas text is drawn once, with the fonts loaded then)
-  globalThis.document?.fonts?.addEventListener?.('loadingdone', () => {
-    deckText.text = '';
-    drawDeck(penFor(stage, stage.view, skin, chapter), deckG, deckText, deck);
-  });
 
   const gates = [];
   for (let lane = 0; lane < FIELD.lanes; lane++) {
@@ -524,6 +518,12 @@ export function createFrame(stage, { fx = null } = {}) {
   let resized = false; // the next buildChips follows a rebuild: old chips go at once
   let previewKey = '';
   let deck = { dice: 0, nextAt: null };
+  // a font (a language's own letters) that arrives after the first frame: the deck text is drawn
+  // again with it (a canvas text is drawn once, with the fonts loaded then)
+  globalThis.document?.fonts?.addEventListener?.('loadingdone', () => {
+    deckText.text = '';
+    drawDeck(penFor(stage, stage.view, skin, chapter), deckG, deckText, deck);
+  });
   let time = 0;
 
   // --- static build: once per resize or chapter ---

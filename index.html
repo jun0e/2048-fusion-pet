@@ -158,11 +158,14 @@
         location.reload();
       });
       setTimeout(() => document.querySelector('#boot:not(.done)')?.classList.add('slow'), 20000);
+    </script>
+    <script>
       // The loading screen's words, in the game's language before the game loads (the single file takes a
       // moment to parse). The tables are the source (src/i18n: boot.loading, boot.retry, boot.newRun), and
       // the language is picked as src/i18n/index.js picks it (startLang): the address (#lang-vi, chosen
       // while storage was blocked), the saved choice, the phone's first language the game has.
-      // test/i18n.test.js runs this script against both. After the wiring above, so nothing here can stop it.
+      // test/i18n.test.js runs this script against both. A script of its own, after the wiring above:
+      // nothing here, not even a syntax error, can stop Try again and New run.
       const BOOT_WORDS = {
         en: ['Loading…', 'Try again', 'New run'],
         vi: ['Đang tải…', 'Thử lại', 'Ván mới'],

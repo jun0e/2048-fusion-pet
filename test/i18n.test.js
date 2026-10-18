@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
+import { createContext, runInContext } from 'node:vm';
 import { EN } from '../src/i18n/en.js';
 import { VI } from '../src/i18n/vi.js';
 import { LANGS, LANG_NAMES, getLang, letters, num, ordinal, pickLang, setLang, startLang, tr } from '../src/i18n/index.js';
@@ -126,17 +126,17 @@ test('numbers as each language writes them', () => {
   setLang('en');
 });
 
-/** index.html's own script (the loading screen), run on a page that has `hash`, `saved` and `languages`. */
+/** index.html's own scripts (the loading screen), run in order on a page that has `hash`, `saved` and `languages`. */
 function bootScreen({ hash = '', saved = null, languages = [], blocked = false, page = {} }) {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
   const els = {};
   const el = (sel) => (els[sel] ??= { textContent: '', clicks: 0, addEventListener(type, fn) { this.clicks += type === 'click' ? 1 : 0; }, classList: { add() {} } });
   const refuse = () => {
     throw new Error('storage is blocked');
   };
   const doc = { documentElement: { lang: 'en' }, querySelector: el };
-  runInNewContext(script, {
+  const context = createContext({
     document: doc,
     location: { hash, reload() {} },
     localStorage: blocked ? { getItem: refuse, removeItem: refuse } : { getItem: (k) => (k === 'siege:lang' ? saved : null), removeItem() {} },
@@ -144,6 +144,11 @@ function bootScreen({ hash = '', saved = null, languages = [], blocked = false, 
     setTimeout: () => 0,
     ...page,
   });
+  for (const script of scripts) {
+    try {
+      runInContext(script, context);
+    } catch {} // as a browser does: a script that throws stops only itself
+  }
   return { lang: doc.documentElement.lang, words: ['.boot-msg', '.boot-retry', '.boot-new'].map((s) => el(s).textContent), wired: el('.boot-retry').clicks === 1 && el('.boot-new').clicks === 1 };
 }
 
@@ -157,8 +162,36 @@ test('the loading screen (index.html) says the tables’ words before the game l
   }
   // a browser the language pick trips on (no navigator here): Try again and New run still work
   const old = bootScreen({ page: { navigator: undefined } });
-  assert.ok(old.wired, 'the buttons are wired first');
+  assert.ok(old.wired, 'the buttons are wired first, in a script of their own');
   assert.deepEqual(old.words, ['', '', ''], 'and the page keeps its own words');
+});
+
+/** src/i18n/index.js loaded on a fake page: what it starts in, and what is left in the address and storage. */
+function loadOnPage({ hash = '', saved = null, languages = ['en-US'], blocked = false }) {
+  const url = new URL('../src/i18n/index.js', import.meta.url).href;
+  const page = `
+    const store = new Map(${JSON.stringify(saved == null ? [] : [['siege:lang', saved]])});
+    const blocked = ${blocked};
+    const refuse = () => { throw new Error('storage is blocked'); };
+    globalThis.localStorage = blocked ? { getItem: refuse, setItem: refuse } : { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) };
+    globalThis.window = globalThis;
+    globalThis.document = { documentElement: { setAttribute() {} } };
+    globalThis.location = { href: 'https://example.com/siege/?seed=7${hash}', hash: ${JSON.stringify(hash)} };
+    const entries = [];
+    globalThis.history = { state: null, replaceState(state, title, to) { entries.push(String(to)); } };
+    Object.defineProperty(globalThis, 'navigator', { value: { languages: ${JSON.stringify(languages)}, language: ${JSON.stringify(languages[0] ?? '')} }, configurable: true });
+    const m = await import(${JSON.stringify(url)});
+    process.stdout.write(JSON.stringify({ lang: m.getLang(), saved: blocked ? null : store.get('siege:lang') ?? null, address: entries }));`;
+  return JSON.parse(String(execFileSync(process.execPath, ['--input-type=module', '-e', page])));
+}
+
+test('a language chosen while storage was blocked: saved once storage works, and the address let go', () => {
+  assert.deepEqual(loadOnPage({ hash: '#lang-vi' }), { lang: 'vi', saved: 'vi', address: ['https://example.com/siege/?seed=7'] });
+  assert.deepEqual(loadOnPage({ hash: '#lang-vi', saved: 'en' }), { lang: 'vi', saved: 'vi', address: ['https://example.com/siege/?seed=7'] }, 'the address is the newer choice');
+  assert.deepEqual(loadOnPage({ hash: '#lang-vi', blocked: true }), { lang: 'vi', saved: null, address: [] }, 'still blocked: the address keeps it');
+  assert.deepEqual(loadOnPage({ hash: '#lang-xx', saved: 'vi' }), { lang: 'vi', saved: 'vi', address: ['https://example.com/siege/?seed=7'] }, 'a language the game does not have is let go');
+  assert.deepEqual(loadOnPage({ saved: 'vi' }), { lang: 'vi', saved: 'vi', address: [] }, 'no address: nothing to let go');
+  assert.deepEqual(loadOnPage({ languages: ['vi-VN'] }), { lang: 'vi', saved: null, address: [] }, 'the phone’s language is not saved as a choice');
 });
 
 test('a font sample: every letter the language’s words use', () => {

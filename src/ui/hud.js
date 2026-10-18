@@ -443,7 +443,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     if (act === 'again' || act === 'restart-yes') onRestart();
     const to = { pause: 'main', resume: 'closed', howto: 'help', restart: 'confirm', 'restart-no': 'main', settings: 'settings', 'settings-done': 'main' }[act];
     if (to) onMenu(to);
-    if (act.startsWith('set-')) onSetting(act.slice(4));
+    if (act.startsWith('set-')) onSetting(act.slice(4), { keyboard: e.detail === 0 }); // Enter or Space: no pointer
     if (act === 'share') onShare();
     if (act === 'speed') onSpeed();
     if (act === 'auto') {
