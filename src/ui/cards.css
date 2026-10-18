@@ -453,7 +453,7 @@
 }
 
 .choice-scrim.docked .choice-head {
-  margin: 0 3px 6px;
+  margin: 0 3px 5px;
 }
 
 .choice-scrim.docked .choice-head h2 {
@@ -470,15 +470,15 @@
   display: none;
 }
 
-/* both pets side by side, on a phone too */
+/* both pets side by side, on a phone too (each column no wider than its share: a long name ends in "…") */
 .keep-options {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .keep-card {
-  gap: 5px;
-  padding: 7px 6px 7px;
+  gap: 4px;
+  padding: 6px 6px 6px;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--c) 34%, var(--cream)) 0 30px, transparent 30px),
     var(--cream);
@@ -494,8 +494,8 @@
 
 .kc-pic {
   position: relative;
-  flex: 0 0 44px;
-  height: 44px;
+  flex: 0 0 40px;
+  height: 40px;
   border: 2px solid var(--ink);
   border-radius: 12px;
   background: var(--c);
@@ -555,11 +555,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 3px;
+  gap: 2px 3px;
 }
 
 .kc-buffs .stat-chip {
   padding-right: 4px;
+  line-height: 1.4;
 }
 
 .keep-card .v2-pick {
@@ -678,6 +679,34 @@
 /* its attack's strengths, under its name (the card is centred; the line reads centred too) */
 .result-card .traits {
   margin-top: 10px;
+}
+
+/* OK stays at the card's foot while a long skill scrolls under it */
+.result-card .rc-ok {
+  position: sticky;
+  bottom: 0;
+}
+
+/* a short phone: a smaller portrait, so the whole card fits (360 x 640) */
+@media (max-height: 700px) {
+  .result-card {
+    padding-top: 12px;
+  }
+  .rc-pic {
+    width: 72px;
+    height: 72px;
+    margin: 4px auto 4px;
+    border-radius: 20px;
+  }
+  .result-card h2.rc-pet {
+    font-size: 26px;
+  }
+  .result-card .traits {
+    margin-top: 6px;
+  }
+  .result-card .skill-tip {
+    margin: 8px 0 10px;
+  }
 }
 
 .reduce-motion .rc-pic,

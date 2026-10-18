@@ -200,7 +200,7 @@ test('every card reads in Vietnamese too, with every number filled in', () => {
     assert.ok(text(die).includes('Hệ mới!') && text(die).includes('Ghép vào pet dung hợp: [Tầng độc] +1'));
     const keep = choiceHtml(mockChoice('keep'), { img });
     wordsFilled(keep, 'keep (vi)');
-    assert.match(text(keep), /^Giữ một thú cưng Nó nhận các hệ của con kia: tăng cường màu vàng\./);
+    assert.match(text(keep), /^Giữ một thú cưng Nó nhận hệ của con kia: tăng cường màu vàng\./);
     const cls = fusionClass('fire', 'ice');
     const result = resultCardHtml(cls, { img, tier: 5, strengths: strengthsOf(traitsOf(cls, true, 5)) });
     wordsFilled(result, 'result (vi)');
