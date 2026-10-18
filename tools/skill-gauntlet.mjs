@@ -14,6 +14,8 @@ import { PHYSICS } from '../src/config.js';
 
 const HIT = 100;
 const SECONDS = 9.5; // out, 8 s of skill, home
+const SIEGE_SECONDS = 16; // the siege runs on after the pet is home: what it saved by then
+const SIEGE_CAST = 5; // … and the pet goes out when the first foes reach the blocks
 
 /**
  * The standard wave, at the ratio a 1024 fusion meets around wave 25: foes worth 1.5 to 4 of the pet's hits
@@ -42,15 +44,36 @@ function stage(key) {
   return { h, foes, blocks: [h.pet, ...blocks], spawnNext };
 }
 
-function measure(key) {
+/**
+ * The siege: tough foes (6 of the pet's hits each) that reach the blocks and bite hard, so a skill that
+ * holds them, shields or heals the blocks shows the health it saves.
+ */
+function siege(key) {
   const { h, foes, blocks, spawnNext } = stage(key);
+  for (const e of foes) {
+    e.hp = e.maxHp = e.boss ? 40 * HIT : 6 * HIT;
+    e.atk *= 2.5;
+  }
+  const next = () => {
+    spawnNext();
+    const e = foes.at(-1);
+    e.hp = e.maxHp = 6 * HIT;
+    e.atk *= 2.5;
+  };
+  return { h, foes, blocks, spawnNext: next };
+}
+
+function measure(key, scenario = stage) {
+  const { h, foes, blocks, spawnNext } = scenario(key);
   let ctl = 0;
   let slow = 0;
   let err = null;
   try {
-    if (key !== null) h.go();
-    const n = Math.round(SECONDS / PHYSICS.dt);
+    // a player summons when it counts: at once against the stream, in the siege when foes reach the blocks
+    const castAt = scenario === siege ? Math.round(SIEGE_CAST / PHYSICS.dt) : 0;
+    const n = Math.round((scenario === siege ? SIEGE_SECONDS : SECONDS) / PHYSICS.dt);
     for (let i = 0; i < n; i++) {
+      if (i === castAt && key !== null) h.go();
       if (i % Math.round(0.5 / PHYSICS.dt) === 0) spawnNext();
       h.run(PHYSICS.dt);
       for (const e of foes) {
@@ -70,20 +93,23 @@ function measure(key) {
 }
 
 const base = measure(null); // the wave with no skill: what the blocks lose anyway
+const baseSiege = measure(null, siege);
 const rows = Object.keys(FUSION_SKILLS).map((key) => {
   if (!SKILL_IMPL[key]) return { key, missing: true };
   const r = measure(key);
-  return { ...r, saved: r.blockHp - base.blockHp };
+  const sg = measure(key, siege);
+  return { ...r, saved: r.blockHp - base.blockHp, siege: sg.blockHp - baseSiege.blockHp, err: r.err ?? sg.err };
 });
 
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify({ base, rows }));
 } else {
-  const done = [{ ...base, key: '(no skill)', saved: 0 }, ...rows.filter((r) => !r.missing)].sort((a, b) => b.dmg - a.dmg);
+  const done = [{ ...base, key: '(no skill)', saved: 0, siege: 0 }, ...rows.filter((r) => !r.missing)].sort((a, b) => b.dmg - a.dmg);
   const pad = (v, n) => String(v).padStart(n);
   console.log(`${base.foes} foes (a boss of 25 hits, the rest 1.5 or 4 hits), ${SECONDS} s; no skill: the blocks keep ${base.blockHp} of 8000 health\n`);
-  console.log(`${'skill'.padEnd(18)} ${pad('dmg', 7)} ${pad('kills', 5)} ${pad('boss', 5)} ${pad('ctl', 6)} ${pad('slow', 6)} ${pad('saved', 6)} ${pad('fx', 4)}  err`);
-  for (const r of done) console.log(`${r.key.padEnd(18)} ${pad(r.dmg, 7)} ${pad(r.kills, 5)} ${pad(r.boss, 5)} ${pad(r.ctl, 6)} ${pad(r.slow, 6)} ${pad(r.saved, 6)} ${pad(r.fx, 4)}  ${r.err ?? ''}`);
+  console.log(`siege: foes of 6 hits that bite 2.5× as hard, ${SIEGE_SECONDS} s; no skill: the blocks keep ${baseSiege.blockHp}. 'siege' = block health a skill saves there.\n`);
+  console.log(`${'skill'.padEnd(18)} ${pad('dmg', 7)} ${pad('kills', 5)} ${pad('boss', 5)} ${pad('ctl', 6)} ${pad('slow', 6)} ${pad('saved', 6)} ${pad('siege', 6)} ${pad('fx', 4)}  err`);
+  for (const r of done) console.log(`${r.key.padEnd(18)} ${pad(r.dmg, 7)} ${pad(r.kills, 5)} ${pad(r.boss, 5)} ${pad(r.ctl, 6)} ${pad(r.slow, 6)} ${pad(r.saved, 6)} ${pad(r.siege, 6)} ${pad(r.fx, 4)}  ${r.err ?? ''}`);
   const missing = rows.filter((r) => r.missing).map((r) => r.key);
   if (missing.length) console.log(`\nnot written yet (${missing.length}): ${missing.join(', ')}`);
 }

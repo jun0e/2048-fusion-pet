@@ -13,38 +13,38 @@ import { V2 } from '../../config.js';
 
 export const FUSION_SKILLS = {
   // --- fire ---------------------------------------------------------------------------------
-  'fire+ice': { id: 'frostfireWaltz', periodS: 1, radiusCells: 2, freezeS: 1, hitPct: 1.5, shatterPct: 3 },
+  'fire+ice': { id: 'frostfireWaltz', periodS: 1, radiusCells: 1.3, freezeS: 0.5, hitPct: 0.7, shatterPct: 1.4 },
   'fire+lightning': { id: 'plasmaBarrage', periodS: 0.8, hitPct: 1.2, rampPct: 0.3, finalPct: 6, radiusCells: 2 },
-  'fire+poison': { id: 'brimstoneBlast', periodS: 2, stacks: 2, spitCells: 1.5, perStackPct: 0.5, splashCells: 1 },
-  'fire+earth': { id: 'magmaBurrow', periodS: 1.5, hitPct: 2.5, radiusCells: 1.2, stunS: 0.8, poolS: 3, poolCells: 1 },
-  'fire+wind': { id: 'fireTwister', pullCells: 1.5, dpsPct: 0.8, speedCells: 1.2 },
-  'fire+metal': { id: 'moltenJaws', periodS: 2, holdS: 1.5, hitPct: 3, vulnPct: 0.5, vulnS: 6 },
+  'fire+poison': { id: 'brimstoneBlast', periodS: 2, stacks: 2, spitCells: 1.5, perStackPct: 0.4, splashCells: 1 },
+  'fire+earth': { id: 'magmaBurrow', periodS: 1.8, hitPct: 1.2, radiusCells: 1.2, stunS: 0.6, poolS: 3, poolCells: 1 },
+  'fire+wind': { id: 'fireTwister', pullCells: 1.1, dpsPct: 0.35, speedCells: 1.2 },
+  'fire+metal': { id: 'moltenJaws', periodS: 1.5, holdS: 1.5, hitPct: 4, vulnPct: 0.5, vulnS: 6 },
   'fire+nature': { id: 'emberSwarm', count: 5, hitPct: 2, max: 12 },
   // --- ice ----------------------------------------------------------------------------------
   'ice+lightning': { id: 'cryoLance', periodS: 1.5, hitPct: 2, freezeS: 1 },
-  'ice+poison': { id: 'venomTendrils', count: 4, rangeCells: 4, slowPct: 0.6, drainPct: 0.03, bossDrainPct: 0.015 },
-  'ice+earth': { id: 'glacierWall', lanes: 2, wallS: 6, hitPct: 3, freezeS: 2, radiusCells: 1.5 },
+  'ice+poison': { id: 'venomTendrils', count: 6, rangeCells: 5, slowPct: 0.7, drainPct: 0.18, bossDrainPct: 0.04 },
+  'ice+earth': { id: 'glacierWall', lanes: 2, wallS: 7, hitPct: 4, freezeS: 2, radiusCells: 1.5 },
   'ice+wind': { id: 'whiteout', slowPct: 0.5, periodS: 2, freezeS: 1.5 },
-  'ice+metal': { id: 'rimeArmour', guardPct: 0.4, freezeS: 1, cooldownS: 3 },
-  'ice+nature': { id: 'frostGarden', count: 3, periodS: 2, max: 6, hitPct: 1.5, freezeS: 2, healPct: 0.05 },
+  'ice+metal': { id: 'rimeArmour', guardPct: 0.6, freezeS: 1.5, cooldownS: 2 },
+  'ice+nature': { id: 'frostGarden', count: 5, periodS: 1.5, max: 8, hitPct: 4, freezeS: 2.5, healPct: 0.05 },
   // --- lightning ----------------------------------------------------------------------------
-  'lightning+poison': { id: 'toxicCircuit', periodS: 1, spits: 2, hitPct: 1, stunS: 0.3 },
+  'lightning+poison': { id: 'toxicCircuit', periodS: 1, spits: 2, hitPct: 0.85, stunS: 0.3 },
   'lightning+earth': { id: 'thunderCharge', charges: 3, hitPct: 2.5, pushCells: 2, stunS: 1 },
-  'lightning+wind': { id: 'stormHop', periodS: 0.5, hitPct: 1.5, splashPct: 0.5, splashCells: 1 },
+  'lightning+wind': { id: 'stormHop', periodS: 0.5, hitPct: 2.4, splashPct: 0.5, splashCells: 1 },
   'lightning+metal': { id: 'railgun', chargeS: 2, shots: 3, hitPct: 12 },
-  'lightning+nature': { id: 'bloomAmbush', radiusCells: 2, hitPct: 5, jumps: 3, jumpPct: 0.6, cooldownS: 1.5 },
+  'lightning+nature': { id: 'bloomAmbush', radiusCells: 2.5, hitPct: 5, jumps: 3, jumpPct: 0.6, cooldownS: 1.2 },
   // --- poison -------------------------------------------------------------------------------
-  'poison+earth': { id: 'bogWeb', radiusCells: 1.5, slowPct: 0.7, spiders: 2, hitPct: 1 },
-  'poison+wind': { id: 'panicCloud', radiusCells: 2.5, fearS: 1.5, cooldownS: 4 },
-  'poison+metal': { id: 'executionerSting', periodS: 1, belowPct: 0.25, bossPct: 0.06, hitPct: 2 },
-  'poison+nature': { id: 'toxicLullaby', periodS: 3, radiusCells: 3, sleepS: 3, bossSleepS: 1, wakePct: 3 },
+  'poison+earth': { id: 'bogWeb', radiusCells: 1.5, slowPct: 0.5, spiders: 2, hitPct: 1 },
+  'poison+wind': { id: 'panicCloud', radiusCells: 2.2, fearS: 1, cooldownS: 4 },
+  'poison+metal': { id: 'executionerSting', periodS: 0.6, belowPct: 0.35, bossPct: 0.06, hitPct: 3 },
+  'poison+nature': { id: 'toxicLullaby', periodS: 3, radiusCells: 3, sleepS: 2.5, bossSleepS: 1, wakePct: 3 },
   // --- earth --------------------------------------------------------------------------------
   'earth+wind': { id: 'blindingSandstorm', lanes: 2, missPct: 0.6, slowPct: 0.3, dpsPct: 0.4 },
-  'earth+metal': { id: 'ironTaunt', radiusCells: 3, reflectPct: 1, hitPct: 3, stunS: 2 },
-  'earth+nature': { id: 'mossSpring', healPct: 0.03, rootS: 1.5, cooldownS: 3, savePct: 0.3 },
+  'earth+metal': { id: 'ironTaunt', radiusCells: 2, reflectPct: 0.4, hitPct: 3, stunS: 1.5 },
+  'earth+nature': { id: 'mossSpring', healPct: 0.14, rootS: 2.5, cooldownS: 3, savePct: 0.6 },
   // --- wind / metal -------------------------------------------------------------------------
   'wind+metal': { id: 'sickleSweep', periodS: 2, hitPct: 2.5, bleedPct: 0.3, bleedS: 4 },
-  'wind+nature': { id: 'pollenRain', ratePct: 0.6, sneezePct: 0.25, stunS: 0.5 },
+  'wind+nature': { id: 'pollenRain', ratePct: 1, sneezePct: 0.35, stunS: 0.5 },
   'metal+nature': { id: 'bumperHarvest', coinMult: 3, xp: 1, periodS: 2, hitPct: 2, pushCells: 1 },
 };
 
