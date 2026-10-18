@@ -624,12 +624,13 @@ async function start() {
     const t = run.tiles.find((x) => x.id === e.tileId);
     const pet = t?.cls?.fusion ? petName(t.cls.element, t.cls.fusion) : '';
     const b = buffBanner(e.gain ?? {}, pet);
-    hud.banner(b.title.trim(), b.sub, 'good');
+    hud.banner(b.title, b.sub, 'good');
     const first = Object.keys(e.gain ?? {})[0];
-    if (first && e.x != null) {
-      fx.ring(e.x, e.y, hex(ELEMENTS[first].color), 0.4, 2, 0.4);
-      const p = client(e.x, e.y + 1);
-      popup(p.x, p.y, b.title.slice(pet.length).trim() || b.title, 3, ELEMENTS[first].color);
+    const at = e.x != null ? e : t; // the block's place (the event's, else the block's own)
+    if (first && at) {
+      fx.ring(at.x, at.y, hex(ELEMENTS[first].color), 0.4, 2, 0.4);
+      const p = client(at.x, at.y + 1);
+      popup(p.x, p.y, b.gains, 3, ELEMENTS[first].color);
     }
     sfx.choose(1);
   }
@@ -768,10 +769,22 @@ async function start() {
         case 'buffed':
           showBuffed(e);
           break;
-        case 'summonEnd':
-          // the pet is home again (src/render/skillfx.js draws its hop)
-          fx.ring(e.x ?? 0, e.y ?? 0, 0xfffaf2, 0.3, 1.4, 0.3);
+        case 'petOut': {
+          // v2: a fusion's pet goes out to the front with its skill (docs/v2/SPEC.md section 5; the board
+          // draws its hop, its namecard plays the cut-in)
+          const t = run.tiles.find((x) => x.id === e.tileId);
+          const c = t?.cls?.fusion ? hex(FUSIONS[fusionKey(t.cls.element, t.cls.fusion)].color) : 0xffe27a;
+          fx.ring(e.x, e.y, c, 0.5, 2.6, 0.45);
+          sfx.choose(2);
+          haptics.play('merge');
           break;
+        }
+        case 'petHome': {
+          // the pet is home again: a soft ring on its tile (none when its tile left the board meanwhile)
+          const t = !e.gone && run.tiles.find((x) => x.id === e.tileId);
+          if (t) fx.ring(t.x, t.y, 0xfffaf2, 0.3, 1.4, 0.3);
+          break;
+        }
         case 'override': {
           // the sliding block's colour wins: show who took over
           const p = client(e.x, e.y + 1.6);
@@ -928,14 +941,7 @@ async function start() {
           fx.ring(e.x, e.y, 0x9dff9d, 0.3, e.radius * 2, 0.6);
           break;
         case 'summon':
-          if (e.tileId != null) {
-            // v2: a fusion's pet goes out to the front with its skill (its namecard plays the cut-in)
-            const t = run.tiles.find((x) => x.id === e.tileId);
-            const c = t?.cls?.fusion ? hex(FUSIONS[fusionKey(t.cls.element, t.cls.fusion)].color) : 0xffe27a;
-            fx.ring(e.x, e.y, c, 0.5, 2.6, 0.45);
-            sfx.choose(2);
-            haptics.play('merge');
-          } else fx.burst(e.x, e.y, [0xc04848, 0xffd36b], 20, { speed: 4, size: 0.24, life: 0.5, gravity: 0 }); // a foe's minions
+          fx.burst(e.x, e.y, [0xc04848, 0xffd36b], 20, { speed: 4, size: 0.24, life: 0.5, gravity: 0 }); // a foe splits into its minions
           break;
         case 'tileDown': {
           // remember what broke the block, for the game-over card's cause line

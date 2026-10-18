@@ -168,8 +168,9 @@ test('element stats, buffs and auras as words, from ELEMENT_STATS', () => {
 });
 
 test('the buff banner: the pet, what it gained, and what that gives', () => {
-  assert.deepEqual(buffBanner({ fire: 1 }, 'Novakit'), { title: 'Novakit +Fire', sub: '+20% damage' });
-  assert.deepEqual(buffBanner({ ice: 1, fire: 2 }, 'Mistmaw'), { title: 'Mistmaw +Fire ×2 +Ice', sub: '+40% damage, +10% slow' });
+  assert.deepEqual(buffBanner({ fire: 1 }, 'Novakit'), { title: 'Novakit +Fire', sub: '+20% damage', gains: '+Fire' });
+  assert.deepEqual(buffBanner({ ice: 1, fire: 2 }, 'Mistmaw'), { title: 'Mistmaw +Fire ×2 +Ice', sub: '+40% damage, +10% slow', gains: '+Fire ×2 +Ice' });
+  assert.equal(buffBanner({ earth: 1 }, '').title, '+Earth', 'no pet name (its block gone): the gain alone');
 });
 
 test('effect lines cover every component a profile can carry, v2 stats too', () => {
