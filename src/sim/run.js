@@ -463,6 +463,21 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     events.push({ type: 'waveStart', wave: s.waveNo, boss: wave.boss, chapter: wave.chapter.name, count: wave.count, lanes: wave.lanes });
   }
 
+  /**
+   * Overtime (from V2_1.ramp.steepAt): a wave whose foes hold out V2_1.overtimeS seconds after its last one
+   * came does not hold back the next: it comes at once, with no break, no clear bonus and no refill, and the
+   * foes still out stay. So no run outlasts the ramp in a stalemate.
+   */
+  function overtimeWave() {
+    events.push({ type: 'overtime', wave: s.waveNo });
+    s.waveNo += 1;
+    tallyMix();
+    wave = waveFor(s.waveNo);
+    s.waveT = 0;
+    s.spawnIdx = 0;
+    events.push({ type: 'waveStart', wave: s.waveNo, boss: wave.boss, chapter: wave.chapter.name, count: wave.count, lanes: wave.lanes, overtime: true });
+  }
+
   function clearWave() {
     const bonus = waveBonusFor(s.waveNo);
     events.push({ type: 'waveClear', wave: s.waveNo, bonus });
@@ -530,7 +545,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       // Metal marks foes: a marked foe drops bonus coins (and the Coin Purse adds its share); a skill can
       // multiply a kill's coins and add spawn XP (Bumper Harvest: coinMult, xp)
       // v2.1: a wave's kills pay about what v2's did, shared by its bigger count (wave.coinScale)
-      addCoins(Math.round(killCoinsFor(s.waveNo, e.boss) * (wave.coinScale ?? 1) * (1 + (e.loot ?? 0)) * (1 + (ks?.killPct ?? 0)) * (e.coinMult ?? 1)), 'kill', e.x, e.y);
+      addCoins(Math.round(killCoinsFor(s.waveNo, e.boss) * (e.boss ? 1 : (wave.coinScale ?? 1)) * (1 + (e.loot ?? 0)) * (1 + (ks?.killPct ?? 0)) * (e.coinMult ?? 1)), 'kill', e.x, e.y);
       gainXp((e.boss ? LEVELS.xp.boss : LEVELS.xp.kill) + (e.xp ?? 0), 'kill'); // v2.1: kills are the road's main XP
       if (e.boss) {
         // boss reward: x2s for the other blocks, as many as the biggest block's power of two (boss-reward.js).
@@ -610,6 +625,11 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
         // the ramp's steep part grows by the minute, so it is set as each foe comes (not when the wave was made)
         const steep = steepMult(s.time / 60);
         defense.spawn(sp.type, { lane: sp.lane, hpScale: wave.hpScale * steep, atkScale: SIEGE.attackGrowth ** (s.waveNo - 1) * steep ** V2_1.ramp.biteExp, resist: sp.resist });
+      }
+      // overtime (from steepAt): a wave that holds out does not hold back the next
+      if (s.time / 60 >= V2_1.ramp.steepAt) {
+        const last = wave.spawns.at(-1)?.t ?? 0;
+        if (s.spawnIdx >= wave.spawns.length && s.waveT >= last + V2_1.overtimeS && defense.aliveCount > 0) overtimeWave();
       }
       // regen (nature buffs and auras): blocks heal a share of their max health per second while the wave runs
       for (const t of grid.tiles) {

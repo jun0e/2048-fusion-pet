@@ -198,6 +198,9 @@ export const V2_1 = {
   // the run's own ratio then (at least needMin) and × needGrowth each minute
   // tools/v21-probe.mjs, 96 bot games: 4% dead by 8 min, the median at about 9.5, the longest about 10.6
   ramp: { steepAt: 8, dpsAt: 10, steepK: 2, needGrowth: 4, needMin: 10, biteExp: 0.5 }, // bites grow with the steep part ^ biteExp
+  // from steepAt no wave holds out: once a wave's last foe has been out overtimeS seconds, the next wave
+  // comes at once (no break, no refill), so a stalemate cannot outlast the ramp
+  overtimeS: 60, // tools/v21-probe.mjs: the longest of 96 bot runs 10.7 min, all over by 12 (a stalemate ran to 20 without it)
 };
 
 // Random Dice-style economy: kills drop coins, every swipe costs coins (and

@@ -13,7 +13,11 @@ test('waves keep growing in count (no cap), more on a bigger board, and a kill p
   const big = generateWave(30, createRng(5), { lanes: 6, countMult: 1.5 });
   assert.ok(big.count > small.count);
   assert.ok(big.spawns.every((s) => s.lane < 6) && big.lanes.length === 6, 'all six lanes by wave 30');
-  assert.ok(Math.abs(big.coinScale * (big.count - (big.boss ? 1 : 0)) - v2CountFor(30) * (big.boss ? 0.6 : 1)) < 1.5, 'the wave pays about v2’s coins');
+  // its regular foes pay about v2's, shared by their bigger count (wave 30 is a boss wave: the boss pays its own)
+  assert.ok(big.boss);
+  assert.ok(Math.abs(big.coinScale * (big.count - 1) - Math.round(v2CountFor(30) * 0.6)) < 0.01, 'the regular foes pay about v2’s coins');
+  const plainWave = generateWave(31, createRng(5), { lanes: 6, countMult: 1.5 });
+  assert.ok(!plainWave.boss && Math.abs(plainWave.coinScale * plainWave.count - v2CountFor(31)) < 0.01);
 });
 
 test('resistances: none before wave 10, then a growing share against the top element (and the second from 20)', () => {
@@ -66,4 +70,26 @@ test('the ramp: steep from 8 minutes, matching the board’s damage from 10, sai
   ]);
   assert.equal(r.ramp.phase, 'dps');
   assert.ok(r.dps > 0, 'the board’s firepower');
+});
+
+test('overtime: from 8 minutes, a wave that holds out does not hold back the next (no stalemate outlasts the ramp)', () => {
+  const r = createRun({ seed: 2, empty: true, levels: false });
+  r.spawnDebug(9, 0, 0);
+  // the board holds until 8 minutes, then its foes can neither die nor bite
+  for (let i = 0; i < (8 * 60) / PHYSICS.dt; i++) {
+    for (const e of r.enemies) if (!e.dead) r.defense.damage(e, 1e12, ['fire']);
+    r.step();
+  }
+  r.drainEvents();
+  const wave = r.waveNo;
+  const seen = [];
+  for (let i = 0; i < (3 * 60) / PHYSICS.dt; i++) {
+    for (const e of r.enemies) if (!e.dead) Object.assign(e, { hp: 1e15, maxHp: 1e15, atk: 0 });
+    r.step();
+    for (const e of r.drainEvents()) if (e.type === 'overtime' || (e.type === 'waveStart' && e.overtime)) seen.push(e.type);
+  }
+  assert.ok(r.waveNo > wave, `the next waves came anyway (wave ${wave} → ${r.waveNo})`);
+  assert.equal(r.phase, 'wave', 'no break between them');
+  assert.ok(seen.includes('overtime') && seen.includes('waveStart'));
+  assert.ok(r.enemies.filter((e) => !e.dead).length > 0, 'the foes still out stay');
 });

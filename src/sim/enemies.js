@@ -113,7 +113,7 @@ export function resistShares(wave) {
  * Options (v2.1, the run gives them): `lanes` the field's lanes now (the board's size), `countMult` more
  * foes on a bigger board, `hpMult` the ramp's extra toughness, `resist` { top, second } the elements the
  * player deals the most damage with (null: none yet). A wave's coins stay about v2's: `coinScale` is what
- * each kill pays of v2's kill coins.
+ * each regular foe's kill pays of v2's kill coins (a boss pays its own, unscaled).
  */
 export function generateWave(wave, rng, { lanes: laneTotal = FIELD.lanes, countMult = 1, hpMult = 1, resist = null } = {}) {
   const chapter = chapterFor(wave);
@@ -159,6 +159,7 @@ export function generateWave(wave, rng, { lanes: laneTotal = FIELD.lanes, countM
       sp.resist = Object.keys(res).length ? res : null;
     }
   }
-  const coinScale = Math.min(1, (boss ? Math.round(v2Count * 0.6) : v2Count) / Math.max(1, count - (boss ? 1 : 0)));
+  // what each regular foe's kill pays of v2's (a boss is one boss, as in v2: its coins are its own)
+  const coinScale = Math.min(1, (boss ? Math.round(v2Count * 0.6) : v2Count) / Math.max(1, count));
   return { wave, day: wave, chapter, hpScale, lanes, boss, bossLane, spawns, count: spawns.length, coinScale };
 }

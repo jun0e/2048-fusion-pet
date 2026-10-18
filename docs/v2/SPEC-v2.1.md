@@ -113,6 +113,11 @@ What the user asked for (2026-10-19):
   of the board's whole firepower, `dps`, to clear; `needS` rises every minute, so nobody lasts past about
   12:00). Events `{ type: 'ramp', phase }` when a phase starts (the HUD says so). The minutes live in
   `V2_1.ramp` (src/config.js); views never hard-code them.
+- **Overtime.** From 8:00, a wave whose foes hold out `V2_1.overtimeS` (60) seconds after its last foe came
+  does not hold back the next one: `{ type: 'overtime', wave }`, then the next wave's `waveStart` with
+  `overtime: true` (no break, no clear bonus, no refill; the foes still out stay). No stalemate outlasts
+  the ramp: in 288 bot runs the longest lasted 10.7 minutes.
+- **Coins.** A wave's regular foes share about v2's kill coins (`wave.coinScale`); a boss pays its own.
 
 ## 6. Screens
 
