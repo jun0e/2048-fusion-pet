@@ -2,9 +2,10 @@
 // the real game. ?style=sticker|pixel|classic picks the map style (the namecard
 // portraits stay soft-vinyl 3D in every style); ?embed hides the switcher (the
 // side-by-side compare page uses it).
-//   - Board: every element at a different growth stage, eggs, and dens
-//   - Field: three fusions and one legendary roam and fight from where they stand
-//   - Side strip: namecards with portraits; tap a ready card to cast its skill
+//   - Board (v2, docs/v2/SPEC.md section 1): plain stone blocks, elemental eggs and a fusion
+//     egg, single pets at each growth stage, fusion pets (fed a few singles), and two pure forms
+//   - Field: a fusion pet from 1024 hops out to the front when its skill is cast, and back
+//   - Side strip: namecards with portraits; tap a ready card to summon its pet
 import './kv.css';
 import { PixelateFilter } from 'pixi-filters';
 import { ELEMENT_KEYS } from '../sim/classes.js';
@@ -18,24 +19,28 @@ const STYLES = [
   ['classic', 'Classic'],
 ];
 
-/** The showcase board (row 0 is the bottom row). */
-const PRESET = [
+/**
+ * The showcase board (row 0 is the bottom row), in v2's class model: one single (egg or pet) per
+ * element, fusion pets anywhere from 16, summons from 1024, pure forms at 4096.
+ */
+export const PRESET = [
   // [tier, col, row, cls]
   [1, 0, 3, {}],
-  [4, 1, 3, { element: 'fire' }],
-  [5, 2, 3, { element: 'ice' }],
-  [6, 0, 2, { element: 'lightning' }],
-  [7, 1, 2, { element: 'nature' }],
-  [4, 2, 2, { element: 'poison' }],
-  [3, 3, 2, {}],
-  [5, 0, 1, { element: 'earth' }],
-  [8, 1, 1, { element: 'fire', fusion: 'ice' }],
-  [6, 2, 1, { element: 'wind' }],
-  [2, 3, 1, {}],
-  [12, 0, 0, { element: 'lightning', fusion: 'metal', ultimate: 'ice' }],
-  [9, 1, 0, { element: 'fire', fusion: 'lightning' }],
-  [10, 2, 0, { element: 'earth', fusion: 'nature' }],
-  [4, 3, 0, { element: 'metal' }],
+  [2, 1, 3, { element: 'fire' }],
+  [3, 2, 3, { element: 'ice', fusion: 'lightning', buffs: {} }],
+  [6, 3, 3, {}],
+  [4, 0, 2, { element: 'nature' }],
+  [5, 1, 2, { element: 'poison' }],
+  [6, 2, 2, { element: 'wind' }],
+  [7, 3, 2, { element: 'earth' }],
+  [5, 0, 1, { element: 'fire', fusion: 'ice', buffs: {} }],
+  [8, 1, 1, { element: 'metal', fusion: 'nature', buffs: { fire: 1 } }],
+  [10, 2, 1, { element: 'lightning', fusion: 'metal', buffs: {} }],
+  [11, 3, 1, { element: 'earth', fusion: 'wind', buffs: { ice: 2 } }],
+  [12, 0, 0, { element: 'ice', pure: true }],
+  [10, 1, 0, { element: 'fire', fusion: 'earth', buffs: {} }],
+  [12, 2, 0, { element: 'poison', fusion: 'nature', buffs: { wind: 1 }, pure: true }],
+  [9, 3, 0, { element: 'metal' }],
 ];
 
 export function setupKv({ stage, fx, blocks, art, hudEl, getRun, params }) {
@@ -90,7 +95,7 @@ export function setupKv({ stage, fx, blocks, art, hudEl, getRun, params }) {
     preset(run) {
       for (const [tier, col, row, cls] of PRESET) {
         const t = run.spawnDebug(tier, col, row);
-        t.cls = { ...cls };
+        t.cls = { ...cls, ...(cls.buffs && { buffs: { ...cls.buffs } }) };
         t.prof = null;
       }
       run.addCoins(999);
