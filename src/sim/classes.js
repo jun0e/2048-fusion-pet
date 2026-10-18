@@ -509,7 +509,12 @@ function applyStats(p, st) {
   if (st.regen) p.regen = st.regen;
 }
 
-const tally = (o) => (o ? ELEMENT_KEYS.filter((e) => o[e]).map((e) => `${e}${o[e]}`).join(',') : '');
+/** { element: n } as a short cache-key string (key order only costs a cache miss, never a wrong profile). */
+function tally(o) {
+  let s = '';
+  if (o) for (const k in o) if (o[k]) s += k + o[k];
+  return s;
+}
 
 /**
  * Attack profile of a block (docs/v2/SPEC.md section 4), cached on it until its tier, class (buffs,

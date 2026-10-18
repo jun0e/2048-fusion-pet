@@ -7,6 +7,8 @@
 // fusion pet whose skill is ready, and presses Wave now once it is out of coins (or
 // the board is locked) during a break.
 
+import { profileFor } from './sim/classes.js';
+
 const N = 4;
 const SWIPE_GAP = 0.42; // seconds between swipes
 const PICK_DELAY = 0.9; // seconds to "read" a new-die card
@@ -90,7 +92,7 @@ export function bestDir(run) {
 /** Summon every fusion pet whose skill is ready (run.skillReady); returns how many went out. */
 export function autoCast(run) {
   let n = 0;
-  for (const t of run.tiles) if (run.skillReady(t.id) && run.castSkill(t.id)) n += 1;
+  for (const t of run.tiles) if (profileFor(t).summon && !t.summon && run.skillReady(t.id) && run.castSkill(t.id)) n += 1;
   return n;
 }
 

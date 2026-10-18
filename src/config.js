@@ -176,20 +176,22 @@ export const ECONOMY = {
 // seen to work before the siege gets real.
 export const GUIDED_WAVE = { count: 4 };
 
-// Dice: every new block spawns in the colour (element) of a random die from the
-// deck. When blocks merge, the one that slides in sets the colour. You start
-// with 2 dice and add one more the first time your top block reaches each tier below.
+// Dice: the elements in the player's deck. You start with 2; spawn levels add more (V2.unlockLevels).
 export const DICE = {
   start: 2,
-  unlockTiers: [6, 8, 9], // 64, 256, 512 (the projection puts them around waves 4, 10 and 15)
+  // retired in v2 (new elements come from spawn levels): the run no longer reads it; kept only while
+  // src/art/frame-kit.js nextDieAt still does
+  unlockTiers: [6, 8, 9],
 };
 
 // v2 (docs/v2/SPEC.md): elemental eggs, one single pet per element, fusions by merging two single pets,
 // element buffs fed into fusions, a summon skill at 1024, a pure form at 4096, element unlocks by level.
 export const V2 = {
   // a new block is an elemental egg this often, when the deck has an element with no single egg or pet
-  // on the board (one single per element at a time; fusions do not count)
-  eggChance: 0.22,
+  // on the board (one single per element at a time; fusions do not count). The run's main power knob:
+  // tools/v2-probe.mjs (96 bot games, before summons do anything) puts the median final wave at 11 / 23 /
+  // 25 / 26 / 30 / 40 for 0 / 0.08 / 0.1 / 0.12 / 0.22 / 0.35; v1's was 24
+  eggChance: 0.1,
   summonTier: 10, // 1024: a fusion's summon skill unlocks (its namecard)
   pureTier: 12, // 4096: a pet becomes the pure form of its main element (an aura for every other pet)
   // the summon: charges over this much wave time (only while foes are on the field), then the pet is out
