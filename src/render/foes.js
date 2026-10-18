@@ -6,12 +6,18 @@
 // (a Zzz over it; it stands still), afraid (a "!!"; it shivers as it runs back), taunted (an anger
 // mark), blinded (a slashed eye), bleeding (drops fall from it), vulnerable (a target turning under
 // its feet). Reduce motion: the marks hold still.
+// v2.1 (docs/v2/SPEC-v2.1.md sections 1 and 5): a foe is drawn at its lane's fit (foe-roster
+// foeDrawSize), its bar and a crowd's fan follow the lane, and a foe that resists an element
+// (e.resist) wears a small shield in that element's colour by its health bar, which blinks when a
+// resisted hit lands (the `resisted` event; at most RESIST.perSecond blinks a second overall).
 import { BitmapText, Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { DOT, FOE_FLASH, FOE_PATCH } from '../ux/photosafe.js';
+import { DOT, FOE_FLASH, FOE_PATCH, spriteLit } from '../ux/photosafe.js';
 import { FOE_ROSTER, FOE_SIZE_FLOOR, foeDrawSize } from '../art/foe-roster.js';
-import { FRAME_GEOM } from '../art/frame-kit.js';
-import { enemyTex, shadowTex, shieldTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
+import { FRAME_GEOM, laneFit } from '../art/frame-kit.js';
+import { enemyTex, resistTex, shadowTex, shieldTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
 import { bossResistLevel } from '../sim/defense.js';
+import { ELEMENTS } from '../sim/classes.js';
+import { DESIGN_CELL, GRID } from '../config.js';
 import { num } from '../i18n/index.js';
 
 const STATUS_ORDER = ['freeze', 'burn', 'poison', 'chill', 'loot'];
@@ -36,7 +42,7 @@ export function statusMarks(e) {
 /** Its body's tint for them (after frozen and stunned, which read first): dreamy when asleep, pale violet when afraid, dusty when blind. */
 export const markTint = (m) => (m.head === 'sleep' ? 0xc9d2f2 : m.head === 'fear' ? 0xead8ff : m.blind ? 0xd8ccb8 : null);
 const GEN_FILL = 1; // a trimmed generated foe fills its box (the overhaul's sizes: 37–54 px, bosses 86–95)
-const MOTION_SIZE = foeDrawSize({ size: FOE_SIZE_FLOOR }); // world units: the size the lifts and drifts below are set for; a bigger foe moves in proportion
+const MOTION_SIZE = FOE_SIZE_FLOOR * 2.5; // world units: the size the lifts and drifts below are set for (the 4×4 board's floor foe); a bigger foe moves in proportion
 const SETTLE = 8; // 1/s: how fast the motion eases in and out, so a freeze or a thaw settles instead of snapping
 /** The most each way of moving lifts a foe at MOTION_SIZE (world units): a hover or float with its bob on top, a swim, a walker's bob. */
 const LIFT_AT = { hover: 0.46, float: 0.4, swim: 0.3, crawl: 0, walk: 0.12 };
@@ -100,7 +106,8 @@ export const FAN = { spot: 0.35, spread: 0.35, rate: 8, lane: 1.8 };
  * drawn on one spot, "8 left" showed about 4. → Map(id → { dx: world units sideways, i, k: its place
  * and the crowd's size, cx: the crowd's centre x })
  */
-export function fanLayout(foes) {
+export function fanLayout(foes, fit = laneFit()) {
+  const spread = FAN.spread * fit; // narrower lanes, a narrower fan
   const parent = foes.map((_, i) => i);
   const root = (i) => (parent[i] === i ? i : (parent[i] = root(parent[i])));
   for (let i = 0; i < foes.length; i++)
@@ -117,7 +124,7 @@ export function fanLayout(foes) {
     crowd.sort((a, b) => a.x - b.x || a.id - b.id);
     const k = crowd.length;
     const cx = crowd.reduce((sum, f) => sum + f.x, 0) / k;
-    crowd.forEach((f, i) => out.set(f.id, { dx: k > 1 ? -FAN.spread + (2 * FAN.spread * i) / (k - 1) : 0, i, k, cx }));
+    crowd.forEach((f, i) => out.set(f.id, { dx: k > 1 ? -spread + (2 * spread * i) / (k - 1) : 0, i, k, cx }));
   }
   return out;
 }
@@ -135,6 +142,38 @@ export function barSlot(i, k, barW, span) {
   const gap = span * 0.028;
   const w = Math.min(barW, (span - gap * (k - 1)) / k);
   return { x: (i - (k - 1) / 2) * (w + gap), w };
+}
+
+/**
+ * A foe's resistance marks (in U unless named): at most `max` shields, `size` tall (never under `minPx`
+ * CSS px), at its health bar's left end, `gap` apart. A resisted hit blinks its shield: it pops to `pop`×
+ * over `blink` s (booked, whole or not at all) with a ring of its colour (fx.ring books its own), at most
+ * `perSecond` blinks a second over the whole field (a resisted volley would blink every frame).
+ */
+export const RESIST = { max: 2, size: 0.36, minPx: 13, gap: 0.04, pop: 1.4, blink: 0.3, perSecond: 4 };
+
+/** The elements a foe resists (e.resist: { [element]: share }), the strongest first, RESIST.max at most. */
+export function resistMarks(e) {
+  const r = e?.resist;
+  if (!r || typeof r !== 'object') return [];
+  return Object.entries(r)
+    .filter(([el, share]) => ELEMENTS[el] && share > 0)
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .slice(0, RESIST.max)
+    .map(([el]) => el);
+}
+
+/** The blinks' gate: take(now) → true while fewer than `perSecond` blinks started in the last second (real time). */
+export function createBlinkGate(perSecond = RESIST.perSecond) {
+  const starts = [];
+  return {
+    take(now) {
+      while (starts.length && now - starts[0] >= 1) starts.shift();
+      if (starts.length >= perSecond) return false;
+      starts.push(now);
+      return true;
+    },
+  };
 }
 
 const whites = new WeakMap(); // texture → its white silhouette (or null when it cannot be read back)
@@ -170,9 +209,14 @@ function whiteOf(tex) {
   return out;
 }
 
-export function createFoes(stage, fx) {
+/** The textures the foes draw with (tests pass stand-ins: Node has no canvas). */
+const FOE_TEXTURES = { enemyTex, resistTex, shadowTex, shieldTex, softDot, statusTex, hasGenerated };
+
+export function createFoes(stage, fx, { tx = FOE_TEXTURES } = {}) {
+  const { enemyTex, resistTex, shadowTex, shieldTex, softDot, statusTex, hasGenerated } = tx;
   const layer = stage.layers.enemies;
   const views = new Map();
+  const blinks = createBlinkGate();
   let time = 0;
 
   function make(e) {
@@ -216,7 +260,13 @@ export function createFoes(stage, fx) {
     more.anchor.set(0, 0.5);
     more.visible = false;
     badges.addChild(shield, more);
-    c.addChild(shadow, patch, body, flash, ice, barBg, barFg, hpText, badges);
+    const resists = Array.from({ length: RESIST.max }, () => {
+      const s = new Sprite(Texture.EMPTY); // a resistance shield, by the bar's left end
+      s.anchor.set(0.5);
+      s.visible = false;
+      return s;
+    });
+    c.addChild(shadow, patch, body, flash, ice, barBg, barFg, ...resists, hpText, badges);
     layer.addChild(c);
     const r = FOE_ROSTER[e.type];
     return {
@@ -232,6 +282,9 @@ export function createFoes(stage, fx) {
       seed: Math.random() * 10, dotT: 0, emitT: 0, seenBurn: e.dot.burn, seenPoison: e.dot.poison,
       mk: null, // its v2 status marks, made when it first has one (makeMarks)
       mkU: 0,
+      resists, // its resistance shields (v2.1), and the elements they show
+      resistEls: [],
+      blink: null, // a resisted hit's blink: { el, t }
     };
   }
 
@@ -359,6 +412,54 @@ export function createFoes(stage, fx) {
     if (m.blind) {
       mk.eye.position.set(-size * U * 0.26, -size * U * 0.42 - lift);
       mk.eye.scale.set(FOE_MARK.eye);
+    }
+  }
+
+  /**
+   * A foe's resistance shields (resistMarks): in their elements' colours at its bar's left end, the
+   * strongest nearest the bar; one blinks (pops) for RESIST.blink s after a resisted hit of its element.
+   */
+  function resistsAt(v, e, barY, U, dt) {
+    const els = resistMarks(e);
+    if (els.join() !== v.resistEls.join()) {
+      v.resistEls = els;
+      els.forEach((el, i) => (v.resists[i].texture = resistTex(el)));
+    }
+    const h = Math.max(RESIST.size * U, RESIST.minPx);
+    let x = v.barX - v.barW / 2 + h * 0.2; // over the bar's left end: it reads as the bar's
+    if (v.blink) {
+      v.blink.t += dt;
+      if (v.blink.t >= RESIST.blink || !els.includes(v.blink.el)) v.blink = null;
+    }
+    v.resists.forEach((s, i) => {
+      s.visible = i < els.length;
+      if (!s.visible) return;
+      const k = v.blink && v.blink.el === els[i] ? Math.sin((v.blink.t / RESIST.blink) * Math.PI) : 0;
+      const tex = s.texture;
+      s.scale.set(((h / Math.max(1, tex.height)) * (1 + (RESIST.pop - 1) * k)));
+      const w = (h * Math.max(1, tex.width)) / Math.max(1, tex.height);
+      x -= w / 2 + (i ? RESIST.gap * U : 0);
+      s.position.set(x, barY);
+      x -= w / 2;
+    });
+  }
+
+  /** A resisted hit ({ type: 'resisted', id, element }): its foe's shield of that element blinks, if the field's blinks allow (not under Reduce motion: the shield holds still). */
+  function onEvent(ev) {
+    if (ev?.type !== 'resisted' || stage.reduced) return;
+    const v = views.get(ev.id);
+    if (!v || v.blink || !v.resistEls.includes(ev.element) || !blinks.take(time)) return;
+    const i = v.resistEls.indexOf(ev.element);
+    const s = v.resists[i];
+    const U = stage.view.U;
+    const size = (s.height || RESIST.size * U) / U; // world units
+    // the pop books what it adds; the ring of its colour books itself (fx.ring)
+    if (!fx.flashAll(spriteLit(size * RESIST.pop, size * RESIST.pop, 0.8), RESIST.blink)) return;
+    v.blink = { el: ev.element, t: 0 };
+    if (fx.ring) {
+      const wx = (v.c.position.x + s.position.x - stage.view.ox) / U;
+      const wy = (stage.view.oy - (v.c.position.y + s.position.y)) / U;
+      fx.ring(wx, wy, parseInt(ELEMENTS[ev.element].color.slice(1), 16), size * 0.4, size * 0.9, RESIST.blink);
     }
   }
 
@@ -494,13 +595,13 @@ export function createFoes(stage, fx) {
 
       // HP bar (+ number for bosses): over the foe's resting height, so it holds still while the foe bobs
       const ratio = Math.max(0, e.hp / e.maxHp);
-      const barW = (e.boss ? 2.2 : 1.05) * U;
+      const barW = (e.boss ? 2.2 : 1.05) * U * laneFit(); // as wide as its foe is drawn
       const barH = (e.boss ? 0.2 : 0.13) * U;
       let barY = -size * U * 0.62 - base * U;
       // near the gate a foe's labels would reach up behind the news ribbon: they move down under it
       barY += labelDrop({ U, boss: e.boss, barY, barH, cy: sy, top: stage.view.top ?? -Infinity });
       // a crowd's bars sit side by side across the lane in its order (barSlot), each readable on its own
-      const slot = barSlot(lay.i, lay.k, barW, FAN.lane * U);
+      const slot = barSlot(lay.i, lay.k, barW, FAN.lane * U * (GRID.cell / DESIGN_CELL)); // a crowd's bars share its lane
       const wantX = slot.x + (lay.cx - e.x - v.fan) * U; // from this foe's own place to its slot in the crowd's row
       v.barX = v.barW == null ? wantX : v.barX + (wantX - v.barX) * ease;
       v.barW = v.barW == null ? slot.w : v.barW + (slot.w - v.barW) * ease;
@@ -517,6 +618,7 @@ export function createFoes(stage, fx) {
         v.hpText.scale.set(lab.hpPx / 44);
         v.hpText.position.set(v.barX, barY);
       }
+      resistsAt(v, e, barY, U, dt);
 
       // status badges with stack counts
       const statuses = {
@@ -621,5 +723,5 @@ export function createFoes(stage, fx) {
     views.clear();
   }
 
-  return { sync, reset };
+  return { sync, onEvent, reset, viewOf: (id) => views.get(id) ?? null };
 }

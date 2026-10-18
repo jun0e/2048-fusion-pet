@@ -52,8 +52,8 @@ export const ZONE = { lava: 0.88, web: 0.8, field: 0.5, fill: 0.08, haze: 0.42, 
  */
 export const AIR = new Set(['snow', 'twister']);
 
-/** Half a lane's width (world units): a sandstorm's column. */
-export const LANE_HALF = GRID.cell * 0.48;
+/** Half a lane's width (world units), on the board's size now (v2.1: it grows to 5 and 6 lanes): a sandstorm's column, a glacier block. */
+export const laneHalf = () => GRID.cell * 0.48;
 /** The field a whole-field zone covers (world units): tower to tower, from the parapet to the portals. */
 export const FIELD_AREA = { hx: FRAME_GEOM.towerIn, y0: FRAME_GEOM.parapet.wall, y1: FIELD.spawnY };
 /** Where the skills' pieces may show (world units): the field and the keep, never over the towers. */
@@ -106,8 +106,8 @@ export function zoneArea(z) {
   const hy = (FIELD_AREA.y1 - FIELD_AREA.y0) / 2;
   const lanes = Array.isArray(z.lanes) && z.lanes.length ? [...z.lanes].sort((a, b) => a - b) : null;
   if (lanes) {
-    const xa = laneX(lanes[0]) - LANE_HALF;
-    const xb = laneX(lanes.at(-1)) + LANE_HALF;
+    const xa = laneX(lanes[0]) - laneHalf();
+    const xb = laneX(lanes.at(-1)) + laneHalf();
     return { cx: (xa + xb) / 2, cy, hx: (xb - xa) / 2, hy, round: false, lanes };
   }
   return { cx: 0, cy, hx: FIELD_AREA.hx, hy, round: false, lanes: null };
@@ -140,7 +140,7 @@ export function zoneLit(z) {
 export const WALL = { h: 0.85, sink: 0.1 };
 
 /** What a wall, a flower trap or a tether `length` long lights to 10% or more (world units²), booked for its rise. */
-export const wallLit = (w) => (w.lanes?.length ?? 0) * 2 * LANE_HALF * (WALL.h + 0.16);
+export const wallLit = (w) => (w.lanes?.length ?? 0) * 2 * laneHalf() * (WALL.h + 0.16);
 export const trapLit = (p) => 0.4 + 0.05 * 2 * Math.PI * 0.45 * Math.max(0.3, p.r ?? 1);
 export const tetherLit = (length) => 0.15 * length + 0.06;
 /**
@@ -368,7 +368,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     if (!area.round) {
       // over the whole field, or a sandstorm over its lanes: a soft wash, its bits do the rest
       const wash = v.kind === 'snow' ? 0xffffff : col;
-      if (area.lanes) for (const l of area.lanes) g.roundRect((laneX(l) - area.cx - LANE_HALF) * u, -area.hy * u, 2 * LANE_HALF * u, 2 * area.hy * u, 0.3 * u).fill({ color: wash, alpha: ZONE.fill * 1.5 });
+      if (area.lanes) for (const l of area.lanes) g.roundRect((laneX(l) - area.cx - laneHalf()) * u, -area.hy * u, 2 * laneHalf() * u, 2 * area.hy * u, 0.3 * u).fill({ color: wash, alpha: ZONE.fill * 1.5 });
       else g.roundRect(-R, -area.hy * u, 2 * R, 2 * area.hy * u, 0.4 * u).fill({ color: wash, alpha: ZONE.fill });
     } else if (v.kind === 'lava') {
       // a molten pool, its melt at most LAVA.lit (photosafe): a faint scorch reaches the rest of its
@@ -435,8 +435,8 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     v.key = zoneKey(z);
   }
 
-  /** What a zone's shape depends on besides U: its radius and, for a sandstorm, its lanes. */
-  const zoneKey = (z) => `${z.r}|${z.lanes ?? ''}`;
+  /** What a zone's shape depends on besides U: its radius and, for a sandstorm, its lanes (and the board's size, which sets where they are). */
+  const zoneKey = (z) => `${z.r}|${z.lanes ?? ''}|${GRID.size}`;
 
   function updateZone(v, z, a) {
     const u = U();
@@ -494,7 +494,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
             // its lanes' columns, from the portals down: the dust rolls slowly down each
             const lx = (laneX(lanes[i % lanes.length]) - area.cx) * u;
             s.position.set(lx + (still ? 0 : Math.sin(t * 0.7 + i) * 0.2 * u), (wrap(b.d - (still ? 0 : t * 0.05)) - 0.5) * 1.8 * RY);
-            s.width = s.height = 2 * LANE_HALF * u * (1.3 + b.k * 0.5);
+            s.width = s.height = 2 * laneHalf() * u * (1.3 + b.k * 0.5);
           } else {
             const ang = b.a + (still ? 0 : t * 0.3);
             const d = R * (0.2 + b.d * 0.5);
@@ -510,7 +510,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
           let inside = 1;
           if (lanes) {
             const lx = (laneX(lanes[i % lanes.length]) - area.cx) * u;
-            x = lx + (still ? b.d - 0.5 : wrap(b.d + t * (0.5 + b.k * 0.4)) - 0.5) * 2 * LANE_HALF * u;
+            x = lx + (still ? b.d - 0.5 : wrap(b.d + t * (0.5 + b.k * 0.4)) - 0.5) * 2 * laneHalf() * u;
             y = (b.k - 0.5) * 1.9 * RY;
           } else {
             const span = 2 * R;
@@ -586,7 +586,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
   function shapeWall(v, w) {
     const u = U();
     const lanes = [...(w.lanes ?? [])].sort((a, b) => a - b);
-    v.key = lanes.join(',');
+    v.key = `${lanes.join(',')}|${GRID.size}`;
     v.U = u;
     const g = v.g.clear();
     const cr = v.cracks.clear();
@@ -594,7 +594,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     const x0 = laneX(lanes[0]);
     v.cx = (x0 + laneX(lanes.at(-1))) / 2;
     const col = v.color;
-    const half = GRID.cell * 0.48 * u;
+    const half = laneHalf() * u;
     const H = WALL.h * u;
     for (const l of lanes) {
       const x = (laneX(l) - v.cx) * u;
@@ -615,7 +615,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
   }
 
   function updateWall(v, w, a) {
-    const lanes = [...(w.lanes ?? [])].sort((p, q) => p - q).join(',');
+    const lanes = `${[...(w.lanes ?? [])].sort((p, q) => p - q).join(',')}|${GRID.size}`;
     if (v.U !== U() || v.key !== lanes) shapeWall(v, w);
     const y = sy((w.y ?? FIELD.gateY) - WALL.sink);
     v.c.position.set(sx(v.cx ?? 0), y);

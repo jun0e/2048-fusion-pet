@@ -21,7 +21,7 @@
 // Each draw names the plan item that pays for it (`book`; 'moves' for the moving bodies, which
 // are exempt), so test/attack-render.test.js holds every draw to its booking. Reduce motion:
 // pieces and bits hold their place, ribbons fade in place.
-import { FIELD, GRID, laneX } from '../config.js';
+import { DESIGN_CELL, FIELD, GRID, laneX } from '../config.js';
 import { ADDON, ARC_MID, LIFE_JITTER, LINK_OVERLAP, METEOR, PULSE_FOES, ROPE_SAG, STRIKE, VFX_ASPECT, VFX_GROW as G, VFX_SIZE as S, VFX_TIME as T, attackLight, crackLength, gustLength, has, lanesOf } from '../art/attack-vfx.js';
 import { linkCoreTex, pingTex, poofTex, projTex, softDot, sparkTex, vfxTex } from './textures.js';
 import { foeDrawSize } from '../art/foe-roster.js';
@@ -34,6 +34,8 @@ const hex = (c) => (typeof c === 'number' ? c : parseInt(String(c).replace('#', 
 const rand = (a, b) => a + Math.random() * (b - a);
 const easeOut = (k) => 1 - (1 - k) * (1 - k);
 const SKY = FIELD.spawnY - STRIKE.top; // where sky strikes come from: the gates
+/** The board's scale (1 on the 4×4 board, docs/v2/SPEC-v2.1.md section 1): offsets from a tile follow its cell. */
+const cellK = () => GRID.cell / DESIGN_CELL;
 
 /** Mix two 0xRRGGBB colours: k = 0 gives a, 1 gives b. */
 export function mixColor(a, b, k) {
@@ -138,8 +140,10 @@ export function createAttacks(stage, fx, trails, tx = ATTACK_TEXTURES) {
     const got = bookPlan(fx, p);
     const { step, cls, g } = p;
     const dir = e.dir >= 0 ? 1 : -1;
-    const y0 = e.y + dir * 0.6; // the mouth: the front edge of the tile (or the pet)
-    const half = (GRID.cell / 2) * (2 + (e.lanes ?? 0)); // the cone's half-width at its tip (defense.js inCone)
+    const y0 = e.y + dir * 0.3 * GRID.cell; // the mouth: the front edge of the tile
+    // the cone's half-width at its tip (defense.js inCone, v2.1): its own lane without the `lanes`
+    // strength, a lane and a half each side with it
+    const half = (GRID.cell / 2) * (1 + 2 * (e.lanes ?? 0));
     const m = move();
     const n = allowed(step.embers, got.embers);
     for (let i = 0; i < n; i++) {
@@ -205,7 +209,7 @@ export function createAttacks(stage, fx, trails, tx = ATTACK_TEXTURES) {
     const p = plan(e);
     const got = bookPlan(fx, p);
     const { step, cls } = p;
-    const y0 = e.y + 0.6;
+    const y0 = e.y + 0.3 * GRID.cell; // the tile's top edge
     const len = gustLength(e);
     const fade = still() ? got.ribbonFade ?? 0 : 1; // in place it books: thinner when the budget is short
     for (const l of lanesOf(e.lane, e.lanes)) {
@@ -284,9 +288,10 @@ export function createAttacks(stage, fx, trails, tx = ATTACK_TEXTURES) {
   // --- Quake Stomp --------------------------------------------------------------------------
   /** A dust wave rolling up and down a lane from the stomp (pieces, so a later wave can wait its turn). */
   function wave(x, y, reach, n, tint, delay, book) {
+    const c = cellK();
     for (let i = 0; i < n; i++) {
       const way = i % 2 ? -0.6 : 1; // most of it rolls up the lane, toward the foes
-      trails.piece(vfx('earth', 'dust'), x + rand(-0.35, 0.35), y + 0.6 * way, { ...box(S.dust), vy: (way * reach * 0.9) / T.dust, drag: 1.1, delay, life: T.dust, grow: [0.6, G.dust], tint, fadeOut: 0.5, spin: rand(-1, 1), book });
+      trails.piece(vfx('earth', 'dust'), x + rand(-0.35, 0.35) * c, y + 0.6 * way * c, { ...box(S.dust), vy: (way * reach * 0.9) / T.dust, drag: 1.1, delay, life: T.dust, grow: [0.6, G.dust], tint, fadeOut: 0.5, spin: rand(-1, 1), book });
     }
   }
 
@@ -296,15 +301,16 @@ export function createAttacks(stage, fx, trails, tx = ATTACK_TEXTURES) {
     const { step, cls, g } = p;
     const crack = crackLength(e, g) * Math.sqrt(got.cracks ?? 0);
     const dust = cls.kind === 'single' ? 0xffffff : mixColor(0xffffff, cls.tint, 0.45); // a fusion's dust takes its colour
+    const c = cellK(); // offsets from the tile follow its cell
     for (const l of lanesOf(e.lane, e.lanes)) {
       const x = laneX(l);
-      if (got.cracks) trails.decal(vfx('earth', 'crack'), x + rand(-0.15, 0.15), e.y + 0.9 + crack * 0.5, { w: crack, h: crack * VFX_ASPECT.crack, fit: true, rot: Math.PI / 2 + rand(-0.12, 0.12), book: 'cracks' });
+      if (got.cracks) trails.decal(vfx('earth', 'crack'), x + rand(-0.15, 0.15) * c, e.y + 0.9 * c + crack * 0.5, { w: crack, h: crack * VFX_ASPECT.crack, fit: true, rot: Math.PI / 2 + rand(-0.12, 0.12), book: 'cracks' });
       wave(x, e.y, e.reach, allowed(step.dust, got.dust), dust, 0, 'dust');
       if (got.wave2) wave(x, e.y, e.reach, allowed(step.dust, got.wave2), dust, T.wave2, 'wave2');
       if (got.echo) wave(x, e.y, e.reach, allowed(step.dust, got.echo), mixColor(0xffffff, cls.apexTint, 0.55), T.wave2 * 2, 'echo');
-      if (got.pebbles) bits('earth', 'pebble', allowed(step.pebbles, got.pebbles), x, e.y + 1, { vy: 4.5, speed: 1.2, gravity: -14, size: S.pebble, life: T.pebble, drag: 0.3, spin: 8, jitter: 0.4, book: 'pebbles' });
+      if (got.pebbles) bits('earth', 'pebble', allowed(step.pebbles, got.pebbles), x, e.y + 1 * c, { vy: 4.5, speed: 1.2, gravity: -14, size: S.pebble, life: T.pebble, drag: 0.3, spin: 8, jitter: 0.4 * c, book: 'pebbles' });
     }
-    if (got.addon) addon(cls.partner, allowed(step.addon, got.addon), laneX(e.lane), e.y + 1.2, { vy: 1.5, speed: 1.4 });
+    if (got.addon) addon(cls.partner, allowed(step.addon, got.addon), laneX(e.lane), e.y + 1.2 * c, { vy: 1.5, speed: 1.4 });
     stage.shake(4);
   }
 

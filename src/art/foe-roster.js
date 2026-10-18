@@ -15,6 +15,7 @@
 //          reports it but does not fail the run for that miss; a miss of any other gate, or a worse
 //          one, does (exit 2)
 import { CHAPTERS, ENEMY_TYPES } from '../sim/enemies.js';
+import { laneFit } from './frame-kit.js';
 
 export const FOE_ROSTER = {
   // Forest: the Wild Hunt
@@ -150,8 +151,10 @@ export const FOE_SIZE_FLOOR = 0.42;
 
 /**
  * How wide a foe is drawn, in world units: its sim size raised to FOE_SIZE_FLOOR (a boss keeps
- * its own), × 2.5 (a boss × 2.6). The renderer (src/render/foes.js), the death puff
- * (src/render/attacks.js) and the flash audit (tools/flash-audit.mjs) all size a foe from this,
- * so the light a hit flash books is the light it draws.
+ * its own), × 2.5 (a boss × 2.6), × the board's lane fit (frame-kit laneFit: 1 on the 4×4 board,
+ * 0.9 at 5×5, 0.83 at 6×6, so foes never crowd the narrower lanes; read at use time). The renderer
+ * (src/render/foes.js), the death puff (src/render/attacks.js), the pets' depth boxes
+ * (src/kv/roam.js) and the flash audit (tools/flash-audit.mjs) all size a foe from this, so the
+ * light a hit flash books is the light it draws.
  */
-export const foeDrawSize = (def = {}) => (def.boss ? (def.size ?? FOE_SIZE_FLOOR) * 2.6 : Math.max(def.size ?? FOE_SIZE_FLOOR, FOE_SIZE_FLOOR) * 2.5);
+export const foeDrawSize = (def = {}) => (def.boss ? (def.size ?? FOE_SIZE_FLOOR) * 2.6 : Math.max(def.size ?? FOE_SIZE_FLOOR, FOE_SIZE_FLOOR) * 2.5) * laneFit();

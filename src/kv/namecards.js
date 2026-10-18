@@ -10,7 +10,7 @@
 // away).
 import { tr } from '../i18n/index.js';
 import { ELEMENTS, FUSIONS, fusionKey } from '../sim/classes.js';
-import { GRID, V2 } from '../config.js';
+import { BOARD_HALF, V2 } from '../config.js';
 import { summonLeft } from '../sim/describe.js';
 import { petName } from '../art/tokens.js';
 import { glyphPath } from '../art/glyphs.js';
@@ -290,7 +290,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
       vw,
       towerX: stage.toClient(FRAME_GEOM.towerIn, 0).x,
       towerOut: stage.toClient(FRAME_GEOM.towerIn + FRAME_GEOM.towerW, 0).x,
-      keepX: stage.toClient(GRID.size + k.pad + k.wall / 2 + k.tower / 2, 0).x,
+      keepX: stage.toClient(BOARD_HALF + k.pad + k.wall / 2 + k.tower / 2, 0).x, // the keep's corner tower: the same at every board size
       top: stage.toClient(0, FRAME_GEOM.rail.top).y,
       parapet: stage.toClient(0, FRAME_GEOM.rail.bottom).y,
       floor: stage.toClient(0, FRAME_GEOM.deck.y - FRAME_GEOM.deck.die / 2).y,

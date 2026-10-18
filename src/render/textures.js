@@ -468,6 +468,43 @@ export const shieldTex = (level) =>
     }
   });
 
+/**
+ * A foe's resistance mark (v2.1, docs/v2/SPEC-v2.1.md section 5): a small shield in the colour of the
+ * element it resists, with an ink rim inside a white one and the element's glyph in ink on it (dark on
+ * every element's colour: 4:1 or more). Shown by the foe's health bar (src/render/foes.js).
+ */
+export const resistTex = (el) =>
+  tex(`status.resist.${el}`, 64, 64, (g) => {
+    const shield = () => {
+      g.beginPath();
+      g.moveTo(9, 8);
+      g.lineTo(55, 8);
+      g.lineTo(55, 30);
+      g.quadraticCurveTo(54, 50, 32, 60);
+      g.quadraticCurveTo(10, 50, 9, 30);
+      g.closePath();
+    };
+    shield();
+    g.fillStyle = ELEMENTS[el]?.color ?? '#9aa4b2';
+    g.fill();
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(255,255,255,0.95)';
+    g.lineWidth = 7;
+    g.stroke();
+    g.strokeStyle = 'rgba(43,29,46,0.95)';
+    g.lineWidth = 3;
+    g.stroke();
+    // the element's glyph as an ink silhouette, centred on the shield's face
+    const icon = canvas(64, 64, (ig) => drawIcon(ig, el, 64));
+    const ink = canvas(64, 64, (sg) => {
+      sg.drawImage(icon, 0, 0);
+      sg.globalCompositeOperation = 'source-in';
+      sg.fillStyle = '#2b1d2e';
+      sg.fillRect(0, 0, 64, 64);
+    });
+    g.drawImage(ink, 15, 12, 34, 34);
+  });
+
 // --- projectiles (white-ish shapes, tinted at runtime) -------------------------------
 
 // Bold silhouettes with a dark outline and a white body: the body takes the
