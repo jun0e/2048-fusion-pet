@@ -1,11 +1,14 @@
 // Tile info popup: tap a block to see what it is and to sell it. It opens short (the picture, the
 // name and value, Sell / Break and Details) over the board, under or over the tapped block
 // (src/ui/short-card.js), so the lanes stay in view, waves or not, and Sell needs no scrolling.
-// Details opens the full card at the top of the screen: what the block does (attack, numbers,
-// effects, what it becomes next), its growth row (the tile's 4-segment meter, said in words), and
-// for a den where its pet is (the board marks the pet). Content comes from src/sim/describe.js; the
-// picture is the tile itself in its pit (art.tileCanvas: the board and the card agree), else the
-// generated sprite. Tap the block again, anywhere else, or × to close.
+// Details opens the full card at the top of the screen, as v2 has it (docs/v2/SPEC.md section 7): a
+// plain stone block, an egg (the pet it hatches into), a single pet (its attack, what it gives a
+// fusion, the fusions it makes with the singles on the board), a fusion pet (its main and second
+// element, its buffs, its summon skill as a tooltip with its live state: locked below 1024, charging,
+// ready, out on the field; its pure aura at 4096). Content comes from src/sim/describe.js and the
+// shared card pieces from src/ui/cards.js; the picture is the tile itself in its pit (art.tileCanvas:
+// the board and the card agree), else the generated sprite. Tap the block again, anywhere else, or ×
+// to close.
 // The card also sells a turret (+1 swipe's price) or breaks a dormant block (−3 swipes);
 // the button asks for a second tap before it acts, and while it waits the tile's brackets on the
 // board turn red and dashed (onArm).
@@ -13,27 +16,34 @@ import './inspect.css';
 import { GRID, GRID_TOP } from '../config.js';
 import { FRAME_GEOM } from '../art/frame-kit.js';
 import { ELEMENTS } from '../sim/classes.js';
-import { describeTile } from '../sim/describe.js';
+import { describeTile, skillState, singlesOf } from '../sim/describe.js';
 import { petName } from '../art/tokens.js';
-import { spriteId, portraitId } from '../art/sprite-ids.js';
 import { generatedUrl } from '../render/textures.js';
-import { growthWords, meterOf } from '../art/plaque.js';
 import { ARMED_LABEL, actState, shortCardSpot } from './short-card.js';
+import { elChipHtml, fusionPic, petPicId, skillTipHtml } from './cards.js';
 import { tr } from '../i18n/index.js';
 
 /** The narrow short card's sizes (px), as inspect.css sets them: the buttons' side padding, the row's gap and side padding, the Details icon. */
 const NARROW = { button: 10, gap: 6, row: 8, icon: 48 };
+
+/**
+ * The room the full card needs above the board (px): with less (a phone), it reaches on over the board,
+ * down to the screen's foot, since v2's card says more (a fusion's whole skill); its picture names the
+ * block it covers.
+ */
+export const FULL_ROOM = 360;
 
 /** Details as an icon, where the short card narrows to keep off the namecard rail (24 px, as the HUD's icons). */
 const INFO_ICON = '<svg class="inspect-more-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><path d="M12 11v6M12 7.2v.1" /></svg>';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
+/** The card's picture without the tile's canvas: an egg, a baby pet, a fusion pet's portrait (a plain block shows its value). */
 function imageFor(tile, info, art) {
   const cls = tile.cls ?? {};
-  if (info.kind === 'egg') return generatedUrl(spriteId({ kind: 'egg', tier: Math.max(1, Math.min(3, tile.tier)) }));
-  if (info.kind === 'element') return generatedUrl(spriteId({ kind: 'baby', el: cls.element, stage: Math.min(3, tile.tier - 4) }));
-  return generatedUrl(portraitId(cls)) ?? generatedUrl(spriteId({ kind: 'fusion', a: cls.element, b: cls.fusion })) ?? art?.portrait(cls) ?? null;
+  if (info.kind === 'plain') return null;
+  if (info.kind === 'egg' || info.kind === 'single') return generatedUrl(petPicId(cls.element, tile.tier));
+  return fusionPic(cls, generatedUrl) ?? art?.portrait?.(cls) ?? null;
 }
 
 /** The card's picture: the tile in its pit, 72 CSS px at the screen's density (null without the art). */
@@ -44,13 +54,8 @@ function tilePicture(tile, art) {
   return c;
 }
 
-/** The pet's line: its name in bold, and where it is when it roams the field (src/sim/roam.js). */
-function petLine(tile, name) {
-  const key = !tile.roam ? 'card.pet' : tile.roam.hatch >= 1 ? 'card.pet.out' : 'card.pet.hopping';
-  // the table's words around the name (the bold is the card's markup, not the table's)
-  const [before, after = ''] = tr(key, { name: '\u0000' }).split('\u0000');
-  return `${esc(before)}<b>${esc(name)}</b>${esc(after)}`;
-}
+/** Where a fusion's pet is: home on its tile, hopping out or back, or out on the field (tile.summon). */
+const petWhere = (tile) => (!tile.summon ? 'home' : tile.summon.phase === 'act' ? 'out' : 'hopping');
 
 export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
   const el = document.createElement('div');
@@ -139,14 +144,14 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
   let pinned = null; // a den's card keeps clear of its pet out on the field: { top, maxH }, chosen as it opens
 
   /**
-   * Where a den's pet stands on screen, its head to its feet (client px), once it has hopped out; else
-   * null. A legend reaches higher: its halo floats over it (src/kv/roam.js MARK.haloY + its hover +
-   * the halo's radius ≈ 3.7 units, its brackets a little above).
+   * Where a den's pet stands on screen, its head to its feet (client px), while it is out on a summon;
+   * else null. A pure pet reaches higher: its halo floats over it (src/kv/roam.js MARK.haloY + its
+   * hover + the halo's radius ≈ 3.7 units, its brackets a little above).
    */
   function petSpan(tile) {
-    const r = tile.roam;
-    if (!r || r.hatch < 1) return null;
-    const reach = tile.cls?.ultimate ? 3.8 : 2.5;
+    const r = tile.summon;
+    if (!r || petWhere(tile) !== 'out') return null;
+    const reach = tile.cls?.pure ? 3.8 : 2.5;
     return { top: stage.toClient(r.x, r.y + reach).y, bottom: stage.toClient(r.x, r.y - 0.35).y };
   }
 
@@ -238,7 +243,8 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
     const towerR = stage.toClient(FRAME_GEOM.towerIn, 0).x - root0;
     const w = Math.max(240, Math.min(360, towerR - towerL - 8));
     const left = Math.round(towerR - 4 - w);
-    // never cover the board (the tapped block may sit in its top row): scroll inside instead
+    // over the lanes, not the board (the tapped block may sit in its top row), where FULL_ROOM fits
+    // above it; else down to the screen's foot. Longer still, it scrolls inside
     const boardTop = stage.toClient(0, GRID_TOP).y;
     if (fresh) {
       // measured at the card's own width (its lines wrap there), then placed
@@ -246,41 +252,94 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
       pinned = pinFor(tile, boardTop);
       placed = ''; // pinFor cleared the card's top: write it again even when the layout is the same
     }
-    const k = `${w}|${left}|${boardTop}|${pinned ? `${pinned.top}:${pinned.maxH}` : ''}`;
+    const k = `${w}|${left}|${boardTop}|${foot.offsetTop}|${pinned ? `${pinned.top}:${pinned.maxH}` : ''}`;
     if (k === placed) return; // per frame while open: write only when the layout moved
     placed = k;
     el.style.width = `${w}px`;
     el.style.left = `${left}px`;
     el.style.top = pinned ? `${pinned.top}px` : '';
-    el.style.maxHeight = `${pinned ? pinned.maxH : Math.max(180, boardTop - el.offsetTop - 6)}px`;
+    const above = boardTop - el.offsetTop - 6;
+    el.style.maxHeight = `${pinned ? pinned.maxH : Math.max(180, above >= FULL_ROOM ? above : foot.offsetTop - el.offsetTop - 6)}px`;
+  }
+
+  /**
+   * The full card's sections (src/sim/describe.js describeTile), each markup or '' when the block has
+   * none, in the order its kind reads best: a fusion pet's skill (and its live state) first, then what
+   * changes it (buffs, auras, the pure form), then its attack; any other block its attack first.
+   */
+  function sections(info) {
+    const part = {
+      desc: info.desc ? `<p class="inspect-desc">${esc(info.desc)}</p>` : '',
+      stats: info.stats.length ? `<dl class="inspect-stats">${info.stats.map((s) => `<div><dt>${esc(s.label)}</dt><dd>${esc(s.value)}</dd></div>`).join('')}</dl>` : '',
+      effects: info.effects.length ? `<ul class="inspect-fx">${info.effects.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '',
+      hint: info.hint ? `<p class="inspect-hint">${esc(info.hint)}</p>` : '',
+      feed: info.feed ? `<p class="inspect-perk inspect-feed">${esc(info.feed)}</p>` : '',
+      auras: info.auras?.length ? `<div class="inspect-auras"><h4>${esc(tr('card.auras'))}</h4><ul>${info.auras.map((a) => `<li style="--c:${ELEMENTS[a.element].color}">${esc(a.text)}</li>`).join('')}</ul></div>` : '',
+      buffs: info.buffs
+        ? `<div class="inspect-buffs"><h4>${esc(tr('card.buffs'))}</h4>${
+            info.buffs.length ? `<ul>${info.buffs.map((b) => `<li style="--c:${ELEMENTS[b.element].color}">${esc(b.text)}</li>`).join('')}</ul>` : `<p>${esc(tr('card.buffs.none'))}</p>`
+          }</div>`
+        : '',
+      // the skill as a tooltip; its foot is the summon's live state (updateSkill)
+      skill: info.skill ? skillTipHtml(info.skill.cls, { passive: info.kind === 'fusion', foot: `<p class="tip-foot tip-state"><span class="tip-text"></span><span class="tip-bar"><i></i></span></p>` }) : '',
+      pure: info.pure
+        ? `<div class="inspect-pure${info.pure.active ? ' on' : ''}" style="--c:${ELEMENTS[info.pure.element].color}"><h4>${esc(info.pure.active ? info.pure.name : info.pure.at)}</h4><p>${esc(info.pure.aura)}${info.pure.active ? ` ${esc(info.pure.self)}` : ''}</p></div>`
+        : '',
+      fuses: info.fuses
+        ? `<div class="inspect-fuses"><h4>${esc(tr('card.fuses'))}</h4>${
+            info.fuses.length
+              ? `<ul>${info.fuses
+                  .map((f) => {
+                    const face = fusionPic({ element: info.elements[0].element, fusion: f.partner }, generatedUrl);
+                    return `<li style="--c:${f.color}"><span class="fc-pic">${face ? `<img alt="" src="${esc(face)}" />` : ''}</span><span><b>${esc(f.skill)}</b> <small>${esc(f.pet)} · ${esc(tr('card.fuses.with', { name: tr(`el.${f.partner}`) }))}</small></span></li>`;
+                  })
+                  .join('')}</ul>`
+              : `<p>${esc(tr('card.fuses.none'))}</p>`
+          }</div>`
+        : '',
+      next: info.next ? `<p class="inspect-next">${esc(info.next)}</p>` : '',
+    };
+    const order =
+      info.kind === 'fusion'
+        ? ['skill', 'buffs', 'auras', 'pure', 'stats', 'effects', 'next']
+        : ['desc', 'hint', 'stats', 'effects', 'feed', 'auras', 'buffs', 'skill', 'pure', 'fuses', 'next'];
+    return order.map((k) => part[k]).join('');
+  }
+
+  let skillKey = '';
+  /** The skill tooltip's foot, every frame: locked, charging (with its bar), ready, or out with the time left. */
+  function updateSkill(tile) {
+    const foot = el.querySelector('.tip-state');
+    if (!foot) return;
+    const st = skillState(tile, ctx.skill);
+    const k = `${st.state}|${st.text}|${Math.round(st.charge * 50)}`;
+    if (k === skillKey) return;
+    skillKey = k;
+    foot.querySelector('.tip-text').textContent = st.text;
+    foot.classList.toggle('ready', st.state === 'ready');
+    foot.querySelector('.tip-bar').hidden = st.state !== 'charging';
+    foot.style.setProperty('--f', st.charge.toFixed(3));
   }
 
   function render(tile) {
     // a re-render (a den's pet has hopped out) keeps the keyboard focus where it was in the card
     const at = el.contains(document.activeElement) ? document.activeElement : null;
     const focus = at && (at.closest('.inspect-more') ? '.inspect-more' : at.closest('.inspect-sell') ? '.inspect-sell' : '.inspect-x');
-    const info = describeTile(tile, petName);
+    const info = describeTile(tile, { petName, tiles: ctx.tiles, skill: ctx.skill });
     const pic = tilePicture(tile, art);
     const img = pic ? null : imageFor(tile, info, art);
-    const m = meterOf(tile.tier);
-    const grow = growthWords(tile.tier);
     const c = info.colors[0];
-    const chips = info.elements
-      .map((k) => {
-        const badge = generatedUrl(`badge.${k}`);
-        return `<span class="inspect-chip" style="--c:${ELEMENTS[k].color}">${badge ? `<img alt="" src="${esc(badge)}" />` : ''}${esc(ELEMENTS[k].name)}</span>`;
-      })
-      .join('');
+    const chips = info.elements.map((x) => elChipHtml(x.element, { main: x.main, img: generatedUrl })).join('');
     el.style.setProperty('--c', c);
     el.classList.toggle('short', !full);
     const picture = `<div class="inspect-pic${pic ? ' inspect-pic-tile' : ''}">${pic ? '' : img ? `<img alt="" src="${esc(img)}" />` : `<b>${info.value}</b>`}</div>`;
+    skillKey = '';
     if (!full) {
-      // the short card: the picture, the name and value (an egg's name already says it), the buttons
-      // the name gives way first ("…"), the value never: a legend's name runs to 22 letters
-      const value = info.kind === 'egg' ? '' : `<span class="inspect-value">${info.value}</span>`;
+      // the short card: the picture, the name and value, the buttons
+      // the name gives way first ("…"), the value never: a pet's name runs to 22 letters
       el.innerHTML = `
       <button class="inspect-x" aria-label="${esc(tr('ui.close'))}">×</button>
-      <div class="inspect-head">${picture}<div class="inspect-titles"><h3><span class="inspect-name">${esc(info.title)}</span>${value}</h3></div></div>
+      <div class="inspect-head">${picture}<div class="inspect-titles"><h3><span class="inspect-name">${esc(info.title)}</span><span class="inspect-value">${info.value}</span></h3></div></div>
       <div class="inspect-act"></div>`;
     } else
       el.innerHTML = `
@@ -289,29 +348,25 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
         ${picture}
         <div class="inspect-titles">
           <h3>${esc(info.title)}</h3>
+          ${info.subtitle ? `<div class="inspect-kicker">${esc(info.subtitle)}</div>` : ''}
           <div class="inspect-sub">${chips}<span class="inspect-value">${info.value}</span></div>
-          ${info.petName ? `<div class="inspect-pet">${petLine(tile, info.petName)}</div>` : ''}
         </div>
       </div>
-      ${grow ? `<div class="inspect-grow"><span class="inspect-meter${m.goal === 'legend' ? ' rose' : ''}" aria-hidden="true">${[0, 1, 2, 3].map((i) => `<i${i < m.lit ? ' class="lit"' : ''}></i>`).join('')}</span><span>${esc(grow)}</span></div>` : ''}
-      <p class="inspect-desc">${esc(info.desc)}</p>
-      ${info.stats.length ? `<dl class="inspect-stats">${info.stats.map((s) => `<div><dt>${esc(s.label)}</dt><dd>${esc(s.value)}</dd></div>`).join('')}</dl>` : ''}
-      ${info.effects.length ? `<ul class="inspect-fx">${info.effects.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
-      ${info.signature ? `<p class="inspect-special">${esc(info.signature)}</p>` : ''}
-      ${info.skill ? `<p class="inspect-special">${esc(info.skill)}</p>` : ''}
-      ${info.next ? `<p class="inspect-next">${esc(info.next)}</p>` : ''}
+      ${sections(info)}
       <div class="inspect-act"></div>`;
     if (pic) el.querySelector('.inspect-pic').appendChild(pic);
     actKey = '';
     renderAct();
+    updateSkill(tile);
     if (focus) refocus(focus);
   }
 
   return {
     /**
      * Show the popup for `tile`, or hide it with null (`kept`: the block is still picked, the card
-     * only hidden). Re-renders only when the block changes; `context` = { price, coins, last } keeps
-     * the sell / break row current.
+     * only hidden). Re-renders only when the block changes; `context` = { price, coins, last, tiles,
+     * skill } keeps the sell / break row current, a single pet's fusions with the singles on the board
+     * (tiles), and a fusion's summon line (skill: { charge, ready } from the run).
      */
     show(tile, context = {}, dt = 0, { kept = false } = {}) {
       if (!tile) {
@@ -332,16 +387,22 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
       }
       tileId = tile.id;
       if (armed > 0) setArmed(Math.max(0, armed - dt));
-      const block = `${tile.id}:${tile.tier}:${tile.cls?.element ?? ''}:${tile.cls?.fusion ?? ''}:${tile.cls?.ultimate ?? ''}`;
+      const cls = tile.cls ?? {};
+      const block = `${tile.id}:${tile.tier}:${cls.element ?? ''}:${cls.fusion ?? ''}:${cls.pure ? 'pure' : ''}:${JSON.stringify(cls.buffs ?? {})}`;
       // a den's pet hopping out changes its picture (the paw prints) and its line, without a new pop;
-      // Details pops the full card in
+      // Details pops the full card in. A single pet's fusions follow the singles on the board
       const look = `${block}:${full ? 'full' : 'short'}`;
-      const k = `${look}:${tile.roam ? (tile.roam.hatch >= 1 ? 'out' : 'in') : ''}`;
+      const singles = cls.element && !cls.fusion && full ? [...singlesOf(ctx.tiles ?? [], tile)].join(',') : '';
+      const k = `${look}:${petWhere(tile)}:${singles}:${JSON.stringify(tile.aura ?? null)}`; // the auras change its numbers
       const fresh = k !== key;
       if (fresh) {
         const popped = key.startsWith(`${look}:`);
         key = k;
+        // the same block drawn again (its pet hopped, the singles on the board changed): the player's
+        // place in a scrolled card stays
+        const scroll = popped ? el.scrollTop : 0;
         render(tile);
+        el.scrollTop = scroll;
         if (!popped) {
           el.classList.remove('pop');
           void el.offsetWidth;
@@ -349,6 +410,7 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
         }
       }
       renderAct();
+      if (full) updateSkill(tile);
       if (!el.isConnected) root.append(el, foot); // the HUD can rebuild its DOM
       el.hidden = false;
       place(tile, fresh);

@@ -1,19 +1,22 @@
-// Namecards: one card per fusion, on the rail that hangs on the right tower (proposal 4.1): never
-// over lane 4. The rail has four slots; from a fifth fusion on, the fourth slot is a stack whose
-// face is the card to tap (railSlots), so every fusion's skill can be cast and the rail never grows.
-// The portrait uses the second art style, a soft-vinyl toy render, so the card reads as a reward. States follow the style brief: charging (dimmed; a fill bar under the portrait),
-// ready (full colour, an element rim, the bar turns into an inverted READY pill, a shine sweep, a
-// small bob), activating (a 0.9 s cut-in that never blocks play), lost (grey, falls away).
+// Namecards: one card per fusion pet that can summon (1024 and up, docs/v2/SPEC.md section 7), on the
+// rail that hangs on the right tower (proposal 4.1): never over lane 4. The rail has four slots; from a
+// fifth pet on, the fourth slot is a stack whose face is the card to tap (railSlots), so every pet's
+// skill can be cast and the rail never grows. The portrait uses the second art style, a soft-vinyl toy
+// render, so the card reads as a reward. The charge lives in the sim (run.skillCharge); a tap on a ready
+// card asks its creator to cast (onCast: src/kv/pets.js calls run.castSkill). States follow the style
+// brief: charging (dimmed; a fill bar under the portrait), ready (full colour, an element rim, the bar
+// turns into an inverted READY pill, a shine sweep, a small bob), out (the pet is on the field: the time
+// it has left, the bar draining; a 0.9 s cut-in as it goes, that never blocks play), lost (grey, falls
+// away).
 import { tr } from '../i18n/index.js';
-import { ELEMENTS, fusionOf, APEX } from '../sim/classes.js';
-import { GRID } from '../config.js';
+import { ELEMENTS, FUSIONS, fusionKey } from '../sim/classes.js';
+import { GRID, V2 } from '../config.js';
+import { summonLeft } from '../sim/describe.js';
 import { petName } from '../art/tokens.js';
 import { glyphPath } from '../art/glyphs.js';
 import { FRAME_GEOM, RAIL_PX } from '../art/frame-kit.js';
 import { generatedUrl } from '../render/textures.js';
 
-const CHARGE = 9; // seconds of wave time per skill
-const CHARGE_LEGEND = 7;
 const SLOTS = 4; // the rail's slots: the fourth holds a stack from a fifth fusion on (railSlots)
 // px: between cards, the bar under the portrait (with its gap), between a card's ink ring and the tower's edges
 const RAIL = { gap: 6, bar: 14, margin: RAIL_PX.margin };
@@ -24,6 +27,34 @@ const MIN = RAIL_PX.card; // a card is never narrower (the touch-target floor)
  * so a swipe that moves blocks around never reshuffles the cards.
  */
 export const railOrder = (fusions) => [...fusions].sort((a, b) => b.tier - a.tier || a.id - b.id);
+
+/** The pets with a namecard: fusion pets at V2.summonTier (1024) and up, in rail order. */
+export const summoners = (tiles) => railOrder(tiles.filter((t) => t.cls?.fusion && t.tier >= V2.summonTier));
+
+/**
+ * A namecard's state, read from the run every frame: { state: 'charging' | 'ready' | 'out', f (the
+ * bar: the charge, or while out the share of its time it has left), left (seconds out) }. A run
+ * without summons yet (run.skillCharge missing) charges nothing.
+ */
+export function cardState(tile, run) {
+  if (tile.summon) {
+    const left = summonLeft(tile.summon);
+    const dur = tile.summon.dur ?? V2.summon.durS;
+    return { state: 'out', f: dur > 0 ? Math.min(1, left / dur) : 0, left };
+  }
+  const f = Math.max(0, Math.min(1, run.skillCharge?.(tile.id) ?? 0));
+  const ready = run.skillReady ? !!run.skillReady(tile.id) : f >= 1;
+  return { state: ready ? 'ready' : 'charging', f: ready ? 1 : f, left: 0 };
+}
+
+/**
+ * What a tap on a card does: 'cast' when it is ready (as last drawn, and still in the sim now: the sim
+ * may have moved on since that frame), else 'nudge'. The cast itself is its creator's (onCast).
+ */
+export const pressAction = (card, run) => (card.lost || card.state !== 'ready' || (run?.skillReady && !run.skillReady(card.id)) ? 'nudge' : 'cast');
+
+/** The time left on an out card's chip ("5s"): whole seconds, rounded up, so it never shows 0 while out. */
+export const leftText = (left) => tr('nc.left', { n: Math.max(1, Math.ceil(left - 1e-6)) });
 
 /**
  * Which fusions show on the rail's slots: the three first (the highest) on slots of their own, and
@@ -150,43 +181,45 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
   const cards = new Map();
 
   function make(t) {
-    const fu = fusionOf(t.cls);
-    const legend = !!t.cls.ultimate;
+    const key = fusionKey(t.cls.element, t.cls.fusion);
+    const fu = FUSIONS[key];
+    const pure = !!t.cls.pure;
     const el = document.createElement('button');
-    el.className = `kv-card${legend ? ' legend' : ''}`;
+    el.className = `kv-card${pure ? ' pure legend' : ''}`; // (kv.css draws a pure pet's card as the 4096 one: gold)
     el.style.setProperty('--c', fu.color);
     el.style.setProperty('--c2', ELEMENTS[t.cls.fusion].color);
-    const skill = legend ? tr('legend.name', { apex: APEX[t.cls.ultimate].name, fusion: fu.name }) : fu.name;
+    const skill = tr(`skill.${key}.name`);
+    const name = petName(t.cls.element, t.cls.fusion);
     el.innerHTML = `
       <div class="kv-port">
         <img alt="" src="${art.portrait(t.cls)}" />
         <div class="kv-shine"></div>
-        <div class="kv-glyphs">${[t.cls.element, t.cls.fusion, t.cls.ultimate]
-          .filter(Boolean)
-          .map((e) => `<img src="${glyph(e)}" alt="${ELEMENTS[e].name}" />`)
-          .join('')}</div>
+        <div class="kv-glyphs">${[t.cls.element, t.cls.fusion].map((e) => `<img src="${glyph(e)}" alt="${tr(`el.${e}`)}" />`).join('')}</div>
         <i class="kv-more" aria-hidden="true"></i>
+        <b class="kv-left" aria-hidden="true" hidden></b>
       </div>
       <div class="kv-bar"><i></i><b>${tr('nc.pill')}</b></div>`;
-    el.title = `${petName(t.cls.element, t.cls.fusion)}: ${skill}`;
+    el.title = `${name}: ${skill}`;
     el.style.pointerEvents = 'auto';
-    const card = { el, id: t.id, charge: CHARGE * 0.55, max: legend ? CHARGE_LEGEND : CHARGE, skill, name: petName(t.cls.element, t.cls.fusion), legend, cls: { ...t.cls }, lost: false, ready: null, role: 'own', more: 0, slot: '', castAt: -Infinity };
+    const card = { el, id: t.id, skill, name, legend: pure, pure, cls: { element: t.cls.element, fusion: t.cls.fusion, pure }, lost: false, state: null, f: 0, left: 0, shown: '', role: 'own', more: 0, slot: '', castAt: -Infinity };
     // a nudge plays once: left on, its class would hold the card's ready bob off for good (a card
     // hidden mid-nudge drops it in slot(); a cancel is no end: a second tap restarts the nudge)
     el.addEventListener('animationend', (ev) => ev.animationName === 'kvNudge' && el.classList.remove('nudge'));
-    // a press casts at once (no wait for the click); Enter and Space on a focused card do the same
+    const nudge = () => {
+      if (document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      el.classList.remove('nudge');
+      void el.offsetWidth;
+      el.classList.add('nudge');
+    };
+    // a press casts at once (no wait for the click); Enter and Space on a focused card do the same. A
+    // ready card hands the cast to its creator (src/kv/pets.js onCast: run.castSkill(card.id), and the
+    // beam to the pet); the cut-in comes when the sim sends the pet out (sync)
     const press = () => {
-      if (card.lost || card.charge < card.max) {
-        if (document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        el.classList.remove('nudge');
-        void el.offsetWidth;
-        el.classList.add('nudge');
-        return;
-      }
-      card.charge = 0;
+      if (pressAction(card, getRun()) === 'nudge') return nudge();
       card.castAt = performance.now(); // the stack's face holds a moment (FACE_HOLD_MS)
       onCast(card);
-      play(card);
+      el.classList.add('fire');
+      setTimeout(() => el.classList.remove('fire'), 600);
     };
     el.addEventListener('pointerdown', (ev) => {
       ev.stopPropagation();
@@ -202,14 +235,13 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     return card;
   }
 
+  /** The pet goes out (a tap, or the bot): the cut-in, a large panel. */
   function play(card) {
-    card.el.classList.add('fire');
-    setTimeout(() => card.el.classList.remove('fire'), 600);
-    // the cut-in is a large panel: it takes the photosafe flash budget (one a second, none under
-    // Reduce motion), so quick taps on several cards never make it blink
+    // the cut-in takes the photosafe flash budget (one a second, none under Reduce motion), so quick
+    // taps on several cards never make it blink
     if (!stage.takeFlash()) return;
     cutin.innerHTML = `
-      <div class="kv-cutin-card" style="--c:${fusionOf(card.cls).color}">
+      <div class="kv-cutin-card" style="--c:${FUSIONS[fusionKey(card.cls.element, card.cls.fusion)].color}">
         <img alt="" src="${art.portrait(card.cls)}" />
         <div class="kv-cutin-text"><b>${card.name}</b><span>${card.skill}!</span></div>
       </div>`;
@@ -220,10 +252,12 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
 
   let face = null; // the stack's face: the card of the fourth slot shown and tapped (railSlots)
 
-  /** A card's name for a screen reader: its pet, its skill, its charge, and the cards behind it. */
+  /** A card's name for a screen reader: its pet, its skill, its charge or its time out, and the cards behind it. */
   function label(card) {
     const behind = card.role === 'face' ? ` ${tr('nc.behind', { n: card.more })}` : '';
-    card.el.setAttribute('aria-label', `${card.name}: ${card.skill}. ${tr(card.ready ? 'nc.ready' : 'nc.charging')}${behind}`);
+    const n = Math.max(1, Math.ceil(card.left - 1e-6));
+    const state = card.state === 'out' ? tr('nc.out', { n }) : card.state === 'ready' ? tr('nc.ready') : tr('nc.charge', { pct: `${Math.floor(card.f * 10) * 10}%` });
+    card.el.setAttribute('aria-label', `${card.name}: ${card.skill}. ${state}${behind}`);
   }
 
   /**
@@ -269,33 +303,47 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     strip.style.width = `${r.width}px`;
   }
 
-  function sync(run, dt, simDt = dt) {
+  function sync(run) {
     // the HUD rebuilds its DOM after the demo starts: re-attach if needed
     if (!strip.isConnected) root.appendChild(strip);
     if (!cutin.isConnected) root.appendChild(cutin);
     layout();
-    // every fusion gets a card and charges; the rail shows four slots (railSlots), in railOrder
-    const fusions = railOrder(run.tiles.filter((t) => t.tier >= 8 && t.cls.fusion));
+    // every pet that can summon gets a card; the rail shows four slots (railSlots), in railOrder
+    const fusions = summoners(run.tiles);
     const live = new Set(fusions.map((t) => t.id));
     for (const t of fusions) {
       let card = cards.get(t.id);
-      // a new class (an ultimate, or a fusion picked after the merge): a new card
-      if (card && (card.cls.ultimate !== t.cls.ultimate || card.cls.element !== t.cls.element || card.cls.fusion !== t.cls.fusion)) {
+      // a new class (its main element picked, a pure form): a new card
+      if (card && (card.cls.element !== t.cls.element || card.cls.fusion !== t.cls.fusion || card.cls.pure !== !!t.cls.pure)) {
         card.el.remove();
         cards.delete(t.id);
         card = null;
       }
       if (!card) cards.set(t.id, (card = make(t)));
-      if (run.phase === 'wave' && !run.over) card.charge = Math.min(card.max, card.charge + simDt); // wave time: not while paused, x2 charges x2
-      const f = card.charge / card.max;
-      card.el.style.setProperty('--f', f.toFixed(3));
-      const ready = f >= 1;
-      if (ready !== card.ready) {
-        card.ready = ready;
-        card.el.classList.toggle('ready', ready);
-        card.el.classList.toggle('charging', !ready);
-        label(card);
+      const st = cardState(t, run);
+      if (st.state === 'out' && card.state != null && card.state !== 'out') play(card); // the pet goes out: its cut-in
+      const f = st.f.toFixed(3);
+      if (f !== card.shown) {
+        card.shown = f;
+        card.el.style.setProperty('--f', f);
       }
+      const tick = st.state === 'out' ? leftText(st.left) : '';
+      const changed = st.state !== card.state || (tick && tick !== card.tick) || Math.floor(st.f * 10) !== Math.floor(card.f * 10);
+      card.f = st.f;
+      card.left = st.left;
+      if (st.state !== card.state) {
+        card.state = st.state;
+        card.ready = st.state === 'ready';
+        card.el.classList.toggle('ready', st.state === 'ready');
+        card.el.classList.toggle('charging', st.state === 'charging');
+        card.el.classList.toggle('out', st.state === 'out');
+        card.el.querySelector('.kv-left').hidden = st.state !== 'out';
+      }
+      if (tick !== card.tick) {
+        card.tick = tick;
+        card.el.querySelector('.kv-left').textContent = tick;
+      }
+      if (changed) label(card);
     }
     // fusions gone: their cards fall where they hang (one behind the stack, never seen, just goes)
     let dropped = false; // the card that had the focus fell: the focus moves on (below)
@@ -321,7 +369,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     const held = face != null && performance.now() - (cards.get(face)?.castAt ?? -Infinity) < FACE_HOLD_MS;
     const slots = railSlots(
       fusions.map((t) => t.id),
-      new Set(fusions.filter((t) => cards.get(t.id).ready).map((t) => t.id)),
+      new Set(fusions.filter((t) => cards.get(t.id).state === 'ready').map((t) => t.id)),
       face,
       held,
     );

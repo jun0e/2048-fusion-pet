@@ -181,3 +181,15 @@ test('a save this build cannot replay is refused, never thrown', (t) => {
   assert.equal(restoreRun(createRun, { ...good, fp: 'something else' }), null);
   assert.deepEqual(state(restoreRun(createRun, good)), state(run), 'a good save restores exactly');
 });
+
+test('v2: the fingerprint holds a block’s buffs, its pure form and its summoned pet', () => {
+  const runOf = (tiles) => ({ waveNo: 1, phase: 'prep', score: 0, coins: 0, swipeCost: 5, kills: 0, owned: ['fire'], keepsake: null, level: 1, xp: 0, tiles });
+  const base = { id: 4, tier: 10, hp: 100, cls: { element: 'fire', fusion: 'ice', buffs: { earth: 1 } } };
+  const fp = fingerprint(runOf([base]));
+  assert.notEqual(fingerprint(runOf([{ ...base, cls: { ...base.cls, buffs: { earth: 2 } } }])), fp, 'a buff more');
+  assert.notEqual(fingerprint(runOf([{ ...base, cls: { ...base.cls, pure: true } }])), fp, 'pure');
+  assert.notEqual(fingerprint(runOf([{ ...base, summon: { x: 1, y: 9 } }])), fp, 'its pet out on the field');
+  assert.equal(fingerprint(runOf([{ ...base, cls: { element: 'fire', fusion: 'ice', buffs: { earth: 1 } } }])), fp, 'the same block, the same print');
+  assert.equal(fingerprint(runOf([{ ...base, cls: { ...base.cls, buffs: { ice: 1, earth: 1 } } }])), fingerprint(runOf([{ ...base, cls: { ...base.cls, buffs: { earth: 1, ice: 1 } } }])), 'buffs in any key order');
+  assert.ok(SAVE_VERSION >= 6, 'a v1 save cannot replay in v2');
+});
