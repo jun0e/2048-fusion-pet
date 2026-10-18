@@ -88,7 +88,7 @@ test('tuned tips: urgent first, depth waits for its wave, ordinary tips 16 s apa
   const run = fakeRun();
   const coach = createCoach({ getRun: () => run, store: { guided: true, seen: new Set() }, config: COACH });
   coach.start(run);
-  coach.onEvent({ type: 'override', tileId: 1 }); // colour: a depth tip, not offered before wave 3
+  coach.onEvent({ type: 'egg', tileId: 1 }); // colour (eggs: one per element, hatching at 16): a depth tip, not offered before wave 3
   assert.equal(coach.store.seen.has('colour'), false);
   coach.onEvent({ type: 'coins', reason: 'kill' }); // core
   coach.onEvent({ type: 'tileHit', id: 1 }); // urgent
@@ -104,9 +104,9 @@ test('tuned tips: urgent first, depth waits for its wave, ordinary tips 16 s apa
   tick(coach, 40);
   assert.equal(coach.view, null);
   run.waveNo = 3;
-  coach.onEvent({ type: 'override', tileId: 1 });
+  coach.onEvent({ type: 'egg', tileId: 1 });
   tick(coach, 0.2);
-  assert.equal(coach.view?.id, 'colour', 'offered at the first override from wave 3');
+  assert.equal(coach.view?.id, 'colour', 'offered at the first egg from wave 3');
 });
 
 test('tips show once; notes show but are not remembered', () => {
@@ -258,7 +258,7 @@ test('a full queue drops the oldest of the least important tips, which can come 
   run.waveNo = 3; // depth tips are offered from here
   run.pendingChoice = {}; // a die choice is open: tips wait
   coach.onEvent({ type: 'dieGained' }); // depth
-  coach.onEvent({ type: 'override', tileId: 1 }); // depth
+  coach.onEvent({ type: 'egg', tileId: 1 }); // depth
   coach.onEvent({ type: 'coins', reason: 'kill' }); // core
   coach.onEvent({ type: 'tileHit', id: 1 }); // urgent: the queue overflows
   tick(coach, 1);

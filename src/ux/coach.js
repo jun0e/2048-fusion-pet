@@ -467,8 +467,8 @@ export function createCoach({ getRun, store = { guided: false, seen: new Set() }
           if (e.boss) offer('boss', { lane: run().wave.bossLane ?? e.lanes?.[0] ?? 0 });
           offer('break', 'wave');
           break;
-        case 'override':
-          offer('colour', { tile: e.tileId });
+        case 'egg':
+          offer('colour', { tile: e.tileId }); // eggs: one per element, hatching at 16 (v2 has no colour override)
           break;
         case 'classed':
           offer(e.stage === 1 ? 'awaken' : e.stage === 2 ? 'fusion' : 'ultimate', { tile: e.tileId });
