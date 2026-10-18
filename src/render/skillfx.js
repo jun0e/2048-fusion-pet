@@ -47,7 +47,7 @@ export const AIR = new Set(['cloud', 'sand', 'snow', 'twister']);
  * width and life, a slam's life and cracks, a sweep's crossing, a word's height and life.
  */
 export const SKILL_FX = {
-  ring: { w: 0.12, life: 0.5 },
+  ring: { w: 0.12, ink: 0.06, life: 0.5 },
   beam: { race: 0.12, life: 0.45, core: 0.35 },
   bolt: { w: 0.22, core: 0.08, life: 0.32, step: 0.6, jag: 0.32 },
   slam: { w: 0.14, life: 0.6, cracks: 6, crackLife: 0.9 },
@@ -642,15 +642,16 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
   function ring(e, color) {
     const r = Math.max(0.3, e.r ?? 1);
     const S = SKILL_FX.ring;
-    const k = fx.flashShare(2 * Math.PI * r * S.w, S.life, LINE.minShare);
+    const k = fx.flashShare(2 * Math.PI * r * (S.w + S.ink), S.life, LINE.minShare); // its ink edge changes the ground too
     if (!k) return;
     const w = S.w * k;
+    const ink = S.ink * k;
     const still = reduced();
     line(S.life, (g, f) => {
       const u = U();
       const rr = (still ? r : r * (0.3 + 0.7 * ease(f / 0.6))) * u;
       const alpha = f < 0.4 ? 1 : 1 - (f - 0.4) / 0.6;
-      g.clear().circle(sx(e.x), sy(e.y), rr).stroke({ width: (w + 0.06) * u, color: INK, alpha: alpha * 0.5 }).circle(sx(e.x), sy(e.y), rr).stroke({ width: w * u, color, alpha });
+      g.clear().circle(sx(e.x), sy(e.y), rr).stroke({ width: (w + ink) * u, color: INK, alpha: alpha * 0.5 }).circle(sx(e.x), sy(e.y), rr).stroke({ width: w * u, color, alpha });
     });
   }
 
@@ -781,7 +782,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     const T = SKILL_FX.text;
     const u = U();
     const px = Math.max(TEXT.minPx, T.h * u);
-    if (!fx.flashAll(textInk(word, px * T.pop, u), T.life)) return; // whole, or not at all
+    if (!fx.flashAll(textInk(word, px, u), T.life)) return; // whole, or not at all (textInk books its pop: TEXT.peak)
     let o = textPool.pop();
     if (!o) o = tx.text(word);
     else if ('text' in o) o.text = word;
