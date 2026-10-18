@@ -6,7 +6,8 @@ import { FIELD } from '../../config.js';
 
 const VENOM = '#8fe53a';
 const KIND = { lance: ['ice', 'lightning'], wall: ['ice', 'earth'], bloom: ['ice', 'nature'] };
-const LANES = Array.from({ length: FIELD.lanes }, (_, l) => l);
+/** The field's lanes now (one per board column: 4, 5 or 6). */
+const lanes = () => Array.from({ length: FIELD.lanes }, (_, l) => l);
 const SNOW_HOLD = 0.25; // s the blizzard's slow stays on a foe (renewed every tick while the snow falls)
 const WALL_LIFT = 0.4; // the glacier wall stands this far above the board top (world units)
 const FLOWER_R = 0.4; // a frost flower goes off within this many cells
@@ -16,6 +17,7 @@ const ROWS = 4; // rows of flowers a path holds
 
 /** The `n` lanes under the most pressure from `foes` (the nearer the board, the more a foe weighs); ties go to the lanes nearest `home`. */
 function busiestLanes(ctx, n, foes, home) {
+  const LANES = lanes();
   const press = LANES.map(() => 0);
   for (const e of foes) press[Math.max(0, Math.min(LANES.length - 1, e.lane))] += 1 / Math.max(1, e.y - ctx.boardTop);
   return [...LANES].sort((a, b) => press[b] - press[a] || Math.abs(a - home) - Math.abs(b - home) || a - b).slice(0, n);
@@ -192,7 +194,7 @@ function flowerSpot(ctx) {
   const walkers = ctx.foes().filter((e) => e.mode === 'lane' && e.y - AHEAD >= low).sort((a, b) => b.s - a.s);
   const paths = [
     ...walkers.map((e) => ({ x: ctx.laneX(e.lane), y: e.y - AHEAD, dy: -CELL })),
-    ...[...LANES].sort((a, b) => Math.abs(a - busy) - Math.abs(b - busy) || a - b).map((l) => ({ x: ctx.laneX(l), y: low, dy: CELL })),
+    ...lanes().sort((a, b) => Math.abs(a - busy) - Math.abs(b - busy) || a - b).map((l) => ({ x: ctx.laneX(l), y: low, dy: CELL })),
   ];
   for (let k = 0; k < ROWS; k++) {
     for (const q of paths) {

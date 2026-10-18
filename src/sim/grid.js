@@ -21,9 +21,9 @@ const DIRS = {
  * @param onSpawn    (tile, { random }) hook for every new tile (random spawns and debug spawns)
  */
 export function createGrid({ seed = (Math.random() * 2 ** 32) >>> 0, spawn = true, spawnTable = null, onMerge = null, onSpawn = null } = {}) {
-  const n = GRID.size;
+  let n = GRID.size; // the board's side: grows on the level road (resize)
   const rng = createRng(seed);
-  const cells = new Array(n * n).fill(null);
+  let cells = new Array(n * n).fill(null);
   const events = [];
   let nextId = 1;
   const s = { score: 0, maxTier: 0, moves: 0, time: 0 };
@@ -190,6 +190,26 @@ export function createGrid({ seed = (Math.random() * 2 ** 32) >>> 0, spawn = tru
     cells.fill(null);
   }
 
+  /**
+   * Grow the board to `size` × `size` (v2.1: 5×5, then 6×6). Every tile keeps its column and row, so the
+   * new column is on the right and the new row on top; its x and y follow the new, smaller cells. The
+   * caller sets the board size first (config.js setBoardSize), so cellX and cellY are the new board's.
+   */
+  function resize(size) {
+    if (!(size > n)) return false;
+    const tiles = cells.filter(Boolean);
+    const from = n;
+    n = size;
+    cells = new Array(n * n).fill(null);
+    for (const t of tiles) {
+      setCell(t, t.col, t.row);
+      t.fromCol = t.col;
+      t.fromRow = t.row;
+    }
+    events.push({ type: 'grow', size: n, from });
+    return true;
+  }
+
   /** Take a tile off the board: sold, or destroyed by enemies (siege). */
   function remove(t, reason = 'sold') {
     if (!t || cells[idx(t.col, t.row)] !== t) return false;
@@ -211,6 +231,7 @@ export function createGrid({ seed = (Math.random() * 2 ** 32) >>> 0, spawn = tru
     spawnDebug,
     clear,
     remove,
+    resize,
     at,
     step(dt) {
       s.time += dt;
@@ -233,6 +254,10 @@ export function createGrid({ seed = (Math.random() * 2 ** 32) >>> 0, spawn = tru
     },
     get seed() {
       return seed;
+    },
+    /** The board's side, in cells. */
+    get size() {
+      return n;
     },
   };
 }

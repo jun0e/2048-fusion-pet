@@ -69,10 +69,37 @@ export const GLOW_FROM_TIER = 11;
 
 // --- square 2048 board ---------------------------------------------------------
 
-// Classic 4×4 sliding board, centred on x = 0. Row 0 is the bottom row.
+// A square sliding board, centred on x = 0. Row 0 is the bottom row. It starts 4×4 and grows to 5×5
+// and 6×6 on the level road (v2.1, docs/v2/SPEC-v2.1.md section 1) in one footprint: x ∈ [-4, 4],
+// y ∈ [0, 8], so its cells shrink as it grows. Each column guards its own lane.
+export const BOARD_SPAN = 8; // the board's width and height (world units)
+export const BOARD_HALF = BOARD_SPAN / 2;
+/**
+ * The 4×4 board's cell (world units): the unit the game's distances were designed in. Attack reaches,
+ * skill radii (…Cells in src/sim/skills/data.js) and speeds keep it as the board grows; a board cell
+ * (GRID.cell) is this or smaller.
+ */
+export const DESIGN_CELL = 2;
+let boardSize = 4;
+/**
+ * The board size the sim and the views use now. A run sets its own on every call into it
+ * (src/sim/run.js), so two runs in one process each see their own board.
+ */
+export function setBoardSize(n) {
+  boardSize = n;
+}
 export const GRID = {
-  size: 4,
-  cell: 2, // world units per cell (board spans x ∈ [-4, 4], y ∈ [0, 8])
+  /** The board's side, in cells: 4, 5 or 6 (setBoardSize). */
+  get size() {
+    return boardSize;
+  },
+  set size(n) {
+    boardSize = n;
+  },
+  /** World units per cell: the footprint shared by the cells (2 at 4×4, 1.6 at 5×5, 1.33 at 6×6). */
+  get cell() {
+    return BOARD_SPAN / boardSize;
+  },
   turretR: 0.6, // kept for range-limited classes; blocks currently target globally
   spawnWeights: [
     // classic 2048: 90% "2", 10% "4"
@@ -80,9 +107,9 @@ export const GRID = {
     [2, 10],
   ],
 };
-export const cellX = (col) => -(GRID.size * GRID.cell) / 2 + GRID.cell * (col + 0.5);
+export const cellX = (col) => -BOARD_HALF + GRID.cell * (col + 0.5);
 export const cellY = (row) => GRID.cell * (row + 0.5);
-export const GRID_TOP = GRID.size * GRID.cell;
+export const GRID_TOP = BOARD_SPAN;
 
 // --- tower defense layer -----------------------------------------------------
 
@@ -90,7 +117,10 @@ export const GRID_TOP = GRID.size * GRID.cell;
 // their lane, walk down the field above the board, keep going straight through
 // their board column (over the blocks) and hit the castle wall UNDER the board.
 export const FIELD = {
-  lanes: GRID.size,
+  /** One lane per board column (4, 5 or 6). */
+  get lanes() {
+    return boardSize;
+  },
   spawnY: GRID_TOP + 0.9 + 8, // portals, 8 units of field above the board
   gateY: -0.3, // the board's bottom edge (siege: enemies hunt blocks once they reach the board)
 };
@@ -128,7 +158,10 @@ export const DEFENSE = {
   turret: {
     baseDamage: 8,
     damageGrowth: 1.62, // per tier
-    laneReach: GRID.cell * 0.5 + 0.25, // a block covers its own column's lane only
+    /** A block covers its own column's lane only (half a board cell, and a little). */
+    get laneReach() {
+      return GRID.cell * 0.5 + 0.25;
+    },
     projectileSpeed: 12, // slow enough to read in flight (Random Dice-like)
   },
   frozenVuln: 0.25, // frozen enemies take +25% damage (BALL x PIT Freeze)

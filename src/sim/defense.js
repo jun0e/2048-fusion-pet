@@ -17,7 +17,7 @@
 // Stomp (a 3-lane shockwave: knockback, stun). Plain blocks shoot pebbles.
 // Statuses: burn, poison (+ weaken at full stacks), chill, freeze, stun, root, loot.
 
-import { DEFENSE, FIELD, GRID, LANE_LENGTH, SIEGE, V2, laneAt, laneX } from '../config.js';
+import { DEFENSE, DESIGN_CELL, FIELD, GRID, LANE_LENGTH, SIEGE, V2, laneAt, laneX } from '../config.js';
 import { ENEMY_TYPES } from './enemies.js';
 import { profileFor } from './classes.js';
 import { SKILL_IMPL } from './skills/index.js';
@@ -1032,7 +1032,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
   function bleedFrom(e, px, py) {
     if (e.bleedT <= 0 || e.dead || e.gone) return;
     const moved = Math.hypot(e.x - px, e.y - py);
-    if (moved > 1e-6) damage(e, (moved / GRID.cell) * e.bleedPer, ['physical'], { dot: true });
+    if (moved > 1e-6) damage(e, (moved / DESIGN_CELL) * e.bleedPer, ['physical'], { dot: true }); // per design cell walked
   }
 
   /** A wall across a foe's lane stops it just short of the wall. → where along its lane it gets to. */

@@ -3,11 +3,11 @@
 // above the board ('out'), acts there with its skill ('act': a skill may walk it, or jump it, through
 // the kit), and hops home ('back'). Deterministic: it reads only the sim's state and step. The
 // renderer (src/kv/roam.js) draws `tile.summon`.
-import { GRID, GRID_TOP, FIELD, cellX } from '../config.js';
+import { DESIGN_CELL, GRID, GRID_TOP, FIELD, cellX } from '../config.js';
 
 export const Y_MIN = GRID_TOP + 1.1; // just above the gates
 export const Y_MAX = FIELD.spawnY - 2.4; // short of the portals
-export const X_MAX = GRID.cell * 1.8;
+export const X_MAX = DESIGN_CELL * 1.8; // world units: the board's footprint stays as it grows
 const ARC = 2.2; // the hop's height (world units)
 
 /** Is this block's pet out on the field? (v1: fusions roamed for good; v2: only while summoned.) */
@@ -15,13 +15,13 @@ export const roams = (t) => !!t.summon;
 
 /**
  * Lane pressure: foes count more the closer they are to the board (as v1's roamers chose).
- * → [4 numbers], one per lane.
+ * → [one number per lane].
  */
 export function lanePressure(enemies) {
-  const press = [0, 0, 0, 0];
+  const press = new Array(FIELD.lanes).fill(0);
   for (const e of enemies) {
     if (e.dead || e.gone) continue;
-    press[Math.max(0, Math.min(3, e.lane))] += 1 / Math.max(1, e.y - GRID_TOP);
+    press[Math.max(0, Math.min(FIELD.lanes - 1, e.lane))] += 1 / Math.max(1, e.y - GRID_TOP);
   }
   return press;
 }
@@ -31,13 +31,13 @@ export function busiestLane(enemies, home = 0) {
   const press = lanePressure(enemies);
   if (!press.some((p) => p > 0)) return home;
   let best = home;
-  for (let l = 0; l < 4; l++) if (press[l] > press[best] + 1e-9 || (Math.abs(press[l] - press[best]) <= 1e-9 && Math.abs(l - home) < Math.abs(best - home))) best = l;
+  for (let l = 0; l < press.length; l++) if (press[l] > press[best] + 1e-9 || (Math.abs(press[l] - press[best]) <= 1e-9 && Math.abs(l - home) < Math.abs(best - home))) best = l;
   return best;
 }
 
 /** Where a summoned pet goes first: on the busiest lane, a little in front of its leading foe. */
 export function frontSpot(tile, enemies) {
-  const home = Math.max(0, Math.min(3, Math.round((tile.x - cellX(0)) / GRID.cell)));
+  const home = Math.max(0, Math.min(FIELD.lanes - 1, Math.round((tile.x - cellX(0)) / GRID.cell)));
   const lane = busiestLane(enemies, home);
   const lead = enemies.filter((e) => !e.dead && !e.gone && e.lane === lane).reduce((m, e) => (!m || e.y < m.y ? e : m), null);
   const y = Math.max(Y_MIN, Math.min(Y_MAX, (lead?.y ?? Y_MIN + 2) - 2.2));
@@ -45,7 +45,7 @@ export function frontSpot(tile, enemies) {
 }
 
 /** Keep a spot on the field. */
-export const clampSpot = (x, y) => ({ x: Math.max(-X_MAX - GRID.cell * 0.2, Math.min(X_MAX + GRID.cell * 0.2, x)), y: Math.max(Y_MIN, Math.min(FIELD.spawnY - 0.6, y)) });
+export const clampSpot = (x, y) => ({ x: Math.max(-X_MAX - DESIGN_CELL * 0.2, Math.min(X_MAX + DESIGN_CELL * 0.2, x)), y: Math.max(Y_MIN, Math.min(FIELD.spawnY - 0.6, y)) });
 
 /**
  * One step of a summoned pet's moves. `s` = tile.summon: { phase, t, hop, x, y, x0, y0, tx, ty, speed?,
@@ -65,7 +65,7 @@ export function moveSummon(s, dt) {
   }
   s.z = 0;
   s.moving = false;
-  const sp = (s.speed ?? 0) * GRID.cell * dt;
+  const sp = (s.speed ?? 0) * DESIGN_CELL * dt; // design cells a second
   if (sp <= 0) return;
   const dx = s.tx - s.x;
   const dy = s.ty - s.y;

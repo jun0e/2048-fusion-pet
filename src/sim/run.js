@@ -34,7 +34,7 @@ import { ELEMENT_STATS } from './skills/data.js';
 import { LEVELS, buyXpPrice, levelCap, spawnOdds, spawnTable, xpNeeded } from './levels.js';
 import { keepsakeById } from './keepsakes.js';
 import { punchTargets, slidePaths } from './punch.js';
-import { DEFENSE, DICE, ECONOMY, GRID, GUIDED_WAVE, PHYSICS, SIEGE, V2, cellX, cellY } from '../config.js';
+import { DEFENSE, DICE, ECONOMY, GRID, GUIDED_WAVE, PHYSICS, SIEGE, V2, cellX, cellY, setBoardSize } from '../config.js';
 
 const HATCH_TIER = DEFENSE.classTiers[0]; // 16
 
@@ -64,6 +64,10 @@ export const waveBonusFor = (wave) => Math.round(ECONOMY.waveClearBase + wave * 
  * @param roaming   accepted for saved runs; v2 pets stay on their tiles (summons go out instead)
  */
 export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose = false, empty = false, dice = null, brokeBreak = ECONOMY.brokeBreak, roaming = false, levels = true, keepsake = null } = {}) {
+  // the board's side (v2.1: 4, then 5 and 6 on the level road). Every call into the run sets it for the
+  // sim and the views (config.js setBoardSize), so two runs in one process each keep their own board.
+  const board = { size: 4 };
+  setBoardSize(board.size);
   const diceRng = createRng((seed ^ 0xa5a5a5a5) >>> 0);
   const eggRng = createRng((seed ^ 0x2545f491) >>> 0); // which new blocks are eggs, and of what (its own stream: other rolls stay put)
   const bossRng = createRng((seed ^ 0x27d4eb2f) >>> 0); // where boss x2s go (its own stream: other rolls stay the same)
@@ -254,6 +258,23 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
     // the top level has no bar; at the cap the bar fills and waits (XP past a full bar is lost)
     lv.xp = lv.level >= LEVELS.max ? 0 : Math.min(lv.xp, xpNeeded(lv.level));
+  }
+
+  /**
+   * Grow the board to `size` × `size` (v2.1, the level road): the tiles keep their columns and rows, a new
+   * column comes in on the right and a new row on top, and the field gets a lane per column. Done in a
+   * break or before wave 1; a level reached during a wave waits for the wave's end (s.pendingGrow).
+   * Emits { type: 'grow', size, from }.
+   */
+  function growBoard(size) {
+    if (!(size > board.size)) return false;
+    board.size = size;
+    setBoardSize(size);
+    grid.resize(size);
+    for (const g of grid.drainEvents()) events.push(g);
+    refresh();
+    checkLock();
+    return true;
   }
 
   /** The run's first 512: 2s stop spawning (said once). */
@@ -555,7 +576,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     if (!s.over && s.phase === 'wave' && s.spawnIdx >= wave.spawns.length && defense.aliveCount === 0) clearWave();
   }
 
-  return {
+  const api = {
     step,
     move,
     nextWave,
@@ -572,6 +593,8 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       s.hold = !!v;
     },
     spawnDebug: (tier, col, row) => grid.spawnDebug(tier, col, row),
+    /** Grow the board now (tests, the demo); the level road grows it in play. */
+    growBoard: (size) => growBoard(size),
     /** What taking this block off the board would pay (+) or cost (−), or null if it can't go. */
     discardPrice: (id) => {
       const t = grid.tiles.find((x) => x.id === id);
@@ -754,5 +777,19 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     get seed() {
       return seed;
     },
+    /** The board's side, in cells (4, then 5 and 6 on the level road). */
+    get size() {
+      return board.size;
+    },
   };
+  // every call into the run first sets its board size, for the sim and the views (see `board`)
+  for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(api))) {
+    if (typeof d.value !== 'function') continue;
+    const fn = d.value;
+    api[k] = (...args) => {
+      setBoardSize(board.size);
+      return fn(...args);
+    };
+  }
+  return api;
 }

@@ -6,12 +6,13 @@
 // into world units); a "pct" of damage is a share of the pet's hit (ctx.hit, its tile's profile damage).
 // Everything a skill leaves on the field (zones, walls, traps, minions, tethers) and every hook it sets
 // is owned by its tile and goes when the summon ends (unless made with `bound: false`).
-import { GRID, FIELD, SIEGE, laneX } from '../../config.js';
+import { DESIGN_CELL, GRID, FIELD, SIEGE, laneX } from '../../config.js';
 import { FUSIONS } from '../classes.js';
 import { FUSION_SKILLS } from './data.js';
 import { busiestLane, clampSpot } from '../roam.js';
 
-export const CELL = GRID.cell;
+/** A skill's "cell" (…Cells in data.js): the 4×4 board's cell, in world units. It stays as the board grows. */
+export const CELL = DESIGN_CELL;
 /** Default damage-over-time a skill applies when its pet's own attack has none. */
 const BURN = { dpsPct: 0.5, dur: 3, max: 5 };
 const POISON = { dpsPct: 0.25, dur: 4, max: 8 };
