@@ -312,9 +312,15 @@ export function createKit(api) {
         s.y = s.ty = c.y;
         s.speed = 0;
       },
-      /** An instant effect for the renderer (SPEC 6): ring, burst, beam, bolt, slam, sweep, text. */
+      /**
+       * An instant effect for the renderer (SPEC 6): ring, burst, beam, bolt, slam, sweep, text. A skill
+       * gives a ring's or a slam's radius `r` in cells, like its data; the event carries world units, as
+       * every position does (the renderer draws it as it comes).
+       */
       fx(fx, fields = {}) {
-        events.push({ type: 'skillFx', fx, color, tileId: owner, skill: key, ...fields });
+        const out = { type: 'skillFx', fx, color, tileId: owner, skill: key, ...fields };
+        if (typeof fields.r === 'number') out.r = fields.r * CELL;
+        events.push(out);
       },
     };
     return ctx;

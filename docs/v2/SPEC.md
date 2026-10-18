@@ -162,11 +162,11 @@ Instant effects, events `{ type: 'skillFx', fx, color, … }`:
 
 | fx | fields | look |
 |---|---|---|
-| ring | x, y, r | an expanding ring |
+| ring | x, y, r | an expanding ring (r in world units: skills pass cells to `ctx.fx`, the kit converts) |
 | burst | x, y, n | a particle burst |
 | beam | x, y, x1, y1, w | a straight beam (lance, rail, log, charge) |
 | bolt | x, y, x1, y1 | a lightning bolt |
-| slam | x, y, r | a ground hit (burrow, stomp) |
+| slam | x, y, r | a ground hit (burrow, stomp); r in world units, as a ring's |
 | sweep | y, w | a horizontal sweep across all lanes (sickle) |
 | text | x, y, key | a short floating word, `key` an i18n key under `fx.*` (U1 adds the words) |
 
