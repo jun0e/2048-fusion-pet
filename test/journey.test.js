@@ -686,6 +686,7 @@ test('a break shrinks when no swipe is possible, and only then', () => {
       r.drainEvents();
     }
     assert.equal(r.phase, 'break', 'the guided wave is cleared');
+    while (r.pendingChoice) r.choose(0); // the wave's kills reached level 2: its element card (v2.1)
     return r;
   };
   const r = toBreak({});

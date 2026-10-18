@@ -19,42 +19,23 @@ const clearBut = (r, keep) => {
   r.drainEvents();
 };
 
-test('two single pets of different elements: a fusion choice; the block holds offer 0 (the mover main) until the pick', () => {
+test('two single pets of different elements fuse at once: no card, the pet’s main element is fixed, the skill card’s news', () => {
   const r = run();
   block(r, 5, 0, 0, { element: 'fire' });
   block(r, 5, 1, 0, { element: 'ice' });
   r.drainEvents();
   assert.ok(r.move('left')); // the ice pet slides into the fire pet
   const ev = r.drainEvents();
-  const c = r.pendingChoice;
-  assert.equal(c.kind, 'fusion');
-  assert.equal(c.tier, 6);
-  assert.deepEqual(c.parts, [
-    { element: 'ice', tier: 5 },
-    { element: 'fire', tier: 5 },
-  ]);
+  assert.equal(r.pendingChoice, null, 'v2.1: no pick');
+  assert.ok(!ev.some((e) => e.type === 'choice'));
+  const t = r.grid.at(0, 0);
+  assert.deepEqual(t.cls, fusion('fire', 'ice'), 'Novakit breathes fire, whichever pet slid');
+  const classed = ev.filter((e) => e.type === 'classed');
   assert.deepEqual(
-    c.offers.map((o) => [o.element, o.fusion, o.name]),
-    [
-      ['ice', 'fire', FUSIONS['fire+ice'].name],
-      ['fire', 'ice', FUSIONS['fire+ice'].name],
-    ],
+    classed.map((e) => [e.stage, e.chosen, e.tileId, e.info.name]),
+    [[2, true, t.id, 'Frostnova']],
   );
-  assert.ok(ev.some((e) => e.type === 'choice' && e.kind === 'fusion' && e.tileId === c.tileId));
-  assert.ok(!ev.some((e) => e.type === 'classed'), 'announced once picked');
-  const t = r.tiles.find((x) => x.id === c.tileId);
-  assert.deepEqual(t.cls, fusion('ice', 'fire'));
-  assert.equal(r.move('right'), false, 'the game waits for the pick');
-  const time = r.time;
-  r.step();
-  assert.equal(r.time, time, 'paused');
-
-  assert.ok(r.choose(1));
-  assert.deepEqual(t.cls, fusion('fire', 'ice'));
-  const classed = r.drainEvents().filter((e) => e.type === 'classed');
-  assert.equal(classed.length, 1);
-  assert.deepEqual([classed[0].stage, classed[0].chosen, classed[0].tileId, classed[0].info.name], [2, true, t.id, 'Frostnova']);
-  assert.equal(r.pendingChoice, null);
+  assert.ok(r.move('right'), 'nothing waits');
 });
 
 test('a single fed into a fusion (either way): one buff of its element, a buffed event, no choice', () => {
@@ -103,23 +84,22 @@ test('two fusions: a keep choice; the kept one gains the other’s two elements 
 
 test('autoChoose (and the bot) take offer 0: the mover’s', () => {
   const r = run({ autoChoose: true });
-  block(r, 5, 0, 0, { element: 'fire' });
-  block(r, 5, 1, 0, { element: 'ice' });
+  block(r, 5, 0, 0, fusion('fire', 'ice'));
+  block(r, 5, 1, 0, fusion('lightning', 'metal'));
   assert.ok(r.move('left'));
   r.step();
-  assert.deepEqual(r.grid.at(0, 0).cls, fusion('ice', 'fire'));
+  assert.deepEqual(r.grid.at(0, 0).cls, fusion('lightning', 'metal', { fire: 1, ice: 1 }));
   assert.equal(r.pendingChoice, null);
 });
 
-test('eggs fuse below 16 with the same choice; a fusion egg hatches at 16 as its fusion', () => {
+test('eggs fuse below 16 at once; a fusion egg hatches at 16 as its fusion', () => {
   const r = run();
   block(r, 2, 0, 0, { element: 'fire' });
   block(r, 2, 1, 0, { element: 'metal' });
   assert.ok(r.move('left'));
-  assert.equal(r.pendingChoice?.kind, 'fusion');
-  r.choose(0);
+  assert.equal(r.pendingChoice, null);
   const egg = r.grid.at(0, 0);
-  assert.deepEqual([egg.tier, egg.cls], [3, fusion('metal', 'fire')]);
+  assert.deepEqual([egg.tier, egg.cls], [3, fusion('metal', 'fire')], 'Anviljaw: metal');
   clearBut(r, egg);
   block(r, 3, 1, 0);
   assert.ok(r.move('left'));
@@ -129,13 +109,11 @@ test('eggs fuse below 16 with the same choice; a fusion egg hatches at 16 as its
     [[1, FUSIONS['fire+metal'].name]],
   );
 
-  // two 8-eggs: one choice, then its news: the fusion made, and its hatch (as that fusion)
+  // two 8-eggs: the fusion made, then its hatch (as that fusion), in one swipe
   const two = run();
   block(two, 3, 0, 0, { element: 'ice' });
   block(two, 3, 1, 0, { element: 'lightning' });
   assert.ok(two.move('left'));
-  two.drainEvents();
-  two.choose(0);
   assert.deepEqual(
     two.drainEvents().filter((e) => e.type === 'classed').map((e) => [e.stage, e.info.name]),
     [
@@ -143,6 +121,7 @@ test('eggs fuse below 16 with the same choice; a fusion egg hatches at 16 as its
       [1, FUSIONS['ice+lightning'].name],
     ],
   );
+  assert.deepEqual(two.grid.at(0, 0).cls, fusion('ice', 'lightning'), 'Sparkfrost: ice');
 });
 
 /**
@@ -186,41 +165,24 @@ test('a boss x2 that lifts a block whose keep card is open: the card follows, an
   );
 });
 
-test('a boss x2 that lifts a block whose fusion card is open: the pure news names the main element picked', () => {
-  const { r, t } = liftWhilePending((r) => {
-    block(r, 10, 0, 0, { element: 'fire' });
-    block(r, 10, 1, 0, { element: 'ice' });
-  });
-  assert.equal(r.pendingChoice.kind, 'fusion');
-  r.choose(1); // fire main (the mover, ice, was offer 0)
-  assert.deepEqual(t.cls, { ...fusion('fire', 'ice'), pure: true });
-  assert.deepEqual(
-    r.drainEvents().filter((e) => e.type === 'classed').map((e) => [e.stage, e.info.name]),
-    [
-      [2, 'Frostnova'],
-      [3, 'Pure Fire'],
-    ],
-  );
-});
-
 test('choose() without an index takes offer 0', () => {
   const r = run();
-  block(r, 5, 0, 0, { element: 'fire' });
-  block(r, 5, 1, 0, { element: 'ice' });
+  block(r, 5, 0, 0, fusion('fire', 'ice'));
+  block(r, 5, 1, 0, fusion('lightning', 'metal'));
   assert.ok(r.move('left'));
+  assert.equal(r.pendingChoice?.kind, 'keep');
   assert.equal(r.choose(), true);
-  assert.deepEqual(r.grid.at(0, 0).cls, fusion('ice', 'fire'));
+  assert.deepEqual(r.grid.at(0, 0).cls, fusion('lightning', 'metal', { fire: 1, ice: 1 }));
 });
 
-test('a merge that reaches 4096 announces the pure form: at once, or after its choice', () => {
+test('a merge that reaches 4096 announces the pure form: at once, or after a keep choice', () => {
   const r = run();
   block(r, 11, 0, 0, { element: 'fire' });
   block(r, 11, 1, 0, { element: 'ice' });
-  assert.ok(r.move('left'));
   r.drainEvents();
-  r.choose(1); // fire main
+  assert.ok(r.move('left'));
   const t = r.grid.at(0, 0);
-  assert.deepEqual(t.cls, { ...fusion('fire', 'ice'), pure: true });
+  assert.deepEqual(t.cls, { ...fusion('fire', 'ice'), pure: true }, 'Novakit, at 4096: the pure form of fire');
   assert.deepEqual(
     r.drainEvents().filter((e) => e.type === 'classed').map((e) => [e.stage, e.info.name]),
     [
@@ -250,19 +212,19 @@ test('a merge that reaches 4096 announces the pure form: at once, or after its c
   assert.equal(single.pendingChoice, null);
 });
 
-test('a run with fusion and keep choices saves and replays exactly', () => {
+test('a run with fusions and keep choices saves and replays exactly', () => {
   const setup = (r) => {
     r.addCoins(1e4);
     block(r, 5, 0, 0, { element: 'fire' });
     block(r, 5, 1, 0, { element: 'ice' });
     block(r, 6, 2, 3, fusion('lightning', 'metal'));
+    block(r, 6, 3, 3, fusion('earth', 'wind'));
     return r;
   };
   const r = setup(run());
   const log = recordRun(r);
   assert.ok(r.move('left'));
-  r.choose(1);
-  let chosen = 1;
+  let chosen = 0;
   for (let i = 0; i < 60; i++) {
     ['down', 'left', 'right', 'up'].some((d) => r.move(d));
     while (r.pendingChoice) {
@@ -271,7 +233,7 @@ test('a run with fusion and keep choices saves and replays exactly', () => {
     }
     r.step();
   }
-  assert.ok(chosen >= 1);
+  assert.ok(chosen >= 1, 'a keep card came up');
   const copy = replayRun((opts) => setup(createRun({ ...opts, empty: true, levels: false, dice: DECK })), JSON.parse(JSON.stringify(log)));
   assert.equal(fingerprint(copy), fingerprint(r));
   assert.deepEqual(

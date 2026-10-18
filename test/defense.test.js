@@ -435,13 +435,24 @@ test('fusions keep every effect whatever their first shape: bite on a cone, chai
   f.step(DT, [block(1, 8, { element: 'fire', fusion: 'metal' })]);
   assert.ok(f.drainEvents().some((x) => x.type === 'bite'), 'Forge bites');
 
-  // Toxic Shock (poison + lightning) spits; the glob chains on landing (v2: the second element's chain at
-  // its own strength, 2.6 units, so the third foe stands within that of the glob's hits)
+  // a spit (poison: Lanes + Area) has no room for lightning's Chain (v2.1: every pet has a weakness), so the
+  // glob does not arc; Zapcinder's cone (fire: Area) takes the Chain, and its jumps keep to its own lane
   const p = createDefense({ rng: createRng(1) });
   const foes = [3, 4.5, 5.4].map((y) => p.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(y) }));
   for (const e of foes) e.speed = 0;
   run(p, [block(1, 8, { element: 'poison', fusion: 'lightning' })], 1);
-  assert.ok(p.drainEvents().some((x) => x.type === 'impact' && x.chain), 'the glob arcs on');
+  assert.ok(!p.drainEvents().some((x) => x.type === 'impact' && x.chain), 'a spit never arcs');
+  const z = createDefense({ rng: createRng(1) });
+  // a foe in the flame (it reaches 6 from the block at y 1), one past it a jump away, and one nearer still
+  // but in the next lane: the jump takes the far one in its own lane
+  const mine = [6.5, 8.8].map((y) => z.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(y) }));
+  const side = z.spawn('hoodedFlier', { lane: 2, hpScale: 5000, s: sAtY(7.4) });
+  for (const e of [...mine, side]) e.speed = 0;
+  run(z, [block(1, 8, { element: 'fire', fusion: 'lightning', buffs: {} })], 1);
+  const arcs = z.drainEvents().filter((x) => x.type === 'impact' && x.chain);
+  assert.ok(arcs.length, 'Zapcinder’s flame arcs on');
+  assert.ok(mine[1].hp < mine[1].maxHp, 'to the foe past the flame, in its lane');
+  assert.equal(side.hp, side.maxHp, 'never into the next lane');
 
   // Nightshade (poison + nature) regrows its den when the glob lands on a foe
   const n = createDefense({ rng: createRng(1) });

@@ -102,7 +102,7 @@ test('a fusion frees both its elements: the same swipe can spawn one of their eg
     r.spawnDebug(5, 1, 0).cls = { element: 'ice' };
     r.drainEvents();
     assert.ok(r.move('left'));
-    assert.equal(r.pendingChoice?.kind, 'fusion');
+    assert.equal(r.pendingChoice, null, 'v2.1: the fusion is made at once');
     const egg = r.drainEvents().find((e) => e.type === 'egg');
     assert.ok(egg && ['fire', 'ice'].includes(egg.element));
   }));
@@ -132,9 +132,13 @@ test('a spawned 16 (top spawn levels) that rolls an element is a single pet at o
 test('a newly unlocked element spawns as eggs too', () =>
   withV2({ eggChance: 1 }, () => {
     const r = createRun({ seed: 11, empty: true, dice: ['fire'] });
-    r.spawnDebug(8, 0, 0); // a 256: the level cap is 5
+    r.spawnDebug(8, 0, 0);
     r.addCoins(1e4);
-    assert.ok(r.buyXp()); // level 2: a new element
+    r.nextWave(); // kills give XP: level 2 brings a new element
+    for (let i = 0; i < 60 * 120 && !r.pendingChoice; i++) {
+      for (const f of r.enemies) if (!f.dead) r.defense.damage(f, 1e9, ['fire']);
+      r.step();
+    }
     const pick = r.pendingChoice;
     assert.equal(pick?.kind, 'die');
     r.choose(0);

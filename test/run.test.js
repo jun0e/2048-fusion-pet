@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRun, swipeCostFor, killCoinsFor, breakSecondsFor, maxHpFor } from '../src/sim/run.js';
+import { LEVELS } from '../src/sim/levels.js';
 import { DICE, ECONOMY, PHYSICS, SIEGE, V2 } from '../src/config.js';
 import { createAutoplay } from '../src/autoplay.js';
 import { ELEMENTS } from '../src/sim/classes.js';
@@ -435,11 +436,11 @@ test('summons: skillCharge and skillReady read the defense; castSkill sends a fu
   // an open card pauses the run: no summon (and not shown as ready)
   r.grid.remove(single);
   r.grid.remove(young); // (only the new pair merges: the pet stays where it is)
-  r.spawnDebug(5, 0, 3).cls = { element: 'fire' };
-  r.spawnDebug(5, 1, 3).cls = { element: 'ice' };
+  r.spawnDebug(5, 0, 3).cls = { element: 'fire', fusion: 'ice', buffs: {} };
+  r.spawnDebug(5, 1, 3).cls = { element: 'earth', fusion: 'wind', buffs: {} };
   r.defense.summon = () => true;
   assert.ok(r.move('left'));
-  assert.equal(r.pendingChoice?.kind, 'fusion');
+  assert.equal(r.pendingChoice?.kind, 'keep');
   assert.equal(r.grid.at(0, 0), pet, 'the pet is still home');
   assert.equal(r.skillReady(pet.id), false);
   assert.equal(r.castSkill(pet.id), false);
@@ -449,7 +450,7 @@ test('summons: skillCharge and skillReady read the defense; castSkill sends a fu
 
 test('kill rewards a skill changes: coinMult multiplies the coins, xp adds spawn XP (Bumper Harvest)', () => {
   const r = createRun({ seed: 4, empty: true });
-  r.spawnDebug(8, 0, 0); // a 256: the level cap is 5
+  r.spawnDebug(8, 0, 0);
   r.nextWave();
   const drain = r.defense.drainEvents;
   r.defense.drainEvents = () => drain().map((e) => (e.type === 'kill' ? { ...e, coinMult: 3, xp: 1 } : e));
@@ -461,7 +462,7 @@ test('kill rewards a skill changes: coinMult multiplies the coins, xp adds spawn
   const paid = r.drainEvents().find((e) => e.type === 'coins' && e.reason === 'kill');
   assert.equal(paid.amount, killCoinsFor(1, false) * 3);
   assert.ok(r.coins >= coins + paid.amount);
-  assert.equal(r.xp, 1, 'one level XP');
+  assert.equal(r.xp, LEVELS.xp.kill + 1, 'the kill’s XP and the skill’s one more');
 });
 
 test('pets no longer roam: the roaming option is accepted (saved runs carry it) but blocks stay on their tiles', () => {

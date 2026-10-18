@@ -15,6 +15,12 @@ import {
   grownElement,
   turretDamage,
   milestonePieces,
+  FUSION_MAIN,
+  fusionClass,
+  traitsOf,
+  TRAIT_KEYS,
+  FAR_REACH,
+  buffWorth,
 } from '../src/sim/classes.js';
 import { ELEMENT_STATS, FUSION_HIT, PURE_SELF } from '../src/sim/skills/data.js';
 import { V2 } from '../src/config.js';
@@ -53,7 +59,7 @@ test('merge: plain + plain stays plain at any tier (never an element, never pure
   const c = block(5);
   const r = mergeClass(c, block(4), block(4));
   assert.deepEqual(c.cls, {});
-  assert.deepEqual(r, { stage: 0, choice: null, gain: null });
+  assert.deepEqual(r, { stage: 0, choice: null, gain: null, fused: false });
   const big = block(12);
   assert.equal(mergeClass(big, block(11), block(11)).stage, 0);
   assert.deepEqual(big.cls, {});
@@ -65,7 +71,7 @@ test('merge: plain + X and X + plain take X’s class, buffs kept (a copy, not s
     [block(5, { element: 'fire' }), block(5)],
   ]) {
     const c = block(6);
-    assert.deepEqual(mergeClass(c, mover, stayer), { stage: 0, choice: null, gain: null });
+    assert.deepEqual(mergeClass(c, mover, stayer), { stage: 0, choice: null, gain: null, fused: false });
     assert.deepEqual(c.cls, { element: 'fire' });
   }
   const f = block(7, fusion('fire', 'ice', { metal: 2 }));
@@ -97,49 +103,54 @@ test('a merge drops v1’s ultimate (v2 has none)', () => {
 
 test('single A + single A (cannot happen in play): keeps A', () => {
   const c = block(6);
-  assert.deepEqual(mergeClass(c, block(5, { element: 'nature' }), block(5, { element: 'nature' })), { stage: 0, choice: null, gain: null });
+  assert.deepEqual(mergeClass(c, block(5, { element: 'nature' }), block(5, { element: 'nature' })), { stage: 0, choice: null, gain: null, fused: false });
   assert.deepEqual(c.cls, { element: 'nature' });
 });
 
-test('two single pets of different elements fuse: a fusion choice, the mover’s element main by default', () => {
-  const c = block(6);
-  const r = mergeClass(c, block(5, { element: 'fire' }), block(5, { element: 'ice' }));
-  assert.equal(r.choice.kind, 'fusion');
-  assert.deepEqual(r.choice.parts, [
-    { element: 'fire', tier: 5 },
-    { element: 'ice', tier: 5 },
-  ]);
-  assert.deepEqual(
-    r.choice.offers.map((o) => [o.element, o.fusion, o.key]),
-    [
-      ['fire', 'ice', 'fire+ice'],
-      ['ice', 'fire', 'fire+ice'],
-    ],
-  );
-  assert.equal(r.choice.offers[0].name, 'Frostnova');
-  assert.equal(r.choice.offers[0].color, FUSIONS['fire+ice'].color);
-  assert.deepEqual(c.cls, fusion('fire', 'ice'), 'until the choice, the block holds offer 0');
-  assert.equal(r.stage, 0);
-  assert.equal(r.gain, null);
+test('two single pets of different elements fuse at once: no pick, the pet’s main element is fixed (FUSION_MAIN)', () => {
+  for (const [mover, stayer] of [
+    ['fire', 'ice'],
+    ['ice', 'fire'],
+  ]) {
+    const c = block(6);
+    const r = mergeClass(c, block(5, { element: mover }), block(5, { element: stayer }));
+    assert.deepEqual(r, { stage: 0, choice: null, gain: null, fused: true });
+    assert.deepEqual(c.cls, fusion('fire', 'ice'), `${mover} into ${stayer}: Novakit breathes fire whichever slid`);
+  }
+  const sting = block(6);
+  mergeClass(sting, block(5, { element: 'poison' }), block(5, { element: 'metal' }));
+  assert.deepEqual(sting.cls, fusion('metal', 'poison'), 'Rustclaw, the scorpion: a metal sting');
+  assert.deepEqual(fusionClass('nature', 'earth'), fusion('nature', 'earth'), 'Mossbara: nature');
+  // every pair has its main element, one of its two, and every element leads three or four fusions
+  assert.equal(Object.keys(FUSION_MAIN).length, 28);
+  const leads = {};
+  for (const [key, main] of Object.entries(FUSION_MAIN)) {
+    assert.ok(key.split('+').includes(main), `${key}: ${main}`);
+    assert.ok(FUSIONS[key], key);
+    leads[main] = (leads[main] ?? 0) + 1;
+  }
+  for (const e of ELEMENT_KEYS) assert.ok(leads[e] >= 3 && leads[e] <= 4, `${e} leads ${leads[e]}`);
 });
 
-test('two eggs of different elements make a fusion egg, with the same choice; two 8-eggs hatch as a fusion', () => {
+test('two eggs of different elements make a fusion egg at once; two 8-eggs hatch as a fusion', () => {
   const c = block(3);
   const r = mergeClass(c, block(2, { element: 'poison' }), block(2, { element: 'earth' }));
-  assert.equal(r.choice.kind, 'fusion');
-  assert.deepEqual(c.cls, fusion('poison', 'earth'));
+  assert.equal(r.choice, null);
+  assert.equal(r.fused, true);
+  assert.deepEqual(c.cls, fusion('poison', 'earth'), 'Bogling: poison');
   assert.equal(r.stage, 0);
   const hatch = block(4);
-  const h = mergeClass(hatch, block(3, { element: 'wind' }), block(3, { element: 'metal' }));
-  assert.equal(h.choice.kind, 'fusion');
-  assert.equal(h.stage, 1, 'it reached 16: the run announces it with the choice');
+  const h = mergeClass(hatch, block(3, { element: 'metal' }), block(3, { element: 'wind' }));
+  assert.equal(h.fused, true);
+  assert.deepEqual(hatch.cls, fusion('wind', 'metal'), 'Whirlblade: wind');
+  assert.equal(h.stage, 1, 'it reached 16: the run announces the fusion, then the hatch');
 });
 
 test('a single fed into a fusion (either order) adds one buff of its element: no choice, a gain', () => {
   const c = block(7);
   const r = mergeClass(c, block(6, fusion('fire', 'ice')), block(6, { element: 'metal' }));
   assert.deepEqual(c.cls, fusion('fire', 'ice', { metal: 1 }));
-  assert.deepEqual(r, { stage: 0, choice: null, gain: { metal: 1 } });
+  assert.deepEqual(r, { stage: 0, choice: null, gain: { metal: 1 }, fused: false });
 
   const c2 = block(7);
   const stayer = block(6, fusion('fire', 'ice', { metal: 1 }));
@@ -179,7 +190,7 @@ test('two fusions merged: a keep choice; the kept one gains the other’s two el
 test('reaching 4096 makes the pure form of the main element (stage 3); a pure block stays pure', () => {
   assert.equal(V2.pureTier, 12);
   const single = block(12);
-  assert.deepEqual(mergeClass(single, block(11, { element: 'fire' }), block(11)), { stage: 3, choice: null, gain: null });
+  assert.deepEqual(mergeClass(single, block(11, { element: 'fire' }), block(11)), { stage: 3, choice: null, gain: null, fused: false });
   assert.deepEqual(single.cls, { element: 'fire', pure: true });
 
   const fed = block(12);
@@ -190,9 +201,10 @@ test('reaching 4096 makes the pure form of the main element (stage 3); a pure bl
 
   const fused = block(12);
   const f = mergeClass(fused, block(11, { element: 'ice' }), block(11, { element: 'wind' }));
-  assert.equal(f.choice.kind, 'fusion');
+  assert.equal(f.choice, null);
+  assert.equal(f.fused, true);
   assert.equal(f.stage, 3);
-  assert.equal(fused.cls.pure, true);
+  assert.deepEqual(fused.cls, { ...fusion('wind', 'ice'), pure: true }, 'Flurrin: the pure form of wind');
 
   const bigger = block(13);
   assert.equal(mergeClass(bigger, block(12, { element: 'ice', pure: true }), block(12)).stage, 0, 'already pure: nothing new');
@@ -246,7 +258,8 @@ test('profiles: plain blocks shoot pebbles from 16, eggs and small blocks do not
   assert.equal(plain.shoots, true);
   assert.equal(plain.dmgMult, 1);
   assert.deepEqual(plain.kinds, ['physical']);
-  assert.deepEqual(plain.shoot, PLAIN_SHOOT);
+  assert.deepEqual(plain.shoot, { ...PLAIN_SHOOT, maxReach: FAR_REACH - 0.1 });
+  assert.deepEqual(plain.traits, { far: false, lanes: false, area: false, chain: false }, 'a pebble has no strength');
   assert.equal(plain.element, null);
   assert.equal(plain.damage, turretDamage(4));
   assert.equal(profileFor(block(3)).shoots, false, 'below 16 a block does not shoot');
@@ -292,7 +305,10 @@ test('a fusion pet: its main element’s attack fully grown, × FUSION_HIT, plus
   assert.deepEqual(p.colors, [FUSIONS['fire+ice'].color]);
   assert.equal(p.element, 'fire');
   assert.equal(p.shoot.pattern, 'cone');
-  assert.equal(p.shoot.reach, fire3.shoot.reach, 'the main element’s attack at growth 3, even at 64');
+  assert.ok(fire3.shoot.reach < FAR_REACH);
+  assert.equal(p.shoot.reach, 10, 'its ice adds Far: a long flame, even at 64 (v2.1)');
+  assert.deepEqual(p.traits, { far: true, lanes: false, area: true, chain: false });
+  assert.equal(p.shoot.lanes, 0, 'no Lanes: the flame keeps to its own lane');
   assert.equal(p.rate, ELEMENTS.fire.rate);
   near(p.dmgMult, ELEMENTS.fire.dmg * FUSION_HIT, 'dmgMult');
   near(p.damage, turretDamage(6) * ELEMENTS.fire.dmg * FUSION_HIT, 'damage');
@@ -310,6 +326,30 @@ test('a fusion pet: its main element’s attack fully grown, × FUSION_HIT, plus
   const harvest = profileFor(block(8, fusion('metal', 'nature')));
   assert.equal(harvest.shoot.pattern, 'pounce');
   assert.ok(harvest.loot && harvest.regrow && harvest.thorns, 'both elements’ effects');
+  assert.deepEqual(harvest.traits, { far: false, lanes: true, area: true, chain: false }, 'its nature adds Area: a splash where it lands');
+  assert.ok(harvest.splash);
+});
+
+test('every pet has a weakness: at most two strengths, every fusion exactly two (v2.1)', () => {
+  const count = (t) => TRAIT_KEYS.filter((k) => t[k]).length;
+  for (const e of ELEMENT_KEYS) for (const tier of [4, 5, 6, 7, 12]) assert.ok(count(profileFor(block(tier, { element: e })).traits) <= 2, `${e} at ${2 ** tier}`);
+  for (const [key, main] of Object.entries(FUSION_MAIN)) {
+    const second = key.split('+').find((x) => x !== main);
+    const p = profileFor(block(10, fusion(main, second, { wind: 3 })));
+    assert.equal(count(p.traits), 2, `${key}: ${JSON.stringify(p.traits)}`);
+    // the shape follows its strengths: no Chain, no jumps; no Area, no splash or puddle; no Far, a near reach
+    if (!p.traits.chain) assert.equal(p.chain, undefined, `${key}: no chain`);
+    if (!p.traits.area) assert.ok(!p.splash && !p.puddle, `${key}: no area`);
+    if (!p.traits.far) assert.ok((p.shoot.reach ?? 0) < FAR_REACH && (p.shoot.radius ?? 0) < FAR_REACH, `${key}: wind buffs never stretch it to Far`);
+    if (p.shoot.lanes != null) assert.equal(p.shoot.lanes > 0, p.traits.lanes, `${key}: lanes`);
+  }
+  // the four strengths, shape by shape
+  assert.deepEqual(traitsOf({ element: 'ice' }, true, 4), { far: true, lanes: false, area: false, chain: false }, 'Ice Lance at 16: Far');
+  assert.deepEqual(traitsOf({ element: 'ice' }, true, 6), { far: true, lanes: true, area: false, chain: false }, '… and Lanes from 64');
+  assert.deepEqual(traitsOf(fusion('fire', 'lightning'), true, 10), { far: false, lanes: false, area: true, chain: true }, 'Zapcinder: a cone that chains in its lane');
+  assert.deepEqual(traitsOf(fusion('lightning', 'wind'), true, 10), { far: false, lanes: true, area: false, chain: true }, 'Gustbolt: its shape is full, wind adds only its push');
+  assert.equal(profileFor(block(10, fusion('lightning', 'wind'))).knockback > 0, true);
+  assert.deepEqual(traitsOf({}, true, 6), { far: false, lanes: false, area: false, chain: false });
 });
 
 test('the summon: fusion pets from V2.summonTier (1024); never singles or plain blocks', () => {
@@ -335,26 +375,30 @@ test('the pure form hits PURE_SELF harder and names its element', () => {
 test('element buffs on a fusion: every stat, stacking', () => {
   const f = (buffs, main = 'fire', second = 'ice', tier = 6) => profileFor(block(tier, fusion(main, second, buffs)));
   const base = f({});
-  near(f({ fire: 2 }).dmgMult, base.dmgMult * (1 + 2 * ELEMENT_STATS.fire.buff), 'dmg');
+  near(f({ fire: 2 }).dmgMult, base.dmgMult * (1 + buffWorth(2) * ELEMENT_STATS.fire.buff), 'dmg: the 2nd copy gives 60% of the 1st');
+  assert.deepEqual([1, 2, 3, 4].map((n) => Math.round(buffWorth(n) * 100) / 100), [1, 1.6, 1.96, 2.18], 'each copy gives less (v2.1)');
+  assert.ok(buffWorth(50) < 2.5);
   near(f({ ice: 1 }).chill.slow, base.chill.slow + ELEMENT_STATS.ice.buff, 'slow raised');
   assert.equal(f({ ice: 30 }).chill.slow, 0.65, 'slow caps at 0.65');
   assert.deepEqual(f({ ice: 1 }, 'fire', 'lightning').chill, { slow: ELEMENT_STATS.ice.buff, dur: 1.5 }, 'slow added where there was none');
-  near(f({ lightning: 2 }).rate, base.rate * (1 + 2 * ELEMENT_STATS.lightning.buff), 'rate');
+  near(f({ lightning: 2 }).rate, base.rate * (1 + buffWorth(2) * ELEMENT_STATS.lightning.buff), 'rate');
   assert.deepEqual(f({ poison: 1 }).poison, { dpsPct: 0.1, dur: 3, max: 3, perHit: 1 }, 'poison added: +1 stack per hit');
   const venom = f({ poison: 2 }, 'poison', 'earth');
-  assert.equal(venom.poison.perHit, 3, 'its own stack and 2 more');
+  near(venom.poison.perHit, 1 + buffWorth(2), 'its own stack and 1.6 more');
   assert.equal(venom.poison.max, grownElement('poison', 3).poison.max, 'max ≥ 2 + v');
   assert.equal(venom.poison.dpsPct, grownElement('poison', 3).poison.dpsPct, 'dpsPct ≥ 0.1·v');
   near(f({ earth: 1 }).hpMult, 1 + ELEMENT_STATS.earth.buff, 'hp');
   assert.equal(base.hpMult, 1);
   near(f({ wind: 1 }).shoot.reach, base.shoot.reach * (1 + ELEMENT_STATS.wind.buff), 'range: reach');
   const chain = f({}, 'lightning', 'fire');
-  near(f({ wind: 2 }, 'lightning', 'fire').shoot.radius, chain.shoot.radius * (1 + 2 * ELEMENT_STATS.wind.buff), 'range: radius');
-  near(f({ metal: 2 }).critChance, 2 * ELEMENT_STATS.metal.buff, 'crit');
-  assert.equal(f({ metal: 20 }).critChance, 0.75, 'crit caps at 0.75');
+  near(f({ wind: 1 }, 'lightning', 'fire').shoot.radius, Math.min(FAR_REACH - 0.1, chain.shoot.radius * (1 + ELEMENT_STATS.wind.buff)), 'range: radius, never past Far');
+  near(f({ metal: 2 }).critChance, buffWorth(2) * ELEMENT_STATS.metal.buff, 'crit');
+  near(f({ metal: 20 }).critChance, buffWorth(20) * ELEMENT_STATS.metal.buff, 'twenty metal buffs are worth under 2.5 (v2.1: no carry)');
   assert.equal(f({ metal: 1 }).critMult, 2);
-  near(f({ nature: 3 }).regen, 3 * ELEMENT_STATS.nature.buff, 'regen');
-  assert.deepEqual(statsOf(block(6, fusion('fire', 'ice', { fire: 2, earth: 1 }))), { dmg: 0.4, hp: 0.25 });
+  near(f({ nature: 3 }).regen, buffWorth(3) * ELEMENT_STATS.nature.buff, 'regen');
+  const st = statsOf(block(6, fusion('fire', 'ice', { fire: 2, earth: 1 })));
+  near(st.dmg, 0.32);
+  near(st.hp, 0.25);
 });
 
 test('a pure pet’s aura (tile.aura): hp and regen on every block, the other stats only on pets', () => {

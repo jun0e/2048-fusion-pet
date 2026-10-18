@@ -31,7 +31,7 @@ import { createRng } from './rng.js';
 import { planBossReward } from './boss-reward.js';
 import { ELEMENT_KEYS, copyCls, describeStage, dieOffers, mergeClass, profileFor, singlesOn, stageFor, turretDamage, withPure } from './classes.js';
 import { ELEMENT_STATS } from './skills/data.js';
-import { LEVELS, buyXpPrice, levelCap, spawnOdds, spawnTable, xpNeeded } from './levels.js';
+import { LEVELS, LEVEL_ROAD, levelCap, rewardsAt, spawnOdds, spawnTable, xpNeeded } from './levels.js';
 import { keepsakeById } from './keepsakes.js';
 import { punchTargets, slidePaths } from './punch.js';
 import { DEFENSE, DICE, ECONOMY, GRID, GUIDED_WAVE, PHYSICS, SIEGE, V2, cellX, cellY, setBoardSize } from '../config.js';
@@ -73,7 +73,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
   const bossRng = createRng((seed ^ 0x27d4eb2f) >>> 0); // where boss x2s go (its own stream: other rolls stay the same)
   const events = [];
   // the cards that pause the run: new elements { kind: 'die', level, offers }, and the merge choices
-  // { kind: 'fusion' | 'keep', tileId, tier, parts, offers, stage } (docs/v2/SPEC.md section 3)
+  // { kind: 'keep', tileId, tier, parts, offers, stage } (docs/v2/SPEC.md section 3; v2.1: no fusion pick)
   const choices = [];
   const picks = []; // merge choices a swipe made, queued after its news
   const notes = []; // what merges and spawns made (hatches, buffs, eggs), emitted after the grid's events
@@ -132,7 +132,9 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       child.maxHp = maxHpOf(child);
       child.hp = Math.min(child.maxHp, (mover.hp ?? hpFor(mover.tier)) + (stayer.hp ?? hpFor(stayer.tier)));
       if (res.gain) notes.push(buffed(child, res.gain));
-      // a choice is announced once made (the main element decides what the block is)
+      // two single pets fused (v2.1: at once, the pet's main element is fixed): the skill card follows
+      if (res.fused) notes.push(classed(child, 2, { chosen: true }));
+      // a keep choice is announced once made (which fusion stays decides what the block is)
       if (res.choice) picks.push({ ...res.choice, tileId: child.id, tier: child.tier, stage: res.stage });
       else if (res.stage) notes.push(classed(child, res.stage));
     },
@@ -244,8 +246,9 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
   }
 
   /**
-   * Spawn XP: each level reached raises the odds of bigger new blocks ('levelUp'). The level waits
-   * at its cap (levelCap: the run's top block) with a full bar until a bigger block raises the cap.
+   * XP on the level road (src/sim/levels.js LEVEL_ROAD): each level reached moves the odds of the new
+   * blocks, and brings its rewards ('levelUp' { rewards }): an element pick, a bigger board (at once in a
+   * break or before wave 1, else when the wave is cleared), faster summons.
    */
   function gainXp(amount, reason) {
     if (!levels || lv.level >= LEVELS.max) return;
@@ -253,11 +256,25 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     while (lv.level < levelCap(grid.maxTier) && lv.xp >= xpNeeded(lv.level)) {
       lv.xp -= xpNeeded(lv.level);
       lv.level += 1;
-      events.push({ type: 'levelUp', level: lv.level, reason, odds: spawnOdds(spawnLevel(), grid.maxTier) });
-      if (V2.unlockLevels.includes(lv.level)) offerElement(lv.level);
+      const rewards = rewardsAt(lv.level);
+      events.push({ type: 'levelUp', level: lv.level, reason, rewards, odds: spawnOdds(spawnLevel(), grid.maxTier) });
+      for (const r of rewards) {
+        if (r.kind === 'element') offerElement(lv.level);
+        else if (r.kind === 'grow') {
+          s.pendingGrow = Math.max(s.pendingGrow ?? 0, r.size);
+          if (s.phase !== 'wave') applyGrow();
+        } else if (r.kind === 'charge') defense.setChargeS(defense.chargeS - r.s);
+      }
     }
     // the top level has no bar; at the cap the bar fills and waits (XP past a full bar is lost)
     lv.xp = lv.level >= LEVELS.max ? 0 : Math.min(lv.xp, xpNeeded(lv.level));
+  }
+
+  /** A level's bigger board, once no wave is on (gainXp, clearWave). */
+  function applyGrow() {
+    const size = s.pendingGrow ?? 0;
+    s.pendingGrow = 0;
+    if (size > board.size) growBoard(size);
   }
 
   /**
@@ -293,7 +310,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
   }
 
-  /** A level in V2.unlockLevels: a new element for the deck, a pick of V2.offers (fewer when the deck is nearly full, none when it is full). */
+  /** A level whose reward is an element: a new element for the deck, a pick of V2.offers (fewer when the deck is nearly full, none when it is full). */
   function offerElement(level) {
     const offers = dieOffers(owned, diceRng);
     if (!offers.length) return;
@@ -324,15 +341,10 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
     const t = grid.tiles.find((x) => x.id === c.tileId);
     if (!t) return true;
-    // the block becomes the offer picked (pure if it is 4096 by now: a boss x2 may have lifted it since)
-    if (c.kind === 'fusion') {
-      t.cls = withPure({ element: offer.element, fusion: offer.fusion, buffs: {} }, t.tier);
-      events.push(classed(t, 2, { chosen: true }));
-    } else {
-      // 'keep': the kept fusion, with what it gained from the other
-      t.cls = withPure(copyCls(offer.cls), t.tier);
-      events.push(buffed(t, offer.gain));
-    }
+    // 'keep': the block becomes the kept fusion, with what it gained from the other (pure if it is 4096
+    // by now: a boss x2 may have lifted it since)
+    t.cls = withPure(copyCls(offer.cls), t.tier);
+    events.push(buffed(t, offer.gain));
     t.prof = null;
     // what the merge (or a boss x2 since) also reached, now that the block's class is known
     if (c.stage) events.push(classed(t, c.stage));
@@ -391,6 +403,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     addCoins(bonus, 'clear');
     gainXp(LEVELS.xp.waveClear, 'clear');
     s.waveNo += 1;
+    applyGrow(); // a bigger board from a level reached during the wave, before the next wave is made
     wave = waveFor(s.waveNo);
     s.phase = 'break';
     s.timer = breakSecondsFor(s.waveNo);
@@ -438,7 +451,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
    * XP can be bought below the cap (bought XP never waits on a level the board doesn't allow yet),
    * and only while a level still changes the odds (Lucky Clover reaches the top odds 2 levels early).
    */
-  const canBuyXp = () => lv.level < LEVELS.max && lv.level < levelCap(grid.maxTier) && spawnLevel() < LEVELS.max;
+  // v2.1: Buy XP is gone (the level road's XP comes from kills and cleared waves)
 
   /** The defense's news: kills pay (score, coins, a boss's x2s); everything goes on to the renderer. */
   function drainDefense() {
@@ -450,7 +463,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       // Metal marks foes: a marked foe drops bonus coins (and the Coin Purse adds its share); a skill can
       // multiply a kill's coins and add spawn XP (Bumper Harvest: coinMult, xp)
       addCoins(Math.round(killCoinsFor(s.waveNo, e.boss) * (1 + (e.loot ?? 0)) * (1 + (ks?.killPct ?? 0)) * (e.coinMult ?? 1)), 'kill', e.x, e.y);
-      if (e.xp) gainXp(e.xp, 'kill');
+      gainXp((e.boss ? LEVELS.xp.boss : LEVELS.xp.kill) + (e.xp ?? 0), 'kill'); // v2.1: kills are the road's main XP
       if (e.boss) {
         // boss reward: x2s for the other blocks, as many as the biggest block's power of two (boss-reward.js).
         // Blocks at 0 health this step are about to fall: they take no x2 (and pair with nothing).
@@ -476,19 +489,6 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
   }
 
-  /** Buy XP: LEVELS.buy.xp spawn XP for the price of LEVELS.buy.swipes swipes (TFT's Buy XP). */
-  function buyXp() {
-    if (!levels || s.over || choices.length || !canBuyXp()) return false;
-    const price = buyXpPrice(swipeCostFor(s.swipes));
-    if (s.coins < price) {
-      events.push({ type: 'noCoins', cost: price, coins: s.coins, reason: 'xp' });
-      return false;
-    }
-    s.coins -= price;
-    events.push({ type: 'buyXp', price, xp: LEVELS.buy.xp, total: s.coins });
-    gainXp(LEVELS.buy.xp, 'buy');
-    return true;
-  }
 
   /** Skip the prep / break countdown. */
   function nextWave() {
@@ -581,7 +581,8 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     move,
     nextWave,
     choose,
-    buyXp,
+    /** v2.1: Buy XP is gone; kept so an old caller gets a refusal. */
+    buyXp: () => false,
     /** First run: aim wave 1 at the player's biggest block (see aimGuidedWave); off restores the normal wave 1. */
     setGuidedWave: (v) => {
       s.guidedWave = !!v;
@@ -635,6 +636,8 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       return defense.summon(t) === true;
     },
     addCoins: (n) => addCoins(n, 'debug'),
+    /** Level XP for tests and the demo (a debug helper, not a saved input). */
+    addXp: (n) => gainXp(n, 'debug'),
     drainEvents: () => events.splice(0, events.length),
     grid,
     defense,
@@ -758,8 +761,13 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       return s.no2;
     },
     /** What Buy XP costs now (null when it can't be bought: levels off, the top level, or the level cap). */
+    /** v2.1: Buy XP is gone (always null). */
     get buyXpPrice() {
-      return levels && canBuyXp() ? buyXpPrice(swipeCostFor(s.swipes)) : null;
+      return null;
+    },
+    /** The level road (src/sim/levels.js LEVEL_ROAD): { level, minute, rewards } per level. */
+    get road() {
+      return LEVEL_ROAD;
     },
     /** The highest level the board allows now (src/sim/levels.js levelCap). */
     get levelCap() {

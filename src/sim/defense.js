@@ -47,6 +47,8 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
   let nextShot = 1;
   // v2 summons (docs/v2/SPEC.md section 5): a fusion at 1024+ charges its summon; its pet goes out with its skill
   const charge = new Map(); // tile id → seconds charged toward its summon
+  let chargeS = V2.summon.chargeS; // seconds of wave time a summon takes to charge (the level road shortens it)
+  const dealtBy = {}; // v2.1: damage dealt per element (a hit counts as its pet's main element), for resistances
   const out = new Map(); // tile id → { tile, ctx, impl }: pets out on the field
   // what skills leave on the field (SPEC section 6; the renderer reads them), each owned by its tile
   const zones = [];
@@ -65,7 +67,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     e.dirY = p.dy;
   }
 
-  function spawn(type, { lane = 0, hpScale = DEFENSE.enemyBaseHp, s = 0, atkScale = 1 } = {}) {
+  function spawn(type, { lane = 0, hpScale = DEFENSE.enemyBaseHp, s = 0, atkScale = 1, resist = null } = {}) {
     const def = ENEMY_TYPES[type];
     const hp = def.hp * hpScale;
     const e = {
@@ -86,6 +88,9 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
       boss: !!def.boss,
       element: def.element ?? null,
       physRes: def.physRes ?? 0,
+      // v2.1: { [element]: share } of a hit by a pet of that element it ignores (docs/v2/SPEC-v2.1.md section 5)
+      resist: resist && Object.keys(resist).length ? { ...resist } : null,
+      resistBlinkT: 0, // seconds until its shield may blink again ('resisted')
       burn: { stacks: 0, dps: 0, t: 0 },
       poison: { stacks: 0, dps: 0, t: 0 },
       dot: { burn: 0, poison: 0 }, // running totals of damage-over-time dealt (for display)
@@ -128,15 +133,28 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     };
     place(e);
     enemies.push(e);
-    events.push({ type: 'spawn', id: e.id, enemy: e });
+    events.push({ type: 'spawn', id: e.id, enemy: e, resist: e.resist });
     return e;
   }
 
   // --- damage & statuses -----------------------------------------------------
 
-  function damage(e, amount, kinds, { dot = false, source = null } = {}) {
+  /**
+   * Damage to a foe. `element`: the element the hit counts as (its pet's main element; burn fire, poison
+   * poison, bleed metal, thorns nature), for resistances and the per-element tally (v2.1); none for a
+   * plain block's pebble or a keepsake.
+   */
+  function damage(e, amount, kinds, { dot = false, source = null, element = null } = {}) {
     if (e.dead || e.gone) return 0;
     let m = 1;
+    const res = element && e.resist ? e.resist[element] ?? 0 : 0;
+    if (res > 0) {
+      m *= 1 - res;
+      if (!dot && e.resistBlinkT <= 0) {
+        e.resistBlinkT = 0.6;
+        events.push({ type: 'resisted', id: e.id, x: e.x, y: e.y, element });
+      }
+    }
     if (e.freezeT > 0) m *= 1 + DEFENSE.frozenVuln;
     if (e.physRes && kinds.every((k) => k === 'physical')) m *= 1 - e.physRes;
     if (e.element === 'fire') {
@@ -152,6 +170,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     }
     const dealt = amount * m;
     e.hp -= dealt;
+    if (element) dealtBy[element] = (dealtBy[element] ?? 0) + Math.min(dealt, Math.max(0, e.hp + dealt));
     if (!dot) e.flash = 0.12;
     if (e.hp <= 0) kill(e, source);
     return dealt;
@@ -326,7 +345,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
           // Bramble Shell: biting a thorny block hurts
           const tp = t.cls ? profileOf(t) : null;
           if (tp?.thorns && tp.shoots) {
-            const dealt = damage(e, tp.damage * tp.thorns.pct, ['nature']);
+            const dealt = damage(e, tp.damage * tp.thorns.pct, ['nature'], { element: 'nature' });
             events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#4cd964'], crit: false, thorns: true });
           }
           if (t.hp <= 0 && !t.downed && !hooks.down.some((h) => h.fn(t))) {
@@ -383,7 +402,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     }
     if (prof.critChance && rng.next() < prof.critChance) d *= prof.critMult ?? 2; // v2 crits
     if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur);
-    const dealt = damage(e, d, prof.kinds);
+    const dealt = damage(e, d, prof.kinds, { element: prof.element });
     applyStatuses(e, prof, d, origin);
     events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: prof.colors, crit: d > dmg });
   }
@@ -400,11 +419,12 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     const pts = [{ x: first.x, y: first.y }];
     let last = first;
     let d = prof.damage;
+    const lane = keepsLane(prof) ? laneOfOrigin(origin) : null;
     for (let k = 0; k < prof.chain.jumps; k++) {
       let best = null;
       let bestD = prof.chain.range;
       for (const e of alive()) {
-        if (used.has(e)) continue;
+        if (used.has(e) || (lane != null && e.lane !== lane)) continue;
         const dd = dist(e, last);
         if (dd <= bestD) {
           best = e;
@@ -443,11 +463,12 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
       chainPts = [{ x: origin.x, y: origin.y }, { x: primary.x, y: primary.y }];
       let last = primary;
       let d = dmg;
+      const lane = keepsLane(prof) ? laneOfOrigin(origin) : null;
       for (let k = 0; k < prof.chain.jumps; k++) {
         let best = null;
         let bestD = prof.chain.range;
         for (const e of pool) {
-          if (used.has(e)) continue;
+          if (used.has(e) || (lane != null && e.lane !== lane)) continue;
           const dd = dist(e, last);
           if (dd <= bestD) {
             best = e;
@@ -487,7 +508,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
       }
       if (prof.critChance && rng.next() < prof.critChance) d *= prof.critMult ?? 2; // v2 crits
       if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur); // before the damage, so Metal's own killing blow pays out
-      const dealt = damage(e, d, prof.kinds);
+      const dealt = damage(e, d, prof.kinds, { element: prof.element });
       applyStatuses(e, prof, d, origin);
       events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: prof.colors, crit: d > dmg * 0.999 && e === primary });
     }
@@ -521,14 +542,20 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     return Math.abs(e.lane - laneOfX(b.x)) <= shoot.lanes && Math.abs(e.y - b.y) <= shoot.reach + 1e-6;
   }
 
-  /** Ember Breath: a cone up (or down) the lane, widening to half a lane each side at its tip. */
+  /**
+   * Ember Breath: a cone up (or down) the lane. Without the `lanes` strength (shoot.lanes 0) it stays in its
+   * own lane; with it, it widens to a lane and a half each side at its tip (v2.1).
+   */
   function inCone(e, b, shoot, dir) {
     const along = (e.y - b.y) * dir;
     if (along < -0.3 || along > shoot.reach + 1e-6) return false;
-    // its own lane at the mouth, plus half a lane each side at the tip (a fusion's extra lanes widen it)
     const t = Math.max(0, along) / shoot.reach;
-    return Math.abs(e.x - b.x) <= (GRID.cell / 2) * (1 + t * (1 + (shoot.lanes ?? 0)));
+    return Math.abs(e.x - b.x) <= (GRID.cell / 2) * (1 + t * 2 * (shoot.lanes ?? 0));
   }
+
+  /** A shape without the `lanes` strength reaches only foes in its block's own lane (chain jumps too). */
+  const keepsLane = (prof) => !!prof.traits && !prof.traits.lanes;
+  const laneOfOrigin = (origin) => laneOfX(origin.ox ?? origin.x);
 
   const SORTS = {
     front: (a, b) => b.s - a.s,
@@ -889,13 +916,14 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     for (const e of enemies) {
       if (e.dead || e.gone) continue;
       e.flash = Math.max(0, e.flash - dt);
+      if (e.resistBlinkT > 0) e.resistBlinkT -= dt;
       if (e.burn.stacks > 0) {
-        e.dot.burn += damage(e, e.burn.stacks * e.burn.dps * dt, ['fire'], { dot: true });
+        e.dot.burn += damage(e, e.burn.stacks * e.burn.dps * dt, ['fire'], { dot: true, element: 'fire' });
         e.burn.t -= dt;
         if (e.burn.t <= 0) e.burn = { stacks: 0, dps: 0, t: 0 };
       }
       if (e.poison.stacks > 0 && !e.dead) {
-        e.dot.poison += damage(e, e.poison.stacks * e.poison.dps * dt, ['poison'], { dot: true });
+        e.dot.poison += damage(e, e.poison.stacks * e.poison.dps * dt, ['poison'], { dot: true, element: 'poison' });
         e.poison.t -= dt;
         if (e.poison.t <= 0) e.poison = { stacks: 0, dps: 0, t: 0 };
       }
@@ -1020,7 +1048,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
       e.hitT += dt;
       if (e.hitT >= SIEGE.biteEvery) {
         e.hitT -= SIEGE.biteEvery;
-        const dealt = damage(e, e.tauntReflect, ['physical']);
+        const dealt = damage(e, e.tauntReflect, ['physical'], { element: 'earth' });
         events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#9fb3c8'], crit: false, thorns: true });
       }
       return true;
@@ -1032,7 +1060,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
   function bleedFrom(e, px, py) {
     if (e.bleedT <= 0 || e.dead || e.gone) return;
     const moved = Math.hypot(e.x - px, e.y - py);
-    if (moved > 1e-6) damage(e, (moved / DESIGN_CELL) * e.bleedPer, ['physical'], { dot: true }); // per design cell walked
+    if (moved > 1e-6) damage(e, (moved / DESIGN_CELL) * e.bleedPer, ['physical'], { dot: true, element: 'metal' }); // per design cell walked
   }
 
   /** A wall across a foe's lane stops it just short of the wall. → where along its lane it gets to. */
@@ -1067,7 +1095,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
 
   /** A fusion's summon charge, 0..1. */
   function skillCharge(id) {
-    return Math.min(1, (charge.get(id) ?? 0) / V2.summon.chargeS);
+    return Math.min(1, (charge.get(id) ?? 0) / chargeS);
   }
 
   /** Send a fusion's pet out with its skill: it must have one (1024+), be charged and be home. → whether it went. */
@@ -1188,7 +1216,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
         const from = (tile.mergedFrom ?? []).map((m) => charge.get(m.id) ?? 0);
         charge.set(tile.id, from.length ? Math.max(...from) : 0);
       }
-      if (foes) charge.set(tile.id, Math.min(V2.summon.chargeS, charge.get(tile.id) + dt));
+      if (foes) charge.set(tile.id, Math.min(chargeS, charge.get(tile.id) + dt));
     }
     // a pet whose tile left the board (merged, sold, broken) is gone at once
     for (const [id, o] of out) if (!live.has(id)) endSummon(o.tile, true);
@@ -1253,7 +1281,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
         e.chillT = Math.max(e.chillT, 0.25);
       }
       const pct = e.boss ? tt.bossDrainPct : tt.drainPct;
-      if (pct) e.dot.poison += damage(e, e.maxHp * pct * dt, ['poison'], { dot: true });
+      if (pct) e.dot.poison += damage(e, e.maxHp * pct * dt, ['poison'], { dot: true, element: 'poison' });
     }
     for (let i = tethers.length - 1; i >= 0; i--) if (tethers[i].dead) tethers.splice(i, 1);
   }
@@ -1344,6 +1372,15 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     tethers,
     /** A fusion's summon charge, 0..1 (v2). */
     skillCharge,
+    /** Seconds of wave time a summon takes to charge (v2.1: the level road shortens it). */
+    get chargeS() {
+      return chargeS;
+    },
+    setChargeS(v) {
+      chargeS = Math.max(6, v);
+    },
+    /** Damage dealt per element so far (v2.1): the run picks the foes' resistances from it. */
+    dealtBy,
     /** Send a fusion's pet out with its skill (v2): true when it went. */
     summon,
     spawn,

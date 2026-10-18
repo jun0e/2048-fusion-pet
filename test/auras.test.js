@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRun, maxHpFor } from '../src/sim/run.js';
-import { ELEMENTS } from '../src/sim/classes.js';
+import { ELEMENTS, buffWorth } from '../src/sim/classes.js';
 import { ELEMENT_STATS } from '../src/sim/skills/data.js';
 import { PHYSICS } from '../src/config.js';
 
@@ -57,7 +57,7 @@ test('earth buffs raise a fusion’s max health; each wave refills it to the rai
   const f = block(r, 6, 0, 0, { element: 'fire', fusion: 'ice', buffs: { earth: 2 } });
   block(r, 1, 3, 3);
   r.step();
-  const max = Math.round(maxHpFor(6) * (1 + 2 * ELEMENT_STATS.earth.buff));
+  const max = Math.round(maxHpFor(6) * (1 + buffWorth(2) * ELEMENT_STATS.earth.buff)); // the 2nd copy gives less (v2.1)
   assert.equal(f.maxHp, max);
   f.hp = 10;
   r.nextWave();

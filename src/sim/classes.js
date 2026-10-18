@@ -79,7 +79,7 @@ export const ELEMENTS = {
     shoot: { pattern: 'gust', reach: 10, lanes: 0, target: 'front' },
     kind: 'physical',
     knockback: 1, // half a cell (bosses less)
-    grow: (s) => ({ knockback: 1 + s / 3, shoot: { lanes: s >= 3 ? 1 : 0 } }),
+    grow: (s) => ({ knockback: 1 + s / 3 }), // its own lane only (v2.1: far + area, docs/v2/SPEC-v2.1.md section 3)
   },
   metal: {
     color: '#f7be1e',
@@ -124,19 +124,60 @@ export function grownElement(key, s = 0) {
 /** How a dormant block (below 16) shoots: a single plain pebble. */
 export const PLAIN_SHOOT = { pattern: 'single', reach: 5, lanes: 0, target: 'front' };
 
+// --- attack strengths (v2.1, docs/v2/SPEC-v2.1.md section 3) -----------------------------
+
+/** The four strengths an attack can have; every pet has at most two (so at least two weaknesses). */
+export const TRAIT_KEYS = ['far', 'lanes', 'area', 'chain'];
+/** A reach or radius this long (world units) reaches deep into the field: the `far` strength. */
+export const FAR_REACH = 8;
+/** Without `far`, a range stat or aura stretches an attack only up to here. */
+const NEAR_MAX = FAR_REACH - 0.1;
+/** What a far attack reaches at least (world units): a lane line, and a circle round the block. */
+const FAR_LINE = 10;
+const FAR_CIRCLE = 9;
+/** The shape each element's attack has (a single pet, and a fusion's main element). Ice adds lanes from 64. */
+const BASE_TRAITS = { fire: ['area'], ice: ['far', 'lanes'], lightning: ['lanes', 'chain'], poison: ['lanes', 'area'], earth: ['lanes', 'area'], wind: ['far', 'area'], metal: ['lanes'], nature: ['lanes', 'area'] };
+/** What a second element can add to a fusion's shape, in order: the first the shape lacks, if it has room. */
+const SECOND_TRAITS = { fire: ['area'], ice: ['far', 'lanes'], lightning: ['chain', 'lanes'], poison: ['area', 'lanes'], earth: ['lanes', 'area'], wind: ['far', 'area'], metal: ['lanes'], nature: ['area', 'lanes'] };
+/** A second element's area on a shape that has none of its own (a pounce): a splash where it lands. */
+const ADDED_SPLASH = { radius: 1.6, pct: 0.5 };
+
 /**
- * Range of a class: the main element's shape at its growth stage (cone, lane line, ring,
- * circle, 3-lane wave). A fusion keeps that shape, fully grown; a lane attack takes the
- * widest lane cover of its two elements.
+ * A class's strengths → { far, lanes, area, chain } (booleans). A plain block or one below 16: none. A
+ * single pet: its element's shape (ice reaches other lanes from 64, growth stage 2). A fusion: its main
+ * element's shape, plus the first strength its second element can add while the shape has fewer than two.
  */
-export function shootFor(cls, active, tier = 4) {
-  if (!active || !cls.element) return { ...PLAIN_SHOOT };
+export function traitsOf(cls, active, tier = 4) {
+  const out = { far: false, lanes: false, area: false, chain: false };
+  if (!active || !cls?.element) return out;
+  const have = BASE_TRAITS[cls.element].filter((k) => !(cls.element === 'ice' && k === 'lanes' && !cls.fusion && growthOf(tier) < 2));
+  if (cls.fusion && have.length < 2) {
+    const add = SECOND_TRAITS[cls.fusion].find((k) => !have.includes(k));
+    if (add) have.push(add);
+  }
+  for (const k of have) out[k] = true;
+  return out;
+}
+
+/**
+ * Range of a class: the main element's shape at its growth stage (cone, lane line, ring, circle, 3-lane
+ * wave), held to its strengths (traitsOf): a lane attack covers its neighbours only with `lanes`, and only a
+ * `far` shape reaches FAR_REACH or more (a far shape at least FAR_LINE along its lane, FAR_CIRCLE round
+ * itself). A fusion's shape is its main element's, fully grown. `maxReach` caps what range stats can do.
+ */
+export function shootFor(cls, active, tier = 4, traits = traitsOf(cls, active, tier)) {
+  if (!active || !cls.element) return { ...PLAIN_SHOOT, maxReach: NEAR_MAX };
   const s = cls.fusion ? 3 : growthOf(tier);
   const shoot = { ...grownElement(cls.element, s).shoot };
-  if (shoot.lanes != null && cls.fusion) {
-    const o = grownElement(cls.fusion, 3).shoot;
-    if (o.lanes != null) shoot.lanes = Math.max(shoot.lanes, o.lanes);
+  if (shoot.lanes != null) shoot.lanes = traits.lanes ? Math.max(1, shoot.lanes) : 0;
+  if (traits.far) {
+    if (shoot.reach != null) shoot.reach = Math.max(shoot.reach, FAR_LINE);
+    if (shoot.radius != null) shoot.radius = Math.max(shoot.radius, FAR_CIRCLE);
+  } else {
+    if (shoot.reach != null) shoot.reach = Math.min(shoot.reach, NEAR_MAX);
+    if (shoot.radius != null) shoot.radius = Math.min(shoot.radius, NEAR_MAX);
   }
+  shoot.maxReach = traits.far ? Infinity : NEAR_MAX;
   return shoot;
 }
 
@@ -216,6 +257,49 @@ for (const [key, f] of Object.entries(FUSIONS)) {
   f.name = tr(`fusion.${key}`); // the skill's name (src/i18n); its pet keeps a name of its own
   f.color = FUSION_COLORS[key];
   f.parts = key.split('+');
+}
+
+/**
+ * v2.1: each fusion's main element, fixed per pet (docs/v2/SPEC-v2.1.md section 2). Two single pets fuse at
+ * once (no pick): the pet's picture, skill and attack all come from the pair, and the main element is the
+ * attack that suits its animal and its skill (Rustclaw the scorpion stings like Metal, Tundrock the mammoth
+ * stomps like Earth). Three or four fusions per element.
+ */
+export const FUSION_MAIN = {
+  'fire+ice': 'fire', // Novakit, red panda: Frostfire Waltz
+  'fire+lightning': 'fire', // Zapcinder, mantis shrimp: Plasma Barrage
+  'fire+poison': 'poison', // Embertoad, fire-bellied toad: Brimstone Blast
+  'fire+earth': 'earth', // Magmole, mole: Magma Burrow
+  'fire+wind': 'fire', // Flarewhirl, dragonfly: Fire Twister
+  'fire+metal': 'metal', // Anviljaw, crocodile: Molten Jaws
+  'fire+nature': 'fire', // Emberhopper, locust: Ember Swarm
+  'ice+lightning': 'ice', // Sparkfrost, narwhal: Cryo Lance
+  'ice+poison': 'ice', // Frostjelly, jellyfish: Venom Tendrils
+  'ice+earth': 'earth', // Tundrock, woolly mammoth: Glacier Wall
+  'ice+wind': 'wind', // Flurrin, snow lamb: Whiteout
+  'ice+metal': 'ice', // Rimeplate, walrus: Rime Armour
+  'ice+nature': 'nature', // Frostpetal, reindeer fawn: Frost Garden
+  'lightning+poison': 'lightning', // Fizzlebolt, platypus: Toxic Circuit
+  'lightning+earth': 'lightning', // Rumblebolt, wild boar: Thunder Charge
+  'lightning+wind': 'lightning', // Gustbolt, jackrabbit: Storm Hop
+  'lightning+metal': 'metal', // Voltgild, chameleon: Railgun
+  'lightning+nature': 'nature', // Zaplily, orchid mantis: Bloom Ambush
+  'poison+earth': 'poison', // Bogling, bog spider: Bog Web
+  'poison+wind': 'poison', // Mistmaw, pufferfish: Panic Cloud
+  'poison+metal': 'metal', // Rustclaw, scorpion: Executioner Sting
+  'poison+nature': 'nature', // Nightling, slow loris: Toxic Lullaby
+  'earth+wind': 'wind', // Dunepuff, Bactrian camel: Blinding Sandstorm
+  'earth+metal': 'earth', // Ironclod, rhinoceros: Iron Taunt
+  'earth+nature': 'nature', // Mossbara, capybara: Moss Spring
+  'wind+metal': 'wind', // Whirlblade, sickle weasel: Sickle Sweep
+  'wind+nature': 'wind', // Pollenpuff, sugar glider: Pollen Rain
+  'metal+nature': 'metal', // Sproutgear, beaver: Bumper Harvest
+};
+
+/** The fusion class two single pets of `a` and `b` make: its fixed main element first. */
+export function fusionClass(a, b) {
+  const main = FUSION_MAIN[fusionKey(a, b)];
+  return { element: main, fusion: main === a ? b : a, buffs: {} };
 }
 
 /**
@@ -308,13 +392,13 @@ const keptAfter = (keep, other) => {
 /**
  * The merge rule (docs/v2/SPEC.md section 3): `mover` slid into `stayer` (the same tier) and made
  * `child`. Sets child.cls (with a choice, its offer 0 until the player picks) and returns
- * { stage, choice, gain }:
+ * { stage, choice, gain, fused }:
  *   stage   1 the child hatched (reached 16 with an element), 3 it became pure (reached V2.pureTier
  *           with an element), else 0. With a choice the run announces it once the choice is made.
- *   choice  null, or { kind: 'fusion', parts, offers }: two singles of different elements (which one is
- *           main; offer 0 the mover's), or { kind: 'keep', parts, offers }: two fusions (which one stays,
- *           gaining the other's elements and buffs; offer 0 the mover's)
+ *   choice  null, or { kind: 'keep', parts, offers }: two fusions (which one stays, gaining the other's
+ *           elements and buffs; offer 0 the mover's)
  *   gain    null, or { element: 1 }: the buff a fusion gained from a single fed into it
+ *   fused   two single pets of different elements made a fusion (its main element fixed: FUSION_MAIN)
  */
 export function mergeClass(child, mover, stayer) {
   const a = mover.cls ?? {};
@@ -322,18 +406,14 @@ export function mergeClass(child, mover, stayer) {
   let cls;
   let choice = null;
   let gain = null;
+  let fused = false;
   if (!a.element || !b.element) {
     cls = copyCls(a.element ? a : b); // plain + plain stays plain; plain + X is X
   } else if (isSingle(a) && isSingle(b)) {
     if (a.element === b.element) cls = copyCls(a); // cannot happen in play (one single per element)
     else {
-      const offers = [fusionOffer(a.element, b.element), fusionOffer(b.element, a.element)];
-      const parts = [
-        { element: a.element, tier: mover.tier },
-        { element: b.element, tier: stayer.tier },
-      ];
-      choice = { kind: 'fusion', parts, offers };
-      cls = { element: offers[0].element, fusion: offers[0].fusion, buffs: {} };
+      cls = fusionClass(a.element, b.element); // v2.1: no pick, the pet's main element is fixed
+      fused = true;
     }
   } else if (isFusion(a) && isFusion(b)) {
     const offers = [
@@ -358,7 +438,7 @@ export function mergeClass(child, mover, stayer) {
   child.prof = null;
   const crossed = (tier) => mover.tier < tier && child.tier >= tier;
   const stage = !cls.element ? 0 : crossed(V2.pureTier) ? 3 : crossed(HATCH_TIER) ? 1 : 0;
-  return { stage, choice, gain };
+  return { stage, choice, gain, fused };
 }
 
 // v1's material (the elements merged into a block) and its fusion offers: the sim no longer uses them
@@ -473,10 +553,15 @@ function addComponents(p, el, boost) {
   if (!p.kinds.includes(el.kind)) p.kinds.push(el.kind);
 }
 
+/** Each more copy of the same buff on one pet gives this share of the one before (v2.1: no carry). */
+export const BUFF_DECAY = 0.6;
+/** What `n` copies of a buff are worth, in copies: 1, 1.6, 1.96, 2.18 … (never more than 2.5). */
+export const buffWorth = (n) => (n > 0 ? (1 - BUFF_DECAY ** n) / (1 - BUFF_DECAY) : 0);
+
 /**
- * A block's element stats (ELEMENT_STATS): a fusion's buffs (count × buff) and the aura of the other
- * pure pets (`tile.aura`, { element: v }, set by the run). hp and regen from an aura reach every block;
- * the other stats only blocks with an element. → { stat: v } (only the stats it has).
+ * A block's element stats (ELEMENT_STATS): a fusion's buffs (each more copy of one gives less: buffWorth)
+ * and the aura of the other pure pets (`tile.aura`, { element: v }, set by the run). hp and regen from an
+ * aura reach every block; the other stats only blocks with an element. → { stat: v } (only the stats it has).
  */
 export function statsOf(tile) {
   const out = {};
@@ -485,7 +570,7 @@ export function statsOf(tile) {
     if (stat && v) out[stat] = (out[stat] ?? 0) + v;
   };
   const c = tile.cls ?? {};
-  if (c.fusion && c.buffs) for (const e of ELEMENT_KEYS) add(e, (c.buffs[e] ?? 0) * ELEMENT_STATS[e].buff);
+  if (c.fusion && c.buffs) for (const e of ELEMENT_KEYS) add(e, buffWorth(c.buffs[e] ?? 0) * ELEMENT_STATS[e].buff);
   if (tile.aura) for (const e of ELEMENT_KEYS) if (c.element || ['hp', 'regen'].includes(ELEMENT_STATS[e].stat)) add(e, tile.aura[e] ?? 0);
   return out;
 }
@@ -502,9 +587,11 @@ function applyStats(p, st) {
   }
   if (st.hp) p.hpMult = 1 + st.hp;
   if (st.range) {
+    // a range stat stretches the attack, but a near shape never becomes far (v2.1: its weakness stays)
     p.shoot = { ...p.shoot };
-    if (p.shoot.reach != null) p.shoot.reach *= 1 + st.range;
-    if (p.shoot.radius != null) p.shoot.radius *= 1 + st.range;
+    const cap = p.shoot.maxReach ?? Infinity;
+    if (p.shoot.reach != null) p.shoot.reach = Math.min(cap, p.shoot.reach * (1 + st.range));
+    if (p.shoot.radius != null) p.shoot.radius = Math.min(cap, p.shoot.radius * (1 + st.range));
   }
   if (st.crit) p.critChance = Math.min(0.75, st.crit);
   if (st.regen) p.regen = st.regen;
@@ -562,7 +649,14 @@ export function profileFor(tile) {
     p.pure = c.element;
   }
   p.element = p.active ? c.element : null;
-  p.shoot = shootFor(c, p.active, tile.tier);
+  p.traits = traitsOf(c, p.active, tile.tier);
+  p.shoot = shootFor(c, p.active, tile.tier, p.traits);
+  // the second element's effects stay; its shape parts only as its strengths allow (v2.1)
+  if (!p.traits.chain) delete p.chain;
+  if (!p.traits.area) {
+    delete p.splash;
+    delete p.puddle;
+  } else if (!['cone', 'quake', 'gust', 'pulse', 'spit'].includes(p.shoot.pattern) && !p.splash) p.splash = { ...ADDED_SPLASH };
   applyStats(p, statsOf(tile));
   p.damage = turretDamage(tile.tier) * p.dmgMult;
   tile.prof = p;

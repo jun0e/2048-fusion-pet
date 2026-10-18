@@ -242,7 +242,7 @@ test('the keepsake record: a new player, a round trip, a broken store, new unloc
   assert.doesNotThrow(() => saveMeta(fresh, blocked));
 });
 
-test('a run with a keepsake and bought XP saves and replays exactly', () => {
+test('a run with a keepsake saves and replays exactly', () => {
   // debug helpers (coins, a 64 that lifts the level cap) are not inputs: the replay's factory does them too
   const setup = (run) => {
     run.addCoins(400);
@@ -254,7 +254,6 @@ test('a run with a keepsake and bought XP saves and replays exactly', () => {
   assert.equal(log.keepsake, 'ironFist');
   for (let i = 0; i < 400; i++) {
     if (i % 60 === 0) ['down', 'left', 'right', 'up'].some((d) => r.move(d));
-    if (i === 90) r.buyXp();
     if (i === 120) r.nextWave();
     r.step();
   }
@@ -265,7 +264,7 @@ test('a run with a keepsake and bought XP saves and replays exactly', () => {
   const copy = replayRun((opts) => setup(createRun({ ...opts, autoChoose: true })), copyLog);
   assert.equal(copy.keepsake, 'ironFist');
   assert.equal(fingerprint(copy), fingerprint(r));
-  assert.ok(log.inputs.some((x) => x[1] === 'buyXp'), 'Buy XP is an input');
+  assert.ok(log.inputs.some((x) => x[1] === 'nextWave'), 'its inputs are in the log');
 });
 
 test('the coach: with Iron Fist, the first bite brings the punch tip in slow motion; the punch ends it', () => {
@@ -393,17 +392,12 @@ test('Quake Boots needs 2 merges; a refused Buy XP keeps the coins', () => {
   assert.equal(b.coins, coins);
 });
 
-test('Lucky Clover: no XP for sale once the odds are at the top; a punch kill pays at once, even as a die card opens', () => {
+test('Lucky Clover: its odds run two levels ahead; a punch kill pays at once', () => {
   const c = createRun({ seed: 3, empty: true, keepsake: 'luckyClover' });
-  c.spawnDebug(12, 0, 0); // a 4096: the cap is level 9
-  c.addCoins(1e6);
-  while (c.buyXp() || (c.pendingChoice && c.choose(0)));
-  assert.equal(c.spawnLevel, 9);
-  assert.equal(c.level, 7, 'level 7 + the clover = the top odds: buying stops there');
-  assert.equal(c.buyXpPrice, null);
+  assert.equal(c.level, 1);
+  assert.equal(c.spawnLevel, 3, 'level 1 + the clover');
 
-  // the swipe makes the first 32: the full level bar takes level 2 (an element card opens), and the
-  // swipe punches a weak monster to death
+  // the swipe makes a 32 and punches a weak monster to death: its coins come in the same swipe
   const r = createRun({ seed: 3, empty: true, keepsake: 'ironFist' });
   r.spawnDebug(4, 1, 0);
   r.spawnDebug(4, 1, 1);
@@ -412,13 +406,12 @@ test('Lucky Clover: no XP for sale once the odds are at the top; a punch kill pa
     for (const f of r.enemies) if (!f.dead) r.defense.damage(f, 1e9, ['fire']);
     r.step();
   }
-  assert.equal(r.xp, 2, 'a full bar, waiting at the cap');
+  while (r.pendingChoice) r.choose(0);
   foeAt(r, 1, 6, 1);
   const coins = r.coins;
   r.drainEvents();
   assert.ok(r.move('up'));
   const ev = r.drainEvents();
-  assert.equal(r.pendingChoice?.kind, 'die', 'an element card is up');
   assert.ok(ev.some((x) => x.type === 'kill'), 'the kill is in the same swipe');
   assert.equal(r.coins, coins - swipeCostFor(0) + killCoinsFor(r.waveNo, false));
 });
