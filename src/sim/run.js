@@ -216,8 +216,9 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     const m = s.time / 60;
     const R = V2_1.ramp;
     const opts = { lanes: board.size, countMult: (board.size / 4) ** WAVES.sizeCount, hpMult: 1, resist: resistPlan() };
-    if (m >= R.steepAt) opts.hpMult = Math.exp(R.steepK * (m - R.steepAt) ** 2);
     if (m >= R.dpsAt) {
+      // (the steep part is added as each foe comes: steepMult)
+      opts.hpMult = steepMult(m);
       // the wave needs at least needS seconds of the board's whole firepower: the run's own ratio at the
       // first such wave, growing each minute
       const plain = generateWave(n, waveRng(n), opts);
@@ -227,8 +228,15 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       ramp.dps = dps;
       ramp.needS = ramp.need * R.needGrowth ** (m - R.dpsAt);
       if (dps * ramp.needS > total) opts.hpMult *= (dps * ramp.needS) / total;
+      opts.hpMult /= steepMult(m); // the steep part comes per foe
     }
     return opts;
+  }
+
+  /** The steep part of the ramp at minute `m`: 1 before steepAt, then e^(steepK · (m − steepAt)²). */
+  function steepMult(m) {
+    const R = V2_1.ramp;
+    return m >= R.steepAt ? Math.exp(R.steepK * (m - R.steepAt) ** 2) : 1;
   }
 
   let wave = waveFor(1);
@@ -598,7 +606,9 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       }
       while (s.spawnIdx < wave.spawns.length && wave.spawns[s.spawnIdx].t <= s.waveT) {
         const sp = wave.spawns[s.spawnIdx++];
-        defense.spawn(sp.type, { lane: sp.lane, hpScale: wave.hpScale, atkScale: SIEGE.attackGrowth ** (s.waveNo - 1), resist: sp.resist });
+        // the ramp's steep part grows by the minute, so it is set as each foe comes (not when the wave was made)
+        const steep = steepMult(s.time / 60);
+        defense.spawn(sp.type, { lane: sp.lane, hpScale: wave.hpScale * steep, atkScale: SIEGE.attackGrowth ** (s.waveNo - 1) * steep ** V2_1.ramp.biteExp, resist: sp.resist });
       }
       // regen (nature buffs and auras): blocks heal a share of their max health per second while the wave runs
       for (const t of grid.tiles) {
