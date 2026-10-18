@@ -6,7 +6,7 @@
 // src/i18n: foe.<key>, gives the name the player sees).
 
 import { has, tr } from '../i18n/index.js';
-import { DEFENSE, FIELD } from '../config.js';
+import { DEFENSE, FIELD, WAVES } from '../config.js';
 
 // hp and speed are multipliers on DEFENSE.enemyBaseHp(day) and enemyBaseSpeed.
 export const ENEMY_TYPES = {
@@ -85,16 +85,41 @@ function poolFor(day, chapter) {
   return chapter.pool.slice(0, n);
 }
 
+/** v2's foe count: 4 + 1.5 a wave, at most 30 (the coins a wave pays were tuned to it). */
+export const v2CountFor = (wave) => Math.min(30, 4 + Math.round(wave * 1.5));
+
 /**
- * Deterministic wave: which lanes are attacked (shown at the portals), and a
- * spawn list of { t, type, lane } in small bursts; boss waves add the boss in
- * the middle attacked lane.
+ * How many foes a wave brings (v2.1: the count keeps growing all run, no cap; a bigger board brings more,
+ * `countMult`), before a boss wave's cut.
  */
-export function generateWave(wave, rng) {
+export const countFor = (wave, countMult = 1) => Math.round((4 + wave * WAVES.perWave) * countMult);
+
+/**
+ * The share of a wave's foes that resist the player's top element, and its second (v2.1, SPEC-v2.1
+ * section 5): none before WAVES.resist.from, then growing a little each wave.
+ */
+export function resistShares(wave) {
+  const r = WAVES.resist;
+  return {
+    top: wave >= r.from ? Math.min(r.topMax, r.topStep * (wave - r.from + 1)) : 0,
+    second: wave >= r.secondFrom ? Math.min(r.secondMax, r.secondStep * (wave - r.secondFrom + 1)) : 0,
+    boss: wave >= r.bossFrom,
+  };
+}
+
+/**
+ * Deterministic wave: which lanes are attacked (shown at the portals), and a spawn list of
+ * { t, type, lane, resist } in small bursts; boss waves add the boss in the middle attacked lane.
+ * Options (v2.1, the run gives them): `lanes` the field's lanes now (the board's size), `countMult` more
+ * foes on a bigger board, `hpMult` the ramp's extra toughness, `resist` { top, second } the elements the
+ * player deals the most damage with (null: none yet). A wave's coins stay about v2's: `coinScale` is what
+ * each kill pays of v2's kill coins.
+ */
+export function generateWave(wave, rng, { lanes: laneTotal = FIELD.lanes, countMult = 1, hpMult = 1, resist = null } = {}) {
   const chapter = chapterFor(wave);
-  const hpScale = hpScaleFor(wave);
-  const laneCount = Math.min(FIELD.lanes, 2 + Math.floor(wave / 3));
-  const order = [...Array(FIELD.lanes).keys()];
+  const hpScale = hpScaleFor(wave) * hpMult;
+  const laneCount = Math.min(laneTotal, 2 + Math.floor(wave / 3));
+  const order = [...Array(laneTotal).keys()];
   for (let i = order.length - 1; i > 0; i--) {
     const j = Math.floor(rng.next() * (i + 1));
     [order[i], order[j]] = [order[j], order[i]];
@@ -102,8 +127,11 @@ export function generateWave(wave, rng) {
   const lanes = order.slice(0, laneCount).sort((a, b) => a - b);
   const pool = poolFor(wave, chapter);
   const boss = isBossDay(wave) ? chapter.boss : null;
-  let count = Math.min(30, 4 + Math.round(wave * 1.5));
+  let count = countFor(wave, countMult);
+  const v2Count = v2CountFor(wave);
   if (boss) count = Math.round(count * 0.6);
+  // bigger waves come a little faster, so a wave does not drag on
+  const gap = DEFENSE.spawnInterval * Math.max(WAVES.gapMin, 1 - WAVES.gapPerWave * wave);
 
   const spawns = [];
   let t = 0;
@@ -112,14 +140,25 @@ export function generateWave(wave, rng) {
     const burst = Math.min(left, 1 + Math.floor(rng.next() * 3));
     const type = pool[Math.floor(rng.next() * pool.length)];
     for (let i = 0; i < burst; i++) {
-      spawns.push({ t, type, lane: lanes[Math.floor(rng.next() * lanes.length)] });
-      t += DEFENSE.spawnInterval * 0.5;
+      spawns.push({ t, type, lane: lanes[Math.floor(rng.next() * lanes.length)], resist: null });
+      t += gap * 0.5;
     }
     left -= burst;
-    t += DEFENSE.spawnInterval;
+    t += gap;
   }
   const bossLane = boss ? lanes[Math.floor(lanes.length / 2)] : null;
-  if (boss) spawns.push({ t: Math.min(t, DEFENSE.spawnInterval * 4), type: boss, lane: bossLane });
+  if (boss) spawns.push({ t: Math.min(t, DEFENSE.spawnInterval * 4), type: boss, lane: bossLane, resist: null, boss: true });
   spawns.sort((a, b) => a.t - b.t);
-  return { wave, day: wave, chapter, hpScale, lanes, boss, bossLane, spawns, count: spawns.length };
+  // resistances, rolled last so the rest of the wave stays as it was without them
+  if (resist?.top) {
+    const share = resistShares(wave);
+    for (const sp of spawns) {
+      const res = {};
+      if (sp.boss ? share.boss : rng.next() < share.top) res[resist.top] = WAVES.resist.amount;
+      if (resist.second && !sp.boss && rng.next() < share.second) res[resist.second] = WAVES.resist.amount;
+      sp.resist = Object.keys(res).length ? res : null;
+    }
+  }
+  const coinScale = Math.min(1, (boss ? Math.round(v2Count * 0.6) : v2Count) / Math.max(1, count - (boss ? 1 : 0)));
+  return { wave, day: wave, chapter, hpScale, lanes, boss, bossLane, spawns, count: spawns.length, coinScale };
 }

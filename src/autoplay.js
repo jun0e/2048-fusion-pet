@@ -3,29 +3,25 @@
 // the direction by a one-move lookahead: keep the big blocks stacked in the
 // bottom-left corner, keep cells free, and put firepower (blocks of 16+) under
 // the lanes enemies are coming down. It takes the first offer of every card (the
-// default: a new element, a fusion's main element, the fusion to keep), summons each
+// default: a new element, the fusion to keep), summons each
 // fusion pet whose skill is ready, and presses Wave now once it is out of coins (or
 // the board is locked) during a break.
 
 import { profileFor } from './sim/classes.js';
+import { GRID } from './config.js';
 
-const N = 4;
 const SWIPE_GAP = 0.42; // seconds between swipes
 const PICK_DELAY = 0.9; // seconds to "read" a new-die card
-const WEIGHT = [
-  [6, 5, 4, 3],
-  [5, 4, 3, 2],
-  [4, 3, 2, 1],
-  [3, 2, 1, 0],
-]; // row 0 is the bottom row: the bottom-left corner is the anchor
+// row 0 is the bottom row: the bottom-left corner is the anchor (6 5 4 3 / 5 4 3 2 … on a 4×4 board)
+const weight = (N, r, c) => 2 * (N - 1) - r - c;
 
-function boardOf(tiles) {
+function boardOf(tiles, N) {
   const b = new Array(N * N).fill(0);
   for (const t of tiles) b[t.row * N + t.col] = t.tier;
   return b;
 }
 
-function slide(b, dir) {
+function slide(b, dir, N) {
   const out = new Array(N * N).fill(0);
   let moved = false;
   let gain = 0;
@@ -49,7 +45,7 @@ function slide(b, dir) {
   return { out, moved, gain };
 }
 
-function score(b, threat) {
+function score(b, threat, N) {
   let empty = 0;
   let corner = 0;
   let cover = 0;
@@ -57,7 +53,7 @@ function score(b, threat) {
     for (let c = 0; c < N; c++) {
       const t = b[r * N + c];
       if (!t) empty += 1;
-      else corner += 2 ** t * WEIGHT[r][c];
+      else corner += 2 ** t * weight(N, r, c);
     }
   }
   for (let c = 0; c < N; c++) {
@@ -71,16 +67,17 @@ function score(b, threat) {
 
 /** The swipe the bot would make now (or null if nothing moves). */
 export function bestDir(run) {
-  const b = boardOf(run.tiles);
-  const threat = [0, 0, 0, 0];
-  for (const l of run.wave.lanes) threat[l] += 1;
-  for (const e of run.enemies) if (!e.dead) threat[e.lane] += 0.5;
+  const N = run.size ?? GRID.size; // the board grows to 5×5 and 6×6 (v2.1)
+  const b = boardOf(run.tiles, N);
+  const threat = new Array(N).fill(0);
+  for (const l of run.wave.lanes) if (l < N) threat[l] += 1;
+  for (const e of run.enemies) if (!e.dead && e.lane < N) threat[e.lane] += 0.5;
   let best = null;
   let bestV = -Infinity;
   for (const d of ['down', 'left', 'right', 'up']) {
-    const s = slide(b, d);
+    const s = slide(b, d, N);
     if (!s.moved) continue;
-    const v = score(s.out, threat) + s.gain * 2 - (d === 'up' ? 5000 : 0);
+    const v = score(s.out, threat, N) + s.gain * 2 - (d === 'up' ? 5000 : 0);
     if (v > bestV) {
       bestV = v;
       best = d;

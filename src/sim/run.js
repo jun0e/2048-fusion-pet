@@ -26,7 +26,7 @@
 
 import { createGrid } from './grid.js';
 import { createDefense } from './defense.js';
-import { generateWave } from './enemies.js';
+import { ENEMY_TYPES, generateWave } from './enemies.js';
 import { createRng } from './rng.js';
 import { planBossReward } from './boss-reward.js';
 import { ELEMENT_KEYS, copyCls, describeStage, dieOffers, mergeClass, profileFor, singlesOn, stageFor, turretDamage, withPure } from './classes.js';
@@ -34,7 +34,7 @@ import { ELEMENT_STATS } from './skills/data.js';
 import { LEVELS, LEVEL_ROAD, levelCap, rewardsAt, spawnOdds, spawnTable, xpNeeded } from './levels.js';
 import { keepsakeById } from './keepsakes.js';
 import { punchTargets, slidePaths } from './punch.js';
-import { DEFENSE, DICE, ECONOMY, GRID, GUIDED_WAVE, PHYSICS, SIEGE, V2, cellX, cellY, setBoardSize } from '../config.js';
+import { DEFENSE, DICE, ECONOMY, GRID, GUIDED_WAVE, PHYSICS, SIEGE, V2, V2_1, WAVES, cellX, cellY, setBoardSize } from '../config.js';
 
 const HATCH_TIER = DEFENSE.classTiers[0]; // 16
 
@@ -154,7 +154,8 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
   }
   const defense = createDefense({ rng: createRng((seed ^ 0x5bd1e995) >>> 0) });
-  const waveFor = (n) => generateWave(n, createRng((seed ^ Math.imul(n, 0x9e3779b1)) >>> 0));
+  const waveRng = (n) => createRng((seed ^ Math.imul(n, 0x9e3779b1)) >>> 0);
+  const waveFor = (n) => generateWave(n, waveRng(n), waveOpts(n));
   const s = {
     phase: 'prep',
     timer: ECONOMY.prepSeconds,
@@ -174,6 +175,70 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     fallen: null, // the biggest block destroyed this run ({ tier, cls }): the Phoenix Feather brings it back
   };
   refresh();
+
+  // v2.1 (docs/v2/SPEC-v2.1.md section 5): the ramp (V2_1.ramp, by the run's clock) and the resistances
+  // (WAVES.resist, against the elements that dealt the most damage lately)
+  const ramp = { phase: 'curve', need: null, dps: 0, needS: 0 };
+  const mix = {}; // damage per element, the recent waves weighing most
+  const dealtSeen = {}; // defense.dealtBy when the last wave was cleared
+
+  /** The board's whole firepower: every shooting block's damage a second (crits averaged). */
+  function boardDps() {
+    let sum = 0;
+    for (const t of grid.tiles) {
+      const p = profileFor(t);
+      if (!p.shoots || !(t.hp > 0)) continue;
+      sum += p.damage * p.rate * (1 + (p.critChance ?? 0) * ((p.critMult ?? 2) - 1));
+    }
+    return sum;
+  }
+
+  /** The cleared wave's damage joins the mix (halving what came before). */
+  function tallyMix() {
+    for (const [e, v] of Object.entries(defense.dealtBy)) {
+      const d = v - (dealtSeen[e] ?? 0);
+      dealtSeen[e] = v;
+      mix[e] = (mix[e] ?? 0) / 2 + d;
+    }
+  }
+
+  /** The elements foes resist: the top one by the mix, and the second if it does a fair share. */
+  function resistPlan() {
+    const ranked = Object.entries(mix).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+    if (!ranked.length) return null;
+    const total = ranked.reduce((t, [, v]) => t + v, 0);
+    const second = ranked[1] && ranked[1][1] >= 0.15 * total ? ranked[1][0] : null;
+    return { top: ranked[0][0], second };
+  }
+
+  /** What wave `n` is made with: the board's lanes, more foes on a bigger board, the ramp, the resistances. */
+  function waveOpts(n) {
+    const m = s.time / 60;
+    const R = V2_1.ramp;
+    const opts = { lanes: board.size, countMult: (board.size / 4) ** WAVES.sizeCount, hpMult: 1, resist: resistPlan() };
+    if (m >= R.dpsAt) {
+      // (the steep part is added as each foe comes: steepMult)
+      opts.hpMult = steepMult(m);
+      // the wave needs at least needS seconds of the board's whole firepower: the run's own ratio at the
+      // first such wave, growing each minute
+      const plain = generateWave(n, waveRng(n), opts);
+      const total = plain.spawns.reduce((t, sp) => t + (ENEMY_TYPES[sp.type]?.hp ?? 1) * plain.hpScale, 0);
+      const dps = Math.max(1, boardDps());
+      ramp.need ??= Math.max(R.needMin, total / dps);
+      ramp.dps = dps;
+      ramp.needS = ramp.need * R.needGrowth ** (m - R.dpsAt);
+      if (dps * ramp.needS > total) opts.hpMult *= (dps * ramp.needS) / total;
+      opts.hpMult /= steepMult(m); // the steep part comes per foe
+    }
+    return opts;
+  }
+
+  /** The steep part of the ramp at minute `m`: 1 before steepAt, then e^(steepK · (m − steepAt)²). */
+  function steepMult(m) {
+    const R = V2_1.ramp;
+    return m >= R.steepAt ? Math.exp(R.steepK * (m - R.steepAt) ** 2) : 1;
+  }
+
   let wave = waveFor(1);
 
   // First run only (set by the tutorial): wave 1 comes down the biggest block's
@@ -404,6 +469,7 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     gainXp(LEVELS.xp.waveClear, 'clear');
     s.waveNo += 1;
     applyGrow(); // a bigger board from a level reached during the wave, before the next wave is made
+    tallyMix();
     wave = waveFor(s.waveNo);
     s.phase = 'break';
     s.timer = breakSecondsFor(s.waveNo);
@@ -462,7 +528,8 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       s.kills += 1;
       // Metal marks foes: a marked foe drops bonus coins (and the Coin Purse adds its share); a skill can
       // multiply a kill's coins and add spawn XP (Bumper Harvest: coinMult, xp)
-      addCoins(Math.round(killCoinsFor(s.waveNo, e.boss) * (1 + (e.loot ?? 0)) * (1 + (ks?.killPct ?? 0)) * (e.coinMult ?? 1)), 'kill', e.x, e.y);
+      // v2.1: a wave's kills pay about what v2's did, shared by its bigger count (wave.coinScale)
+      addCoins(Math.round(killCoinsFor(s.waveNo, e.boss) * (wave.coinScale ?? 1) * (1 + (e.loot ?? 0)) * (1 + (ks?.killPct ?? 0)) * (e.coinMult ?? 1)), 'kill', e.x, e.y);
       gainXp((e.boss ? LEVELS.xp.boss : LEVELS.xp.kill) + (e.xp ?? 0), 'kill'); // v2.1: kills are the road's main XP
       if (e.boss) {
         // boss reward: x2s for the other blocks, as many as the biggest block's power of two (boss-reward.js).
@@ -505,6 +572,16 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
     const dt = PHYSICS.dt;
     s.time += dt;
+    // the ramp's phases (the HUD says so): steeper from V2_1.ramp.steepAt, matching the board's damage from dpsAt
+    const minute = s.time / 60;
+    if (ramp.phase === 'curve' && minute >= V2_1.ramp.steepAt) {
+      ramp.phase = 'steep';
+      events.push({ type: 'ramp', phase: 'steep', minute: V2_1.ramp.steepAt });
+    }
+    if (ramp.phase === 'steep' && minute >= V2_1.ramp.dpsAt) {
+      ramp.phase = 'dps';
+      events.push({ type: 'ramp', phase: 'dps', minute: V2_1.ramp.dpsAt });
+    }
     grid.step(dt);
     for (const e of grid.drainEvents()) events.push(e);
     refresh();
@@ -529,7 +606,9 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
       }
       while (s.spawnIdx < wave.spawns.length && wave.spawns[s.spawnIdx].t <= s.waveT) {
         const sp = wave.spawns[s.spawnIdx++];
-        defense.spawn(sp.type, { lane: sp.lane, hpScale: wave.hpScale, atkScale: SIEGE.attackGrowth ** (s.waveNo - 1) });
+        // the ramp's steep part grows by the minute, so it is set as each foe comes (not when the wave was made)
+        const steep = steepMult(s.time / 60);
+        defense.spawn(sp.type, { lane: sp.lane, hpScale: wave.hpScale * steep, atkScale: SIEGE.attackGrowth ** (s.waveNo - 1) * steep ** V2_1.ramp.biteExp, resist: sp.resist });
       }
       // regen (nature buffs and auras): blocks heal a share of their max health per second while the wave runs
       for (const t of grid.tiles) {
@@ -788,6 +867,17 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     /** The board's side, in cells (4, then 5 and 6 on the level road). */
     get size() {
       return board.size;
+    },
+    /**
+     * The ramp (docs/v2/SPEC-v2.1.md section 5): `phase` 'curve' | 'steep' | 'dps'; from 'dps', the board's
+     * firepower (`dps`) and the seconds of it the last wave made needed (`needS`).
+     */
+    get ramp() {
+      return { phase: ramp.phase, dps: ramp.dps, needS: ramp.needS };
+    },
+    /** The board's whole firepower now (damage a second). */
+    get dps() {
+      return boardDps();
     },
   };
   // every call into the run first sets its board size, for the sim and the views (see `board`)

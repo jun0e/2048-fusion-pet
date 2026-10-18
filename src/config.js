@@ -167,7 +167,7 @@ export const DEFENSE = {
   frozenVuln: 0.25, // frozen enemies take +25% damage (BALL x PIT Freeze)
   spawnInterval: 0.8, // seconds between enemies of a wave
   enemyBaseHp: 36,
-  enemyHpGrowth: 1.125, // per wave
+  enemyHpGrowth: 1.17, // per wave (v2.1: the board grows and spawns 16s and 32s, so the waves keep up; v2 was 1.125)
   enemyBaseSpeed: 1.6, // units per second (≈11 s from the portal, through the board, to the wall)
   // a boss gets used to pushback (the user's steps): after 20 / 50 / 100 pushes each push is 25 / 50 / 75%
   // shorter (on top of its half push and the brace), so Wind and Earth stall a boss but cannot hold it for good.
@@ -178,6 +178,26 @@ export const DEFENSE = {
     { after: 50, resist: 0.5 },
     { after: 100, resist: 0.75 },
   ],
+};
+
+// v2.1 (docs/v2/SPEC-v2.1.md section 5): waves grow in count all run, foes resist the player's top
+// elements, and after 8 minutes the waves steepen; from 10 they match the board's damage per second, so
+// nobody lasts past about 12. Tuned with tools/v21-probe.mjs.
+export const WAVES = {
+  perWave: 1.5, // foes a wave adds: 4 + 1.5 × wave, with no cap (v2 stopped at 30)
+  sizeCount: 1, // a bigger board brings more foes: × (size / 4) ^ sizeCount
+  gapPerWave: 0.012, // a wave's foes come this much faster each wave …
+  gapMin: 0.5, // … down to half v2's gap
+  // resistances: from wave `from`, a share of each wave (topStep a wave, up to topMax) resists the player's
+  // top element; from `secondFrom` also the second; bosses resist the top from `bossFrom`; `amount` of a hit
+  resist: { from: 10, topStep: 0.05, topMax: 0.5, secondFrom: 20, secondStep: 0.04, secondMax: 0.35, bossFrom: 15, amount: 0.5 },
+};
+export const V2_1 = {
+  // the ramp, in minutes of run time: from steepAt the waves' health is × e^(steepK · (m − steepAt)²);
+  // from dpsAt a wave also needs at least needS seconds of the board's whole firepower, needS starting at
+  // the run's own ratio then (at least needMin) and × needGrowth each minute
+  // tools/v21-probe.mjs, 96 bot games: 4% dead by 8 min, the median at about 9.5, the longest about 10.6
+  ramp: { steepAt: 8, dpsAt: 10, steepK: 2, needGrowth: 4, needMin: 10, biteExp: 0.5 }, // bites grow with the steep part ^ biteExp
 };
 
 // Random Dice-style economy: kills drop coins, every swipe costs coins (and

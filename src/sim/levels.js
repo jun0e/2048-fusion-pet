@@ -10,7 +10,7 @@ export const LEVELS = {
   max: 20,
   // XP from level L to L + 1 (index L − 1), set so the bot (tools/v21-probe.mjs) reaches each level about
   // when LEVEL_ROAD says: kills grow wave by wave, so the bar grows too
-  xpToNext: [4, 10, 14, 18, 22, 26, 30, 34, 38, 44, 50, 56, 62, 68, 76, 84, 92, 100, 110],
+  xpToNext: [3, 12, 16, 17, 18, 20, 22, 24, 24, 25, 27, 28, 29, 30, 32, 34, 48, 60, 90],
   // weights of the new block's value at each level: [2, 4, 8, 16, 32]. A value comes in small and grows;
   // 2s stop at level 12, 4s at 16 and 8s at 20 (the road says so)
   odds: [
@@ -46,7 +46,8 @@ export const LEVELS = {
 
 /**
  * The level road: one entry per level, { level, minute, rewards }. `minute` is when an average run
- * reaches the level (the bot's median, tools/v21-probe.mjs), for the road's labels. Rewards:
+ * reaches the level (the bot's median, tools/v21-probe.mjs with 96 games; level 20 is for strong play:
+ * 6% of the bot's runs get there). Rewards:
  *   { kind: 'odds', adds: [tier], drops: [tier] }  new blocks get bigger; values that start / stop
  *   { kind: 'element' }                              a pick of a new element (the die card)
  *   { kind: 'grow', size }                           the board grows (at the next break)
@@ -55,25 +56,25 @@ export const LEVELS = {
  */
 export const LEVEL_ROAD = [
   { level: 1, minute: 0, rewards: [] },
-  { level: 2, minute: 0.25, rewards: [{ kind: 'element' }] },
-  { level: 3, minute: 0.67, rewards: [{ kind: 'odds', adds: [3], drops: [] }] },
-  { level: 4, minute: 1.08, rewards: [{ kind: 'element' }] },
-  { level: 5, minute: 1.5, rewards: [{ kind: 'odds', adds: [], drops: [] }] },
-  { level: 6, minute: 1.92, rewards: [{ kind: 'element' }] },
-  { level: 7, minute: 2.33, rewards: [{ kind: 'odds', adds: [4], drops: [] }] },
-  { level: 8, minute: 2.75, rewards: [{ kind: 'element' }] },
-  { level: 9, minute: 3.25, rewards: [{ kind: 'odds', adds: [], drops: [] }] },
-  { level: 10, minute: 3.67, rewards: [{ kind: 'element' }] },
-  { level: 11, minute: 4.08, rewards: [{ kind: 'grow', size: 5 }] },
-  { level: 12, minute: 4.58, rewards: [{ kind: 'odds', adds: [5], drops: [1] }] },
-  { level: 13, minute: 5.08, rewards: [{ kind: 'element' }] },
-  { level: 14, minute: 5.58, rewards: [{ kind: 'odds', adds: [], drops: [] }] },
-  { level: 15, minute: 6.08, rewards: [{ kind: 'charge', s: 2 }] },
-  { level: 16, minute: 6.58, rewards: [{ kind: 'odds', adds: [], drops: [2] }] },
-  { level: 17, minute: 7.08, rewards: [{ kind: 'grow', size: 6 }] },
-  { level: 18, minute: 7.83, rewards: [{ kind: 'odds', adds: [], drops: [] }] },
-  { level: 19, minute: 8.75, rewards: [{ kind: 'charge', s: 2 }] },
-  { level: 20, minute: 10, rewards: [{ kind: 'odds', adds: [], drops: [3] }, { kind: 'top' }] },
+  { level: 2, minute: 0.3, rewards: [{ kind: 'element' }] },
+  { level: 3, minute: 0.6, rewards: [{ kind: 'odds', adds: [3], drops: [] }] },
+  { level: 4, minute: 0.9, rewards: [{ kind: 'element' }] },
+  { level: 5, minute: 1.3, rewards: [{ kind: 'odds', adds: [], drops: [] }] },
+  { level: 6, minute: 1.9, rewards: [{ kind: 'element' }] },
+  { level: 7, minute: 2.3, rewards: [{ kind: 'odds', adds: [4], drops: [] }] },
+  { level: 8, minute: 2.7, rewards: [{ kind: 'element' }] },
+  { level: 9, minute: 3.1, rewards: [{ kind: 'odds', adds: [], drops: [] }] },
+  { level: 10, minute: 3.7, rewards: [{ kind: 'element' }] },
+  { level: 11, minute: 4.2, rewards: [{ kind: 'grow', size: 5 }] },
+  { level: 12, minute: 4.8, rewards: [{ kind: 'odds', adds: [5], drops: [1] }] },
+  { level: 13, minute: 5.2, rewards: [{ kind: 'element' }] },
+  { level: 14, minute: 5.7, rewards: [{ kind: 'odds', adds: [], drops: [] }] },
+  { level: 15, minute: 6.2, rewards: [{ kind: 'charge', s: 2 }] },
+  { level: 16, minute: 6.7, rewards: [{ kind: 'odds', adds: [], drops: [2] }] },
+  { level: 17, minute: 7.2, rewards: [{ kind: 'grow', size: 6 }] },
+  { level: 18, minute: 7.8, rewards: [{ kind: 'odds', adds: [], drops: [] }] },
+  { level: 19, minute: 8.6, rewards: [{ kind: 'charge', s: 2 }] },
+  { level: 20, minute: 9.2, rewards: [{ kind: 'odds', adds: [], drops: [3] }, { kind: 'top' }] },
 ];
 
 /** The rewards a level brings (an empty list for level 1 or a level off the road). */
