@@ -8,7 +8,7 @@
 // shows the element's badge or colour instead.
 import { TIER_COLORS, V2, tierValue } from '../config.js';
 import { ELEMENTS, FUSIONS, fusionKey } from '../sim/classes.js';
-import { PURE_AT, SUMMON_AT, anyMainPassive, buffLine, buffList, elAttack, elLine, elName, fusionName, gainLine, gainTag, mergesTo, pureAura, pureName, skillHead, skillWords as wordsOf } from '../sim/describe.js';
+import { PURE_AT, SUMMON_AT, anyMainPassive, buffLine, buffList, buffStat, elAttack, elLine, elName, fusionName, gainTag, mergesTo, pureAura, pureName, skillHead, skillWords as wordsOf } from '../sim/describe.js';
 import { petName } from '../art/tokens.js';
 import { portraitId, spriteId } from '../art/sprite-ids.js';
 import { generatedUrl } from '../render/textures.js';
@@ -143,6 +143,8 @@ function mainButtonHtml(o, i, img) {
  */
 export function fusionChoiceHtml(choice, { img = generatedUrl } = {}) {
   const offers = choice.offers ?? [];
+  const head = choiceHead({ chip: choice.tier != null ? tierChip(choice.tier) : '', title: tr('fuse.title'), sub: tr('fuse.sub') });
+  if (!offers.length) return head; // (never in the SPEC: a frame that throws would stop the game)
   const cls = { element: offers[0].element, fusion: offers[0].fusion };
   const parts = choice.parts ?? [
     { element: cls.element, tier: Math.max(1, choice.tier - 1) },
@@ -152,7 +154,7 @@ export function fusionChoiceHtml(choice, { img = generatedUrl } = {}) {
   const say = tr('fuse.say', { a: elName(parts[0].element), b: elName(parts[1].element), pet });
   const face = fusionPic(cls, img);
   const eq = `<div class="fuse-eq" role="img" aria-label="${esc(say)}">${partHtml(parts[0], img)}<i class="fe-op" aria-hidden="true">+</i>${partHtml(parts[1], img)}<i class="fe-op fe-to" aria-hidden="true">→</i><span class="fe-out" style="--c:${fusionColor(cls.element, cls.fusion)}"><span class="fe-pic">${pic(face)}</span><b class="fe-pet">${esc(pet)}</b><small class="fe-fusion">${esc(fusionName(cls.element, cls.fusion))}</small></span></div>`;
-  return `${choiceHead({ chip: choice.tier != null ? tierChip(choice.tier) : '', title: tr('fuse.title'), sub: tr('fuse.sub') })}${eq}${skillTipHtml(cls, { passive: 'any' })}<div class="v2-options main-options">${offers.map((o, i) => mainButtonHtml(o, i, img)).join('')}</div>`;
+  return `${head}${eq}${skillTipHtml(cls, { passive: 'any' })}<div class="v2-options main-options">${offers.map((o, i) => mainButtonHtml(o, i, img)).join('')}</div>`;
 }
 
 // --- the fusion to keep -----------------------------------------------------------------------------
@@ -177,9 +179,10 @@ function keepCardHtml(o, i, img) {
       <b class="kc-pet">${esc(w.pet)}</b>
       <small class="kc-skill">${esc(w.name)}</small>
       <span class="kc-els">${elChipHtml(cls.element, { main: true, img })}${elChipHtml(cls.fusion, { img })}</span>
-      ${own.length ? `<span class="kc-label">${esc(tr('keep.has'))}</span><span class="kc-tags">${own.map((b) => `<span class="kc-tag">${esc(gainTag(b.element, b.n))}</span>`).join('')}</span>` : ''}
       <span class="kc-label kc-gain-label">${esc(tr('keep.gains'))}</span>
-      <span class="kc-gains">${gains.map((g) => `<span class="kc-gain" style="--c:${elColor(g.element)}">${esc(gainLine(g.element, g.n))}</span>`).join('')}</span>
+      <span class="kc-tags kc-gains">${gains.map((g) => `<span class="kc-tag kc-gain" style="--c:${elColor(g.element)}">${esc(gainTag(g.element, g.n))}</span>`).join('')}</span>
+      <small class="kc-gain-stats">${esc(gains.map((g) => buffStat(g.element, g.n)).join(', '))}</small>
+      ${own.length ? `<span class="kc-label">${esc(tr('keep.has'))}</span><span class="kc-tags">${own.map((b) => `<span class="kc-tag">${esc(gainTag(b.element, b.n))}</span>`).join('')}</span>` : ''}
       <span class="v2-pick">${esc(tr('keep.pick', { pet: w.pet }))}</span>
       <kbd>${i + 1}</kbd>
     </button>`;
@@ -188,7 +191,8 @@ function keepCardHtml(o, i, img) {
 /**
  * Two fusions merged: { kind: 'keep', tileId, tier, offers: [{ cls, gain }] } (keep the mover's, keep the
  * stayer's; cls = the kept fusion after the merge, gain = the buffs it gains). Both pets side by side,
- * each with its skill, its elements, the buffs it keeps and what it gains.
+ * each with its skill, its elements, what it gains (the elements as tags, then what they give, in one
+ * line: a long list never runs a phone's card off its screen) and the buffs it already had.
  */
 export function keepChoiceHtml(choice, { img = generatedUrl } = {}) {
   const offers = choice.offers ?? [];

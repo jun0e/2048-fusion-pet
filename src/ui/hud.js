@@ -466,6 +466,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
   let shownNext = 0;
   let shownStatus = '';
   let choiceKey_ = null; // the choice on screen (cards.js choiceKey)
+  let resultInerted = []; // what the result card made inert (the rest of the HUD)
   let shownCoins = -1;
   let shownCost = -1;
   let shownSwipes = -1;
@@ -695,11 +696,15 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
      * null closes it. `tier`: the block's, for the merges until its summon unlocks.
      */
     showResult(cls, { tier = null } = {}) {
+      for (const el of resultInerted) el.inert = false; // the rest of the HUD back (a modal card: inert under it)
+      resultInerted = [];
       if (!cls) {
         resultScrim.classList.remove('open');
         resultScrim.inert = true;
         return;
       }
+      resultInerted = [...root.children].filter((el) => el !== resultScrim && !el.inert);
+      for (const el of resultInerted) el.inert = true;
       resultCard.style.setProperty('--c', fusionColor(cls.element, cls.fusion));
       resultCard.innerHTML = resultCardHtml(cls, { tier });
       resultCard.scrollTop = 0;
@@ -711,6 +716,10 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     /** The result card is on screen. */
     get resultOpen() {
       return resultScrim.classList.contains('open');
+    },
+    /** Put the keyboard's focus on the result card's OK (the pause menu closed over it). */
+    focusResult() {
+      if (resultScrim.classList.contains('open')) resultCard.querySelector('.rc-ok')?.focus({ preventScroll: true });
     },
     /**
      * Announce a class combination on the news ribbon: "[Fusion] Fire + Ice → Blue Flame".

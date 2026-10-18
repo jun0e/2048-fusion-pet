@@ -262,42 +262,48 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
     el.style.maxHeight = `${pinned ? pinned.maxH : Math.max(180, above >= FULL_ROOM ? above : foot.offsetTop - el.offsetTop - 6)}px`;
   }
 
-  /** The parts of the full card that only some blocks have (src/sim/describe.js describeTile). */
-  function extras(info) {
-    const out = [];
-    if (info.hint) out.push(`<p class="inspect-hint">${esc(info.hint)}</p>`);
-    if (info.feed) out.push(`<p class="inspect-perk inspect-feed">${esc(info.feed)}</p>`);
-    if (info.auras?.length) out.push(`<div class="inspect-auras"><h4>${esc(tr('card.auras'))}</h4><ul>${info.auras.map((a) => `<li style="--c:${ELEMENTS[a.element].color}">${esc(a.text)}</li>`).join('')}</ul></div>`);
-    if (info.buffs) {
-      out.push(
-        `<div class="inspect-buffs"><h4>${esc(tr('card.buffs'))}</h4>${
-          info.buffs.length ? `<ul>${info.buffs.map((b) => `<li style="--c:${ELEMENTS[b.element].color}">${esc(b.text)}</li>`).join('')}</ul>` : `<p>${esc(tr('card.buffs.none'))}</p>`
-        }</div>`,
-      );
-    }
-    // the skill as a tooltip; its foot is the summon's live state (updateSkill)
-    if (info.skill) out.push(skillTipHtml(info.skill.cls, { passive: info.kind === 'fusion', foot: `<p class="tip-foot tip-state"><span class="tip-text"></span><span class="tip-bar"><i></i></span></p>` }));
-    if (info.pure) {
-      const p = info.pure;
-      out.push(
-        `<div class="inspect-pure${p.active ? ' on' : ''}" style="--c:${ELEMENTS[p.element].color}"><h4>${esc(p.active ? p.name : p.at)}</h4><p>${esc(p.aura)}${p.active ? ` ${esc(p.self)}` : ''}</p></div>`,
-      );
-    }
-    if (info.fuses) {
-      out.push(
-        `<div class="inspect-fuses"><h4>${esc(tr('card.fuses'))}</h4>${
-          info.fuses.length
-            ? `<ul>${info.fuses
-                .map((f) => {
-                  const face = fusionPic({ element: info.elements[0].element, fusion: f.partner }, generatedUrl);
-                  return `<li style="--c:${f.color}"><span class="fc-pic">${face ? `<img alt="" src="${esc(face)}" />` : ''}</span><span><b>${esc(f.skill)}</b> <small>${esc(f.pet)} · ${esc(tr('card.fuses.with', { name: tr(`el.${f.partner}`) }))}</small></span></li>`;
-                })
-                .join('')}</ul>`
-            : `<p>${esc(tr('card.fuses.none'))}</p>`
-        }</div>`,
-      );
-    }
-    return out.join('');
+  /**
+   * The full card's sections (src/sim/describe.js describeTile), each markup or '' when the block has
+   * none, in the order its kind reads best: a fusion pet's skill (and its live state) first, then what
+   * changes it (buffs, auras, the pure form), then its attack; any other block its attack first.
+   */
+  function sections(info) {
+    const part = {
+      desc: info.desc ? `<p class="inspect-desc">${esc(info.desc)}</p>` : '',
+      stats: info.stats.length ? `<dl class="inspect-stats">${info.stats.map((s) => `<div><dt>${esc(s.label)}</dt><dd>${esc(s.value)}</dd></div>`).join('')}</dl>` : '',
+      effects: info.effects.length ? `<ul class="inspect-fx">${info.effects.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '',
+      hint: info.hint ? `<p class="inspect-hint">${esc(info.hint)}</p>` : '',
+      feed: info.feed ? `<p class="inspect-perk inspect-feed">${esc(info.feed)}</p>` : '',
+      auras: info.auras?.length ? `<div class="inspect-auras"><h4>${esc(tr('card.auras'))}</h4><ul>${info.auras.map((a) => `<li style="--c:${ELEMENTS[a.element].color}">${esc(a.text)}</li>`).join('')}</ul></div>` : '',
+      buffs: info.buffs
+        ? `<div class="inspect-buffs"><h4>${esc(tr('card.buffs'))}</h4>${
+            info.buffs.length ? `<ul>${info.buffs.map((b) => `<li style="--c:${ELEMENTS[b.element].color}">${esc(b.text)}</li>`).join('')}</ul>` : `<p>${esc(tr('card.buffs.none'))}</p>`
+          }</div>`
+        : '',
+      // the skill as a tooltip; its foot is the summon's live state (updateSkill)
+      skill: info.skill ? skillTipHtml(info.skill.cls, { passive: info.kind === 'fusion', foot: `<p class="tip-foot tip-state"><span class="tip-text"></span><span class="tip-bar"><i></i></span></p>` }) : '',
+      pure: info.pure
+        ? `<div class="inspect-pure${info.pure.active ? ' on' : ''}" style="--c:${ELEMENTS[info.pure.element].color}"><h4>${esc(info.pure.active ? info.pure.name : info.pure.at)}</h4><p>${esc(info.pure.aura)}${info.pure.active ? ` ${esc(info.pure.self)}` : ''}</p></div>`
+        : '',
+      fuses: info.fuses
+        ? `<div class="inspect-fuses"><h4>${esc(tr('card.fuses'))}</h4>${
+            info.fuses.length
+              ? `<ul>${info.fuses
+                  .map((f) => {
+                    const face = fusionPic({ element: info.elements[0].element, fusion: f.partner }, generatedUrl);
+                    return `<li style="--c:${f.color}"><span class="fc-pic">${face ? `<img alt="" src="${esc(face)}" />` : ''}</span><span><b>${esc(f.skill)}</b> <small>${esc(f.pet)} · ${esc(tr('card.fuses.with', { name: tr(`el.${f.partner}`) }))}</small></span></li>`;
+                  })
+                  .join('')}</ul>`
+              : `<p>${esc(tr('card.fuses.none'))}</p>`
+          }</div>`
+        : '',
+      next: info.next ? `<p class="inspect-next">${esc(info.next)}</p>` : '',
+    };
+    const order =
+      info.kind === 'fusion'
+        ? ['skill', 'buffs', 'auras', 'pure', 'stats', 'effects', 'next']
+        : ['desc', 'hint', 'stats', 'effects', 'feed', 'auras', 'buffs', 'skill', 'pure', 'fuses', 'next'];
+    return order.map((k) => part[k]).join('');
   }
 
   let skillKey = '';
@@ -346,11 +352,7 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
           <div class="inspect-sub">${chips}<span class="inspect-value">${info.value}</span></div>
         </div>
       </div>
-      ${info.desc ? `<p class="inspect-desc">${esc(info.desc)}</p>` : ''}
-      ${info.stats.length ? `<dl class="inspect-stats">${info.stats.map((s) => `<div><dt>${esc(s.label)}</dt><dd>${esc(s.value)}</dd></div>`).join('')}</dl>` : ''}
-      ${info.effects.length ? `<ul class="inspect-fx">${info.effects.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
-      ${extras(info)}
-      ${info.next ? `<p class="inspect-next">${esc(info.next)}</p>` : ''}
+      ${sections(info)}
       <div class="inspect-act"></div>`;
     if (pic) el.querySelector('.inspect-pic').appendChild(pic);
     actKey = '';
@@ -391,7 +393,7 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
       // Details pops the full card in. A single pet's fusions follow the singles on the board
       const look = `${block}:${full ? 'full' : 'short'}`;
       const singles = cls.element && !cls.fusion && full ? [...singlesOf(ctx.tiles ?? [], tile)].join(',') : '';
-      const k = `${look}:${petWhere(tile)}:${singles}`;
+      const k = `${look}:${petWhere(tile)}:${singles}:${JSON.stringify(tile.aura ?? null)}`; // the auras change its numbers
       const fresh = k !== key;
       if (fresh) {
         const popped = key.startsWith(`${look}:`);

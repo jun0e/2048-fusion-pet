@@ -127,10 +127,21 @@ test('v2: a card reads its state from the sim: charging, ready, then out with th
   assert.equal(leftText(0.01), '1s', 'never 0 while the pet is still out');
 });
 
-test('v2: a tap on a ready card hands the cast to its creator (pets.js: run.castSkill); else it nudges', async () => {
+test('v2: a tap casts only when the card is ready, as drawn and in the sim now; else it nudges', async () => {
+  const { pressAction } = await import('../src/kv/namecards.js');
+  const run = (ready) => ({ skillReady: () => ready });
+  assert.equal(pressAction({ id: 3, state: 'ready', lost: false }, run(true)), 'cast');
+  assert.equal(pressAction({ id: 3, state: 'charging', lost: false }, run(true)), 'nudge', 'drawn charging: no cast');
+  assert.equal(pressAction({ id: 3, state: 'ready', lost: false }, run(false)), 'nudge', 'the sim moved on (already out, or a choice opened)');
+  assert.equal(pressAction({ id: 3, state: 'out', lost: false }, run(false)), 'nudge');
+  assert.equal(pressAction({ id: 3, state: 'ready', lost: true }, run(true)), 'nudge', 'a falling card');
+  assert.equal(pressAction({ id: 3, state: 'ready', lost: false }, {}), 'cast', 'a run without skillReady: as drawn');
+});
+
+test('v2: one caster: the card hands the cast to its creator (src/kv/pets.js calls run.castSkill)', async () => {
   const { readFileSync } = await import('node:fs');
   const js = readFileSync(new URL('../src/kv/namecards.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ''); // the code, not its comments
-  assert.match(js, /if \(card\.lost \|\| card\.state !== 'ready' \|\| \(run\.skillReady && !run\.skillReady\(card\.id\)\)\) return nudge\(\);\s*card\.castAt = performance\.now\(\);[^\n]*\n\s*onCast\(card\);/, 'onCast only when ready, as drawn and in the sim now');
-  assert.doesNotMatch(js, /castSkill\(/, 'one caster: the creator (a second castSkill would find the pet out and skip its beam)');
+  assert.match(js, /if \(pressAction\(card, getRun\(\)\) === 'nudge'\) return nudge\(\);[\s\S]{0,160}onCast\(card\);/, 'a ready tap calls onCast');
+  assert.doesNotMatch(js, /castSkill\(/, 'a second castSkill would find the pet out, and pets.js would skip its beam');
   assert.doesNotMatch(js, /CHARGE|ultimate|APEX/, 'no charge of its own, no v1 legends');
 });

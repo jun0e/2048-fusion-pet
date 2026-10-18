@@ -399,6 +399,10 @@ async function start() {
   function openPicker(why) {
     pickerFor = why;
     bossIntro.hide();
+    // the old run's skill cards go (one on screen would cover the picker, and the picker would take its taps)
+    results.length = 0;
+    closeResult();
+    demoChoice = null;
     pause.show('closed');
     if (why === 'restart') hud.hideGameOver();
     const fresh = unseenKeepsakes(meta).map((k) => k.id);
@@ -530,6 +534,7 @@ async function start() {
       hudEl.classList.toggle('paused', paused); // banners stop with the game
       if (s.menu === 'main') syncSettings();
       if (s.menu === 'closed') pauseTitle = tr('pause.title');
+      if (s.menu === 'closed' && resultOn) hud.focusResult(); // a keyboard player is back on its OK
       if (s.menu !== 'closed') saveNow(); // the phone may close the tab next
       // the help sheet first: the pause view then knows which dialog keeps the focus
       if ((s.menu === 'help') !== tutorial.helpOpen) tutorial.openHelp(s.menu === 'help');
@@ -608,7 +613,8 @@ async function start() {
     results.push({ cls: { element: cls.element, fusion: cls.fusion }, tier: tile.tier ?? e.tier });
   }
   function nextResult() {
-    if (resultOn || !results.length || demoChoice || gameOverShown) return;
+    // not under the pause menu or the keepsake picker (a modal card would take their taps): after them
+    if (resultOn || !results.length || demoChoice || gameOverShown || picker?.isOpen || pause.menu !== 'closed') return;
     openResult(results.shift());
   }
   function openResult(r) {

@@ -47,6 +47,12 @@ export function cardState(tile, run) {
   return { state: ready ? 'ready' : 'charging', f: ready ? 1 : f, left: 0 };
 }
 
+/**
+ * What a tap on a card does: 'cast' when it is ready (as last drawn, and still in the sim now: the sim
+ * may have moved on since that frame), else 'nudge'. The cast itself is its creator's (onCast).
+ */
+export const pressAction = (card, run) => (card.lost || card.state !== 'ready' || (run?.skillReady && !run.skillReady(card.id)) ? 'nudge' : 'cast');
+
 /** The time left on an out card's chip ("5s"): whole seconds, rounded up, so it never shows 0 while out. */
 export const leftText = (left) => tr('nc.left', { n: Math.max(1, Math.ceil(left - 1e-6)) });
 
@@ -209,9 +215,7 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     // ready card hands the cast to its creator (src/kv/pets.js onCast: run.castSkill(card.id), and the
     // beam to the pet); the cut-in comes when the sim sends the pet out (sync)
     const press = () => {
-      const run = getRun();
-      // ready as last drawn, and still ready now (the sim may have moved on since that frame)
-      if (card.lost || card.state !== 'ready' || (run.skillReady && !run.skillReady(card.id))) return nudge();
+      if (pressAction(card, getRun()) === 'nudge') return nudge();
       card.castAt = performance.now(); // the stack's face holds a moment (FACE_HOLD_MS)
       onCast(card);
       el.classList.add('fire');

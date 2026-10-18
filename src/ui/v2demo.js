@@ -57,8 +57,9 @@ export function mockChoice(kind, deck = DEMO_DECK) {
     const offer = (a, b) => ({ element: a, fusion: b, key, name: FUSIONS[key].name, color: FUSIONS[key].color });
     return { kind: 'fusion', tileId: -1, tier: 5, parts: [{ element: 'fire', tier: 4 }, { element: 'ice', tier: 4 }], offers: [offer('fire', 'ice'), offer('ice', 'fire')] };
   }
-  const mover = { element: 'fire', fusion: 'ice', buffs: { lightning: 1 } };
-  const stayer = { element: 'earth', fusion: 'metal', buffs: { poison: 2 } };
+  // a heavy merge (the most a keep card shows): five and four gains, buffs on both sides
+  const mover = { element: 'fire', fusion: 'ice', buffs: { lightning: 1, wind: 1 } };
+  const stayer = { element: 'earth', fusion: 'metal', buffs: { poison: 2, nature: 1, wind: 1 } };
   return { kind: 'keep', tileId: -2, tier: 9, offers: [keepOffer(mover, stayer), keepOffer(stayer, mover)] };
 }
 

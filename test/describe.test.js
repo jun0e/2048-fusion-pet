@@ -196,3 +196,16 @@ test('the old call (tile, petName) still works', () => {
   const d = describeTile(tile(9, { element: 'fire', fusion: 'ice', buffs: {} }), pet);
   assert.equal(d.title, 'fire-ice-pet');
 });
+
+test('the skill header drops its unlock part wherever the language puts it', async () => {
+  const { LANGS } = await import('../src/i18n/index.js');
+  const was = LANGS.en['skill.head'];
+  LANGS.en['skill.head'] = 'Unlocks at {unlock} · Cooldown {chargeS} · Out for {durS}';
+  try {
+    assert.equal(skillHead({ unlock: false }), 'Cooldown 15 s · Out for 8 s');
+    assert.equal(skillHead(), 'Unlocks at 1024 · Cooldown 15 s · Out for 8 s');
+  } finally {
+    LANGS.en['skill.head'] = was;
+  }
+  assert.equal(describeTile({ id: 1, tier: 2, cls: {}, prof: null }, null).kind, 'plain', 'no context: none');
+});

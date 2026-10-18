@@ -101,17 +101,18 @@ test('a fusion of two eggs shows the eggs; a choice without parts shows the elem
   assert.ok(bare.includes('/gen/pet.metal.128.png') && text(bare).includes('Metal 256 + Nature 256'), 'big singles show their grown-up baby');
 });
 
-test('the fusion pet to keep: both side by side, each with its skill, elements, the buffs it keeps and what it gains', () => {
-  const choice = mockChoice('keep');
+test('the fusion pet to keep: both side by side, each with its skill, elements, what it gains and the buffs it keeps', () => {
+  const choice = mockChoice('keep'); // a heavy merge: buffs on both sides
   const html = keepChoiceHtml(choice, { img });
   wordsFilled(html, 'keep');
   const t = text(html);
   assert.equal(count(html, /class="v2-card keep-card"/g), 2);
   assert.ok(html.includes('/gen/portrait.fire+ice.png') && html.includes('/gen/portrait.earth+metal.png'));
   assert.match(t, /Two fusions merge Keep one pet\. It takes the other pet’s elements as buffs\./);
-  // keep the mover's (Novakit): it keeps +Lightning and gains the other's two elements and its buffs
-  assert.match(t, /Novakit Frostfire Waltz Fire \(main\) Ice Keeps \+Lightning Gains \+Poison ×2: \+2 poison stack per hit \+Earth: \+25% health \+Metal: \+10% crit chance \(double damage\) Keep Novakit 1/);
-  assert.match(t, /Ironclod Iron Taunt Earth \(main\) Metal Keeps \+Poison ×2 Gains \+Fire: \+20% damage \+Ice: \+10% slow \+Lightning: \+20% fire rate Keep Ironclod 2/);
+  // keep the mover's (Novakit): it gains the other's two elements and all its buffs, and keeps its own
+  assert.match(t, /Novakit Frostfire Waltz Fire \(main\) Ice Gains \+Poison ×2 \+Earth \+Wind \+Metal \+Nature \+2 poison stack per hit, \+25% health, \+15% range, \+10% crit chance \(double damage\), heals 1% health per second Keeps \+Lightning \+Wind Keep Novakit 1/);
+  assert.match(t, /Ironclod Iron Taunt Earth \(main\) Metal Gains \+Fire \+Ice \+Lightning \+Wind \+20% damage, \+10% slow, \+20% fire rate, \+15% range Keeps \+Poison ×2 \+Wind \+Nature Keep Ironclod 2/);
+  assert.equal(count(html, /class="kc-tag kc-gain"/g), 9, 'one gold tag per element gained');
 });
 
 test('the skill a new fusion gained: its pet, the skill in full (ACTIVE and PASSIVE), when it unlocks, and OK', () => {

@@ -348,7 +348,6 @@ export const VI = {
   'keep.gains': 'Nhận thêm',
   'keep.has': 'Giữ lại',
   'keep.pick': 'Giữ {pet}',
-  'result.name': 'Kỹ năng mới',
   'result.kicker': 'Thú dung hợp mới',
   'result.sub': '{fusion}: {a} + {b}',
   'result.ok': 'OK',
@@ -408,7 +407,6 @@ export const VI = {
   'pop.resists': '{name} kháng đẩy lùi',
   'pop.xp': '+{n} KN',
   'pop.lost': 'Mất khối!',
-  'pop.egg': 'Trứng {name}',
   'ban.boss': 'Trùm',
   'ban.bossDown': 'Đã hạ {name}!',
   'ban.bossX2s': { one: 'Khối của bạn được {n} lần x2.', other: 'Khối của bạn được {n} lần x2.' },
@@ -485,7 +483,6 @@ export const VI = {
   // the namecards (src/kv/namecards.js), the boss card, the share line, the loading screen
   'nc.pill': 'ĐẦY',
   'nc.ready': 'Đã sạc đầy: chạm để tung chiêu.',
-  'nc.charging': 'Đang sạc.',
   'nc.behind': { one: '{n} thú cưng khác đang chờ sau thẻ này.', other: '{n} thú cưng khác đang chờ sau thẻ này.' },
   'nc.out': { one: 'Đang ở ngoài sân: còn {n} giây.', other: 'Đang ở ngoài sân: còn {n} giây.' },
   'nc.left': '{n}s',

@@ -350,7 +350,6 @@ export const EN = {
   'keep.gains': 'Gains',
   'keep.has': 'Keeps',
   'keep.pick': 'Keep {pet}',
-  'result.name': 'New skill',
   'result.kicker': 'New fusion pet',
   'result.sub': '{fusion}: {a} + {b}',
   'result.ok': 'OK',
@@ -410,7 +409,6 @@ export const EN = {
   'pop.resists': '{name} resists pushback',
   'pop.xp': '+{n} XP',
   'pop.lost': 'Block lost!',
-  'pop.egg': '{name} egg',
   'ban.boss': 'Boss',
   'ban.bossDown': '{name} defeated!',
   'ban.bossX2s': { one: 'Your blocks got {n} x2.', other: 'Your blocks got {n} x2s.' },
@@ -487,7 +485,6 @@ export const EN = {
   // the namecards (src/kv/namecards.js), the boss card, the share line, the loading screen
   'nc.pill': 'READY',
   'nc.ready': 'Ready: tap to cast.',
-  'nc.charging': 'Charging.',
   'nc.behind': { one: '{n} more pet waits behind this card.', other: '{n} more pets wait behind this card.' },
   'nc.out': { one: 'Out on the field: {n} second left.', other: 'Out on the field: {n} seconds left.' },
   'nc.left': '{n}s',

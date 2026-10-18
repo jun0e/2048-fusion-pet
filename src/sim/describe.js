@@ -90,8 +90,11 @@ export function buffBanner(gain, pet) {
 export function skillHead({ unlock = true } = {}) {
   const h = summonHead();
   const full = tr('skill.head', { ...skillVars(h, FMT), unlock: String(h.unlock) });
-  const cut = full.lastIndexOf(' · ');
-  return unlock || cut < 0 ? full : full.slice(0, cut);
+  if (unlock) return full;
+  // the part that says the unlock goes, wherever the language puts it among the ' · ' parts
+  const parts = full.split(' · ');
+  const rest = parts.filter((p) => !p.includes(String(h.unlock)));
+  return rest.length && rest.length < parts.length ? rest.join(' · ') : full;
 }
 
 /**
@@ -224,7 +227,9 @@ const pureOf = (element, tile, active) => ({
  * ctx: { petName (a, b) → name, tiles (the board, for the singles a pet can fuse with), skill: { charge, ready } }
  */
 export function describeTile(tile, ctx = {}) {
-  const pet = typeof ctx === 'function' ? ctx : (ctx.petName ?? fusionName);
+  if (typeof ctx === 'function') ctx = { petName: ctx };
+  ctx ??= {};
+  const pet = ctx.petName ?? fusionName;
   const value = tierValue(tile.tier);
   const cls = tile.cls ?? {};
   const hatched = tile.tier >= HATCH_TIER;

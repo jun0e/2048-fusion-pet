@@ -616,27 +616,54 @@
   font: 800 13px/1.5 var(--font-display);
 }
 
-.kc-gains {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 100%;
-}
-
-/* what the kept pet gains: gold, each line on its element's colour edge */
-.kc-gain {
-  padding: 3px 6px 3px 8px;
-  text-align: left;
-  border-radius: 8px;
+/* what the kept pet gains: gold tags on their element's colour edge, then what they give in one line */
+.kc-tag.kc-gain {
+  padding-left: 9px;
   background: #fff1c2;
   box-shadow: inset 3px 0 0 var(--c);
+}
+
+.kc-gain-stats {
   font: 800 13px/1.25 var(--font-body);
+  color: var(--ink);
   text-wrap: pretty;
 }
 
 .keep-card .v2-pick {
   align-self: stretch;
   font-size: 16px;
+}
+
+/* a short phone (640 px tall): the dialogs take the whole height, and the cards their tightest, so the
+   biggest real ones fit (a level-6 pick with a deck of six, a keep card with a long list of gains) */
+@media (max-height: 700px) {
+  .choice[data-kind] {
+    max-height: calc(100dvh - var(--sa-t) - var(--sa-b) - 8px);
+  }
+  .die-card {
+    gap: 4px;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--c) 34%, var(--cream)) 0 34px, transparent 34px),
+      var(--cream);
+  }
+  .dc-art {
+    width: 46px;
+    height: 46px;
+  }
+  .dc-fuses {
+    gap: 2px;
+  }
+  .fc-pic {
+    flex-basis: 24px;
+    height: 24px;
+  }
+  .keep-card {
+    gap: 4px;
+  }
+  .kc-pic {
+    width: 60px;
+    height: 60px;
+  }
 }
 
 /* --- the skill gained ------------------------------------------------------------------------- */

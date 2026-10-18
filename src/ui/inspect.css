@@ -311,6 +311,9 @@
 .inspect .skill-tip {
   margin: 0 0 8px;
 }
+.inspect-head + .skill-tip {
+  margin-top: 10px; /* a fusion pet's card opens on its skill */
+}
 .inspect-pure {
   margin: 0 0 8px;
   padding: 7px 9px;
