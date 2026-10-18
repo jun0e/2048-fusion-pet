@@ -21,8 +21,8 @@ import { growthWords, meterOf } from '../art/plaque.js';
 import { ARMED_LABEL, actState, shortCardSpot } from './short-card.js';
 import { tr } from '../i18n/index.js';
 
-/** The narrow short card's sizes (px), as inspect.css sets them: the buttons' side padding, the row's gap and side padding. */
-const NARROW = { button: 10, gap: 6, row: 8 };
+/** The narrow short card's sizes (px), as inspect.css sets them: the buttons' side padding, the row's gap and side padding, the Details icon. */
+const NARROW = { button: 10, gap: 6, row: 8, icon: 48 };
 
 /** Details as an icon, where the short card narrows to keep off the namecard rail (24 px, as the HUD's icons). */
 const INFO_ICON = '<svg class="inspect-more-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><path d="M12 11v6M12 7.2v.1" /></svg>';
@@ -210,7 +210,7 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
       // Sell (always as wide as its armed label) at the narrow row's padding, the 48 px Details icon, the
       // narrow row's gap and padding, the card's borders
       const pad = sell ? parseFloat(getComputedStyle(sell).paddingLeft) : 0;
-      const need = (sell?.offsetWidth ?? 0) - 2 * (pad - NARROW.button) + 48 + NARROW.gap + 2 * NARROW.row + el.offsetWidth - el.clientWidth;
+      const need = (sell?.offsetWidth ?? 0) - 2 * (pad - NARROW.button) + NARROW.icon + NARROW.gap + 2 * NARROW.row + el.offsetWidth - el.clientWidth;
       if (fit >= need) [w, narrow] = [fit, true]; // else it covers the rail: a phone too narrow for both
     }
     const k = `short|${w}|${left}|${spot.top}|${spot.maxH}|${narrow}`;

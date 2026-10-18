@@ -42,6 +42,30 @@ export function railSlots(ids, ready, face, hold = false) {
   return { shown: ids.slice(0, SLOTS - 1), stack: [next, ...rest.filter((id) => id !== next)], face: next };
 }
 
+/**
+ * The indices of the longest increasing run in `pos` (a card's place in the DOM, by its place on the
+ * rail): those cards stay where they are, and only the others move.
+ */
+export function longestRun(pos) {
+  const tails = []; // tails[k]: the index ending the best run of length k + 1
+  const prev = new Array(pos.length).fill(-1);
+  for (let i = 0; i < pos.length; i++) {
+    if (pos[i] < 0) continue;
+    let lo = 0;
+    let hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (pos[tails[mid]] < pos[i]) lo = mid + 1;
+      else hi = mid;
+    }
+    prev[i] = lo > 0 ? tails[lo - 1] : -1;
+    tails[lo] = i;
+  }
+  const keep = new Set();
+  for (let i = tails.at(-1) ?? -1; i >= 0; i = prev[i]) keep.add(i);
+  return keep;
+}
+
 /** How long a just-cast face holds the stack's slot (ms): a quick second tap nudges it instead. */
 export const FACE_HOLD_MS = 600;
 
@@ -134,11 +158,9 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     el.title = `${petName(t.cls.element, t.cls.fusion)}: ${skill}`;
     el.style.pointerEvents = 'auto';
     const card = { el, id: t.id, charge: CHARGE * 0.55, max: legend ? CHARGE_LEGEND : CHARGE, skill, name: petName(t.cls.element, t.cls.fusion), legend, cls: { ...t.cls }, lost: false, ready: null, role: 'own', more: 0, slot: '', castAt: -Infinity };
-    // a nudge plays once: left on, its class would hold the card's ready bob off for good (and a
-    // card hidden mid-nudge cancels it rather than ending it)
-    const unNudge = (ev) => ev.animationName === 'kvNudge' && el.classList.remove('nudge');
-    el.addEventListener('animationend', unNudge);
-    el.addEventListener('animationcancel', unNudge);
+    // a nudge plays once: left on, its class would hold the card's ready bob off for good (a card
+    // hidden mid-nudge drops it in slot(); a cancel is no end: a second tap restarts the nudge)
+    el.addEventListener('animationend', (ev) => ev.animationName === 'kvNudge' && el.classList.remove('nudge'));
     // a press casts at once (no wait for the click); Enter and Space on a focused card do the same
     const press = () => {
       if (card.lost || card.charge < card.max) {
@@ -302,11 +324,13 @@ export function createNamecards(root, { art, stage, getRun, onCast }) {
     const order = onRail.map((c) => c.el);
     const falling = [...cards.values()].filter((c) => c.lost).sort((a, b) => (a.index ?? Infinity) - (b.index ?? Infinity));
     for (const c of falling) order.splice(Math.min(c.index ?? order.length, order.length), 0, c.el);
-    // only the cards out of place move: a node taken out of the page restarts its animations (the
-    // ready bob, the shine, a fall), and loses its focus
+    // the fewest cards move: those outside the longest run already in order (a node taken out of the
+    // page restarts its animations, the ready bob, the shine, a fall, and loses its focus)
     if (order.some((el, i) => strip.children[i] !== el)) {
       const had = document.activeElement;
-      for (let i = 0; i < order.length; i++) if (strip.children[i] !== order[i]) strip.insertBefore(order[i], strip.children[i] ?? null);
+      const at = [...strip.children];
+      const keep = longestRun(order.map((el) => at.indexOf(el)));
+      for (let i = order.length - 1; i >= 0; i--) if (!keep.has(i)) strip.insertBefore(order[i], order[i + 1] ?? null);
       if (had && had !== document.activeElement && strip.contains(had)) had.focus({ preventScroll: true });
     }
   }

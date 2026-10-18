@@ -68,3 +68,14 @@ test('the stack’s slide-in is a one-off animation, never a class rule that wou
   const js = readFileSync(new URL('../src/kv/namecards.js', import.meta.url), 'utf8');
   assert.match(js, /card\.el\.animate\?\.\(/);
 });
+
+test('a reorder moves the fewest cards: those outside the longest run already in order stay put', async () => {
+  const { longestRun } = await import('../src/kv/namecards.js');
+  // the rail wants [N, S1, S2, X, S3, Y]; the DOM holds [S1, S2, S3, X, Y, N] (DOM places 5, 0, 1, 3, 2, 4)
+  const keep = longestRun([5, 0, 1, 3, 2, 4]);
+  assert.equal(keep.size, 4, 'S1, S2, X (or S3), Y stay');
+  assert.ok(keep.has(1) && keep.has(2) && keep.has(5), 'S1, S2 and Y never move');
+  assert.ok(!keep.has(0), 'the new card N moves to the top');
+  assert.deepEqual([...longestRun([0, 1, 2, 3])].sort(), [0, 1, 2, 3], 'in order: nothing moves');
+  assert.equal(longestRun([]).size, 0);
+});

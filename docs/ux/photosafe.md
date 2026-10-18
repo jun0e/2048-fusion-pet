@@ -27,7 +27,6 @@ The rules live in `src/ux/photosafe.js`.
    - The large flashes above the thresholds have another:
      - the red edge pulse when a block falls;
      - a pet skill's cut-in panel, about 6 × 3 cm on a phone;
-
      - the big milestone number (a new top block), which waits for the budget, a second at most.
    - Together that is at most 2 in any second; the limit is 3.
    - Two budgets, not one: a Plague wash every second would otherwise block the cut-in of the skill the player just tapped.

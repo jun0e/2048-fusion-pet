@@ -2152,11 +2152,17 @@ body {
   display: none;
 }
 
+/* two rows: the portrait beside the tag and the name, then what it does across the card */
 .boss-intro-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-areas:
+    'pic head'
+    'line line';
   align-items: center;
-  gap: 12px;
-  padding: 8px 14px 8px 8px;
+  column-gap: 10px;
+  row-gap: 6px;
+  padding: 8px 12px 10px 8px;
   border: 3px solid var(--ink);
   border-radius: var(--r-plate, 18px);
   background: var(--cream);
@@ -2166,16 +2172,18 @@ body {
 }
 
 .boss-intro-card img {
-  flex: 0 0 96px;
-  width: 96px;
-  height: 96px;
-  border-radius: 14px;
+  grid-area: pic;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
   box-shadow: 0 0 0 2px var(--ink);
 }
 
-.boss-intro-text {
+.boss-intro-head {
+  grid-area: head;
   display: grid;
-  gap: 4px;
+  justify-items: start;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -2188,13 +2196,22 @@ body {
   font: 800 14px/1.45 var(--font-display);
 }
 
-.boss-intro-text b {
-  font: 800 24px/1.05 var(--font-display);
+.boss-intro-head b {
+  font: 800 22px/1.05 var(--font-display);
   color: var(--ink);
   text-wrap: balance;
 }
 
+.boss-intro.narrow .boss-intro-head b {
+  font-size: 20px; /* a card under 260 px: "Rồng Dung Nham" stays on one line */
+}
+
 .boss-intro-line {
+  grid-area: line;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3; /* at most three lines: the card fits between the gates and the board */
+  overflow: hidden;
   font: 700 14px/1.3 var(--font-body);
   color: var(--ink-soft);
 }

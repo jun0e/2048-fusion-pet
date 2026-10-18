@@ -5,8 +5,10 @@
 // spoken line, aria-live), so the card stays out of the accessibility tree.
 // A large panel (docs/ux/photosafe.md): it always fades in, over 0.6 s, which is no flash, so it
 // never takes the flash budget a pet's skill cut-in needs.
-// It sits between the field's towers, as the full block card does, never over the namecard rail, and
-// halfway between the portals and the board (hud.css, from main.js's --field-top and --board-top).
+// It sits on the field, from the screen's left gutter to 4 px inside the right tower (never over the
+// namecard rail), and halfway between the portals and the board (hud.css, from main.js's --field-top
+// and --board-top). Two rows (the portrait and the name; what it does, at most three lines), so it fits
+// between the gates and the board on every phone, a 320 x 480 one with its toolbars showing included.
 import { ENEMY_TYPES } from '../sim/enemies.js';
 import { FRAME_GEOM } from '../art/frame-kit.js';
 import { generatedUrl } from '../render/textures.js';
@@ -32,18 +34,18 @@ export function createBossIntro(root, { stage }) {
     el.classList.remove('fade', 'out');
   }
 
-  /** Between the towers, the right edge 4 px inside the right one (as inspect.js places the full card). */
+  /** Centred on the field, within the left gutter and 4 px inside the right tower (off the namecard rail). */
   function place() {
     const box = root.getBoundingClientRect();
-    const towerL = stage.toClient(-FRAME_GEOM.towerIn, 0).x - box.left;
-    const towerR = stage.toClient(FRAME_GEOM.towerIn, 0).x - box.left;
-    const w = Math.round(Math.max(240, Math.min(360, towerR - towerL - 8)));
-    const x = Math.round(towerR - 4 - w);
+    const right = stage.toClient(FRAME_GEOM.towerIn, 0).x - box.left - 4;
+    const w = Math.round(Math.min(360, right - 8));
+    const x = Math.round(Math.max(8, Math.min(right - w, stage.toClient(0, 0).x - box.left - w / 2)));
     const k = `${w}|${x}`;
     if (k === placed) return;
     placed = k;
     el.style.left = `${x}px`;
     el.style.width = `${w}px`;
+    el.classList.toggle('narrow', w < 260); // a smaller name: the longest stays on one line
   }
 
   return {
@@ -57,11 +59,11 @@ export function createBossIntro(root, { stage }) {
       el.innerHTML = `
         <div class="boss-intro-card">
           <img alt="" src="${esc(pic)}" />
-          <div class="boss-intro-text">
+          <div class="boss-intro-head">
             <span class="boss-intro-kicker">${esc(tr('boss.kicker'))}</span>
             <b>${esc(boss.name)}</b>
-            ${boss.intro ? `<span class="boss-intro-line">${esc(boss.intro)}</span>` : ''}
           </div>
+          ${boss.intro ? `<span class="boss-intro-line">${esc(boss.intro)}</span>` : ''}
         </div>`;
       hide();
       el.hidden = false;
