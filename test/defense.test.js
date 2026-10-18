@@ -435,9 +435,10 @@ test('fusions keep every effect whatever their first shape: bite on a cone, chai
   f.step(DT, [block(1, 8, { element: 'fire', fusion: 'metal' })]);
   assert.ok(f.drainEvents().some((x) => x.type === 'bite'), 'Forge bites');
 
-  // Toxic Shock (poison + lightning) spits; the glob chains on landing
+  // Toxic Shock (poison + lightning) spits; the glob chains on landing (v2: the second element's chain at
+  // its own strength, 2.6 units, so the third foe stands within that of the glob's hits)
   const p = createDefense({ rng: createRng(1) });
-  const foes = [3, 4.5, 6].map((y) => p.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(y) }));
+  const foes = [3, 4.5, 5.4].map((y) => p.spawn('hoodedFlier', { lane: 1, hpScale: 5000, s: sAtY(y) }));
   for (const e of foes) e.speed = 0;
   run(p, [block(1, 8, { element: 'poison', fusion: 'lightning' })], 1);
   assert.ok(p.drainEvents().some((x) => x.type === 'impact' && x.chain), 'the glob arcs on');
