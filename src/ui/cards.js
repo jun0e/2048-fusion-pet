@@ -1,9 +1,9 @@
 // v2 cards (docs/v2/SPEC.md section 7): the markup of the three choices (a new element, a fusion's main
-// element, the fusion pet to keep), the card that shows the skill a new fusion gained, the buff banner,
-// and the pieces the tile card (src/ui/inspect.js) shares with them: a fusion's skill in the shape of a
-// League of Legends tooltip, its buffs, the pure aura. Pure: HTML strings built from the SPEC's shapes and
-// the skill data (src/sim/skills/data.js), so a test renders every card in Node from mock choices. The
-// words come from the language's table (src/i18n), and every text is escaped. `img(id)` finds a
+// element, the fusion pet to keep), the card that shows the skill a new fusion gained, and the pieces the
+// tile card (src/ui/inspect.js) shares with them: a fusion's skill in the shape of a League of Legends
+// tooltip, the element chips. Pure: HTML strings built from the SPEC's shapes and the skill data
+// (src/sim/skills/data.js), so a test renders every card in Node from mock choices. The words come from
+// the language's table (src/i18n) through src/sim/describe.js, and every text is escaped. `img(id)` finds a
 // generated picture (src/render/textures.js generatedUrl; a test passes its own); without one a card
 // shows the element's badge or colour instead.
 import { TIER_COLORS, V2, tierValue } from '../config.js';
