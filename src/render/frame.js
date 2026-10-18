@@ -347,10 +347,12 @@ function drawArches(p, wg, xs, cell) {
   for (const x of xs) {
     const cx = X(x);
     wg.moveTo(cx - ro, cy).arc(cx, cy, ro, Math.PI, 0).lineTo(cx + ri, cy).arc(cx, cy, ri, 0, Math.PI, true).closePath().fill(light);
+    // its radial joints: one stroke for the six (the arches are redrawn every frame while the board grows)
     for (let k = 1; k < 7; k++) {
       const a = Math.PI + (Math.PI * k) / 7;
-      wg.moveTo(cx + Math.cos(a) * ri, cy + Math.sin(a) * ri).lineTo(cx + Math.cos(a) * ro, cy + Math.sin(a) * ro).stroke({ width: thin, color: INK, alpha: 0.7 });
+      wg.moveTo(cx + Math.cos(a) * ri, cy + Math.sin(a) * ri).lineTo(cx + Math.cos(a) * ro, cy + Math.sin(a) * ro);
     }
+    wg.stroke({ width: thin, color: INK, alpha: 0.7 });
     wg.moveTo(cx - kw, cy - ri).lineTo(cx - kw * 1.5, cy - ro - L(0.02 * cell)).lineTo(cx + kw * 1.5, cy - ro - L(0.02 * cell)).lineTo(cx + kw, cy - ri).closePath().fill(stone).stroke({ width: thin, color: INK });
     wg.moveTo(cx - ro, wt).lineTo(cx - ro, cy).arc(cx, cy, ro, Math.PI, 0).lineTo(cx + ro, wt).stroke({ width: ow, color: INK });
     wg.moveTo(cx - ri, wb).lineTo(cx - ri, cy).arc(cx, cy, ri, Math.PI, 0).lineTo(cx + ri, wb).closePath().fill(hex(skin.opening)).stroke({ width: ow, color: INK });
@@ -445,15 +447,21 @@ function placeGates(p, gates, xs, cell, bannerTex) {
     bars.position.set(cx, cy - ri);
     const span = sill - (cy - ri);
     const step = ri / 2.6;
-    const bar = (x0, y0, x1, y1) => {
-      bars.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: Math.max(2.5, L(0.035 * cell)), color: INK });
-      bars.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: Math.max(1, L(0.015 * cell)), color: hex(skin.iron) });
-    };
-    for (let x = -ri + step * 0.6; x < ri - step * 0.3; x += step) bar(x, ri - Math.sqrt(Math.max(0, ri * ri - x * x)) + 1, x, span - 1);
+    // the bars: every bar's path, stroked in ink, then again in iron (two strokes a gate: the gates are
+    // redrawn every frame while the board grows)
+    const lines = [];
+    for (let x = -ri + step * 0.6; x < ri - step * 0.3; x += step) lines.push([x, ri - Math.sqrt(Math.max(0, ri * ri - x * x)) + 1, x, span - 1]);
     for (const fy of [0.45, 0.78]) {
       const y = span * fy;
       const half = Math.sqrt(Math.max(0, ri * ri - Math.max(0, ri - y) ** 2));
-      bar(-half + 1, y, half - 1, y);
+      lines.push([-half + 1, y, half - 1, y]);
+    }
+    for (const [width, color] of [
+      [Math.max(2.5, L(0.035 * cell)), INK],
+      [Math.max(1, L(0.015 * cell)), hex(skin.iron)],
+    ]) {
+      for (const [x0, y0, x1, y1] of lines) bars.moveTo(x0, y0).lineTo(x1, y1);
+      bars.stroke({ width, color });
     }
     gt.banners.children.forEach((b, i) => {
       b.texture = bannerTex;
