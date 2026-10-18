@@ -130,8 +130,8 @@ test("Railgun: unseen, it charges; then a rail hits every foe down the toughest 
 test('Bloom Ambush: planted before the blocks, it snatches a foe in reach and lightning jumps to the nearest others; then it waits its cooldown', () => {
   const p = P['lightning+nature'];
   const h = skillHarness('lightning+nature', { hit: HIT });
-  const prey = h.foe(1, 6); // in reach of the flower
-  const others = [h.foe(0, 1), h.foe(2, 1), h.foe(3, 0.5)]; // out of reach: the nearest ones to the prey
+  const prey = h.foe(1, 2, { speed: 1.5 }); // walks down lane 1 into the flower's reach
+  const others = [h.foe(0, 1), h.foe(2, 1), h.foe(1, 0)]; // they stay up the field: the nearest ones to the prey
   const far = h.foe(3, 0); // one more, further off
   const blows = blowsOn(h, 'lightning+nature');
   h.act();
