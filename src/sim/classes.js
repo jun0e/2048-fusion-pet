@@ -570,7 +570,8 @@ export function statsOf(tile) {
     if (stat && v) out[stat] = (out[stat] ?? 0) + v;
   };
   const c = tile.cls ?? {};
-  if (c.fusion && c.buffs) for (const e of ELEMENT_KEYS) add(e, buffWorth(c.buffs[e] ?? 0) * ELEMENT_STATS[e].buff);
+  // (poison's stat is whole stacks a hit: its worth rounds, so more copies give +2 at most)
+  if (c.fusion && c.buffs) for (const e of ELEMENT_KEYS) add(e, (ELEMENT_STATS[e].stat === 'poison' ? Math.round(buffWorth(c.buffs[e] ?? 0)) : buffWorth(c.buffs[e] ?? 0)) * ELEMENT_STATS[e].buff);
   if (tile.aura) for (const e of ELEMENT_KEYS) if (c.element || ['hp', 'regen'].includes(ELEMENT_STATS[e].stat)) add(e, tile.aura[e] ?? 0);
   return out;
 }

@@ -9,7 +9,7 @@
 //   world units) · anything else a plain count. A skill's "% damage" is a share of its pet's hit (the
 //   tile's profile damage). The words are in the i18n tables (src/i18n/skills-en.js, skills-vi.js):
 //   skill.<key>.name / .text, with {placeholders} named as these fields.
-import { V2 } from '../../config.js';
+import { DESIGN_CELL, GRID, V2 } from '../../config.js';
 
 export const FUSION_SKILLS = {
   // --- fire ---------------------------------------------------------------------------------
@@ -78,7 +78,9 @@ export const unitOf = (name) => (name.endsWith('S') ? 's' : name.endsWith('Pct')
 /**
  * A skill's (or a stat's) numbers as the language writes them, for tr(): seconds and cells through the
  * tables' own units, percents as "150%". `fmt` = { num, tr } from src/i18n (passed in: the sim stays free
- * of the i18n module's browser start-up).
+ * of the i18n module's browser start-up). …Cells are designed in 4×4 cells (DESIGN_CELL) and keep their
+ * size in the world as the board grows (v2.1), so they are shown in the board's own cells: more of them
+ * on a 5×5 or 6×6 board, as the tile card counts them.
  */
 export function skillVars(params, { num, tr }) {
   const out = {};
@@ -87,7 +89,10 @@ export function skillVars(params, { num, tr }) {
     const u = unitOf(k);
     const n = Math.round(v * 100) / 100;
     if (u === 's') out[k] = tr('unit.s', { n: num(n) });
-    else if (u === 'cells') out[k] = tr('unit.cells', { n: num(n), count: n === 1 ? 1 : 2 });
+    else if (u === 'cells') {
+      const c = Math.round(((v * DESIGN_CELL) / GRID.cell) * 10) / 10;
+      out[k] = tr('unit.cells', { n: num(c), count: c === 1 ? 1 : 2 });
+    }
     else if (u === 'pct') {
       const pc = Math.round(v * 1000) / 10;
       out[k] = `${pc >= 1000 ? String(pc) : num(pc)}%`; // 1200%, never "1.200%" (read as 1.2 in Vietnamese)

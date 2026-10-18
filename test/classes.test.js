@@ -384,7 +384,8 @@ test('element buffs on a fusion: every stat, stacking', () => {
   near(f({ lightning: 2 }).rate, base.rate * (1 + buffWorth(2) * ELEMENT_STATS.lightning.buff), 'rate');
   assert.deepEqual(f({ poison: 1 }).poison, { dpsPct: 0.1, dur: 3, max: 3, perHit: 1 }, 'poison added: +1 stack per hit');
   const venom = f({ poison: 2 }, 'poison', 'earth');
-  near(venom.poison.perHit, 1 + buffWorth(2), 'its own stack and 1.6 more');
+  assert.equal(venom.poison.perHit, 3, 'its own stack and 2 more: poison buffs are whole stacks (two copies round up to 2)');
+  assert.equal(f({ poison: 5 }, 'poison', 'earth').poison.perHit, 3, 'more copies never add more than 2');
   assert.equal(venom.poison.max, grownElement('poison', 3).poison.max, 'max ≥ 2 + v');
   assert.equal(venom.poison.dpsPct, grownElement('poison', 3).poison.dpsPct, 'dpsPct ≥ 0.1·v');
   near(f({ earth: 1 }).hpMult, 1 + ELEMENT_STATS.earth.buff, 'hp');
