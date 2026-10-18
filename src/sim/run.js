@@ -289,10 +289,10 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
   }
 
-  function choose(index) {
+  function choose(index = 0) {
     const c = choices.shift();
     if (!c) return false;
-    const offer = c.offers[Math.max(0, Math.min(c.offers.length - 1, index))];
+    const offer = c.offers[Math.max(0, Math.min(c.offers.length - 1, Math.trunc(index) || 0))];
     if (c.kind === 'die') {
       owned.push(offer.element);
       events.push({ type: 'dieGained', element: offer.element, level: c.level, offer });
@@ -303,21 +303,27 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     }
     const t = grid.tiles.find((x) => x.id === c.tileId);
     if (!t) return true;
+    // the block becomes the offer picked (pure if it is 4096 by now: a boss x2 may have lifted it since)
     if (c.kind === 'fusion') {
-      // the fusion made, with the main element picked: its news (it supersedes a hatch)
       t.cls = withPure({ element: offer.element, fusion: offer.fusion, buffs: {} }, t.tier);
-      t.prof = null;
       events.push(classed(t, 2, { chosen: true }));
     } else {
       // 'keep': the kept fusion, with what it gained from the other
-      t.cls = copyCls(offer.cls);
-      t.prof = null;
+      t.cls = withPure(copyCls(offer.cls), t.tier);
       events.push(buffed(t, offer.gain));
-      if (c.stage === 1) events.push(classed(t, 1));
     }
-    if (c.stage === 3) events.push(classed(t, 3));
+    t.prof = null;
+    // what the merge (or a boss x2 since) also reached, now that the block's class is known
+    if (c.stage) events.push(classed(t, c.stage));
     refresh();
     return true;
+  }
+
+  /** A boss x2 lifted a block whose merge card is still open: the card shows the block as it is now. */
+  function liftPending(c, t, stages) {
+    c.tier = t.tier;
+    c.stage = Math.max(c.stage ?? 0, ...stages);
+    if (c.kind === 'keep') for (const o of c.offers) withPure(o.cls, t.tier);
   }
 
   /**
@@ -434,8 +440,12 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
           const from = t.tier;
           if (!grid.promote(t, x2)) continue;
           for (const g of grid.drainEvents()) events.push(g);
-          // an egg that jumps past 16 hatches; one that reaches 4096 also turns pure
-          for (const stage of promoteClass(t, from)) events.push(classed(t, stage, { promoted: true }));
+          // an egg that jumps past 16 hatches; one that reaches 4096 also turns pure (announced with
+          // the block's open merge card, if it has one: its class is not picked yet)
+          const stages = promoteClass(t, from);
+          const open = choices.find((c) => c.tileId === t.id && c.kind !== 'die');
+          if (open) liftPending(open, t, stages);
+          else for (const stage of stages) events.push(classed(t, stage, { promoted: true }));
           setMaxHp(t); // a bigger block has more health (added, not healed)
         }
         events.push({ type: 'bossReward', x2s, pairs, blocks: plan.length, boss: e.enemy?.def?.name ?? null, wave: s.waveNo });
@@ -590,10 +600,10 @@ export function createRun({ seed = (Math.random() * 2 ** 32) >>> 0, autoChoose =
     },
     /** A fusion pet's summon charge, 0..1 (the defense keeps it: docs/v2/SPEC.md section 5). */
     skillCharge: (id) => defense.skillCharge(id),
-    /** The pet can be summoned now: a fusion pet at V2.summonTier+, home, fully charged. */
+    /** The pet can be summoned now: a fusion pet at V2.summonTier+, home, fully charged (and no card open). */
     skillReady: (id) => {
       const t = grid.tiles.find((x) => x.id === id);
-      return !!t && !s.over && !!profileFor(t).summon && !t.summon && defense.skillCharge(id) >= 1;
+      return !!t && !s.over && !choices.length && !!profileFor(t).summon && !t.summon && defense.skillCharge(id) >= 1;
     },
     /** Summon a fusion pet to the front (its namecard): true when it went out (defense.summon). */
     castSkill: (id) => {
