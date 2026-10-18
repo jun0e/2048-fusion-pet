@@ -137,11 +137,17 @@ test('a summon that starts acting still hops out first; Reduce motion fades it o
   const s = scene({ phase: 'act' });
   s.step(V2.summon.hopS / 2);
   assert.ok(s.pet().mode === 'out' && s.pet().lift > 0.5, 'it hops out all the same');
+  // the renderer's own hop (no z): out on its sill for the first half, in at its spot (1, 11) for the second
   const r = scene({ reduced: true, phase: 'out' });
-  r.step(V2.summon.hopS / 2);
+  const sill = homeOf(r.tile);
+  r.step(V2.summon.hopS / 4);
   const v = r.pet();
   assert.equal(v.lift, 0, 'no arc');
-  assert.ok(v.c.alpha > 0.3 && v.c.alpha < 0.7, `it fades in (${v.c.alpha.toFixed(2)})`);
+  assert.ok(Math.hypot(v.x - sill.x, v.y - sill.y) < 1e-9 && v.scale === HOP.tile, 'it fades out where it stands');
+  assert.ok(v.c.alpha > 0.3 && v.c.alpha < 0.7, `half faded (${v.c.alpha.toFixed(2)})`);
+  r.step(V2.summon.hopS / 2);
+  assert.ok(Math.hypot(v.x - 1, v.y - 11) < 1e-9 && v.scale === 1, 'then in at its spot');
+  assert.ok(v.c.alpha > 0.3 && v.c.alpha < 0.7, `half faded in (${v.c.alpha.toFixed(2)})`);
   r.tile.summon.phase = 'act';
   r.step(V2.summon.hopS);
   assert.equal(v.c.alpha, 1);
@@ -150,6 +156,46 @@ test('a summon that starts acting still hops out first; Reduce motion fades it o
   r.roam.onEvent({ type: 'skillFx', fx: 'ring', x: 1, y: 11, r: 2, color: '#ff0000' });
   r.step(0.1);
   assert.equal(v.body.position.y, y0, 'Reduce motion: it does not jump into its cast');
+});
+
+test('Reduce motion with the sim’s own hop: the pet never slides through it, and a jump while it acts is a cut', () => {
+  const r = scene({ reduced: true, phase: 'out' });
+  const tile = r.tile;
+  const hop = V2.summon.hopS;
+  Object.assign(tile.summon, { t: 0, hop, dur: 2, x: tile.x, y: tile.y, z: 0, x0: tile.x, y0: tile.y, tx: 3, ty: 12, home: { x: tile.x, y: tile.y }, facing: 1, moving: false });
+  const sill = homeOf(tile);
+  r.step();
+  const v = r.pet();
+  /** Run the sim's hop to its end; every frame the pet stands at `a` (first half) or `b` (second), fading out then in. */
+  const hopsBetween = (a, b, scaleA, scaleB) => {
+    let frames = 0;
+    while (tile.summon.t < hop) {
+      simHop(tile.summon, DT);
+      r.step();
+      const k = tile.summon.t / hop;
+      const at = k < 0.5 ? a : b;
+      assert.ok(Math.hypot(v.x - at.x, v.y - at.y) < 1e-9, `k ${k.toFixed(2)}: at (${v.x.toFixed(2)}, ${v.y.toFixed(2)}), not between`);
+      assert.equal(v.lift, 0, 'no arc');
+      assert.equal(v.scale, k < 0.5 ? scaleA : scaleB);
+      assert.ok(Math.abs(v.c.alpha - Math.abs(2 * k - 1)) < 1e-9, `k ${k.toFixed(2)}: alpha ${v.c.alpha.toFixed(2)}`);
+      frames++;
+    }
+    assert.ok(frames > 20);
+  };
+  hopsBetween(sill, { x: 3, y: 12 }, HOP.tile, 1);
+  Object.assign(tile.summon, { phase: 'act', t: 0, x: 3, y: 12, z: 0 });
+  r.step();
+  assert.ok(v.mode === 'act' && v.c.alpha === 1);
+  tile.summon.x = -3; // a jump to another foe
+  r.step();
+  assert.ok(!v.leap && v.x === -3 && v.lift === 0, 'a cut, not a hop');
+  Object.assign(tile.summon, { phase: 'back', t: 0, x0: -3, y0: 12 });
+  hopsBetween({ x: -3, y: 12 }, sill, 1, HOP.tile);
+  const puffs = r.fx.bursts.length;
+  delete tile.summon; // petHome
+  r.step();
+  assert.equal(r.pet(), null);
+  assert.equal(r.fx.bursts.length, puffs, 'home on its sill: no puff');
 });
 
 test('when its skill acts from it, the pet throws itself into it: a squash and a little hop', () => {
@@ -414,4 +460,5 @@ test('v1’s enemy split event, still named summon, is no pet’s', () => {
   s.roam.onEvent({ type: 'summon', id: 3, x: 1, y: 12, count: 3 });
   s.step();
   assert.equal(s.pet(), null);
+  assert.equal(s.fx.bursts.length, 0, 'no pet springs off a tile');
 });

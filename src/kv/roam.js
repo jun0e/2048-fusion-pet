@@ -13,7 +13,8 @@
 // in an S; only a side view (`view` profile) is flipped to face where it goes. A pure form wears its
 // main element's halo over its head and a soft glow. When its skill acts (a skillFx event from the pet,
 // or at it), the pet throws itself into it: a squash and a little hop. Reduce motion: no arc, no
-// squash and no hop: the pet fades out of its tile and in at its spot, and back.
+// squash and no hop: the pet fades out of its tile and in at its spot (never sliding between), and
+// back; a jump while it acts is a cut.
 //
 // Pets never hide the fight (proposal W4): a fusion stands about 1.0 cell tall and a pure form 1.15
 // under its halo (src/art/index.js roamerFit), smaller than the bosses, and pets and foes share the
@@ -281,36 +282,44 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
       }
       // where it is
       let moving = false;
-      if ((v.mode === 'out' || v.mode === 'back') && v.simHop) {
-        // the sim moves it along its hop (x, y) and lifts it (z, world units); near home it stands on its
-        // tile's sill, where the tile draws it, rather than at the sim's home point (the tile's centre)
-        const k = s.hop > 0 ? Math.max(0, Math.min(1, (s.t ?? 0) / s.hop)) : 1;
+      if (v.mode === 'out' || v.mode === 'back') {
         const home = homeOf(t);
-        const simHome = s.home ?? { x: t.x, y: t.y };
-        const near = v.mode === 'out' ? 1 - k : k;
-        v.x = s.x + (home.x - simHome.x) * near;
-        v.y = s.y + (home.y - simHome.y) * near;
-        v.lift = reduced ? 0 : Math.max(0, s.z);
-        v.scale = v.mode === 'out' ? HOP.tile + (1 - HOP.tile) * k : 1 - (1 - HOP.tile) * k;
+        const k = v.simHop ? (s.hop > 0 ? Math.max(0, Math.min(1, (s.t ?? 0) / s.hop)) : 1) : Math.min(1, (now - v.at) / hopS);
         v.hopK = k;
-      } else if (v.mode === 'out' || v.mode === 'back') {
-        const k = Math.min(1, (now - v.at) / hopS);
-        const home = homeOf(t);
-        const to = v.mode === 'out' ? { x: s.x ?? home.x, y: s.y ?? home.y } : home;
-        const from = v.mode === 'out' ? home : v.from;
-        hopAt(from.x, from.y, to.x, to.y, k, hop);
-        v.x = hop.x;
-        v.y = hop.y;
-        v.lift = reduced ? 0 : hop.lift;
         v.scale = v.mode === 'out' ? HOP.tile + (1 - HOP.tile) * k : 1 - (1 - HOP.tile) * k;
-        v.hopK = k;
-        if (Math.abs(to.x - from.x) > 0.05) v.facing = to.x > from.x ? 1 : -1;
+        if (reduced) {
+          // Reduce motion: no arc and no slide. It fades out where it stands for the first half of the hop
+          // and in where it goes for the second (draw() fades it): its tile's sill, its spot on the field
+          const atHome = (v.mode === 'out') === (k < 0.5);
+          const spot = atHome ? home : v.mode === 'out' ? { x: s.tx ?? s.x ?? home.x, y: s.ty ?? s.y ?? home.y } : v.from;
+          v.x = spot.x;
+          v.y = spot.y;
+          v.lift = 0;
+          v.scale = atHome ? HOP.tile : 1;
+        } else if (v.simHop) {
+          // the sim moves it along its hop (x, y) and lifts it (z, world units); near home it stands on its
+          // tile's sill, where the tile draws it, rather than at the sim's home point (the tile's centre)
+          const simHome = s.home ?? { x: t.x, y: t.y };
+          const near = v.mode === 'out' ? 1 - k : k;
+          v.x = s.x + (home.x - simHome.x) * near;
+          v.y = s.y + (home.y - simHome.y) * near;
+          v.lift = Math.max(0, s.z);
+        } else {
+          const to = v.mode === 'out' ? { x: s.x ?? home.x, y: s.y ?? home.y } : home;
+          const from = v.mode === 'out' ? home : v.from;
+          hopAt(from.x, from.y, to.x, to.y, k, hop);
+          v.x = hop.x;
+          v.y = hop.y;
+          v.lift = hop.lift;
+          if (Math.abs(to.x - from.x) > 0.05) v.facing = to.x > from.x ? 1 : -1;
+        }
       } else {
         // acting: it follows the sim (walking when it moves); a jump (jumpTo: a hop to another foe, a
-        // charge's start) is drawn as a hop
+        // charge's start) is drawn as a hop, and as a cut under Reduce motion
         const sx = s.x ?? v.x;
         const sy = s.y ?? v.y;
-        if (v.sx != null && Math.hypot(sx - v.sx, sy - v.sy) > HOP.leap) v.leap = { x0: v.x, y0: v.y, at: now };
+        if (reduced) v.leap = null;
+        else if (v.sx != null && Math.hypot(sx - v.sx, sy - v.sy) > HOP.leap) v.leap = { x0: v.x, y0: v.y, at: now };
         const shifted = v.sx != null && (sx !== v.sx || sy !== v.sy);
         moving = typeof s.moving === 'boolean' ? s.moving : shifted;
         if (shifted && Math.abs(sx - v.sx) > 0.01) v.facing = sx > v.sx ? 1 : -1;
@@ -323,7 +332,7 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
           hopAt(v.leap.x0, v.leap.y0, sx, sy, L, hop);
           v.x = hop.x;
           v.y = hop.y;
-          v.lift = reduced ? 0 : hop.lift * 0.5;
+          v.lift = hop.lift * 0.5;
         } else {
           v.leap = null;
           v.x = sx;
@@ -391,10 +400,10 @@ export function createRoamers(stage, fx, art, { seed = 4096, tx = ROAM_TEXTURES 
     v.body.position.set(hopping ? 0 : g.dx * U, -lift);
     v.body.scale.set(k * (1 + squash * 0.6) * flip * (hopping ? 1 : g.wide), k * (1 - squash));
     v.body.rotation = hopping ? 0 : g.sway;
-    // under Reduce motion the hop is a fade: out of its tile, in at its spot
-    const hopFade = reduced && v.mode !== 'act' ? (v.mode === 'out' ? v.hopK : 1 - v.hopK) : 1;
-    // Railgun turns invisible while it charges (tile.summon.hidden): a faint shimmer
-    const hidden = s.hidden ? 0.22 + 0.08 * Math.sin(time * 9) : 1;
+    // under Reduce motion the hop is a fade: out where it stands, then in where it goes (sync moves it at half way)
+    const hopFade = reduced && v.mode !== 'act' ? Math.abs(2 * v.hopK - 1) : 1;
+    // Railgun turns invisible while it charges (tile.summon.hidden): a faint shimmer (steady under Reduce motion)
+    const hidden = s.hidden ? 0.22 + (reduced ? 0 : 0.08 * Math.sin(time * 9)) : 1;
     // over a foe it fades so the foe shows through
     const hw = (Math.abs(v.body.scale.x) * (tex.width || 1) * PET_FADE.core) / 2;
     const bh = Math.abs(v.body.scale.y) * (tex.height || 1);
