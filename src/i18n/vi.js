@@ -369,7 +369,7 @@ export const VI = {
   'coin.price': 'Giá lần vuốt tới',
   'coin.swipe': 'Vuốt',
   'coin.priceStep': { one: 'Giá lần vuốt tới: {cost}. Lên {next} sau {left} lần vuốt.', other: 'Giá lần vuốt tới: {cost}. Lên {next} sau {left} lần vuốt.' },
-  // the choices (src/ui/cards.js): a new element, a fusion's main element, the fusion to keep; then the skill gained
+  // the choices (src/ui/cards.js): a new element, the fusion to keep; then the skill gained
   'die.name': 'Chọn hệ mới',
   'die.title': 'Hệ mới!',
   'die.sub': 'Chọn một hệ: trứng của nó bắt đầu xuất hiện.',

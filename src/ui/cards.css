@@ -1,9 +1,10 @@
-/* v2 cards (src/ui/cards.js; docs/v2/SPEC.md section 7): the new element pick, a fusion's main element,
-   the fusion pet to keep, the skill gained, the namecard's time out. In the HUD's own materials (clay
-   cards, ink lines, Baloo 2 names, Nunito lines) and its phone floors (docs/ux/phone-readability.md):
-   body and labels 14 px at 700+, secondary 13 px, button labels 16 px, targets 44 px or more. Each
-   card wears its element's (or its fusion's) colour, --c. The one dark piece is the skill: a slate
-   plate in the shape of a League of Legends tooltip, the same on every card that shows a skill. */
+/* v2 cards (src/ui/cards.js; docs/v2/SPEC.md section 7, SPEC-v2.1 section 6): the new element pick, the
+   fusion pet to keep (docked over the field), the skill gained, the namecard's time out. In the HUD's own
+   materials (clay cards, ink lines, Baloo 2 names, Nunito lines) and its phone floors
+   (docs/ux/phone-readability.md): body and labels 14 px at 700+, secondary 13 px, button labels 16 px,
+   targets 44 px or more. Each card wears its element's (or its fusion's) colour, --c. The one dark piece
+   is the skill: a slate plate in the shape of a League of Legends tooltip, the same on every card that
+   shows a skill. */
 
 /* --- the dialog: wider for side-by-side cards ------------------------------------------------ */
 .choice[data-kind] {

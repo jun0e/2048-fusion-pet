@@ -371,7 +371,7 @@ export const EN = {
   'coin.price': 'Price of the next swipe',
   'coin.swipe': 'Swipe',
   'coin.priceStep': { one: 'Price of the next swipe: {cost}. It rises to {next} in {left} swipe.', other: 'Price of the next swipe: {cost}. It rises to {next} in {left} swipes.' },
-  // the choices (src/ui/cards.js): a new element, a fusion's main element, the fusion to keep; then the skill gained
+  // the choices (src/ui/cards.js): a new element, the fusion to keep; then the skill gained
   'die.name': 'Choose a new element',
   'die.title': 'New element!',
   'die.sub': 'Pick one: its eggs start to spawn.',

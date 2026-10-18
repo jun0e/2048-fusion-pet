@@ -503,7 +503,7 @@ async function start() {
   /** A swipe from the player or the autoplay bot. */
   function doSwipe(dir) {
     select(null);
-    if (paused) return false;
+    if (paused || demoChoice) return false; // (a mock card of ?v2demo waits like a real one: the board under it holds still)
     if (!run.move(dir)) {
       if (boardRefused(run)) blocks.nudge(dir); // the board refused it: every plaque bumps that way and back
       return false;
@@ -793,7 +793,7 @@ async function start() {
           hud.announce(e.info);
           sfx.choose(e.stage);
           if (e.stage >= 2) stage.shake(4 + e.stage * 2);
-          // a fusion made (its main element picked, or no pick): the skill it gained, in full
+          // a fusion made (v2.1: two singles fuse at once, the pair fixes its main element): the skill it gained, in full
           if (e.stage === 2) queueResult(run.tiles.find((t) => t.id === e.tileId) ?? null, e);
           break;
         }
