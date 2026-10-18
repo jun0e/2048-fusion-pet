@@ -598,14 +598,17 @@ async function start() {
   const client = (x, y) => stage.toClient(x, y);
 
   // --- v2: the skill a new fusion gained (a card the game waits behind), the buff banner, the demo ---
-  /** A fusion was made: its skill card comes once no choice is open (the bot plays on without it). */
+  /**
+   * A fusion was made: its skill card comes at once, before a choice queued behind it (the card is about
+   * the pick just made; the choice waits under it). The bot plays on without it.
+   */
   function queueResult(tile, e) {
     const cls = tile?.cls?.fusion ? tile.cls : null;
     if (!cls || auto.on || kv) return;
     results.push({ cls: { element: cls.element, fusion: cls.fusion }, tier: tile.tier ?? e.tier });
   }
   function nextResult() {
-    if (resultOn || !results.length || run.pendingChoice || demoChoice || gameOverShown) return;
+    if (resultOn || !results.length || demoChoice || gameOverShown) return;
     openResult(results.shift());
   }
   function openResult(r) {
