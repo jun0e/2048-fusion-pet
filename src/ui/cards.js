@@ -8,7 +8,7 @@
 // shows the element's badge or colour instead.
 import { TIER_COLORS, V2, tierValue } from '../config.js';
 import { ELEMENTS, FUSIONS, fusionKey } from '../sim/classes.js';
-import { PURE_AT, SUMMON_AT, buffLine, buffList, elAttack, elLine, elName, fusionName, gainLine, gainTag, mergesTo, pureAura, pureName, skillHead, skillWords as wordsOf } from '../sim/describe.js';
+import { PURE_AT, SUMMON_AT, anyMainPassive, buffLine, buffList, elAttack, elLine, elName, fusionName, gainLine, gainTag, mergesTo, pureAura, pureName, skillHead, skillWords as wordsOf } from '../sim/describe.js';
 import { petName } from '../art/tokens.js';
 import { portraitId, spriteId } from '../art/sprite-ids.js';
 import { generatedUrl } from '../render/textures.js';
@@ -51,9 +51,9 @@ function choiceHead({ chip = '', title, sub }) {
 /**
  * A fusion's skill as a League of Legends tooltip: its name and header line, ACTIVE (the summon, and
  * what the pet does out on the field), PASSIVE (how the fusion attacks from its tile), then `foot`
- * (markup: the lock, or the tile card's live charge line). `passive: false` leaves PASSIVE out (the
- * fusion choice, where the buttons pick the attack); `unlock` keeps the value it unlocks at in the
- * header when no foot says it.
+ * (markup: the lock, or the tile card's live charge line). `passive`: true (this main element's),
+ * 'any' (the fusion choice: the main element is still to pick, the buttons below say each attack) or
+ * false; `unlock` keeps the value it unlocks at in the header when no foot says it.
  */
 export function skillTipHtml(cls, { passive = true, foot = '', unlock = !foot } = {}) {
   const w = skillWords(cls);
@@ -61,7 +61,7 @@ export function skillTipHtml(cls, { passive = true, foot = '', unlock = !foot } 
   return `<section class="skill-tip" style="--c:${fusionColor(cls.element, cls.fusion)}">
     <header class="tip-top"><b class="tip-name">${esc(w.name)}</b><small class="tip-head">${esc(unlock ? skillHead() : w.head)}</small></header>
     ${row('active', `${w.summon} ${w.text}`)}
-    ${passive ? row('passive', w.passive) : ''}
+    ${passive ? row('passive', passive === 'any' ? anyMainPassive() : w.passive) : ''}
     ${foot}
   </section>`;
 }
@@ -138,7 +138,8 @@ function mainButtonHtml(o, i, img) {
  * Two single pets (or eggs) of different elements merged: { kind: 'fusion', tileId, tier, parts:
  * [{ element, tier }] (mover, stayer), offers: [{ element, fusion, key, name, color }] (mover-main first) }.
  * The two pets being merged → the fusion pet (portrait, pet name, fusion name); the fusion's skill in
- * full (name, header, ACTIVE); then one button per main element (its attack and what it does).
+ * full (name, header, ACTIVE, PASSIVE for whichever main element); then one button per main element
+ * (its attack and what it does).
  */
 export function fusionChoiceHtml(choice, { img = generatedUrl } = {}) {
   const offers = choice.offers ?? [];
@@ -151,7 +152,7 @@ export function fusionChoiceHtml(choice, { img = generatedUrl } = {}) {
   const say = tr('fuse.say', { a: elName(parts[0].element), b: elName(parts[1].element), pet });
   const face = fusionPic(cls, img);
   const eq = `<div class="fuse-eq" role="img" aria-label="${esc(say)}">${partHtml(parts[0], img)}<i class="fe-op" aria-hidden="true">+</i>${partHtml(parts[1], img)}<i class="fe-op fe-to" aria-hidden="true">→</i><span class="fe-out" style="--c:${fusionColor(cls.element, cls.fusion)}"><span class="fe-pic">${pic(face)}</span><b class="fe-pet">${esc(pet)}</b><small class="fe-fusion">${esc(fusionName(cls.element, cls.fusion))}</small></span></div>`;
-  return `${choiceHead({ chip: choice.tier != null ? tierChip(choice.tier) : '', title: tr('fuse.title'), sub: tr('fuse.sub') })}${eq}${skillTipHtml(cls, { passive: false })}<div class="v2-options main-options">${offers.map((o, i) => mainButtonHtml(o, i, img)).join('')}</div>`;
+  return `${choiceHead({ chip: choice.tier != null ? tierChip(choice.tier) : '', title: tr('fuse.title'), sub: tr('fuse.sub') })}${eq}${skillTipHtml(cls, { passive: 'any' })}<div class="v2-options main-options">${offers.map((o, i) => mainButtonHtml(o, i, img)).join('')}</div>`;
 }
 
 // --- the fusion to keep -----------------------------------------------------------------------------

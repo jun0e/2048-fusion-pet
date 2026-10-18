@@ -574,7 +574,7 @@ async function start() {
     tutorial.note(returnGoal(bestWave));
   }
   // a returning player picks a keepsake before the first swipe (the run waits)
-  if (!resumed && picker && !firstRun && pickerDue()) openPicker('boot');
+  if (!resumed && picker && !firstRun && !v2demo && pickerDue()) openPicker('boot'); // (the cards' check page brings none)
 
   createInput(stage.app.canvas, {
     swipe: (dir) => doSwipe(dir),

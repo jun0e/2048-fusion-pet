@@ -78,7 +78,7 @@ test('a new element with an empty deck shows no fusions; an offer without words 
   assert.match(dieChoiceHtml({ kind: 'die', tier: 6, offers: [offer('fire')] }, { img }), /class="chip"[^>]*>64</);
 });
 
-test('a fusion: the two pets being merged → the fusion pet, its skill (name, header, ACTIVE), then one button per main element', () => {
+test('a fusion: the two pets being merged → the fusion pet, its skill in full, then one button per main element', () => {
   const choice = { kind: 'fusion', tileId: 7, tier: 5, parts: [{ element: 'fire', tier: 4 }, { element: 'ice', tier: 4 }], offers: [fusionOffer('fire', 'ice'), fusionOffer('ice', 'fire')] };
   const html = fusionChoiceHtml(choice, { img });
   wordsFilled(html, 'fusion');
@@ -88,7 +88,7 @@ test('a fusion: the two pets being merged → the fusion pet, its skill (name, h
   assert.match(t, /Fire 16 \+ Ice 16 → Novakit Frostnova/, 'the merge, read in order');
   assert.match(html, /aria-label="Fire and Ice merge into Novakit"/);
   assert.match(t, /Frostfire Waltz Cooldown 15 s · Out for 8 s · Unlocks at 1024 ACTIVE Summons Novakit to the front\. Every 1 s, sends a frost wave/);
-  assert.ok(!t.includes('PASSIVE'), 'the buttons pick the attack: no PASSIVE here');
+  assert.ok(t.includes('PASSIVE Attacks like the main element you pick, 25% harder, with the effects of the other one.'), 'PASSIVE for whichever main element: the buttons say each attack');
   assert.equal(count(html, /data-act="pick"/g), 2);
   assert.match(t, /Ember Breath Fire main: Burns every foe in a cone\. 1 Echo Harpoon Ice main: Slows and freezes big foes\. 2/);
 });
@@ -133,6 +133,7 @@ test('the skill tooltip: the header keeps the unlock only where no foot says it'
   assert.match(text(skillTipHtml(cls)), /Iron Taunt Cooldown 15 s · Out for 8 s · Unlocks at 1024 ACTIVE .* PASSIVE /);
   assert.match(text(skillTipHtml(cls, { foot: lockFootHtml(9) })), /Iron Taunt Cooldown 15 s · Out for 8 s ACTIVE .* Unlocks at 1024 \(1 more merge\)$/);
   assert.ok(!text(skillTipHtml(cls, { passive: false })).includes('PASSIVE'));
+  assert.match(text(skillTipHtml(cls, { passive: 'any' })), /PASSIVE Attacks like the main element you pick/);
 });
 
 test('without generated art a card still says everything, with no broken pictures', () => {

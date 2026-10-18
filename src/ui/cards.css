@@ -8,11 +8,11 @@
 /* --- the dialog: wider for side-by-side cards ------------------------------------------------ */
 .choice[data-kind] {
   width: min(400px, calc(100vw - 16px));
-  padding: 12px 12px 12px;
+  padding: 10px 12px;
 }
 
 .choice[data-kind] .choice-head {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .choice[data-kind] .choice-head h2 {
@@ -37,7 +37,7 @@
 
 .v2-options {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* the two elements side by side, as two cards on a table (on a phone too: they compare at a glance,
@@ -319,7 +319,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  margin: 2px 0 4px;
+  margin: 0 0 2px;
 }
 
 .fe-part,
@@ -334,8 +334,8 @@
 .fe-pic {
   position: relative;
   display: block;
-  width: 56px;
-  height: 56px;
+  width: 50px;
+  height: 50px;
   border: 2px solid var(--ink);
   border-radius: 16px;
   background:
@@ -364,15 +364,15 @@
 }
 
 .fe-part small {
-  margin-top: 6px;
+  margin-top: 5px;
   font: 800 13px/1.1 var(--font-body);
   white-space: nowrap;
 }
 
 /* the fusion pet: bigger, its portrait framed in its own colour */
 .fe-out .fe-pic {
-  width: 80px;
-  height: 80px;
+  width: 70px;
+  height: 70px;
   border-radius: 20px;
   background: var(--c);
   box-shadow:
@@ -390,7 +390,7 @@
 }
 
 .fe-pet {
-  margin-top: 7px;
+  margin-top: 6px;
   font: 800 18px/1.05 var(--font-display);
 }
 
@@ -402,7 +402,7 @@
 .fe-op {
   flex: 0 0 auto;
   margin-bottom: 20px;
-  font: 800 24px/1 var(--font-display);
+  font: 800 22px/1 var(--font-display);
   font-style: normal;
   color: var(--ink-soft);
 }
@@ -416,8 +416,8 @@
   border: 2px solid var(--ink);
   background: color-mix(in srgb, var(--c) 16%, var(--cream));
   box-shadow: 0 4px 0 color-mix(in srgb, var(--c) 40%, var(--ink));
-  min-height: 52px;
-  padding: 8px 12px;
+  min-height: 48px;
+  padding: 6px 12px;
 }
 
 .mo-badge {
@@ -433,7 +433,7 @@
 /* --- the skill: a slate plate, as a League of Legends tooltip --------------------------------- */
 .skill-tip {
   margin: 8px 0;
-  padding: 10px 12px;
+  padding: 9px 12px 10px;
   border: 2px solid var(--ink);
   border-radius: 14px;
   background: linear-gradient(180deg, #3d3140, #271f2a);
@@ -462,7 +462,7 @@
 }
 
 .tip-row {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   text-wrap: pretty;
 }
 

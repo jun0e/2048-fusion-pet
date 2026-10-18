@@ -107,6 +107,9 @@ export function skillWords(cls, pet) {
   };
 }
 
+/** The passive while the main element is still to pick (the fusion choice): "Attacks like the main element you pick, …". */
+export const anyMainPassive = () => tr('skill.fusionPassive', { main: tr('fuse.anyMain'), second: tr('fuse.anySecond'), hit: pct(FUSION_HIT - 1) });
+
 /** Seconds a summoned pet still has out on the field (tile.summon: `t` seconds out of `dur`). */
 export const summonLeft = (s) => (s ? Math.max(0, s.left ?? (s.dur ?? V2.summon.durS) - (s.t ?? 0)) : 0);
 
