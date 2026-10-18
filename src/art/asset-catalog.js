@@ -1,7 +1,7 @@
 // The full production asset catalog, built from the game's own data (elements, 28
 // fusions, apex kits, enemies) so names and colours never drift. Pure: used by the
 // browser asset page (assets.html) and by tools/asset-list.mjs (CSV).
-import { ELEMENTS, ELEMENT_KEYS, FUSIONS, APEX } from '../sim/classes.js';
+import { ELEMENTS, ELEMENT_KEYS, FUSIONS } from '../sim/classes.js';
 import { ENEMY_TYPES, CHAPTERS } from '../sim/enemies.js';
 import { petName } from './tokens.js';
 import { FUSION_ROSTER } from './fusion-roster.js';
@@ -84,8 +84,9 @@ export function buildAssetRows(price = 0.0336) {
       notes: 'no keying: plate is part of the image',
     });
   }
-  for (const [el, x] of Object.entries(APEX)) {
-    add({ id: `halo.${el}`, cat: 'Creature', layer: 'Roaming', name: `${x.name} halo kit`, desc: `Gold ring carrying 6 ${ELEMENTS[el].name} motif pieces; composited over any fusion at 4096, glow added in code`, style: 'Sticker', src: '300×300', display: '1.05 cell, rotates', method: 'Gemini generate', refs: 'golden fusion', priority: el === 'ice' ? 'P0' : 'P1', gens: 3 });
+  for (const el of ELEMENT_KEYS) {
+    // v2: worn by a pure form (4096) of its element, behind it on its tile and on the field
+    add({ id: `halo.${el}`, cat: 'Creature', layer: 'Map tile + field', name: `${ELEMENTS[el].name} halo kit`, desc: `Gold ring carrying 6 ${ELEMENTS[el].name} motif pieces; worn by a pure form (4096) of ${ELEMENTS[el].name}, glow added in code`, style: 'Sticker', src: '300×300', display: '0.9 cell, turns', method: 'Gemini generate', refs: 'golden fusion', priority: el === 'ice' ? 'P0' : 'P1', gens: 3 });
   }
   for (const [key, f] of Object.entries(FUSIONS)) {
     const [a, b] = f.parts;

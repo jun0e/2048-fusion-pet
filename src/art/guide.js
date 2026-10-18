@@ -95,7 +95,7 @@ await document.fonts.ready;
   const W = 1180;
   const g = panel(
     'Growth arc at true scale',
-    'One design per creature. Babies live in tiles and grow by motif count and head share; at 256 the fusion leaves its tile (now a den) and roams at about one cell tall; at 4096 the legend gains a halo and floats. Cute-funny → cool → serene.',
+    'One design per creature. Babies live in tiles and grow by motif count and head share; a fusion pet stays on its tile too, and from 1024 its summon sends it to the field for a while at about one cell tall (its tile shows a den meanwhile); at 4096 the pure form wears its element\'s halo. Cute-funny → cool → serene.',
     W,
     300,
   );
@@ -115,16 +115,16 @@ await document.fonts.ready;
     label(g, it.s, x + cell / 2, base + 40, { align: 'center', size: 11, color: '#c9d3ff', bold: false });
     x += cell + 36;
   }
-  // den + roaming fusion + legend
-  const den = composeTileCanvas({ tier: 8, cls: { element: 'fire', fusion: 'ice' } }, 'sticker');
+  // den (v2: while its pet is summoned out) + the pet on the field + a pure form
+  const den = composeTileCanvas({ tier: 10, cls: { element: 'fire', fusion: 'ice', buffs: {} }, summon: { phase: 'act' } }, 'sticker');
   g.drawImage(den, x, base - cell, cell, cell);
-  label(g, '256 den', x + cell / 2, base + 22, { align: 'center', size: 14, font: HEAD });
-  label(g, 'tile stays as a den', x + cell / 2, base + 40, { align: 'center', size: 11, color: '#c9d3ff', bold: false });
+  label(g, '1024 den', x + cell / 2, base + 22, { align: 'center', size: 14, font: HEAD });
+  label(g, 'its pet is summoned out', x + cell / 2, base + 40, { align: 'center', size: 11, color: '#c9d3ff', bold: false });
   x += cell + 44;
   const fu = renderCreature({ kind: 'fusion', a: 'fire', b: 'ice' }, 'sticker');
   const fs = (cell * 1.42) / 116; // the roaming canvas is 1.42 cells tall
   placeCreature(g, fu, x, base - 95 * fs, fs);
-  label(g, 'Fusion (roaming)', x + 50 * fs, base + 22, { align: 'center', size: 14, font: HEAD });
+  label(g, 'Fusion (summoned)', x + 50 * fs, base + 22, { align: 'center', size: 14, font: HEAD });
   label(g, '≈1.05 cell · head 35%', x + 50 * fs, base + 40, { align: 'center', size: 11, color: '#c9d3ff', bold: false });
   hline(g, x - 6, x + 100 * fs, base - cell, '1 cell', GUIDE2, x + 100 * fs + 4);
   x += 100 * fs + 56;

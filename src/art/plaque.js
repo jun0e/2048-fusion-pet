@@ -1,16 +1,20 @@
 // The board tile's plaque (reports/art/tiles/tile-spec.md, section 2): every tile is a clay plaque
 // seated in its flagstone pit, and what was a line on its edge is an object on it: the growth meter
-// in the top rail, the egg's straw nest, a den's stone altar (the shrine its pet left, with the paw
-// prints of the pet that walked off to the field), a legend's apex badge on the altar inside its
-// halo, the pick's corner brackets. Pure geometry, colour and motion rules, testable in Node:
-// src/art/index.js draws the static textures from them, src/render/blocks.js the per-frame rules,
-// src/render/frame.js the pit, src/kv/roam.js the brackets on a picked den's pet.
+// in the top rail, an egg's straw nest, a den's stone altar (the shrine a summoned pet hopped out of,
+// with the paw prints of the pet that went to the field), a pure form's gold frame, the pick's
+// corner brackets. Pure geometry, colour and motion rules, testable in Node: src/art/index.js draws
+// the static textures from them, src/render/blocks.js the per-frame rules, src/render/frame.js the
+// pit, src/kv/roam.js the brackets on a picked tile's summoned pet.
+// v2 (docs/v2/SPEC.md sections 1 and 7): a plain block (no element) is a stone number block at every
+// value; an elemental egg (below 16) sits in its nest in its element's colours; single and fusion pets
+// stay on their tiles, and a tile shows its empty den only while its pet is summoned out; a pure form
+// (4096) wears its element's halo and a gold frame.
 // Units: cells (one board square), origin at the cell's centre, y down (screen), unless a name says
 // "of the plaque" (its side T = PLAQUE.size).
-import { tr } from '../i18n/index.js';
-import { ELEMENTS, fusionOf, milestonePieces } from '../sim/classes.js';
-import { tierValue } from '../config.js';
-import { BLUSH, CREAM, GOLD, INK, luminance, tone } from './tokens.js';
+import { has, num, tr } from '../i18n/index.js';
+import { ELEMENTS, fusionOf } from '../sim/classes.js';
+import { V2, tierValue } from '../config.js';
+import { BLUSH, CREAM, GOLD, INK, luminance, mix, tone } from './tokens.js';
 import { hash01 } from './frame-kit.js';
 
 export const PLAQUE = {
@@ -30,17 +34,21 @@ export const PLAQUE = {
   // the generated badge is drawn 2.35 r wide: 0.32 cell, 15 px on a 360 px phone (T21: 0.25 cell, 12 px, read badly)
   badgeR: 0.135,
   badgeAt: 0.34, // the collar tag, bottom right, on every tile (a den's is split between its two elements)
-  apexR: 0.708, // × badgeR: a legend's apex badge, seated on its altar (0.096 cell, as before T21)
   meter: { y: 0.075, w: 0.5, h: 0.045, gap: 0.02, pad: 0.012 }, // of the plaque: the top rail
   eggLift: 0.04, // an egg sits up in its nest
   nest: { y: 0.4, rx: 0.31, ry: 0.085, straw: 0.022 }, // of the plaque (the straw's width in cells)
   // the den's altar, of the plaque: blocks [half-width, top, height] below its centre, the parents'
-  // two studs [x, r] on its body, the seat (where the crystal stands, or a legend's apex badge in its
-  // halo) and the crystal [w, h]; it rises this much as the pet hops out; its ink line (cells)
+  // two studs [x, r] on its body, the seat (where the crystal stands) and the crystal [w, h]; it rises
+  // this much as the pet hops out; its ink line (cells)
   altar: { plinth: [0.235, 0.35, 0.055], body: [0.19, 0.22, 0.135], slab: [0.215, 0.175, 0.05], stud: [0.085, 0.042], seat: 0.075, crystal: [0.17, 0.21], rise: 0.12, ink: 0.02 },
-  haloW: 0.42, // of the plaque: a legend's halo, centred on the seat
-  legend: { gold: 0.045, hair: 0.014, gap: 0.022 }, // the gold frame and the ink hairline outside it
-  charge: 0.028, // the legend's charge: a cream stroke on the plaque's own edge
+  haloW: 0.42, // of the plaque: a halo seated on a den's altar, centred on the seat
+  pure: { gold: 0.045, hair: 0.014, gap: 0.022 }, // a pure form's gold frame and the ink hairline outside it
+  // a pure form's halo behind its pet (cells: its width, its centre below the cell's centre, turns per
+  // second) and its aura: a soft ring in the gap round its pit (radius and width in cells, its most
+  // alpha, breathing at hz: slow and below the flash thresholds, photosafe.js TILE_GLOW)
+  halo: { w: 0.9, y: 0.04, turn: 0.05 },
+  aura: { r: 0.56, w: 0.12, alpha: 0.2, hz: 0.3 },
+  charge: 0.028, // a fusion pet's summon charge: a cream stroke on the plaque's own edge
   // the pick: four corner brackets outside the pit, in the 0.1-cell gap between pits (cream, ink
   // under), red and dashed when armed; their gap breathes in position, never in brightness
   bracket: { offset: 0.045, arm: 0.16, width: 0.04, under: 0.02, breathe: 0.012, hz: 0.7, dash: 0.06, gap: 0.07 },
@@ -54,21 +62,34 @@ export const PLAQUE = {
 export const TILE_COLORS = {
   ink: INK,
   cream: CREAM,
-  gold: GOLD, // the legend frame, the meter toward 256
-  rose: BLUSH, // the meter toward 4096
+  gold: GOLD, // a pure form's frame, the meter toward the summon (1024)
+  rose: BLUSH, // the meter toward the pure form (4096)
   straw: ['#d9b86f', '#e2c47c'], // the nest: back, front
   sand: '#D9C7A3', // the lane: spawn dust
   sandChip: '#e6c88a', // a broken block's crumbs
   danger: '#ef6060', // armed brackets (inspect.css armed)
   sweat: '#9fd8ff', // the hit's sweat drop
+  stone: ['#e4dfd6', '#b9ab95'], // a plain block's stone: its lightest (a 2) and its darkest value
 };
 
-/** Egg plates warm a step per value, like classic 2048 (cream 2 → sand 4 → apricot 8). */
+/** Egg plates warm a step per value, like classic 2048 (cream 2 → sand 4 → apricot 8): the code-drawn egg's own colours. */
 export const EGG_PLATE = ['#f2dfc2', '#f2d3ad', '#f3c597'];
 export const eggIndex = (tier) => Math.max(0, Math.min(2, tier - 1));
 
-/** A den: a fusion (256 and up) whose pet has left the tile. */
-export const isDen = (t) => t.tier >= 8 && !!t.cls?.fusion;
+// --- what a block is (docs/v2/SPEC.md section 1) ---------------------------------------------------
+
+/** A plain block: no element, at any value (it never gains one): a stone number block. */
+export const isPlain = (t) => !t.cls?.element;
+/** An elemental egg (below 16): a single's, or a fusion egg (two elements). */
+export const isEgg = (t) => !!t.cls?.element && t.tier < 4;
+/** A pet (16 and up): a single, or a fusion pet. */
+export const isPet = (t) => !!t.cls?.element && t.tier >= 4;
+/** Two elements: a fusion egg or a fusion pet. */
+export const isFusion = (t) => !!t.cls?.element && !!t.cls?.fusion;
+/** A pure form (4096): the sim sets cls.pure on a block with an element. */
+export const isPure = (t) => !!t.cls?.element && !!t.cls?.pure;
+/** A den: a pet's tile while its pet is summoned out on the field (tile.summon); at home the pet stands on its tile. */
+export const isDen = (t) => isPet(t) && !!t.summon;
 
 /** A den plate: tone(fusion, 0.18), lifted in 0.02 steps until its luminance reaches the floor (Nightshade only). */
 export function denPlateColor(color) {
@@ -81,23 +102,43 @@ export function denPlateColor(color) {
   return c;
 }
 
-/** The plate's clay: the egg plates, a den's lifted fusion tint, an element's light tint. */
+/** A plain block's stone: pale limestone at 2, a step warmer and darker per value, sandstone from 2048 on. */
+export function stonePlate(tier) {
+  const [light, dark] = TILE_COLORS.stone;
+  return mix(light, dark, Math.max(0, Math.min(1, (tier - 1) / 10)));
+}
+
+/** An egg's plate: its element's (a fusion egg: its fusion's) colour, lifted; a step deeper per value (2 → 4 → 8). */
+export const EGG_TONE = [0.62, 0.55, 0.48];
+
+/**
+ * The plate's clay: a plain block's stone, an egg's light element tint, a single pet's element tint, a
+ * fusion pet's lifted fusion colour (the same at home and as a den).
+ */
 export function plateColor(t) {
-  if (t.tier < 4) return EGG_PLATE[eggIndex(t.tier)];
-  if (isDen(t)) return denPlateColor(fusionOf(t.cls).color);
-  return tone(ELEMENTS[t.cls?.element]?.color ?? '#d9d2c5', 0.42);
+  const cls = t.cls ?? {};
+  if (!cls.element) return stonePlate(t.tier);
+  const fu = cls.fusion ? fusionOf(cls) : null;
+  if (t.tier < 4) return tone(fu ? fu.color : ELEMENTS[cls.element].color, EGG_TONE[eggIndex(t.tier)]);
+  if (fu) return denPlateColor(fu.color);
+  return tone(ELEMENTS[cls.element].color, 0.42);
 }
 
 /**
- * The growth meter: one segment per merge toward the next milestone, 16 → 256 in gold (the fusion),
- * then 256 → 4096 in rose (the legend). → { lit: 0–3, of: 4, goal: 'fusion' | 'legend', color } or
- * null (an egg: no class yet; a legend: nothing left to reach)
+ * The growth meter: one segment per merge toward the next milestone. A fusion pet grows toward its
+ * summon (1024, V2.summonTier) in gold; a single pet, and a fusion pet past its summon, toward the pure
+ * form (4096, V2.pureTier) in rose. The four segments are the last four merges before it (further
+ * away than that: none lit yet). `cls`: the block's class (a tier alone counts as a single pet).
+ * → { lit: 0–3, of: 4, goal: 'summon' | 'pure', at: the goal's tier, color } or null (a plain block or
+ * an egg: nothing on the meter; a pure form: nothing left to reach)
  */
-export function meterOf(tier) {
-  const lit = milestonePieces(tier);
-  if (lit < 0) return null;
-  const goal = tier < 8 ? 'fusion' : 'legend';
-  return { lit, of: 4, goal, color: goal === 'fusion' ? GOLD : BLUSH };
+export function meterOf(tier, cls = null) {
+  const c = cls ?? { element: true };
+  if (!c.element || tier < 4 || c.pure || tier >= V2.pureTier) return null;
+  const summon = !!c.fusion && tier < V2.summonTier;
+  const at = summon ? V2.summonTier : V2.pureTier;
+  const lit = Math.max(0, Math.min(3, tier - (at - 4)));
+  return { lit, of: 4, goal: summon ? 'summon' : 'pure', at, color: summon ? GOLD : BLUSH };
 }
 
 /** The meter's four segments, in cells: [{ x0, x1 }] and their rail's y0 / y1 (the track pads them). */
@@ -112,11 +153,14 @@ export function meterSegments() {
   return { segs, y0: y - (m.h * T) / 2, y1: y + (m.h * T) / 2, pad: m.pad * T, w, h: m.h * T };
 }
 
-/** In words, for the inspect card's growth row (null when there is no meter). */
-export function growthWords(tier) {
-  const m = meterOf(tier);
-  if (!m) return null;
-  return tr(`grow.${m.goal}`, { lit: m.lit }); // the language's table (src/i18n)
+/**
+ * In words, for the inspect card's growth row: null when there is no meter, or while the language's
+ * table has no words for its goal yet (grow.summon / grow.pure, with {lit} and {value}).
+ */
+export function growthWords(tier, cls = null) {
+  const m = meterOf(tier, cls);
+  if (!m || !has(`grow.${m.goal}`)) return null;
+  return tr(`grow.${m.goal}`, { lit: m.lit, value: num(tierValue(m.at)) }); // the language's table (src/i18n)
 }
 
 export const numberText = (tier) => String(tierValue(tier));
@@ -165,29 +209,47 @@ export function numberBox(tier, { stroke = true, cellPx = Infinity } = {}) {
 
 /**
  * Where the glyph badges sit: [{ el, el2?, x, y, r }] in cells. One badge per tile, in the collar spot:
- * an element's own, a den's split between the element it attacks with (el) and its partner (el2). An egg
- * has none; a legend's apex is on its altar.
+ * an element's own (an egg's too), a fusion's split between the element it attacks with (el) and its
+ * partner (el2). A plain block has none.
  */
 export function badgeSpots(t) {
   const cls = t.cls ?? {};
+  if (!cls.element) return [];
   const r = PLAQUE.badgeR;
   const at = PLAQUE.badgeAt;
-  if (isDen(t)) {
-    const out = [{ el: cls.element, el2: cls.fusion, x: at, y: at, r }];
-    if (cls.ultimate) {
-      const a = altarParts();
-      out.push({ el: cls.ultimate, x: a.seat.x, y: a.seat.y, r: r * PLAQUE.apexR, apex: true });
-    }
-    return out;
-  }
-  if (t.tier >= 4 && cls.element) return [{ el: cls.element, x: at, y: at, r }];
-  return [];
+  return [cls.fusion ? { el: cls.element, el2: cls.fusion, x: at, y: at, r } : { el: cls.element, x: at, y: at, r }];
 }
 
 /**
+ * A plain block's stone, in cells, in the half below its numeral: the mortar line of a dressed
+ * stone (y, from x0 to x1, with one joint down from it at jx), and a few darker flecks { x, y, r }
+ * (test/tiles.test.js keeps them inside the plaque and clear of the numeral).
+ */
+export const STONE = {
+  mortar: { y: 0.17, x0: -0.33, x1: 0.33, jx: 0.06, jy1: 0.36, w: 0.014 },
+  flecks: [
+    { x: -0.25, y: 0.27, r: 0.016 },
+    { x: -0.12, y: 0.33, r: 0.011 },
+    { x: 0.2, y: 0.26, r: 0.013 },
+    { x: 0.28, y: 0.08, r: 0.01 },
+    { x: -0.3, y: 0.06, r: 0.012 },
+    { x: 0.14, y: 0.36, r: 0.01 },
+  ],
+};
+
+/**
+ * A plain block of 16 or more shoots pebbles: a pebble tag in the collar spot (where a pet wears its
+ * badge), three pebbles { x, y, rx, ry } in cells.
+ */
+export const PEBBLE_TAG = [
+  { x: 0.27, y: 0.35, rx: 0.06, ry: 0.046 },
+  { x: 0.335, y: 0.325, rx: 0.048, ry: 0.038 },
+  { x: 0.305, y: 0.275, rx: 0.045, ry: 0.036 },
+];
+
+/**
  * The den's altar, in cells: its stone blocks (plinth, body, slab), the parents' two studs on its
- * body, the seat (where the crystal stands, or a legend's apex badge in its halo), the crystal's box
- * and the halo's box.
+ * body, the seat (where the crystal stands), the crystal's box and the box of a halo seated there.
  */
 export function altarParts() {
   const T = PLAQUE.size;

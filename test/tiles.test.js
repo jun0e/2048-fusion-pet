@@ -1,12 +1,13 @@
 // The board tiles of the overhaul (reports/art/tiles/tile-spec.md): the plaque's geometry and colour
-// rules (src/art/plaque.js), the per-frame rules that draw it (src/render/blocks.js, through stand-in
-// textures and a recording light budget), and the mark on a picked den's roaming pet (src/kv/roam.js).
+// rules (src/art/plaque.js) and the per-frame rules that draw it (src/render/blocks.js, through
+// stand-in textures and a recording light budget). The v2 looks (plain stone, elemental eggs, dens
+// while a pet is summoned out, pure forms, the skills' marks) are in test/tile-looks.test.js; the
+// mark on a picked tile's summoned pet in test/pets-view.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Container, Texture, TextureSource } from 'pixi.js';
 import { FUSIONS } from '../src/sim/classes.js';
 import { createRun } from '../src/sim/run.js';
-import { GRID, cellX, cellY } from '../src/config.js';
+import { V2, cellX, cellY } from '../src/config.js';
 import { INK, contrast, luminance, tone } from '../src/art/tokens.js';
 import {
   BLINK,
@@ -25,6 +26,7 @@ import {
   denPlateColor,
   departPose,
   growthWords,
+  isDen,
   meterOf,
   meterSegments,
   numberBox,
@@ -33,8 +35,7 @@ import {
   plateColor,
   walkRoundRect,
 } from '../src/art/plaque.js';
-import { createBlocks } from '../src/render/blocks.js';
-import { createRoamers } from '../src/kv/roam.js';
+import { range, scene } from './helpers/board-scene.js';
 
 const EPS = 1e-9;
 const H = PLAQUE.size / 2; // the plaque's half side (cells)
@@ -50,8 +51,9 @@ function insidePlaque(x, y, r = 0) {
   const cy = Math.max(Math.abs(y) - (inner - k), 0);
   return Math.hypot(cx, cy) + r <= k + EPS && Math.abs(x) + r <= inner + EPS && Math.abs(y) + r <= inner + EPS;
 }
-const DEN_TIERS = [8, 9, 10, 11];
-const den = (tier, element = 'fire', fusion = 'ice', ultimate = null) => ({ tier, cls: { element, fusion, ...(ultimate && { ultimate }) } });
+const DEN_TIERS = [10, 11, 12, 13];
+/** A den: a fusion pet's tile while its pet is summoned out (tile.summon); a pure one with `pure`. */
+const den = (tier, element = 'fire', fusion = 'ice', pure = false) => ({ tier, cls: { element, fusion, buffs: {}, ...(pure && { pure }) }, summon: { phase: 'act', x: 0, y: 12 } });
 
 // --- the plaque's rules ----------------------------------------------------------------------------
 
@@ -70,14 +72,26 @@ test('den plates: the luminance floor lifts only the two darkest fusions (Frostn
   assert.deepEqual(lifted, [['fire+ice', '#6a88ce'], ['poison+nature', '#a279c2']], 'the floor touches no other fusion (Frostnova since its deep cobalt, T34)');
 });
 
-test('the growth meter: 0–3 of 4 gold toward the fusion from 16 to 128, rose toward the legend from 256 to 2048; none on eggs and legends', () => {
-  for (const tier of [1, 2, 3, 12, 13]) assert.equal(meterOf(tier), null, `tier ${tier}`);
-  [4, 5, 6, 7].forEach((tier, i) => assert.deepEqual([meterOf(tier).lit, meterOf(tier).goal], [i, 'fusion']));
-  [8, 9, 10, 11].forEach((tier, i) => assert.deepEqual([meterOf(tier).lit, meterOf(tier).goal], [i, 'legend']));
-  assert.notEqual(meterOf(5).color, meterOf(9).color, 'gold and rose');
-  assert.equal(growthWords(6), '2 of 4 merges to the fusion at 256');
-  assert.equal(growthWords(11), '3 of 4 merges to the legend at 4096');
-  assert.equal(growthWords(2), null);
+test('the growth meter: a fusion pet fills gold toward its summon at 1024, any pet rose toward the pure form at 4096; none on plain blocks, eggs and pure forms', () => {
+  const single = { element: 'fire' };
+  const fusion = { element: 'fire', fusion: 'ice', buffs: {} };
+  assert.equal(V2.summonTier, 10);
+  assert.equal(V2.pureTier, 12);
+  for (const tier of [1, 4, 9, 13]) assert.equal(meterOf(tier, {}), null, `a plain ${2 ** tier}`);
+  for (const tier of [1, 2, 3]) assert.equal(meterOf(tier, single), null, `an egg ${2 ** tier}`);
+  assert.equal(meterOf(12, { ...single, pure: true }), null, 'a pure form: nothing left to reach');
+  assert.equal(meterOf(12, single), null);
+  // a fusion pet: the last four merges before its summon (64 → 512), then toward the pure form
+  [4, 5, 6, 7, 8, 9].forEach((tier) => assert.deepEqual([meterOf(tier, fusion).lit, meterOf(tier, fusion).goal], [Math.max(0, tier - 6), 'summon'], `${2 ** tier}`));
+  [10, 11].forEach((tier) => assert.deepEqual([meterOf(tier, fusion).lit, meterOf(tier, fusion).goal], [tier - 8, 'pure']));
+  // a single: toward the pure form all the way (lit over its last four merges: 512 → 2048)
+  [4, 8, 9, 10, 11].forEach((tier) => assert.deepEqual([meterOf(tier, single).lit, meterOf(tier, single).goal], [Math.max(0, tier - 8), 'pure']));
+  assert.deepEqual(meterOf(9), meterOf(9, single), 'a tier alone counts as a single pet');
+  assert.notEqual(meterOf(6, fusion).color, meterOf(9, single).color, 'gold and rose');
+  // the words come from the language's table once it has them; until then no growth row
+  assert.equal(growthWords(2, single), null);
+  const w = growthWords(9, fusion);
+  assert.ok(w === null || /3/.test(w), `${w}`);
   // four equal segments, centred in the top rail, inside the plaque
   const m = meterSegments();
   const widths = m.segs.map((s) => s.x1 - s.x0);
@@ -102,7 +116,7 @@ test('the numeral: never under 14 px, below the meter, inside the plaque and cle
       assert.ok(glyphs.y0 > m.y1, `${v} at ${cellPx} px: its glyphs clear the meter`);
       assert.ok(box.x1 - box.x0 <= PLAQUE.numberMaxW + 1e-9 && box.x0 > -inner && box.y0 > -inner, `${v} at ${cellPx} px: inside the plaque`);
       assert.ok(glyphs.y0 < -0.5 + PLAQUE.numberY && glyphs.y1 > -0.5 + PLAQUE.numberY, `${v}: its middle is at 33.5 %`);
-      if (tier >= 8) assert.ok(box.y1 < crystal.y0, `${v} at ${cellPx} px: clear of a den’s crystal`);
+      if (tier >= 4) assert.ok(box.y1 < crystal.y0, `${v} at ${cellPx} px: clear of a den’s crystal`);
     }
   }
   // the floor only grows what its design size would draw under 14 px, and only a 5-digit numeral is squeezed
@@ -142,10 +156,11 @@ test('the corner brackets stay in the 0.1-cell gap between pits at any breath; R
     for (const line of bracketStrokes(sx, sy)) for (const [x, y] of line) assert.ok(x * sx <= EPS && y * sy <= EPS, 'the arms run back toward the tile');
 });
 
-test('the altar, its crystal and a legend’s apex badge stay clear of the numeral and the badges, inside the plaque', () => {
+test('the altar and its crystal stay clear of the numeral and the badges, inside the plaque', () => {
   const a = altarParts();
   const blocks = [a.plinth, a.body, a.slab, a.crystal];
-  for (const t of [...DEN_TIERS.map((tier) => den(tier)), den(12, 'fire', 'ice', 'lightning'), den(13, 'metal', 'nature', 'fire')]) {
+  for (const t of [...DEN_TIERS.map((tier) => den(tier)), den(12, 'fire', 'ice', true), den(13, 'metal', 'nature', true)]) {
+    assert.ok(isDen(t));
     const num = numberBox(t.tier);
     for (const b of blocks) {
       assert.ok(!overlaps(b, num), `${2 ** t.tier}: an altar block clears the numeral`);
@@ -156,13 +171,6 @@ test('the altar, its crystal and a legend’s apex badge stay clear of the numer
         assert.ok(insidePlaque(p[0], p[1]), 'inside the plaque');
     }
     for (const s of badgeSpots(t)) {
-      if (s.apex) {
-        // the apex sits on the altar's seat inside its halo, below the numeral
-        const r = s.r * 1.175; // drawn 2.35 r wide
-        assert.ok(!overlaps({ x0: s.x - r, x1: s.x + r, y0: s.y - r, y1: s.y + r }, num), `${2 ** t.tier}: the apex badge clears the numeral`);
-        assert.ok(Math.abs(s.y - a.seat.y) < EPS);
-        continue;
-      }
       for (const b of blocks) assert.ok(toBox(s.x, s.y, b) > s.r, `${2 ** t.tier}: the altar clears the ${s.el} badge`);
       assert.ok(!overlaps({ x0: s.x - s.r, x1: s.x + s.r, y0: s.y - s.r, y1: s.y + s.r }, num), 'the badges clear the numeral');
     }
@@ -173,10 +181,10 @@ test('the altar, its crystal and a legend’s apex badge stay clear of the numer
 
 test('a den’s paw prints lead off the altar up and to the right, clear of the numeral, the badges and the altar', () => {
   const a = altarParts();
-  for (const t of [...DEN_TIERS.map((tier) => den(tier)), den(12, 'fire', 'ice', 'lightning'), den(13, 'fire', 'ice', 'lightning'), den(14, 'fire', 'ice', 'lightning')]) {
+  for (const t of [...DEN_TIERS.map((tier) => den(tier)), den(12, 'fire', 'ice', true), den(13, 'fire', 'ice', true), den(14, 'fire', 'ice', true)]) {
     // the prints show from PAW_MIN_PX up, where a long numeral may be at its 14 px floor
     const num = numberBox(t.tier, { cellPx: PAW_MIN_PX });
-    const spots = badgeSpots(t).filter((s) => !s.apex);
+    const spots = badgeSpots(t);
     for (const p of PAWS) {
       const reach = pawReach(p); // with its ink rim
       assert.ok(toBox(p.x, p.y, num) > reach, `${2 ** t.tier}: a print clears the numeral`);
@@ -207,7 +215,7 @@ test('arrivals and departures: a spawn drops in, sold lifts out, destroyed and b
   }
 });
 
-test('the legend’s charge walks the plaque’s edge clockwise from the top centre', () => {
+test('a summon’s charge walks the plaque’s edge clockwise from the top centre', () => {
   const per = 8 * (H - PLAQUE.r) + 2 * Math.PI * PLAQUE.r;
   for (const f of [0, 0.1, 0.25, 0.5, 0.9, 1]) {
     let at = [0, -H];
@@ -237,87 +245,7 @@ test('a 16 blinks for 0.12 s every 3 to 6 s, at its own beat', () => {
 
 // --- the per-frame rules: blocks.js with stand-in textures ------------------------------------------
 
-const tex = (w, h) => new Texture({ source: new TextureSource({ width: w, height: h }) });
-const U = 35; // a 70 px cell
-
-function scene({ reduced = false, u = U, grant = true } = {}) {
-  const stage = { reduced, layers: { tiles: new Container(), shots: new Container() }, view: { U: u, ox: 200, oy: 700 }, sx: (x) => 200 + x * u, sy: (y) => 700 - y * u };
-  const books = [];
-  const parts = [];
-  const numbers = []; // the numerals asked of the art: tier, px per cell, size (cells)
-  const fx = {
-    flashAll(lit, life) {
-      books.push({ lit, life });
-      return grant;
-    },
-    particle(t, x, y, o = {}) {
-      parts.push({ t, x, y, o });
-      return {};
-    },
-    burst() {},
-  };
-  const faces = { blink: tex(320, 232), scared: tex(320, 232) };
-  const plates = new Map();
-  const art = {
-    style: 'sticker',
-    skin: 'forest',
-    setSkin(k) {
-      this.skin = k;
-    },
-    tile(t) {
-      const k = `${t.tier}.${t.cls.element}.${t.cls.fusion}.${t.cls.ultimate}`;
-      if (!plates.has(k)) plates.set(k, tex(160, 160));
-      const isDen = t.tier >= 8 && !!t.cls.fusion;
-      return {
-        plate: plates.get(k),
-        motif: isDen ? tex(160, 160) : null,
-        overlay: null,
-        creature: isDen ? null : tex(320, 232),
-        crop: 0.6,
-        maxW: 0.9,
-        egg: t.tier < 4,
-        plaque: true,
-        badges: badgeSpots(t).filter((b) => !b.apex),
-        nestFront: t.tier < 4 ? tex(160, 160) : null,
-        faces: t.tier === 4 ? faces : null,
-      };
-    },
-    number(tier, px, size) {
-      numbers.push({ tier, px, size });
-      return tex(128, 64);
-    },
-    badge: () => tex(192, 192),
-    paws: () => tex(160, 160),
-  };
-  const tx = { softDot: () => tex(64, 64), sparkTex: () => tex(64, 64), blockTex: () => tex(160, 160), vfxTex: () => tex(40, 40), decor: () => tex(36, 28) };
-  const blocks = createBlocks(stage, fx, { art, tx });
-  const run = { tiles: [], grid: { moves: 0 }, time: 0, defense: { cooldownLeft: () => 5, sigCharge: () => 0 }, wave: { chapter: { key: 'forest' } } };
-  const add = (id, tier, col, row, cls = {}, more = {}) => {
-    const t = { id, tier, col, row, fromCol: col, fromRow: row, x: cellX(col), y: cellY(row), cls, bornAt: -1, ...more };
-    run.tiles.push(t);
-    return t;
-  };
-  const step = (seconds = 1 / 60) => {
-    for (let i = 0; i < Math.max(1, Math.round(seconds * 60)); i++) {
-      run.time += 1 / 60;
-      blocks.sync(run, 1 / 60);
-    }
-  };
-  return { blocks, run, stage, add, step, books, parts, faces, numbers, cell: GRID.cell * u };
-}
-
-/** The extremes of a view field over `seconds` of frames. */
-function range(s, seconds, read) {
-  let lo = Infinity;
-  let hi = -Infinity;
-  for (let i = 0; i < Math.round(seconds * 60); i++) {
-    s.step();
-    const v = read();
-    lo = Math.min(lo, v);
-    hi = Math.max(hi, v);
-  }
-  return { lo, hi };
-}
+const U = 35; // a 70 px cell (the scene's default)
 
 test('a picked block lifts on a longer shadow inside cream brackets; armed, they turn red and dashed and the plaque wobbles', () => {
   const s = scene();
@@ -429,28 +357,6 @@ test('a hit scares a 16 (its scared face) and puts a sweat drop on a 32; a 16 bl
   assert.ok(a.creature.texture === base || a.creature.texture === s.faces.blink);
 });
 
-test('a den’s altar rises as its pet hops out; its paw prints show once the pet is out; the den stays still when its pet fires', () => {
-  const s = scene();
-  const t = s.add(1, 8, 1, 0, { element: 'fire', fusion: 'ice' }, { roam: { x: 0, y: 12, hatch: 0 } });
-  s.step();
-  const v = s.blocks.viewOf(1);
-  assert.ok(v.motif.visible && v.motif.alpha === 0 && !v.paws.visible, 'before the hop: no altar, no prints');
-  t.roam.hatch = 0.5;
-  s.step();
-  assert.ok(v.motif.alpha === 0.5 && v.motif.position.y > 0, 'rising');
-  t.roam.hatch = 1;
-  s.step(0.4);
-  assert.ok(v.motif.alpha === 1 && v.motif.position.y === 0 && v.paws.visible && v.paws.alpha === 1, 'the pet is out: its prints lead off the altar');
-  s.blocks.onEvent({ type: 'fire', id: 1, x: 0, y: 12, colors: ['#ff7a3d'], target: { x: 0, y: 15 } });
-  s.step();
-  assert.equal(v.punch, 0, 'the pet fires, not the den');
-  // on the smallest phone (a 48 px cell) the prints would be dots: dropped
-  const small = scene({ u: 24 });
-  small.add(1, 9, 0, 0, { element: 'poison', fusion: 'nature' }, { roam: { x: 0, y: 12, hatch: 1 } });
-  small.step(0.4);
-  assert.ok(GRID.cell * 24 < PAW_MIN_PX && !small.blocks.viewOf(1).paws.visible);
-});
-
 test('departures: sold lifts out of the pit, destroyed cracks and drops leaving rubble, broken crumbles; bits book their light', () => {
   const s = scene();
   s.add(1, 6, 0, 0, { element: 'metal' });
@@ -480,12 +386,12 @@ test('departures: sold lifts out of the pit, destroyed cracks and drops leaving 
 test('a merge lights the meter’s new segment with a cream wipe; a boss x2 flips the numeral, or cross-fades it under Reduce motion', () => {
   for (const reduced of [false, true]) {
     const s = scene({ reduced });
-    const t = s.add(1, 5, 0, 0, { element: 'fire' });
+    const t = s.add(1, 6, 0, 0, { element: 'fire', fusion: 'ice', buffs: {} }); // a fusion pet: 64 → 128 lights its summon meter's first segment
     s.step(0.1);
     const v = s.blocks.viewOf(1);
     const before = v.number.texture;
-    t.tier = 6;
-    s.blocks.onEvent({ type: 'promote', id: 1, tier: 6, by: 1, x: 0, y: 0 });
+    t.tier = 7;
+    s.blocks.onEvent({ type: 'promote', id: 1, tier: 7, by: 1, x: 0, y: 0 });
     s.step(0.05);
     if (reduced) {
       assert.ok(v.numberOld.visible && v.numberOld.texture === before && v.number.alpha < 1, 'cross-fades');
@@ -497,85 +403,6 @@ test('a merge lights the meter’s new segment with a cream wipe; a boss x2 flip
     s.step(0.4);
     assert.ok(v.number.texture !== before && v.number.alpha === 1 && !v.numberOld.visible);
   }
-});
-
-// --- a picked den's roaming pet (src/kv/roam.js highlight) -------------------------------------------
-
-function petScene({ reduced = false } = {}) {
-  const stage = { reduced, layers: { enemies: new Container() }, sx: (x) => x * U, sy: (y) => 900 - y * U, view: { U } };
-  const art = { style: 'sticker', roamer: () => tex(200, 210), roamerFit: () => ({ feet: 0.97, height: 1, maxW: 1.4 }), halo: () => tex(120, 120) };
-  const roam = createRoamers(stage, { burst() {}, ring() {} }, art, { tx: { shadowTex: () => tex(128, 48), softDot: () => tex(64, 64) } });
-  const tile = { id: 7, x: 0, y: 4, tier: 8, cls: { element: 'fire', fusion: 'ice' }, roam: { x: 1, y: 11, facing: 1, moving: false, hatch: 1 } };
-  const run = { tiles: [tile], time: 0, defense: { cooldownLeft: () => 5 } };
-  return { roam, run, tile, stage };
-}
-
-test('a picked den marks its pet out on the field with the pick’s brackets; Reduce motion holds them still', () => {
-  const s = petScene();
-  s.roam.sync(s.run, 1 / 60);
-  assert.equal(s.roam.mark.visible, false);
-  s.roam.highlight(7);
-  s.roam.sync(s.run, 1 / 60);
-  const m = s.roam.mark;
-  assert.ok(m.visible && m.id === 7);
-  assert.deepEqual([m.x, m.y], [s.stage.sx(1), s.stage.sy(11)], 'at the pet');
-  const [tl, tr, br, bl] = m.corners;
-  assert.ok(tl.x < 0 && tr.x > 0 && tl.y < br.y && bl.x === tl.x && br.y === bl.y, 'round its body');
-  assert.ok(br.y > 0 && tl.y < -0.9 * GRID.cell * U, 'from its feet to over its head');
-  let lo = Infinity;
-  let hi = -Infinity;
-  for (let i = 0; i < 120; i++) {
-    s.roam.sync(s.run, 1 / 60);
-    lo = Math.min(lo, s.roam.mark.corners[1].x);
-    hi = Math.max(hi, s.roam.mark.corners[1].x);
-  }
-  assert.ok(hi - lo > 0.3, 'their gap breathes');
-  s.roam.highlight(null);
-  s.roam.sync(s.run, 1 / 60);
-  assert.equal(s.roam.mark.visible, false, 'cleared');
-  s.roam.highlight(99); // a block with no pet
-  s.roam.sync(s.run, 1 / 60);
-  assert.equal(s.roam.mark.visible, false);
-  const still = petScene({ reduced: true });
-  still.roam.highlight(7);
-  still.roam.sync(still.run, 1 / 60);
-  const x0 = still.roam.mark.corners[1].x;
-  for (let i = 0; i < 90; i++) still.roam.sync(still.run, 1 / 60);
-  assert.equal(still.roam.mark.corners[1].x, x0, 'still under Reduce motion');
-});
-
-test('the pet’s mark draws over every pet and foe, even a foe standing lower on screen (the depth sort leaves it be)', () => {
-  const s = petScene();
-  const foe = new Container(); // a foe lower on screen than the pet: drawn over the pet
-  foe.position.set(U, s.stage.sy(9));
-  s.stage.layers.enemies.addChild(foe);
-  s.roam.highlight(7);
-  for (let i = 0; i < 3; i++) s.roam.sync(s.run, 1 / 60);
-  const pets = s.stage.layers.enemies.children.filter((c) => c !== foe && c.children.length === 5);
-  assert.equal(pets.length, 1);
-  assert.ok(foe.zIndex > pets[0].zIndex, 'the foe is in front of the pet');
-  assert.ok(s.roam.mark.z > foe.zIndex && s.roam.mark.z > pets[0].zIndex, `the mark (${s.roam.mark.z}) over the foe (${foe.zIndex}) and the pet`);
-});
-
-test('a legend’s charge fills its gold frame with cream, clockwise, in steps it shares with every legend', () => {
-  const s = scene();
-  let charge = 0;
-  s.run.defense.sigCharge = () => charge;
-  s.add(1, 12, 0, 0, { element: 'fire', fusion: 'ice', ultimate: 'lightning' }, { prof: { signature: { period: 4 } } });
-  s.add(2, 12, 1, 0, { element: 'metal', fusion: 'nature', ultimate: 'fire' }, { prof: { signature: { period: 4 } } });
-  s.step();
-  const a = s.blocks.viewOf(1);
-  const b = s.blocks.viewOf(2);
-  assert.equal(a.charge.visible, false, 'empty: no stroke');
-  charge = 1;
-  s.step();
-  const quarter = a.charge.context;
-  assert.ok(a.charge.visible && quarter === b.charge.context, 'a quarter in: one shared step');
-  charge = 3;
-  s.step();
-  assert.ok(a.charge.context !== quarter && a.charge.visible, 'it grows');
-  const bounds = a.charge.context.bounds;
-  assert.ok(bounds.maxX > 0 && bounds.minX < 0 && bounds.maxY > 0, 'round the right side, the bottom and up the left');
 });
 
 test('seated, the plaque’s shadow fills only the right and bottom grooves of its pit; lifted, more of it shows under the plaque', () => {
@@ -610,7 +437,7 @@ test('seated, the plaque’s shadow fills only the right and bottom grooves of i
   assert.ok(lifted.x1 <= PLAQUE.pit / 2 + 1e-6 && lifted.y1 <= PLAQUE.pit / 2 + 1e-6, 'still inside the pit');
 });
 
-test('a swipe that moves nothing nudges the plaques only when the board refused it: not short of coins, with a die card open or once the run is over', () => {
+test('a swipe that moves nothing nudges the plaques only when the board refused it: not short of coins, with a card open or once the run is over', () => {
   const run = createRun({ seed: 3, empty: true });
   run.spawnDebug(1, 0, 0);
   run.spawnDebug(2, 0, 1); // two blocks against the left wall, nothing to merge
@@ -618,49 +445,18 @@ test('a swipe that moves nothing nudges the plaques only when the board refused 
   assert.equal(run.move('left'), false, 'a left swipe moves nothing');
   assert.equal(boardRefused(run), true, 'the board refused it: nudge');
   assert.equal(run.move('right'), true, 'a swipe that moves is no refusal');
-  run.addCoins(-1e9);
-  assert.equal(run.move('right'), false);
-  assert.equal(boardRefused(run), false, 'short of coins: the coin counter says so, no nudge');
-  run.addCoins(500);
-  run.spawnDebug(6, 3, 3); // the first 64 offers a die
-  run.step();
-  assert.ok(run.pendingChoice, 'a die card is open');
-  assert.equal(run.move('left'), false);
-  assert.equal(boardRefused(run), false, 'a die card open: no nudge');
-  while (run.pendingChoice) run.choose(0);
-  for (const t of run.tiles) t.hp = 0; // every block falls: the run is over
-  run.step();
-  assert.ok(run.over);
-  assert.equal(run.move('left'), false);
-  assert.equal(boardRefused(run), false, 'the run is over: no nudge');
-});
-
-test('a new den waits for its pet in a roaming run (a die card can hold the sim); without roaming its altar shows after a moment', () => {
-  const roaming = scene();
-  roaming.run.roaming = true;
-  const t = roaming.add(1, 8, 1, 0, { element: 'fire', fusion: 'ice' }); // no pet yet: the die card holds the sim
-  roaming.step(2);
-  const v = roaming.blocks.viewOf(1);
-  assert.equal(v.motif.alpha, 0, 'no altar under the die card');
-  t.roam = { x: 0, y: 9, hatch: 0 };
-  roaming.step();
-  assert.equal(v.motif.alpha, 0, 'the pet starts its hop: the altar is still down');
-  t.roam.hatch = 0.6;
-  roaming.step();
-  assert.ok(v.motif.alpha === 0.6 && v.motif.position.y > 0, 'and rises with it, once');
-  const still = scene();
-  still.run.roaming = false;
-  still.add(1, 8, 1, 0, { element: 'fire', fusion: 'ice' });
-  still.step(0.1);
-  assert.equal(still.blocks.viewOf(1).motif.alpha, 0);
-  still.step(0.5);
-  assert.equal(still.blocks.viewOf(1).motif.alpha, 1, 'no pet will come: the altar shows');
+  // the rule itself, on the run's state
+  const at = (o) => boardRefused({ over: false, pendingChoice: null, coins: 9, swipeCost: 2, ...o });
+  assert.equal(at({}), true);
+  assert.equal(at({ coins: 1 }), false, 'short of coins: the coin counter says so, no nudge');
+  assert.equal(at({ pendingChoice: { kind: 'die' } }), false, 'a card open: no nudge');
+  assert.equal(at({ over: true }), false, 'the run is over: no nudge');
 });
 
 test('on the smallest phone a 4-digit numeral is drawn at 14 px and a 5-digit one squeezed inside its plaque', () => {
   const s = scene({ u: 23.78 }); // a 360 × 640 phone
-  s.add(1, 12, 0, 0, { element: 'fire', fusion: 'ice', ultimate: 'lightning' });
-  s.add(2, 14, 1, 0, { element: 'fire', fusion: 'ice', ultimate: 'lightning' });
+  s.add(1, 12, 0, 0, { element: 'fire', fusion: 'ice', buffs: {}, pure: true });
+  s.add(2, 14, 1, 0, { element: 'fire', fusion: 'ice', buffs: {}, pure: true });
   s.step(0.1);
   const asked = (tier) => s.numbers.find((n) => n.tier === tier);
   assert.ok(Math.abs(asked(12).size * s.cell - NUMBER_MIN_PX) < 1e-9, `4096 asked at ${(asked(12).size * s.cell).toFixed(1)} px`);
@@ -671,7 +467,7 @@ test('on the smallest phone a 4-digit numeral is drawn at 14 px and a 5-digit on
   assert.ok(b.numSqueeze < 1 && b.number.scale.x < b.number.scale.y, 'the 5-digit one is squeezed across');
   // on a 390 × 844 phone the same numerals keep their design size
   const big = scene({ u: 29.17 });
-  big.add(1, 12, 0, 0, { element: 'fire', fusion: 'ice', ultimate: 'lightning' });
+  big.add(1, 12, 0, 0, { element: 'fire', fusion: 'ice', buffs: {}, pure: true });
   big.step(0.1);
   assert.equal(big.numbers.find((n) => n.tier === 12).size, numberEm(4));
 });

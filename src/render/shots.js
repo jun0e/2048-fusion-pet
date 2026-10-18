@@ -51,7 +51,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 /** How a shot looks: its body piece, tint and ladder stage (any shot but the harpoon and the glob flies as a plain pebble). */
 function lookFor(s, vfx) {
   const el = s.prof.element ?? null; // the first element (null: a plain pebble)
-  const cls = attackClass(s.prof.colors, el);
+  const cls = attackClass(s.prof.colors, el, s.tier);
   const stage = ladderStage(s.tier, cls.kind);
   const step = el ? LADDER[el][stage] : null;
   const [bodyEl, piece] = s.pattern === 'lance' ? ['ice', 'harpoon'] : s.pattern === 'spit' ? ['poison', 'glob'] : ['earth', 'pebble'];

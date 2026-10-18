@@ -13,11 +13,11 @@ import { audit } from '../tools/flash-audit.mjs';
 import { VFX_FALLBACK } from '../src/render/vfx-fallback.js';
 import { cellY, laneX } from '../src/config.js';
 
-/** A block of an element at a stage, and the colours its attack events carry (classes.js profileFor). */
+/** A block of an element at a stage, and the colours its attack events carry (classes.js profileFor); 4096 is a pure fusion (v2). */
 const blockAt = (el, stage, i = ELEMENT_KEYS.indexOf(el)) => {
   const partner = ELEMENT_KEYS[(i + 1) % 8];
   const apex = ELEMENT_KEYS[(i + 2) % 8];
-  const [tier, cls] = { 16: [4, { element: el }], 64: [6, { element: el }], 128: [7, { element: el }], 256: [8, { element: el, fusion: partner }], 4096: [12, { element: el, fusion: partner, ultimate: apex }] }[stage];
+  const [tier, cls] = { 16: [4, { element: el }], 64: [6, { element: el }], 128: [7, { element: el }], 256: [8, { element: el, fusion: partner }], 4096: [12, { element: el, fusion: partner, buffs: {}, pure: true }] }[stage];
   const t = { id: 1, tier, cls, x: laneX(1), y: cellY(3) };
   return { t, prof: profileFor(t), partner, apex };
 };
@@ -91,6 +91,31 @@ test('a stage comes from the tile value (tier = log2 of the value) and the class
       const e = attackEvent(el, st);
       assert.deepEqual(attackOf(e), { el, stage: st }, `${el} at ${st}`);
     }
+  }
+});
+
+test('a pure form (v2: an element’s block from 4096) attacks at the apex stage, echoing in its main element’s colour', () => {
+  const hexOf = (c) => parseInt(c.slice(1), 16);
+  for (const [key, f] of Object.entries(FUSIONS)) {
+    for (const first of f.parts) {
+      const a = attackClass([f.color], first, 12);
+      assert.deepEqual([a.kind, a.first, a.apex, a.apexTint, a.tint], ['apex', first, first, hexOf(ELEMENTS[first].color), hexOf(f.color)], key);
+      assert.equal(attackClass([f.color], first, 11).kind, 'fusion', 'below 4096: a fusion');
+    }
+  }
+  for (const el of ELEMENT_KEYS) {
+    const a = attackClass([ELEMENTS[el].color], el, 12);
+    assert.deepEqual([a.kind, a.partner, a.apex], ['apex', el, el], `${el}: its own add-on rides its attack`);
+    assert.notEqual(a.apexTint, a.tint, 'its echo a lighter tone of its colour');
+    assert.deepEqual(attackOf({ ...attackEvent(el, '128'), colors: [ELEMENTS[el].color], tier: 12 }), { el, stage: '4096' }, `${el}: a pure single at 4096`);
+    assert.equal(attackClass([ELEMENTS[el].color], el, 7).kind, 'single');
+  }
+  // every pure attack plans without a partner of its own: no add-on of a missing element
+  for (const el of ELEMENT_KEYS) {
+    const t = { id: 1, tier: 12, cls: { element: el, pure: true }, x: laneX(1), y: cellY(3) };
+    const prof = profileFor(t);
+    const e = { ...attackEvent(el, '128'), colors: prof.colors, tier: 12 };
+    assert.ok(attackLight(e), `${el}: a pure single’s attack plans`);
   }
 });
 

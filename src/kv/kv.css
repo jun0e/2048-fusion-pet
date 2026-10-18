@@ -49,7 +49,9 @@
     box-shadow 0.2s;
 }
 
-.kv-card.legend .kv-port {
+/* a legend (v1) or a pure form (v2): the portrait's rim in gold, like its tile's gold frame */
+.kv-card.legend .kv-port,
+.kv-card.pure .kv-port {
   border-color: #ffcf4a;
 }
 

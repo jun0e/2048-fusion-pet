@@ -14,8 +14,9 @@
 //   bg    the key colour, when the element's own (tools/pipeline-jobs.mjs BG_FOR) is in the piece:
 //         the pink blossom keys on green, not on nature's magenta
 
-import { DEFENSE, FIELD } from '../config.js';
+import { DEFENSE, FIELD, V2 } from '../config.js';
 import { ELEMENTS, FUSIONS, grownElement, growthOf } from '../sim/classes.js';
+import { tone } from './tokens.js';
 import { DECAL, LINE, VFX_MARGIN, spriteLit } from '../ux/photosafe.js';
 import { foeDrawSize } from './foe-roster.js';
 
@@ -76,7 +77,7 @@ export const VFX_IDS = Object.entries(VFX_PIECES).flatMap(([el, pieces]) => Obje
 // Every stage adds exactly one visible thing to an attack (a piece, a trail layer or a second
 // motion), the way a pet adds one motif piece per stage; reach, counts and size also grow with
 // the sim (classes.js grow(s), +6% a tier). Stages are keyed by the tile's value: 16, 64 (32 and
-// 64), 128, 256 (a fusion: its pet roams) and 4096 (an apex legendary). A block's tier is log2 of
+// 64), 128, 256 (a fusion: v2 fusions use it at any value) and 4096 (the apex: v2's pure form poses as it). A block's tier is log2 of
 // its value (config.js tierValue): 16 is tier 4, 128 tier 7, 256 tier 8, 4096 tier 12.
 // Fusion rule: the first element's shape in the fusion colour, plus the partner element's add-on
 // layer (ADDON). Apex: the attack echoes once in the apex element's colour.
@@ -207,19 +208,27 @@ const ELEMENT_BY_COLOR = new Map(Object.entries(ELEMENTS).map(([k, e]) => [hex(e
 const FUSION_BY_COLOR = new Map(Object.values(FUSIONS).map((f) => [hex(f.color), f]));
 
 /**
- * The class behind an attack, from the colours its events carry (classes.js profileFor: one
- * element colour, one fusion colour, or a fusion colour and the apex colour) and its first
- * element (its shape). → { kind: 'single' | 'fusion' | 'apex' | 'plain', first, partner, apex, tint, apexTint }
+ * The class behind an attack, from the colours its events carry (classes.js profileFor: one element
+ * colour or one fusion colour; v1 also carried a legend's apex colour) and its first element (its
+ * shape). v2: every block with an element is the pure form of its main element from V2.pureTier (its
+ * events carry its `tier`), and a pure form's attack takes the apex stage, echoing in its main element's
+ * colour (a pure single: a lighter tone of its own; its own add-on rides its attack as a partner's would).
+ * → { kind: 'single' | 'fusion' | 'apex' | 'plain', first, partner, apex, tint, apexTint }
  */
-export function attackClass(colors = [], first = null) {
+export function attackClass(colors = [], first = null, tier = null) {
   const c0 = colors.length ? hex(colors[0]) : 0xd9d2c5;
+  const pure = tier != null && tier >= V2.pureTier;
   const fu = FUSION_BY_COLOR.get(c0);
   if (fu) {
     const apex = colors.length > 1 ? ELEMENT_BY_COLOR.get(hex(colors[1])) ?? null : null;
     const lead = first && fu.parts.includes(first) ? first : fu.parts[0];
-    return { kind: apex ? 'apex' : 'fusion', first: lead, partner: fu.parts.find((p) => p !== lead), apex, tint: c0, apexTint: apex ? hex(colors[1]) : null };
+    const partner = fu.parts.find((p) => p !== lead);
+    if (apex) return { kind: 'apex', first: lead, partner, apex, tint: c0, apexTint: hex(colors[1]) };
+    if (pure) return { kind: 'apex', first: lead, partner, apex: lead, tint: c0, apexTint: hex(ELEMENTS[lead].color) };
+    return { kind: 'fusion', first: lead, partner, apex: null, tint: c0, apexTint: null };
   }
   const el = ELEMENT_BY_COLOR.get(c0);
+  if (el && pure) return { kind: 'apex', first: el, partner: el, apex: el, tint: c0, apexTint: hex(tone(ELEMENTS[el].color, 0.5)) };
   if (el) return { kind: 'single', first: el, partner: null, apex: null, tint: c0, apexTint: null };
   return { kind: 'plain', first: null, partner: null, apex: null, tint: c0, apexTint: null };
 }
@@ -414,7 +423,7 @@ export const crackLength = (e, g) => Math.min(e.reach, 5) * 0.5 * g;
 export function attackLight(e, { reduced = false } = {}) {
   const late = (d) => (reduced ? 0 : d);
   const ctx = (el, colors, tier) => {
-    const cls = attackClass(colors, el);
+    const cls = attackClass(colors, el, tier);
     const stage = ladderStage(tier ?? 4, cls.kind);
     return { el, cls, stage, step: LADDER[el]?.[stage] ?? null, g: growOf(tier), items: [] };
   };
@@ -596,7 +605,7 @@ export function attackOf(e) {
   let el = EVENT_ELEMENT[e.type] ?? null;
   if (e.type === 'impact') el = e.element === 'lightning' && e.pattern === 'chain' ? 'lightning' : e.element === 'poison' && e.pattern === 'spit' ? 'poison' : null;
   if (!el || !e.colors) return null;
-  return { el, stage: ladderStage(e.tier ?? 4, attackClass(e.colors, el).kind) };
+  return { el, stage: ladderStage(e.tier ?? 4, attackClass(e.colors, el, e.tier).kind) };
 }
 
 /**

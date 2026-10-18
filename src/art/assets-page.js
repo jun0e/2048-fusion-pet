@@ -205,12 +205,12 @@ function thumbsFor(r, showPx) {
     );
   } else if ((m = id.match(/^glyph\.([a-z]+)$/))) add(badgeCanvas(m[1]), 'badge');
   else if (id === 'plate.egg') add(plateCanvas({ tier: 1, cls: {} }));
-  else if (id === 'plate.den') add(plateCanvas({ tier: 8, cls: { element: 'fire', fusion: 'ice' } }, 'sticker', true), 'Frostnova den');
-  else if (id === 'plate.legend') add(plateCanvas({ tier: 12, cls: { element: 'lightning', fusion: 'metal', ultimate: 'ice' } }, 'sticker', true));
+  else if (id === 'plate.den') add(plateCanvas({ tier: 10, cls: { element: 'fire', fusion: 'ice', buffs: {} }, summon: { phase: 'act' } }, 'sticker', true), 'Frostnova den (pet summoned)');
+  else if (id === 'plate.legend') add(plateCanvas({ tier: 12, cls: { element: 'lightning', fusion: 'metal', buffs: {}, pure: true } }, 'sticker', true), 'pure form');
   else if ((m = id.match(/^plate\.([a-z]+)$/))) add(plateCanvas({ tier: 4, cls: { element: m[1] } }));
   else if (id === 'tile.number') {
     add(plateCanvas({ tier: 7, cls: { element: 'nature' } }, 'sticker', true), '128');
-    add(plateCanvas({ tier: 11, cls: { element: 'fire', fusion: 'lightning' } }, 'sticker', true), '2048 den');
+    add(plateCanvas({ tier: 11, cls: { element: 'fire', fusion: 'lightning', buffs: {} }, summon: { phase: 'act' } }, 'sticker', true), '2048 den');
   } else if (id === 'tile.milestone')
     add(
       drawn(160, 160, (g) => {

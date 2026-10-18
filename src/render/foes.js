@@ -2,6 +2,10 @@
 // from src/art/foe-roster.js), facing its direction, shadow, HP bar (+ HP number on bosses),
 // status badges with stack counts (burn, poison, chill, freeze), status visuals (embers,
 // bubbles, frost tint, ice block), damage-over-time numbers, hit flash and a death pop.
+// v2's skill statuses (docs/v2/SPEC.md section 6) are marks drawn with the foe (statusMarks): asleep
+// (a Zzz over it; it stands still), afraid (a "!!"; it shivers as it runs back), taunted (an anger
+// mark), blinded (a slashed eye), bleeding (drops fall from it), vulnerable (a target turning under
+// its feet). Reduce motion: the marks hold still.
 import { BitmapText, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { DOT, FOE_FLASH, FOE_PATCH } from '../ux/photosafe.js';
 import { FOE_ROSTER, FOE_SIZE_FLOOR, foeDrawSize } from '../art/foe-roster.js';
@@ -11,6 +15,26 @@ import { bossResistLevel } from '../sim/defense.js';
 import { num } from '../i18n/index.js';
 
 const STATUS_ORDER = ['freeze', 'burn', 'poison', 'chill', 'loot'];
+
+/** The marks' sizes over their drawn shapes: the head mark and the blind eye read on a 40 px foe. */
+export const FOE_MARK = { head: 1.35, eye: 1.25 };
+/** The one mark at a foe's head, by this order: asleep, afraid, taunted. */
+export const HEAD_MARKS = ['sleep', 'fear', 'taunt'];
+/** The marks' colours: a sleeper's Zzz, fear's "!!", a taunt's anger, a blind eye's slash, blood, the vulnerable target. */
+export const MARK_COLORS = { sleep: 0xc9b8ff, fear: 0xb46cff, taunt: 0xff4f3d, blind: 0x8a6a3c, bleed: 0xd7263d, vuln: 0xff7a3d };
+
+/**
+ * A foe's v2 skill statuses as marks (its timers, seconds left: sleepT, fearT, tauntT, blindT, bleedT,
+ * vulnT). → { head: 'sleep' | 'fear' | 'taunt' | null (one over its head, by HEAD_MARKS), blind, bleed, vuln }
+ */
+export function statusMarks(e) {
+  const on = (k) => (e?.[k] ?? 0) > 0;
+  const head = on('sleepT') ? 'sleep' : on('fearT') ? 'fear' : on('tauntT') ? 'taunt' : null;
+  return { head, blind: on('blindT'), bleed: on('bleedT'), vuln: on('vulnT') };
+}
+
+/** Its body's tint for them (after frozen and stunned, which read first): dreamy when asleep, pale violet when afraid, dusty when blind. */
+export const markTint = (m) => (m.head === 'sleep' ? 0xc9d2f2 : m.head === 'fear' ? 0xead8ff : m.blind ? 0xd8ccb8 : null);
 const GEN_FILL = 1; // a trimmed generated foe fills its box (the overhaul's sizes: 37–54 px, bosses 86–95)
 const MOTION_SIZE = foeDrawSize({ size: FOE_SIZE_FLOOR }); // world units: the size the lifts and drifts below are set for; a bigger foe moves in proportion
 const SETTLE = 8; // 1/s: how fast the motion eases in and out, so a freeze or a thaw settles instead of snapping
@@ -206,7 +230,136 @@ export function createFoes(stage, fx) {
       barX: 0, // its HP bar's centre from its own (px): a crowd's bars stand side by side (barSlot)
       barW: null, // its HP bar's width (px), eased
       seed: Math.random() * 10, dotT: 0, emitT: 0, seenBurn: e.dot.burn, seenPoison: e.dot.poison,
+      mk: null, // its v2 status marks, made when it first has one (makeMarks)
+      mkU: 0,
     };
+  }
+
+  /** The v2 status marks of a foe, made the first time it has one: a target under its feet, a mark over its head, a slashed eye. */
+  function makeMarks(v) {
+    const ground = new Container(); // squashed onto the ground: the target turns inside it
+    const reticle = new Graphics();
+    ground.addChild(reticle);
+    const zzz = [0, 1, 2].map(() => new Graphics());
+    const fear = new Graphics();
+    const taunt = new Graphics();
+    const head = new Container();
+    head.addChild(...zzz, fear, taunt);
+    const eye = new Graphics();
+    v.c.addChildAt(ground, 2); // under the body, over its shadow
+    v.c.addChild(head, eye);
+    v.mk = { ground, reticle, head, zzz, fear, taunt, eye };
+  }
+
+  /** Draw the marks' shapes for the stage's U (again when it changes). */
+  function shapeMarks(mk, U) {
+    const L = (x) => x * U;
+    const C = MARK_COLORS;
+    // the target: a ring with four ticks, at radius 1 (scaled to the foe)
+    mk.reticle.clear().circle(0, 0, L(0.5)).stroke({ width: L(0.09), color: 0x2b1d2e, alpha: 0.7 }).circle(0, 0, L(0.5)).stroke({ width: L(0.05), color: C.vuln });
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2;
+      mk.reticle.moveTo(Math.cos(a) * L(0.36), Math.sin(a) * L(0.36)).lineTo(Math.cos(a) * L(0.64), Math.sin(a) * L(0.64));
+    }
+    mk.reticle.stroke({ width: L(0.06), color: C.vuln, cap: 'round' });
+    // Zzz: three Zs, a size apart
+    mk.zzz.forEach((g, i) => {
+      const s = L(0.1 + i * 0.035);
+      const z = () => g.moveTo(-s, -s).lineTo(s, -s).lineTo(-s, s).lineTo(s, s);
+      g.clear();
+      z();
+      g.stroke({ width: L(0.075), color: 0x2b1d2e, cap: 'round', join: 'round' });
+      z();
+      g.stroke({ width: L(0.035), color: C.sleep, cap: 'round', join: 'round' });
+    });
+    // fear: "!!"
+    mk.fear.clear();
+    for (const x of [-0.07, 0.07]) {
+      mk.fear.roundRect(L(x - 0.035), L(-0.2), L(0.07), L(0.2), L(0.03)).fill({ color: C.fear }).stroke({ width: L(0.025), color: 0x2b1d2e });
+      mk.fear.circle(L(x), L(0.08), L(0.04)).fill({ color: C.fear }).stroke({ width: L(0.025), color: 0x2b1d2e });
+    }
+    // taunt: an anger mark, four bent strokes round a gap
+    const t = mk.taunt.clear();
+    const bent = () => {
+      for (let i = 0; i < 4; i++) {
+        const a = (i * Math.PI) / 2 + Math.PI / 4;
+        const c = Math.cos(a);
+        const sn = Math.sin(a);
+        t.moveTo(c * L(0.06) - sn * L(0.1), sn * L(0.06) + c * L(0.1)).quadraticCurveTo(c * L(0.1), sn * L(0.1), c * L(0.06) + sn * L(0.1), sn * L(0.06) - c * L(0.1));
+      }
+    };
+    bent();
+    t.stroke({ width: L(0.08), color: 0x2b1d2e, cap: 'round' });
+    bent();
+    t.stroke({ width: L(0.045), color: C.taunt, cap: 'round' });
+    // blind: sand in its eyes, an ochre puff behind an eye with a slash through it
+    mk.eye.clear();
+    for (const [x, y, r] of [
+      [-0.12, 0.03, 0.13],
+      [0.12, 0.03, 0.13],
+      [0, -0.05, 0.16],
+    ])
+      mk.eye.circle(L(x), L(y), L(r)).fill({ color: 0xc9a46a }).stroke({ width: L(0.025), color: 0x2b1d2e });
+    mk.eye
+      .moveTo(L(-0.15), 0)
+      .quadraticCurveTo(0, L(-0.13), L(0.15), 0)
+      .quadraticCurveTo(0, L(0.13), L(-0.15), 0)
+      .fill({ color: 0xffffff })
+      .stroke({ width: L(0.03), color: 0x2b1d2e })
+      .circle(0, 0, L(0.045))
+      .fill({ color: 0x2b1d2e })
+      .moveTo(L(-0.13), L(0.12))
+      .lineTo(L(0.13), L(-0.12))
+      .stroke({ width: L(0.08), color: 0x2b1d2e, cap: 'round' })
+      .moveTo(L(-0.13), L(0.12))
+      .lineTo(L(0.13), L(-0.12))
+      .stroke({ width: L(0.045), color: C.blind, cap: 'round' });
+  }
+
+  /**
+   * Place and move a foe's marks (`m`: statusMarks): the target under its feet, the head mark at its
+   * upper right and the slashed eye at its upper left (size: its draw size; lift: its body's, px), below
+   * its HP bar and badge row, turning, floating and pulsing unless motion is reduced.
+   */
+  function marksAt(v, m, size, lift, U) {
+    if (!v.mk) {
+      if (!m.head && !m.blind && !m.vuln) return;
+      makeMarks(v);
+    }
+    const mk = v.mk;
+    if (v.mkU !== U) {
+      v.mkU = U;
+      shapeMarks(mk, U);
+    }
+    const still = stage.reduced;
+    mk.ground.visible = m.vuln;
+    if (m.vuln) {
+      const k = (size * 0.62) / 0.5;
+      mk.ground.position.set(0, size * U * 0.32);
+      mk.ground.scale.set(k, k * 0.42);
+      mk.reticle.rotation = still ? 0 : time * 1.2;
+    }
+    mk.head.visible = !!m.head;
+    if (m.head) {
+      mk.head.position.set(size * U * 0.3, -size * U * 0.55 - lift);
+      mk.head.scale.set(FOE_MARK.head);
+      mk.zzz.forEach((g, i) => {
+        g.visible = m.head === 'sleep';
+        const f = still ? 0.5 : (time * 0.7 + i / 3) % 1; // each Z floats up and fades, one after another
+        g.position.set((i - 1) * 0.11 * U, -f * 0.45 * U);
+        g.alpha = still ? 1 - i * 0.2 : Math.sin(f * Math.PI);
+      });
+      mk.fear.visible = m.head === 'fear';
+      mk.taunt.visible = m.head === 'taunt';
+      const pulse = still ? 1 : 1 + 0.08 * Math.sin(time * (m.head === 'fear' ? 9 : 6) + v.seed);
+      mk.fear.scale.set(pulse);
+      mk.taunt.scale.set(pulse);
+    }
+    mk.eye.visible = m.blind;
+    if (m.blind) {
+      mk.eye.position.set(-size * U * 0.26, -size * U * 0.42 - lift);
+      mk.eye.scale.set(FOE_MARK.eye);
+    }
   }
 
   function sync(enemies, dt) {
@@ -266,7 +419,8 @@ export function createFoes(stage, fx) {
         sway = Math.sin(t * 7) * 0.06;
       }
       if (v.view === 'spread') wide *= 1 - 0.14 * Math.abs(Math.sin(t * 8));
-      const want = frozen ? 0 : 1;
+      const marks = statusMarks(e);
+      const want = frozen || marks.head === 'sleep' ? 0 : 1; // frozen or asleep: it stands still
       v.motion = v.motion == null ? want : v.motion + (want - v.motion) * (1 - Math.exp(-SETTLE * dt));
       const m = v.motion;
       // a bigger foe hovers higher and drifts further, in proportion, up to MAX_LIFT (MAX_BOB for a walker's bob)
@@ -311,8 +465,9 @@ export function createFoes(stage, fx) {
       }
       v.body.rotation = sway;
       // statuses read on the body: frozen, stunned (Lightning, Earth), rooted (Nature), chilled, poisoned
-      v.body.tint = frozen ? 0xb9ecff : e.stunT > 0 ? 0xfff0a0 : e.rootT > 0 ? 0xc9f2b4 : e.chillT > 0 ? 0xa8d8ff : e.poison.stacks > 0 ? 0xe2c8ff : 0xffffff;
+      v.body.tint = frozen ? 0xb9ecff : e.stunT > 0 ? 0xfff0a0 : (markTint(marks) ?? (e.rootT > 0 ? 0xc9f2b4 : e.chillT > 0 ? 0xa8d8ff : e.poison.stacks > 0 ? 0xe2c8ff : 0xffffff));
       if (e.stunT > 0) v.body.rotation = Math.sin(time * 40 + v.seed) * 0.08; // dazed shake
+      else if (marks.head === 'fear' && !stage.reduced) v.body.position.x += Math.sin(time * 34 + v.seed) * 0.03 * U; // it shivers
       v.flash.scale.set(v.body.scale.x * v.flashKx, v.body.scale.y * v.flashKy);
       v.flash.position.copyFrom(v.body.position);
       v.flash.rotation = v.body.rotation;
@@ -401,6 +556,8 @@ export function createFoes(stage, fx) {
         bx += v.more.width + 0.06 * U;
       }
       v.badges.position.set(-bx / 2 + bs / 2, lab.y);
+      // v2's skill statuses: marks with the foe (a mark at its head, a blind eye, a target at its feet)
+      marksAt(v, marks, size, lift * U, U);
 
       // status visuals over time
       v.emitT -= dt;
@@ -430,6 +587,10 @@ export function createFoes(stage, fx) {
         }
         if (e.chillT > 0 && !frozen && Math.random() < 0.4 && fx.flashAll(DOT.share * 0.1 * 0.1, 0.5)) {
           fx.particle(softDot(), e.x + (Math.random() - 0.5) * size * 0.6, e.y + (Math.random() - 0.3) * size * 0.4, { vy: -0.3, life: 0.5, size: 0.1, color: 0xcff0ff });
+        }
+        // a bleeding foe drips as it goes (Sickle Sweep)
+        if (marks.bleed && Math.random() < 0.35 && fx.flashAll(DOT.share * 0.14 * 0.14, 0.45)) {
+          fx.particle(softDot(), e.x + (Math.random() - 0.5) * size * 0.4, e.y + size * 0.15, { vy: -0.6, gravity: -7, life: 0.45, size: 0.14, color: MARK_COLORS.bleed });
         }
       }
 
