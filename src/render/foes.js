@@ -384,6 +384,7 @@ export function createFoes(stage, fx) {
       const sx = stage.sx(e.x + v.fan);
       const sy = stage.sy(e.y);
       v.c.position.set(sx, sy);
+      v.c.zIndex = sy; // by depth among the skills' walls, traps and minions (and the pets) in this layer
 
       // each animal moves its own way: walkers waddle, crawlers stretch, flyers hover over a
       // detached shadow, the newt swims an S, the macaque floats; wings seen from above beat by

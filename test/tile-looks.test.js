@@ -300,6 +300,39 @@ test('a fusion pet’s summon charge fills its frame from 1024, in steps shared 
   assert.equal(range(still, 1, () => still.blocks.viewOf(1).charge.alpha).lo, 1, 'Reduce motion: no breath');
 });
 
+test('a style switch redraws a charging pet’s stroke round its new frame', () => {
+  const s = scene();
+  s.run.skillCharge = () => 0.5;
+  s.add(1, 10, 0, 0, fusion('fire', 'ice'));
+  s.step();
+  const v = s.blocks.viewOf(1);
+  const sticker = v.charge.context;
+  const tile = s.art.tile;
+  s.art.style = 'pixel';
+  s.art.tile = (t) => ({ ...tile.call(s.art, t), plaque: false }); // the pixel style's plates: no plaque
+  s.blocks.refresh();
+  s.step();
+  assert.ok(v.charge.visible && v.charge.context !== sticker, 'the pixel frame’s stroke, not the plaque’s');
+});
+
+test('a pet on its tile winds up at its attack’s stage: a fusion lunges at any value from 16 and never squashes past 5 %', () => {
+  const squash = (cls, tier) => {
+    const sc = scene();
+    sc.add(1, tier, 1, 1, cls);
+    sc.step(0.3);
+    const v = sc.blocks.viewOf(1);
+    sc.run.defense.cooldownLeft = () => 0.04; // a shot is near
+    let most = 0;
+    for (let i = 0; i < 12; i++) {
+      sc.step();
+      most = Math.max(most, Math.abs(v.pose.sy - 1), Math.abs(v.pose.sx - 1));
+    }
+    return most;
+  };
+  for (const tier of [4, 5, 7, 9]) assert.ok(squash(fusion('fire', 'ice'), tier) <= 0.05 + 1e-9, `a fusion at ${2 ** tier}: 5 % at most`);
+  assert.ok(squash({ element: 'fire' }, 6) > 0.05, 'a single at 64 crouches deeper');
+});
+
 test('the skills’ marks: rime armour coats a block in ice, pollen sparkles on it, a sprout marks a block Moss Spring saved; each fades in and out', () => {
   const s = scene();
   const t = s.add(1, 6, 1, 1, { element: 'fire' });

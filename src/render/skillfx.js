@@ -203,8 +203,9 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
       }
       seen.add(id);
       let v = map.get(id);
-      if (v && it.kind != null && v.kind != null && it.kind !== v.kind && (map === zones || map === minions)) {
-        // the sim gave this id to another kind of piece: a new view for it
+      if (v && it.kind !== v.made && (map === zones || map === minions)) {
+        // the sim gave this id to another kind of piece: a new view for it (compared with the kind the
+        // view was made for: a minion of a kind it does not know is drawn as a locust, and kept)
         v.c.destroy({ children: true });
         map.delete(id);
         v = null;
@@ -212,6 +213,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
       if (!v) {
         v = make(it);
         if (!v) continue;
+        v.made = it.kind;
         v.age = 0;
         v.gone = null;
         map.set(id, v);

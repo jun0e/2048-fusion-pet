@@ -131,6 +131,8 @@ function drawMilestone(g, tier, cls, U) {
 
 /** A fusion pet that can be summoned: from V2.summonTier (1024). */
 const summons = (t) => isPet(t) && isFusion(t) && t.tier >= V2.summonTier;
+/** Its attack's ladder stage, as its shots take it (src/render/shots.js): a pure form's apex, a fusion's at any value, else a single's by its value. */
+const stageOf = (t) => ladderStage(t.tier, isPure(t) ? 'apex' : isFusion(t) ? 'fusion' : 'single');
 
 /** Its summon charge, 0–1 (docs/v2/SPEC.md section 5: run.skillCharge, else the defense's). */
 function chargeOf(run, id) {
@@ -367,7 +369,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     const want = windUpAt(left, rate, v.period);
     v.wind = want >= v.wind ? want : Math.max(0, v.wind - dt / 0.1);
     v.follow = Math.max(0, v.follow - dt / FOLLOW);
-    return petPose(v.pure ? '4096' : ladderStage(t.tier), smooth(v.wind), v.follow, v.aim, v.pose);
+    return petPose(stageOf(t), smooth(v.wind), v.follow, v.aim, v.pose);
   }
 
   /** The tile's textures, when its tier, class, den, style or chapter skin changed. */
@@ -384,6 +386,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     v.pure = isPure(t);
     v.msKey = '';
     v.numTier = -1;
+    v.chargeU = -1; // its charge stroke takes the new style's frame
     v.wipe.visible = v.loser.visible = v.sweat.visible = false;
     // the class glow: a pet's element colour (a fusion's own), its size and strength; plain blocks and eggs have none
     const pet = isPet(t);
@@ -1032,7 +1035,7 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
       v.creature.position.x += v.leap.dx * L.k * U;
       v.creature.position.y -= (v.leap.dy * L.k + L.lift) * U;
     } else v.leap = null;
-    const step = L && t.cls.element === 'metal' ? LADDER.metal[ladderStage(t.tier)] : null;
+    const step = L && t.cls.element === 'metal' ? LADDER.metal[stageOf(t)] : null;
     const n = step && has(step, 'ghosts') ? step.ghosts : 0;
     if (n || v.echo) {
       v.echo ??= createAfterimage(echoLayer, 3);

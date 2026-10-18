@@ -313,6 +313,14 @@ test('an id the sim gives to another kind of zone or minion gets a view of its o
   sc.step();
   assert.deepEqual(sc.s.drawn.zones.map((z) => z.kind), ['web']);
   assert.deepEqual(sc.s.drawn.minions.map((m) => m.kind), ['spider']);
+  // a minion of a kind it does not know is drawn as a locust, and kept from frame to frame (it rises)
+  const odd = scene();
+  odd.run.defense.minions = [{ id: 2, kind: 'beetle', x: 1, y: 12, color: '#d4e157' }];
+  odd.step();
+  const a0 = odd.s.drawn.minions[0].alpha;
+  odd.step(0.2);
+  assert.deepEqual(odd.s.drawn.minions.map((m) => m.kind), ['locust']);
+  assert.ok(odd.s.drawn.minions[0].alpha > a0, `it rises (${a0.toFixed(2)} → ${odd.s.drawn.minions[0].alpha.toFixed(2)})`);
 });
 
 test('a zone’s area: a disc; r = Infinity the whole field; a sandstorm with lanes those lanes’ columns, from the parapet to the portals', () => {

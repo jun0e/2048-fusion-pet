@@ -85,7 +85,7 @@ export function scene({ reduced = false, u = U, grant = true } = {}) {
       blocks.sync(run, 1 / 60);
     }
   };
-  return { blocks, run, stage, add, step, books, parts, bursts, faces, halo, numbers, cell: GRID.cell * u };
+  return { blocks, run, stage, art, add, step, books, parts, bursts, faces, halo, numbers, cell: GRID.cell * u };
 }
 
 /** The extremes of a view field over `seconds` of frames. */
