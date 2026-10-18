@@ -68,6 +68,14 @@ test('the keep grid lights one cell per block alive, from the bottom row up', ()
   assert.equal(keepGridCells(-2).filter(Boolean).length, 0);
 });
 
+test('the keep grid is as big as the board: 5×5 and 6×6 once it grows (v2.1)', () => {
+  assert.equal(keepGridCells(3, 5).length, 25);
+  assert.deepEqual(keepGridCells(7, 5).map((on, i) => (on ? i : -1)).filter((i) => i >= 0), [15, 16, 20, 21, 22, 23, 24], 'the bottom row first, then the next up');
+  assert.equal(keepGridCells(36, 6).every(Boolean), true);
+  assert.equal(keepGridCells(99, 6).filter(Boolean).length, 36);
+  assert.deepEqual(keepGridCells(5), keepGridCells(5, 4), '4×4 by default');
+});
+
 test('the swipe price tick counts down to the next step, as the run prices it', () => {
   for (const swipes of [0, 1, 11, 12, 13, 23, 24, 100]) assert.equal(priceStep(swipes).cost, swipeCostFor(swipes), `cost after ${swipes}`);
   assert.deepEqual(priceStep(0), { cost: 5, next: 6, left: 12, share: 0 });

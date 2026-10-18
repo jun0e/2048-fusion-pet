@@ -5,10 +5,12 @@
 // plain stone block, an egg (the pet it hatches into), a single pet (its attack, what it gives a
 // fusion, the fusions it makes with the singles on the board), a fusion pet (its main and second
 // element, its buffs, its summon skill as a tooltip with its live state: locked below 1024, charging,
-// ready, out on the field; its pure aura at 4096). Content comes from src/sim/describe.js and the
-// shared card pieces from src/ui/cards.js; the picture is the tile itself in its pit (art.tileCanvas:
-// the board and the card agree), else the generated sprite. Tap the block again, anywhere else, or ×
-// to close.
+// ready, out on the field; its pure aura at 4096). v2.1 (docs/v2/SPEC-v2.1.md section 6): every stat
+// shows as its icon and number (src/ui/icons.js), and a block that shoots shows its attack's four
+// strengths, lit or dim, with a line on what it is good and weak at. Content comes from
+// src/sim/describe.js and the shared card pieces from src/ui/cards.js; the picture is the tile itself in
+// its pit (art.tileCanvas: the board and the card agree), else the generated sprite. Tap the block
+// again, anywhere else, or × to close.
 // The card also sells a turret (+1 swipe's price) or breaks a dormant block (−3 swipes);
 // the button asks for a second tap before it acts, and while it waits the tile's brackets on the
 // board turn red and dashed (onArm).
@@ -20,7 +22,8 @@ import { describeTile, skillState, singlesOf } from '../sim/describe.js';
 import { petName } from '../art/tokens.js';
 import { generatedUrl } from '../render/textures.js';
 import { ARMED_LABEL, actState, shortCardSpot } from './short-card.js';
-import { elChipHtml, fusionPic, petPicId, skillTipHtml } from './cards.js';
+import { chipHtml, elChipHtml, feedLineHtml, fusionPic, petPicId, pureAuraHtml, skillTipHtml, strengthsHtml, trMarkup } from './cards.js';
+import { icon } from './icons.js';
 import { tr } from '../i18n/index.js';
 
 /** The narrow short card's sizes (px), as inspect.css sets them: the buttons' side padding, the row's gap and side padding, the Details icon. */
@@ -264,26 +267,39 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
 
   /**
    * The full card's sections (src/sim/describe.js describeTile), each markup or '' when the block has
-   * none, in the order its kind reads best: a fusion pet's skill (and its live state) first, then what
-   * changes it (buffs, auras, the pure form), then its attack; any other block its attack first.
+   * none, in the order its kind reads best: the attack's strengths under the head, then a fusion pet's
+   * skill (and its live state), what changes it (buffs, auras, the pure form), then its attack; any other
+   * block its attack first. Every stat is its icon and number (the icon says the stat's word to a screen
+   * reader).
    */
   function sections(info) {
+    const edge = (e) => ELEMENTS[e]?.color;
     const part = {
       desc: info.desc ? `<p class="inspect-desc">${esc(info.desc)}</p>` : '',
-      stats: info.stats.length ? `<dl class="inspect-stats">${info.stats.map((s) => `<div><dt>${esc(s.label)}</dt><dd>${esc(s.value)}</dd></div>`).join('')}</dl>` : '',
+      // the attack's numbers: each stat's icon over its value
+      stats: info.stats.length ? `<dl class="inspect-stats">${info.stats.map((st) => `<div><dt>${icon(st.key, { size: 18, title: st.label })}</dt><dd>${esc(st.value)}</dd></div>`).join('')}</dl>` : '',
+      // what the buffs and auras add beyond the attack's numbers (crit, regen, health)
+      boosts: info.boosts?.length ? `<p class="inspect-boosts">${info.boosts.map((c) => chipHtml(c)).join('')}</p>` : '',
+      strengths: info.strengths ? strengthsHtml(info.strengths) : '',
       effects: info.effects.length ? `<ul class="inspect-fx">${info.effects.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '',
       hint: info.hint ? `<p class="inspect-hint">${esc(info.hint)}</p>` : '',
-      feed: info.feed ? `<p class="inspect-perk inspect-feed">${esc(info.feed)}</p>` : '',
-      auras: info.auras?.length ? `<div class="inspect-auras"><h4>${esc(tr('card.auras'))}</h4><ul>${info.auras.map((a) => `<li style="--c:${ELEMENTS[a.element].color}">${esc(a.text)}</li>`).join('')}</ul></div>` : '',
+      feed: info.feedChip ? `<p class="inspect-perk inspect-feed" title="${esc(info.feed)}">${feedLineHtml(info.feedChip.element)}</p>` : '',
+      auras: info.auras?.length
+        ? `<div class="inspect-auras"><h4>${esc(tr('card.auras'))}</h4><ul>${info.auras.map((a) => `<li style="--c:${edge(a.element)}">${trMarkup('card.aura', { name: a.name }, { stat: chipHtml(a.chip) })}</li>`).join('')}</ul></div>`
+        : '',
       buffs: info.buffs
         ? `<div class="inspect-buffs"><h4>${esc(tr('card.buffs'))}</h4>${
-            info.buffs.length ? `<ul>${info.buffs.map((b) => `<li style="--c:${ELEMENTS[b.element].color}">${esc(b.text)}</li>`).join('')}</ul>` : `<p>${esc(tr('card.buffs.none'))}</p>`
+            info.buffs.length
+              ? `<ul>${info.buffs.map((b) => `<li style="--c:${edge(b.element)}" title="${esc(b.text)}"><b>${esc(b.tag)}</b>${chipHtml(b.chip, { title: null })}</li>`).join('')}</ul>`
+              : `<p>${esc(tr('card.buffs.none'))}</p>`
           }</div>`
         : '',
-      // the skill as a tooltip; its foot is the summon's live state (updateSkill)
-      skill: info.skill ? skillTipHtml(info.skill.cls, { passive: info.kind === 'fusion', foot: `<p class="tip-foot tip-state"><span class="tip-text"></span><span class="tip-bar"><i></i></span></p>` }) : '',
+      // the skill as a tooltip; its foot is the summon's live state (updateSkill); its head the run's charge time
+      skill: info.skill
+        ? skillTipHtml(info.skill.cls, { passive: info.kind === 'fusion', chargeS: ctx.skill?.chargeS ?? null, foot: `<p class="tip-foot tip-state"><span class="tip-text"></span><span class="tip-bar"><i></i></span></p>` })
+        : '',
       pure: info.pure
-        ? `<div class="inspect-pure${info.pure.active ? ' on' : ''}" style="--c:${ELEMENTS[info.pure.element].color}"><h4>${esc(info.pure.active ? info.pure.name : info.pure.at)}</h4><p>${esc(info.pure.aura)}${info.pure.active ? ` ${esc(info.pure.self)}` : ''}</p></div>`
+        ? `<div class="inspect-pure${info.pure.active ? ' on' : ''}" style="--c:${edge(info.pure.element)}"><h4>${esc(info.pure.active ? info.pure.name : info.pure.at)}</h4><p>${pureAuraHtml(info.pure.element, info.pure.chip)}</p>${info.pure.active ? `<p>${trMarkup('chip.self', {}, { stat: chipHtml(info.pure.selfChip) })}</p>` : ''}</div>`
         : '',
       fuses: info.fuses
         ? `<div class="inspect-fuses"><h4>${esc(tr('card.fuses'))}</h4>${
@@ -299,10 +315,11 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
         : '',
       next: info.next ? `<p class="inspect-next">${esc(info.next)}</p>` : '',
     };
+    // the attack's strengths first, under the head: what the pet is good and weak at (v2.1)
     const order =
       info.kind === 'fusion'
-        ? ['skill', 'buffs', 'auras', 'pure', 'stats', 'effects', 'next']
-        : ['desc', 'hint', 'stats', 'effects', 'feed', 'auras', 'buffs', 'skill', 'pure', 'fuses', 'next'];
+        ? ['strengths', 'skill', 'buffs', 'auras', 'pure', 'stats', 'boosts', 'effects', 'next']
+        : ['strengths', 'desc', 'hint', 'stats', 'boosts', 'effects', 'feed', 'auras', 'buffs', 'skill', 'pure', 'fuses', 'next'];
     return order.map((k) => part[k]).join('');
   }
 
@@ -393,7 +410,7 @@ export function createInspect(root, { stage, art, onClose, onDiscard, onArm }) {
       // Details pops the full card in. A single pet's fusions follow the singles on the board
       const look = `${block}:${full ? 'full' : 'short'}`;
       const singles = cls.element && !cls.fusion && full ? [...singlesOf(ctx.tiles ?? [], tile)].join(',') : '';
-      const k = `${look}:${petWhere(tile)}:${singles}:${JSON.stringify(tile.aura ?? null)}`; // the auras change its numbers
+      const k = `${look}:${petWhere(tile)}:${singles}:${JSON.stringify(tile.aura ?? null)}:${ctx.skill?.chargeS ?? ''}`; // the auras change its numbers; the level road its summon's charge time
       const fresh = k !== key;
       if (fresh) {
         const popped = key.startsWith(`${look}:`);

@@ -65,7 +65,7 @@ export const SKILLS_VI = {
   'skill.earth+nature.text': 'Mọi khối hồi {healPct} máu mỗi giây. Quái cắn khối bị rễ trói {rootS} (mỗi quái 1 lần mỗi {cooldownS}). Khối sắp vỡ được cứu lên {savePct} máu (mỗi khối 1 lần).',
 
   'skill.wind+metal.name': 'Lốc Liềm Quét',
-  'skill.wind+metal.text': 'Mỗi {periodS} xoáy thành liềm gió quét ngang cả 4 làn: {hitPct} sát thương mọi quái trên đường quét và gây chảy máu: mất {bleedPct} sát thương mỗi ô di chuyển trong {bleedS}.',
+  'skill.wind+metal.text': 'Mỗi {periodS} xoáy thành liềm gió quét ngang mọi làn: {hitPct} sát thương mọi quái trên đường quét và gây chảy máu: mất {bleedPct} sát thương mỗi ô di chuyển trong {bleedS}.',
   'skill.wind+nature.name': 'Mưa Phấn Hoa',
   'skill.wind+nature.text': 'Rắc phấn hoa lên mọi khối: bắn nhanh hơn {ratePct}. Quái hít phấn hắt hơi: mỗi giây {sneezePct} cơ hội bị choáng {stunS}.',
   'skill.metal+nature.name': 'Mùa Gặt Bội Thu',

@@ -13,8 +13,9 @@
 // of different elements merge into a fusion (the player picks the main element), a single fed into a
 // fusion adds a buff of its element, two fusions merge into the one the player keeps (classes.js
 // mergeClass). At 1024 a fusion pet has a summon skill (defense.summon); at 4096 a pet becomes the pure
-// form of its main element, whose aura reaches every other block. Spawn levels in V2.unlockLevels each
-// offer a new element for the deck (a pick of V2.offers). Choices are cards that pause the run.
+// form of its main element, whose aura reaches every other block. The level road (v2.1, src/sim/levels.js)
+// offers new elements for the deck (a pick of V2.offers), grows the board to 5×5 and 6×6, and charges
+// summons faster; after 8 minutes the waves ramp up (V2_1.ramp). Choices are cards that pause the run.
 // Siege: there is no castle. Every block has hidden health (hpPerTier × tier^hpExp)
 // that refills at the start of each wave; enemies on the board attack the nearest
 // block; a block at 0 is destroyed for good. The run ends when the last block falls.

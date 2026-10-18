@@ -65,7 +65,7 @@ export const SKILLS_EN = {
   'skill.earth+nature.text': 'Every block heals {healPct} of its health per second. A foe that bites a block is rooted for {rootS} (once every {cooldownS} per foe). A block about to break is saved at {savePct} health (once per block).',
 
   'skill.wind+metal.name': 'Sickle Sweep',
-  'skill.wind+metal.text': 'Every {periodS}, spins into a sickle of wind that sweeps across all 4 lanes: {hitPct} damage to every foe it crosses, and they bleed: {bleedPct} damage per cell they move for {bleedS}.',
+  'skill.wind+metal.text': 'Every {periodS}, spins into a sickle of wind that sweeps across every lane: {hitPct} damage to every foe it crosses, and they bleed: {bleedPct} damage per cell they move for {bleedS}.',
   'skill.wind+nature.name': 'Pollen Rain',
   'skill.wind+nature.text': 'Showers pollen on every block: they fire {ratePct} faster. Foes breathe it in and sneeze: each second, a {sneezePct} chance to be stunned for {stunS}.',
   'skill.metal+nature.name': 'Bumper Harvest',

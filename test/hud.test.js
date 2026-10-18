@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { nextSpeed } from '../src/ux/speed.js';
 import { createPause } from '../src/ux/pause.js';
-import { fightLabel, meterState, pageBanner, statusKey } from '../src/ui/hud.js';
+import { bannerLineHtml, fightLabel, iconToken, meterState, pageBanner, statusKey, untoken } from '../src/ui/hud.js';
 
 // a stand-in for the ribbon's fonts: Baloo titles, Nunito lines
 const measure = (text, part) => text.length * (part === 'title' ? 9 : 7);
@@ -108,4 +108,30 @@ test("Wave now's label: the wave's number and the countdown in their own spans, 
   // (the spaces either side of the hidden number collapse into one, as the browser lays text out)
   const narrow = fightLabel({ wave: 23, timer: 20 }).replace(/<span class="fight-n">[^<]*<\/span>/, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
   assert.equal(narrow, 'Wave now ▶ 20');
+});
+
+test('a banner’s line can carry stat icons: tokens the ribbon draws as icons and measures as one with their number', () => {
+  const sub = `${iconToken('dmg')}+32% ${iconToken('slow')}+10%`;
+  assert.deepEqual(untoken(sub), { text: '+32% +10%', icons: 2 });
+  const html = bannerLineHtml(sub);
+  assert.match(html, /^<svg class="ico ico-dmg"[^>]*aria-label="Damage">[\s\S]*<\/svg>\+32% <svg class="ico ico-slow"/);
+  assert.equal(bannerLineHtml('a <b> & c'), 'a &lt;b&gt; &amp; c', 'its words escaped');
+  assert.equal(bannerLineHtml(null), '');
+  // the pages never split an icon from its number: each chip is one word
+  const iconMeasure = (t, part) => {
+    const u = untoken(t);
+    return measure(u.text, part) + u.icons * 19;
+  };
+  const long = Array.from({ length: 6 }, (_, i) => `${iconToken(['dmg', 'slow', 'rate', 'hp', 'range', 'crit'][i])}+${10 + i}%`).join(' ');
+  const pages = pageBanner('Novakit +Fire', long, 120, iconMeasure);
+  assert.ok(pages.length > 2);
+  for (const p of pages.slice(1)) {
+    for (const word of p.sub.split(' ')) assert.match(word, /^\uE000[a-z]+\uE001\+\d+%$/, 'a chip stays whole');
+    assert.ok(iconMeasure(p.sub, 'sub') <= 120);
+  }
+});
+
+test('the lintel’s key changes when the board grows (the keep grid follows it)', () => {
+  const base = { wave: 3, phase: 'break', timer: 5, left: 0, blocks: 9 };
+  assert.notEqual(statusKey({ ...base, size: 4 }, meterState(base)), statusKey({ ...base, size: 5 }, meterState(base)));
 });
