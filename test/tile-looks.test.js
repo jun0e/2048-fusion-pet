@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ELEMENTS, ELEMENT_KEYS, FUSIONS } from '../src/sim/classes.js';
 import { V2 } from '../src/config.js';
-import { INK, contrast, luminance } from '../src/art/tokens.js';
+import { INK, contrast, luminance, tone } from '../src/art/tokens.js';
 import { PEBBLE_TAG, PLAQUE, STONE, badgeSpots, isDen, isEgg, isFusion, isPet, isPlain, isPure, numberBox, plateColor, stonePlate } from '../src/art/plaque.js';
 import { EGG_KEEP, EGG_SEAM, creatureSpecOf, eggKeep, eggRamp, eggSeamY, recolorEgg } from '../src/art/index.js';
 import { BLOCK_MARKS } from '../src/render/blocks.js';
@@ -357,4 +357,18 @@ test('a fusion fed a single pops with sparks of the element it gained; an elemen
   const purple = parseInt(ELEMENTS.poison.color.slice(1), 16);
   assert.equal(e.parts.filter((p) => p.o.color === purple).length, 3, 'the egg’s glint');
   assert.equal(e.parts.filter((p) => p.o.color === 0xd9c7a3).length, 4, 'two sand puffs each');
+});
+
+test('an elemental egg hatches out of a shell in its colours: a fusion egg’s halves in its two', () => {
+  const s = scene();
+  const t = s.add(1, 3, 1, 1, { element: 'fire', fusion: 'ice', buffs: {} });
+  s.step(0.2);
+  t.tier = 4; // 8 + 8: it hatches into a fusion pet
+  s.blocks.onEvent({ type: 'classed', tileId: 1, stage: 1, x: t.x, y: t.y, element: 'fire' });
+  s.step(0.05);
+  const halves = s.parts.filter((p) => p.o.size === 0.32);
+  assert.equal(halves.length, 2);
+  const tint = (el) => parseInt(tone(ELEMENTS[el].color, 0.45).slice(1), 16);
+  assert.deepEqual(halves.map((p) => p.o.color), [tint('fire'), tint('ice')]);
+  assert.ok(s.blocks.viewOf(1).creature.visible && !s.blocks.viewOf(1).egg, 'the fusion pet stands on its tile');
 });

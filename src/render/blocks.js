@@ -470,11 +470,17 @@ export function createBlocks(stage, fx, { art = null, tx = TILE_TEXTURES } = {})
     }
   }
 
-  /** An egg's two shell halves fly up and out as it hatches (under Reduce motion they fade in place): booked at the hatch (bookShells). */
+  /**
+   * An egg's two shell halves fly up and out as it hatches (under Reduce motion they fade in place),
+   * tinted like its shell (a fusion egg's: its main element above, its second below): booked at the
+   * hatch (bookShells).
+   */
   function shells(t, reduced) {
+    const shell = (el) => (ELEMENTS[el] ? hex(tone(ELEMENTS[el].color, 0.45)) : 0xffffff);
     for (const s of [-1, 1]) {
       const o = reduced ? {} : { vx: s * 1.6, vy: 3.2, gravity: -14, spin: s * 5 };
-      fx.particle(tx.decor(s < 0 ? 'shellL' : 'shellR'), t.x + s * 0.4, t.y - 0.1, { life: reduced ? 0.35 : SHELL_LIFE, size: 0.32, ...o });
+      const color = shell(s < 0 ? t.cls.element : (t.cls.fusion ?? t.cls.element));
+      fx.particle(tx.decor(s < 0 ? 'shellL' : 'shellR'), t.x + s * 0.4, t.y - 0.1, { life: reduced ? 0.35 : SHELL_LIFE, size: 0.32, color, ...o });
     }
   }
 
