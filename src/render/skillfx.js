@@ -39,7 +39,7 @@ export const PIECE = { rise: 0.45, hold: 1.2, fall: 0.7 };
 /** The most of each drawn at once (the rest are skipped: phones stay light). */
 export const CAPS = { zones: 12, walls: 8, traps: 16, minions: 32, tethers: 12, lines: 24, texts: 6 };
 /** The zones' looks: their most alpha (a ground stain, an air haze), how many bits they draw. */
-export const ZONE = { lava: 0.88, web: 0.8, field: 0.5, fill: 0.08, haze: 0.42, puffs: 7, flakes: 36, streaks: 10 };
+export const ZONE = { lava: 0.88, web: 0.8, field: 0.5, fill: 0.08, haze: 0.42, puffs: 7, flakes: 36, streaks: 10, snowHaze: 4 };
 /** The zone kinds drawn in the air over the foes (the rest lie on the ground under them). */
 export const AIR = new Set(['cloud', 'sand', 'snow', 'twister']);
 /**
@@ -198,7 +198,7 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
     // the bits that move: puffs of a cloud or a sandstorm, a blizzard's flakes, a twister's rings
     const dot = tx.softDot();
     const flakes = Math.max(10, Math.min(ZONE.flakes, Math.round((z.r ?? 3) ** 2 * 0.8))); // a blizzard over the whole field gets them all
-    const n = z.kind === 'cloud' ? ZONE.puffs : z.kind === 'sand' ? ZONE.puffs + ZONE.streaks : z.kind === 'snow' ? flakes : z.kind === 'lava' ? 3 : 0;
+    const n = z.kind === 'cloud' ? ZONE.puffs : z.kind === 'sand' ? ZONE.puffs + ZONE.streaks : z.kind === 'snow' ? ZONE.snowHaze + flakes : z.kind === 'lava' ? 3 : 0;
     for (let i = 0; i < n; i++) {
       const s = new Sprite(dot);
       s.anchor.set(0.5);
@@ -336,6 +336,14 @@ export function createSkillFx({ stage, fx, art = null, tx = SKILL_TEXTURES } = {
           s.tint = i % 2 ? 0x8a6a3c : toneN(v.color, 0.45);
           s.alpha = 0.85 * Math.sqrt(inside);
         }
+      } else if (v.kind === 'snow' && i < ZONE.snowHaze) {
+        // a white haze drifting through the blizzard (the whiteout), under its flakes
+        const ang = b.a + (still ? 0 : t * 0.12);
+        const d = R * (0.2 + b.d * 0.45);
+        s.position.set(Math.cos(ang) * d, Math.sin(ang) * d * 0.8);
+        s.width = s.height = R * (0.9 + b.k * 0.5);
+        s.tint = 0xffffff;
+        s.alpha = ZONE.haze * 0.55;
       } else if (v.kind === 'snow') {
         // flakes falling slant through the blizzard, wrapping inside it
         const fall = still ? b.d : (((b.d + t * (0.12 + b.k * 0.1)) % 1) + 1) % 1;
