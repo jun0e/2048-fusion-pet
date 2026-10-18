@@ -2,69 +2,64 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRun } from '../src/sim/run.js';
 import { roams } from '../src/sim/roam.js';
-import { bestDir } from '../src/autoplay.js';
 import { PHYSICS } from '../src/config.js';
-import { recordRun, replayRun, fingerprint, loadSaved, SAVE_VERSION, RESUME_KEY } from '../src/ux/resume.js';
+import { loadSaved, SAVE_VERSION, RESUME_KEY, RESUME_INPUTS } from '../src/ux/resume.js';
 
-/**
- * A recorded bot run until a fusion's pet roams, then `after` more seconds; 3 s after the
- * pet hops out, the bot casts its skill (a namecard tap). Seed 7 has its first fusion at wave 7
- * (with the spawn levels; seed 2 had it at wave 6 before them).
- */
-function playToRoam({ seed = 7, roaming = true, after = 30 } = {}) {
-  const run = createRun({ seed, roaming });
-  const log = recordRun(run);
-  let t = 0;
-  let next = 0;
-  let fusionAt = null;
-  let cast = false;
-  for (let i = 0; i < 600 / PHYSICS.dt && !run.over; i++) {
-    t += PHYSICS.dt;
-    if (run.pendingChoice) run.choose(0);
+// v2: a pet leaves its tile only on a summon (docs/v2/SPEC.md section 5). These need the v2 run (its
+// skillReady); until the rules land on this branch they wait.
+const V2_RUN = typeof createRun({ seed: 1, empty: true }).skillReady === 'function';
+
+/** A scripted v2 run: a 1024 fusion and two plain blocks, waves on, the summon cast whenever it is ready. */
+function summonRun(seed) {
+  const run = createRun({ seed, autoChoose: true, empty: true });
+  const f = run.spawnDebug(10, 1, 3);
+  f.cls = { element: 'fire', fusion: 'ice', buffs: {} };
+  f.prof = null;
+  run.spawnDebug(6, 0, 3);
+  run.spawnDebug(6, 2, 3);
+  run.nextWave();
+  let casts = 0;
+  let out = 0;
+  for (let i = 0; i < 45 / PHYSICS.dt && !run.over; i++) {
     run.step();
-    run.drainEvents();
-    const fusion = run.tiles.find(roams);
-    if (fusion && fusionAt == null) fusionAt = t;
-    if (fusionAt != null && !cast && t > fusionAt + 3 && fusion) {
-      run.castSkill(fusion.id, { radius: 2.8, mult: 5 });
-      cast = true;
-    }
-    if (fusionAt != null && t > fusionAt + after) break;
-    if (t >= next && run.coins >= run.swipeCost && !run.pendingChoice) {
-      const d = bestDir(run);
-      if (d) run.move(d);
-      next = t + 0.5;
-    }
-    if ((run.phase === 'break' || run.phase === 'prep') && (run.coins < run.swipeCost || run.locked)) run.nextWave();
+    for (const e of run.drainEvents()) if (e.type === 'petOut') out += 1;
+    if (run.skillReady(f.id) && run.castSkill(f.id)) casts += 1;
+    if (run.phase === 'break' || run.phase === 'prep') run.nextWave();
   }
-  return { run, log, fusionAt, cast };
+  return { run, casts, out, f };
 }
 
-/** Everything a player can see, the pets' spots included. */
-const state = (r) => ({
-  fp: fingerprint(r),
-  tiles: r.tiles.map((t) => [t.id, t.tier, Math.round(t.hp), JSON.stringify(t.cls), t.roam && [t.roam.x, t.roam.y, t.roam.hatch]]),
+const summonState = (r) => ({
+  tiles: r.tiles.map((t) => [t.id, t.tier, Math.round(t.hp), JSON.stringify(t.cls), t.summon && [t.summon.phase, t.summon.x.toFixed(4), t.summon.y.toFixed(4)]]),
   enemies: r.enemies.filter((e) => !e.dead).map((e) => [e.type, e.lane, e.y.toFixed(4), Math.round(e.hp)]),
   coins: r.coins,
   kills: r.kills,
   time: r.time.toFixed(6),
 });
 
-test('pets roam only in a run made with roaming (tools and tests keep blocks in place)', { todo: 'v2 integration: rewrite for summons (v1 roaming is gone)' }, () => {
-  const { run, fusionAt } = playToRoam({ roaming: false, after: 10 });
-  assert.ok(fusionAt != null, 'the run reaches a fusion');
-  assert.ok(run.tiles.some(roams) && !run.tiles.some((t) => t.roam), 'a fusion, and no pet out of its den');
+test('v2: a pet leaves its tile only when its summon is cast', { skip: !V2_RUN && 'the v2 run is not on this branch yet' }, () => {
+  const run = createRun({ seed: 3, autoChoose: true, empty: true });
+  const f = run.spawnDebug(10, 1, 3);
+  f.cls = { element: 'ice', fusion: 'earth', buffs: {} };
+  run.nextWave();
+  for (let i = 0; i < 20 / PHYSICS.dt; i++) {
+    run.step();
+    run.drainEvents();
+    assert.ok(!run.tiles.some(roams), 'nobody out without a cast');
+    if (run.phase !== 'wave') run.nextWave();
+  }
+  assert.ok(run.skillReady(f.id), 'charged after its time of waves');
+  assert.equal(run.castSkill(f.id), true);
+  run.step();
+  assert.ok(roams(f), 'out once cast');
 });
 
-test('a fusion run with roaming pets replays exactly, skill casts too', { todo: 'v2 integration: a run with summons replays exactly' }, () => {
-  const { run, log, fusionAt, cast } = playToRoam();
-  assert.ok(fusionAt != null && cast, 'a fusion roamed and cast its skill');
-  assert.equal(log.roaming, true);
-  assert.equal(log.inputs.filter((x) => x[1] === 'castSkill').length, 1, 'the cast is an input');
-  const pet = run.tiles.find((t) => t.roam);
-  assert.ok(pet && pet.roam.hatch === 1 && Math.hypot(pet.roam.x - pet.x, pet.roam.y - pet.y) > 1, 'the pet left its den');
-  const copy = replayRun(createRun, JSON.parse(JSON.stringify(log)));
-  assert.deepEqual(state(copy), state(run));
+test('v2: a run with summons plays the same every time (resume replays its inputs; castSkill is one)', { skip: !V2_RUN && 'the v2 run is not on this branch yet' }, () => {
+  assert.ok(RESUME_INPUTS.includes('castSkill'), 'a cast is a recorded input');
+  const a = summonRun(11);
+  const b = summonRun(11);
+  assert.ok(a.casts >= 1 && a.out === a.casts, `${a.casts} summons`);
+  assert.deepEqual(summonState(a.run), summonState(b.run));
 });
 
 test('a save keeps whether its run roams; a bad flag is refused', () => {
