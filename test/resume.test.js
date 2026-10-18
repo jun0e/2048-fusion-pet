@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRun } from '../src/sim/run.js';
 import { createRng } from '../src/sim/rng.js';
-import { recordRun, replayRun, restoreRun, fingerprint, saveRun, loadSaved, clearSaved, SAVE_VERSION, RESUME_KEY } from '../src/ux/resume.js';
+import { recordRun, replayRun, restoreRun, fingerprint, saveRun, loadSaved, clearSaved, markRelang, mayRestore, takeRelang, RELANG_KEY, SAVE_VERSION, RESUME_KEY } from '../src/ux/resume.js';
 
 /** Play a recorded run with random inputs for `seconds` of sim time. */
 function play(seed, seconds) {
@@ -101,6 +101,44 @@ function memory() {
   const store = new Map();
   return { store, getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
 }
+
+test('a language switch: its flag lives for one reload, and carries the opening’s step', () => {
+  const store = new Map();
+  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+  assert.equal(takeRelang(storage), null, 'an ordinary reload: no flag');
+  markRelang('grow', storage);
+  assert.deepEqual(takeRelang(storage), { step: 'grow' });
+  assert.equal(takeRelang(storage), null, 'read once: the next reload is an ordinary one');
+  markRelang(null, storage);
+  assert.deepEqual(takeRelang(storage), { step: null }, 'after the opening: a switch, with no step');
+  storage.setItem(RELANG_KEY, '{broken');
+  assert.equal(takeRelang(storage), null, 'a flag that does not parse is no switch');
+  assert.equal(storage.getItem(RELANG_KEY), null, '… and it is gone too');
+  storage.setItem(RELANG_KEY, JSON.stringify({ step: 7 }));
+  assert.equal(takeRelang(storage), null, 'nor one with a step that is no step');
+  const blocked = {
+    getItem() {
+      throw new Error('blocked');
+    },
+    setItem() {
+      throw new Error('blocked');
+    },
+    removeItem() {
+      throw new Error('blocked');
+    },
+  };
+  assert.doesNotThrow(() => markRelang('grow', blocked));
+  assert.equal(takeRelang(blocked), null, 'blocked storage: no flag, and nothing throws');
+});
+
+test('which reloads bring the saved run back', () => {
+  const ok = { canSave: true, tutorial: false };
+  assert.equal(mayRestore({ ...ok, guided: true }), true, 'the opening done: always');
+  assert.equal(mayRestore({ ...ok, guided: false }), false, 'mid-opening: the opening starts again');
+  assert.equal(mayRestore({ ...ok, guided: false, relang: { step: 'grow' } }), true, 'mid-opening after a language switch: back, at its step');
+  assert.equal(mayRestore({ ...ok, guided: true, tutorial: true }), false, '?tutorial: a fresh opening');
+  assert.equal(mayRestore({ canSave: false, guided: true, relang: { step: null } }), false, 'the showcase and debug runs are never saved');
+});
 
 test('blocked storage: nothing is saved, and nothing throws', () => {
   const desc = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');

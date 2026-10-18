@@ -1,5 +1,7 @@
 // English: the game's words (src/i18n/index.js). Plain text only; {name} is filled in by tr(), and a
-// plural is { one, other }. Keys are grouped by where the words show; the '@' keys describe the language.
+// plural is { one, other } (a language may use any form Intl.PluralRules names; 'other' always). Keys
+// are grouped by where the words show. The '@' keys are not words to translate: they describe the
+// language (its name in itself, its locale, its "4th" by Intl.PluralRules' ordinal forms).
 export const EN = {
   '@name': 'English', // in itself (the Language row in Settings)
   '@locale': 'en-US', // numbers (1,234.5) and plural forms

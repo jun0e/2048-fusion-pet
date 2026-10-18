@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { EN } from '../src/i18n/en.js';
 import { VI } from '../src/i18n/vi.js';
-import { LANGS, LANG_NAMES, getLang, num, ordinal, pickLang, setLang, tr } from '../src/i18n/index.js';
+import { LANGS, LANG_NAMES, getLang, letters, num, ordinal, pickLang, setLang, startLang, tr } from '../src/i18n/index.js';
 
 const atLoad = getLang();
 const placeholders = (v) => [...new Set([...JSON.stringify(v).matchAll(/\{(\w+)\}/g)].map((m) => m[1]))].sort();
@@ -32,6 +32,28 @@ test('the first launch: the player’s choice, else the phone’s first language
   assert.equal(pickLang('xx', ['vi-VN']), 'vi', 'an unknown saved language is ignored');
   assert.equal(pickLang('constructor', []), 'en', 'not a table');
   assert.equal(pickLang(null, ['view']), 'en', 'not a language code');
+});
+
+// the places a page's language can come from: [address, saved choice, phone languages, storage blocked]
+const STARTS = [
+  ['', null, ['vi-VN', 'en-US']],
+  ['', null, ['en-US', 'vi-VN']],
+  ['', null, ['fr-FR', 'vi-VN']],
+  ['', null, []],
+  ['', 'vi', ['en-US']],
+  ['', 'xx', ['vi-VN']],
+  ['', 'constructor', []],
+  ['#lang-vi', 'en', ['en-US']],
+  ['#lang-en', 'vi', ['vi-VN']],
+  ['#lang-xx', 'vi', ['en-US']],
+  ['#other', null, ['vi']],
+  ['#lang-vi', null, ['en-US'], true],
+  ['', null, ['vi-VN'], true],
+];
+
+test('a page starts in the address’s language, else the saved one, else the phone’s first the game has', () => {
+  const at = ([hash, saved, languages]) => startLang({ hash, saved, languages });
+  assert.deepEqual(STARTS.map(at), ['vi', 'en', 'vi', 'en', 'vi', 'vi', 'en', 'vi', 'en', 'vi', 'vi', 'vi', 'vi']);
 });
 
 test('tr(): the current language, English where it has no entry, placeholders and plurals filled', () => {
@@ -77,8 +99,10 @@ test('every table is plain text (no HTML: the Nibble copy reads the same tables)
       }
     }
   }
-  assert.deepEqual(Object.keys(VI).sort(), Object.keys(EN).sort(), 'Vietnamese has every English key, and no other');
-  for (const k of Object.keys(EN)) assert.deepEqual(placeholders(VI[k]), placeholders(EN[k]), `${k}: the same placeholders`);
+  for (const [lang, table] of Object.entries(LANGS)) {
+    assert.deepEqual(Object.keys(table).sort(), Object.keys(EN).sort(), `${lang} has every English key, and no other`);
+    for (const k of Object.keys(EN)) assert.deepEqual(placeholders(table[k]), placeholders(EN[k]), `${lang} ${k}: the same placeholders`);
+  }
 });
 
 test('words the code puts together come in the language’s order', () => {
@@ -102,17 +126,48 @@ test('numbers as each language writes them', () => {
   setLang('en');
 });
 
-test('the loading screen (index.html) says the tables’ words, in the language the game picks, before the game loads', () => {
+/** index.html's own script (the loading screen), run on a page that has `hash`, `saved` and `languages`. */
+function bootScreen({ hash = '', saved = null, languages = [], blocked = false, page = {} }) {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  const m = html.match(/const BOOT_WORDS = (\{[\s\S]*?\});/);
-  assert.ok(m, 'BOOT_WORDS in index.html');
-  const words = runInNewContext(`(${m[1]})`);
-  assert.deepEqual(Object.keys(words), Object.keys(LANGS), 'a line for every language');
-  for (const [lang, table] of Object.entries(LANGS)) assert.deepEqual([...words[lang]], [table['boot.loading'], table['boot.retry'], table['boot.newRun']], lang);
-  // and it picks the language as src/i18n/index.js does: the address, the saved choice, the phone's first
-  assert.match(html, /#lang-\(\[a-z\]\+\)\$/, 'reads #lang-xx (LANG_HASH)');
-  assert.match(html, /localStorage\.getItem\('siege:lang'\)/, 'reads the saved choice (LANG_KEY)');
-  assert.match(html, /navigator\.languages/, 'else the phone’s languages');
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const els = {};
+  const el = (sel) => (els[sel] ??= { textContent: '', clicks: 0, addEventListener(type, fn) { this.clicks += type === 'click' ? 1 : 0; }, classList: { add() {} } });
+  const refuse = () => {
+    throw new Error('storage is blocked');
+  };
+  const doc = { documentElement: { lang: 'en' }, querySelector: el };
+  runInNewContext(script, {
+    document: doc,
+    location: { hash, reload() {} },
+    localStorage: blocked ? { getItem: refuse, removeItem: refuse } : { getItem: (k) => (k === 'siege:lang' ? saved : null), removeItem() {} },
+    navigator: { languages, language: languages[0] },
+    setTimeout: () => 0,
+    ...page,
+  });
+  return { lang: doc.documentElement.lang, words: ['.boot-msg', '.boot-retry', '.boot-new'].map((s) => el(s).textContent), wired: el('.boot-retry').clicks === 1 && el('.boot-new').clicks === 1 };
+}
+
+test('the loading screen (index.html) says the tables’ words before the game loads, in the language the game picks', () => {
+  for (const [hash, saved, languages, blocked] of STARTS) {
+    const lang = startLang({ hash, saved: blocked ? null : saved, languages });
+    const screen = bootScreen({ hash, saved, languages, blocked });
+    assert.equal(screen.lang, lang, `${JSON.stringify([hash, saved, languages, !!blocked])}: the language src/i18n/index.js starts in`);
+    assert.deepEqual(screen.words, [LANGS[lang]['boot.loading'], LANGS[lang]['boot.retry'], LANGS[lang]['boot.newRun']]);
+    assert.ok(screen.wired);
+  }
+  // a browser the language pick trips on (no navigator here): Try again and New run still work
+  const old = bootScreen({ page: { navigator: undefined } });
+  assert.ok(old.wired, 'the buttons are wired first');
+  assert.deepEqual(old.words, ['', '', ''], 'and the page keeps its own words');
+});
+
+test('a font sample: every letter the language’s words use', () => {
+  setLang('vi');
+  const vi = letters();
+  for (const ch of 'ởĐợăươĩũỹ') assert.ok(vi.includes(ch), `Vietnamese: ${ch}`);
+  assert.ok(!/\s/.test(vi) && new Set(vi).size === vi.length, 'each letter once, no spaces');
+  setLang('en');
+  assert.ok(!/[ởĐợăươ]/.test(letters()), 'English: no Vietnamese letters to load');
 });
 
 test('Vietnamese fits where the space is tight (checked at 360 px: docs/ux/vietnamese.md)', () => {

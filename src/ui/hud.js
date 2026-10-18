@@ -560,7 +560,7 @@ export function createHud(root, { onRestart, onMenu, onSetting, onShare, onSpeed
     },
     /**
      * The lintel. total: foes in this wave (optional: else the most seen left), bossHp: the boss's
-     * health 0–1 while it lives (optional, bossHealth(run.enemies)); chapter: its name or key.
+     * health 0–1 while it lives (optional, bossHealth(run.enemies)); chapter: the chapter ({ key, name }) or its key.
      */
     setStatus({ wave, chapter, phase, timer, holding = false, left, blocks, boss, bestWave = 0, total = null, bossHp = null }) {
       setChapter(chapter);

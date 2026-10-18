@@ -3,7 +3,7 @@
 export const VI = {
   '@name': 'Tiếng Việt',
   '@locale': 'vi-VN', // 1.234,5; one plural form
-  '@ordinal': '{n}', // "thứ {nth}": the sentence says it
+  '@ordinal': { other: '{n}' }, // "thứ {nth}": the sentence says it
   'lang.row': 'Ngôn ngữ',
   // the elements (src/sim/classes.js ELEMENTS)
   'el.fire': 'Lửa',
@@ -438,7 +438,7 @@ export const VI = {
   'help.back': 'Quay lại',
   // the namecards (src/kv/namecards.js), the boss card, the share line, the loading screen
   'nc.pill': 'ĐẦY',
-  'nc.ready': 'Sẵn sàng: chạm để tung chiêu.',
+  'nc.ready': 'Đã sạc đầy: chạm để tung chiêu.',
   'nc.charging': 'Đang sạc.',
   'nc.behind': { one: '{n} thú cưng khác đang chờ sau thẻ này.', other: '{n} thú cưng khác đang chờ sau thẻ này.' },
   'boss.kicker': 'Trùm',

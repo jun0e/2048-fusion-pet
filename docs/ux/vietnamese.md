@@ -2,19 +2,28 @@
 
 The game's words live in one plain-text table per language: `src/i18n/en.js` and `src/i18n/vi.js`. They are read through `tr(key, vars)` in `src/i18n/index.js`. The name is `tr`, not `t`, because `t` is the code's usual name for a tile, a time and an interpolation.
 
-- **Another language** is one more table. Its `@` keys tell the code about the language: `@name` (its name in itself, for the Language row), `@locale` (how it writes numbers, and its plural forms) and `@ordinal` (how it writes "4th").
+- **Another language** is one more table. Its `@` keys tell the code about the language, and are not words to translate:
+  - `@name`: its name in itself, for the Language row;
+  - `@locale`: how it writes numbers, and its plural forms;
+  - `@ordinal`: how it writes "4th", as plural forms picked by `Intl.PluralRules`' ordinal rules (`{ other: '{n}' }` in Vietnamese).
 - **No HTML in a table:** the Nibble copy of the game reads the same tables, so each screen builds its markup around the words.
 - **Whole sentences:** a key is never the tail of another key's sentence. Where a screen puts markup inside a sentence (the pet's name in bold, Wave now's number), the table has a placeholder there, and the screen fills it.
 - **Placeholders and plurals:** `{name}` is filled in by `tr()`. A plural is `{ one, other }`, or whichever forms `Intl.PluralRules` names for the language. It is picked by `vars.count`, else `vars.n`.
 - **A missing key** falls back to English. `test/i18n.test.js` holds Vietnamese to every English key, with the same placeholders.
 
-- **First launch:** the game starts in the first language in the phone's list that it has. With Vietnamese above English, that is Vietnamese; otherwise it is English.
+- **Which language a page starts in** (`startLang`):
+  1. the one in the page's address (`#lang-vi`), set while storage was blocked;
+  2. else the player's saved choice;
+  3. else the first language in the phone's list that the game has: with Vietnamese above English, Vietnamese;
+  4. else English.
 - **Outside a browser** (the tests, the art pipeline's prompts) the game is always English. Node's `navigator` follows the shell's locale, so it is not read there.
-- **Changing it:** the Language row in Settings shows the language in its own words (English, Tiếng Việt). A tap moves to the next one and keeps the choice (`siege:lang`). Where storage is blocked, the choice goes in the page's address instead (`#lang-vi`).
+- **Changing it:** the Language row in Settings shows the language in its own words (English, Tiếng Việt). A tap moves to the next one and keeps the choice (`siege:lang`).
+  - The loading screen shows at once, in the new language. It answers the tap, and a second tap cannot switch straight back.
+  - Where storage is blocked, the choice goes in the page's address instead (`#lang-vi`), with no new history entry. The language survives the reload, but the run does not: nothing could be saved. Once storage works again, the choice is saved and the address let go.
 - **Why a reload:** the page reloads in the new language. The language is settled as `src/i18n/index.js` loads, so every screen and table is built in it, with no screen left half-switched.
   - The run restores itself (`src/ux/resume.js`), even during the first run's opening. The opening picks up at the step it was on, and the player is back in Settings.
   - That one reload is flagged in `sessionStorage` (`siege:relang`); any other reload during the opening still starts it again.
-- **The loading screen** speaks the language before the game has loaded. `index.html` holds its three lines (`BOOT_WORDS`) and picks the language the same way. `test/i18n.test.js` keeps those lines the same as the tables.
+- **The loading screen** speaks the language before the game has loaded. `index.html` holds its three lines (`BOOT_WORDS`) and picks the language the same way. `test/i18n.test.js` runs that script on every case above, against `startLang` and the tables. It runs after Try again and New run are wired, so an older browser it trips on keeps a working failure screen.
 - **Pet names stay as they are.** Fusion pets (Mistmaw, Frostjelly …) keep their names in both languages. A legend's skill puts its apex where the language does: "Sun Frostnova" in English, "Nova Băng Mặt Trời" in Vietnamese (`legend.name`).
 
 ## Glossary
@@ -51,7 +60,7 @@ One word for each thing, everywhere.
 | level | cấp | The spawn level. The disc's "Lv" is "Cấp". |
 | XP | KN | kinh nghiệm |
 | skill | kỹ năng | |
-| ready (a skill) | đầy | The namecard pill (42 px at 14 px): "ĐẦY", a full charge. "SẴN" alone reads as a clipped "SẴN SÀNG". |
+| ready (a skill) | đầy | The namecard pill (42 px at 14 px): "ĐẦY", a full charge; its label, "Đã sạc đầy". "SẴN" alone reads as a clipped "SẴN SÀNG". |
 | stacks | tầng | Burn and poison: "cộng dồn tối đa 5 tầng". Never "chồng", which also means husband. |
 | growth marks | vạch tiến hóa | The four marks a merge lights. "Vạch lớn" reads as "big marks". |
 | seconds | giây | The cards say "2,5 giây". The wave meter's countdown says "12s nữa", as a stopwatch would. |
@@ -86,5 +95,6 @@ Kim and Mộc are the five-element words (Kim, Mộc, Thủy, Hỏa, Thổ). Bot
   - the top-block chip's caption, 4;
   - one word per element.
 - **Fonts:** Baloo 2 and Nunito both have the Vietnamese letters, and Google Fonts serves that subset by itself.
-  - The game waits for that subset before its first frame. It loads the fonts with the language's name as a sample, because the canvas draws its words once (the deck slot's "ở").
+  - The game waits for that subset before its first frame. Its sample is every letter the language's words use (`letters()`), because the canvas draws its words once (the deck slot's "ở"). Vietnamese letters span two of Google's subsets.
+  - A font that arrives later still (past the 1.5 s wait) redraws the deck text.
   - Offline, the single-file game falls back to the phone's system font, which has them too.

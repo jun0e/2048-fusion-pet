@@ -146,32 +146,6 @@
       </div>
     </div>
     <script>
-      // The loading screen's words, in the game's language before the game loads (the single file takes a
-      // moment to parse). The tables are the source (src/i18n: boot.loading, boot.retry, boot.newRun;
-      // test/i18n.test.js keeps these in step), and the language is picked as src/i18n/index.js picks it:
-      // the address (#lang-vi, when storage was blocked), the saved choice, the phone's first language.
-      const BOOT_WORDS = {
-        en: ['Loading…', 'Try again', 'New run'],
-        vi: ['Đang tải…', 'Thử lại', 'Ván mới'],
-      };
-      (() => {
-        const known = (code) => typeof code === 'string' && Object.hasOwn(BOOT_WORDS, code);
-        let lang = /^#lang-([a-z]+)$/.exec(location.hash)?.[1];
-        if (!known(lang)) {
-          try {
-            lang = localStorage.getItem('siege:lang');
-          } catch {}
-        }
-        if (!known(lang)) {
-          const phone = navigator.languages?.length ? navigator.languages : [navigator.language];
-          lang = phone.map((l) => String(l).toLowerCase().split(/[-_]/)[0]).find(known) ?? 'en';
-        }
-        document.documentElement.lang = lang;
-        const [loading, retry, fresh] = BOOT_WORDS[lang];
-        document.querySelector('.boot-msg').textContent = loading;
-        document.querySelector('.boot-retry').textContent = retry;
-        document.querySelector('.boot-new').textContent = fresh;
-      })();
       // Try again reloads; it also shows if loading takes over 20 s (a stuck network) and the game is not up yet
       document.querySelector('.boot-retry').addEventListener('click', () => location.reload());
       // New run (the failure screen only) also drops the saved run, in case the run is what breaks the game.
@@ -184,6 +158,43 @@
         location.reload();
       });
       setTimeout(() => document.querySelector('#boot:not(.done)')?.classList.add('slow'), 20000);
+      // The loading screen's words, in the game's language before the game loads (the single file takes a
+      // moment to parse). The tables are the source (src/i18n: boot.loading, boot.retry, boot.newRun), and
+      // the language is picked as src/i18n/index.js picks it (startLang): the address (#lang-vi, chosen
+      // while storage was blocked), the saved choice, the phone's first language the game has.
+      // test/i18n.test.js runs this script against both. After the wiring above, so nothing here can stop it.
+      const BOOT_WORDS = {
+        en: ['Loading…', 'Try again', 'New run'],
+        vi: ['Đang tải…', 'Thử lại', 'Ván mới'],
+      };
+      try {
+        const codes = Object.keys(BOOT_WORDS);
+        const known = (code) => codes.indexOf(code) >= 0;
+        const m = /^#lang-([a-z]+)$/.exec(location.hash);
+        let lang = m && known(m[1]) ? m[1] : null;
+        if (!lang) {
+          try {
+            const saved = localStorage.getItem('siege:lang');
+            if (known(saved)) lang = saved;
+          } catch {}
+        }
+        if (!lang) {
+          const phone = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+          for (const l of phone) {
+            const code = String(l).toLowerCase().split(/[-_]/)[0];
+            if (known(code)) {
+              lang = code;
+              break;
+            }
+          }
+        }
+        lang = lang || 'en';
+        document.documentElement.lang = lang;
+        const words = BOOT_WORDS[lang];
+        document.querySelector('.boot-msg').textContent = words[0];
+        document.querySelector('.boot-retry').textContent = words[1];
+        document.querySelector('.boot-new').textContent = words[2];
+      } catch {}
     </script>
     <div id="app"></div>
     <div id="hud"></div>

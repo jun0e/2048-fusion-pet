@@ -340,7 +340,7 @@ export function describeStage(cls, stage, tier) {
       parts: [el(cls.element), el(cls.fusion)],
       name: fusion,
       colors: [fu.color],
-      desc: `${TAGS[cls.element]} · ${TAGS[cls.fusion]}, both stronger.`,
+      desc: tr('card.fusion.desc', { tags: `${TAGS[cls.element]} + ${TAGS[cls.fusion]}` }),
       tags: `${TAGS[cls.element]} · ${TAGS[cls.fusion]}`,
     };
   }

@@ -199,6 +199,43 @@ test('autoplay: muted swipes teach nothing; the opening resumes where the board 
   assert.equal(coach.view, null, 'the awaken tip queued while muted is covered by the turret step');
 });
 
+test('a run restored mid-opening (a language switch) picks the opening up at its step', () => {
+  /** The coach of a restored run: a 16 on the board (the first step is behind it) unless `setup` says otherwise. */
+  const restored = (at, setup = () => {}) => {
+    const run = fakeRun();
+    run.tiles = [{ id: 1, tier: 4 }, { id: 2, tier: 1 }];
+    setup(run);
+    const coach = createCoach({ getRun: () => run, config: COACH });
+    coach.start(run, { at });
+    return { coach, run };
+  };
+  let { coach, run } = restored('grow');
+  assert.equal(coach.step, 'grow');
+  assert.equal(coach.view.id, 'grow');
+  assert.equal(run.hold, true, 'the countdown still waits for the start step');
+  assert.equal(run.guidedWave, true, 'wave 1 still comes down the first turret’s column');
+  assert.equal(restored('swipe').coach.step, 'turret', 'the 16 on the board already ended the first step');
+  assert.equal(restored('swipe', (r) => (r.tiles = [{ id: 1, tier: 3 }, { id: 2, tier: 3 }])).coach.step, 'swipe', 'no 16 yet: the first step');
+  ({ coach, run } = restored('turret', (r) => (r.coins = 0)));
+  assert.equal(coach.step, 'start', 'no coins: only Wave now is left');
+  assert.equal(run.hold, false);
+  ({ coach, run } = restored('start'));
+  assert.equal(coach.step, 'start');
+  assert.equal(run.hold, false, 'the start step lets the countdown run');
+  assert.equal(restored('keepsake').coach.step, 'start', 'the keepsake step is for a run with Iron Fist');
+  assert.equal(restored('keepsake', (r) => (r.keepsake = 'ironFist')).coach.step, 'keepsake');
+  ({ coach, run } = restored('grow', (r) => (r.phase = 'wave')));
+  assert.equal(coach.step, null, 'a wave already started: the opening is over');
+  assert.equal(coach.store.guided, true);
+  assert.equal(restored('no-such-step').coach.step, 'swipe', 'a step this build does not have: from the start');
+  // the opening done: there is no step to pick up
+  const done = fakeRun();
+  const after = createCoach({ getRun: () => done, store: { guided: true, seen: new Set() }, config: COACH });
+  after.start(done, { at: 'grow' });
+  assert.equal(after.step, null);
+  assert.equal(done.hold, false);
+});
+
 test('a tip cut short by autoplay comes back after it', () => {
   const run = fakeRun();
   const coach = createCoach({ getRun: () => run, store: { guided: true, seen: new Set() }, config: COACH });

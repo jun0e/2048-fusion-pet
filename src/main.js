@@ -33,8 +33,8 @@ import { nextSpeed } from './ux/speed.js';
 import { createPause } from './ux/pause.js';
 import { inFrame, shareLine, shareRun } from './ux/share.js';
 import { createBossIntro } from './ui/boss-intro.js';
-import { LANGS, LANG_HASH, LANG_NAMES, getLang, num, setLang, tr } from './i18n/index.js';
-import { recordRun, restoreRun, loadSaved, saveRun, clearSaved } from './ux/resume.js';
+import { LANGS, getLang, letters, num, setLang, tr } from './i18n/index.js';
+import { recordRun, restoreRun, loadSaved, saveRun, clearSaved, markRelang, mayRestore, takeRelang } from './ux/resume.js';
 import { SIGNATURE_TINT, TEXT, popupFont, textInk } from './ux/photosafe.js';
 import { loadStore } from './ux/coach.js';
 import { createArt } from './art/index.js';
@@ -103,9 +103,9 @@ const hex = (c) => parseInt(String(c).replace('#', ''), 16);
 async function waitForFonts() {
   if (!document.fonts?.load) return;
   const t = new Promise((r) => setTimeout(r, 1500));
-  // the language's name in itself as the sample: a font loads only the subsets its sample needs (the
-  // Vietnamese letters are one of their own), and the canvas draws its words with what has loaded
-  const say = LANG_NAMES[getLang()];
+  // every letter of the language's words as the sample: a font loads only the subsets its sample needs
+  // (Vietnamese letters span two), and the canvas draws its words with what has loaded by then
+  const say = letters();
   await Promise.race([Promise.all([document.fonts.load('800 64px "Baloo 2"', say), document.fonts.load('700 16px "Nunito"', say)]), t]);
 }
 
@@ -118,19 +118,7 @@ if (boot) {
   boot.querySelector('.boot-retry').textContent = tr('boot.retry');
   boot.querySelector('.boot-new').textContent = tr('boot.newRun');
 }
-// A language switch reloads the page (the 'lang' setting). After it, the run comes back even
-// mid-opening (a first run's opening otherwise starts again after a reload), the opening at the step
-// it was on, and the player is back in Settings. For that one reload only: read once, then gone.
-const RELANG_KEY = 'siege:relang';
-function takeRelang() {
-  try {
-    const v = JSON.parse(sessionStorage.getItem(RELANG_KEY) || 'null');
-    sessionStorage.removeItem(RELANG_KEY);
-    return v && typeof v === 'object' ? v : null;
-  } catch {
-    return null;
-  }
-}
+
 let failed = false; // after a failure: no more saves, and the loading screen stays up
 /** Loading failed, or a frame broke: the loading screen comes back with "Try again" and "New run". */
 function bootFail(err) {
@@ -209,9 +197,10 @@ async function start() {
   let savedInputs = -1; // inputs in the last save
   let run = null;
   let resumed = false;
-  // ?tutorial replays the opening from scratch: a fresh run, not a resumed one
-  const relang = takeRelang(); // { step }: this load follows a language switch
-  const found = canSave && !params.has('tutorial') && (loadStore().guided || relang) ? loadSaved() : null;
+  // ?tutorial replays the opening from scratch: a fresh run, not a resumed one. A language switch
+  // reloads the page: its run comes back even mid-opening, the opening at its step, and Settings again
+  const relang = takeRelang(); // { step }, once, after a language switch
+  const found = mayRestore({ canSave, tutorial: params.has('tutorial'), guided: loadStore().guided, relang }) ? loadSaved() : null;
   // a run whose pets roam resumes only where pets are drawn (not under ?style=classic), and back
   const saved = found && !!found.log.roaming === roaming ? found : null;
   if (saved) {
@@ -275,26 +264,25 @@ async function start() {
     return r;
   }
 
+  let switching = false; // the Language row was tapped: the page is on its way to the next language
   const hud = createHud(document.getElementById('hud'), {
     onRestart: () => restart(),
     onMenu: (page) => (page === 'main' && pause.menu === 'closed' ? openMenu() : pause.show(page)),
     onSetting: (name) => {
       if (name === 'lang') {
-        // the next language: saved as the player's choice; the page reloads in it (every screen and
-        // table is built in the language as it loads), and the run restores itself (src/ux/resume.js)
+        // the next language: the player's choice (saved, or where storage is blocked, in the address);
+        // the page reloads in it (every screen and table is built in the language as it loads), and
+        // the run restores itself (src/ux/resume.js). One switch per tap: until the page goes, a
+        // second tap would switch straight back
+        if (switching) return;
+        switching = true;
         const langs = Object.keys(LANGS);
-        const next = langs[(langs.indexOf(getLang()) + 1) % langs.length];
-        const kept = setLang(next, true);
+        setLang(langs[(langs.indexOf(getLang()) + 1) % langs.length], true);
         saveNow();
-        try {
-          sessionStorage.setItem(RELANG_KEY, JSON.stringify({ step: tutorial.step }));
-        } catch {}
-        // where storage is blocked, the choice goes in the address instead (#lang-vi), which the
-        // reload keeps; a saved choice clears an address one, which would otherwise win
-        try {
-          if (!kept) location.hash = `lang-${next}`;
-          else if (LANG_HASH.test(location.hash)) history.replaceState(history.state, '', location.pathname + location.search);
-        } catch {}
+        markRelang(tutorial.step);
+        // the loading screen at once, in the new language: it answers the tap, and covers the row
+        boot?.classList.remove('done');
+        bootSay(tr('boot.loading'));
         location.reload();
         return;
       }
@@ -538,8 +526,10 @@ async function start() {
   else tutorial.setMuted(true); // the showcase has no tips
   // a returning player (opening done) gets a goal: their best wave; a resumed run, the pause menu;
   // after a language switch, Settings again
-  if (resumed && relang) pause.show('settings');
-  else if (resumed) {
+  if (resumed && relang) {
+    pause.show('settings');
+    hudEl.querySelector('[data-act="set-lang"]')?.focus({ preventScroll: true }); // the row the player was on
+  } else if (resumed) {
     pauseTitle = tr('pause.welcome');
     openMenu();
   } else if (!kv && !tutorial.active) {

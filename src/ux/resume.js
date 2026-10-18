@@ -125,3 +125,44 @@ export function clearSaved(storage = local()) {
     storage?.removeItem(RESUME_KEY);
   } catch {}
 }
+
+/** A language switch reloads the page (main.js); this flag lives for that one reload. */
+export const RELANG_KEY = 'siege:relang';
+
+/** sessionStorage, or null where reading it throws. */
+function session() {
+  try {
+    return globalThis.sessionStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Before a language switch's reload: `step` is the opening's step on screen (null when it is not guiding). */
+export function markRelang(step, storage = session()) {
+  try {
+    storage?.setItem(RELANG_KEY, JSON.stringify({ step: step ?? null }));
+  } catch {}
+}
+
+/** After a reload: { step } if the reload was a language switch, else null. Read once: the flag goes either way. */
+export function takeRelang(storage = session()) {
+  let raw = null;
+  try {
+    raw = storage?.getItem(RELANG_KEY) ?? null;
+    storage?.removeItem(RELANG_KEY);
+  } catch {}
+  try {
+    const v = JSON.parse(raw || 'null');
+    return v && typeof v === 'object' && (v.step == null || typeof v.step === 'string') ? { step: v.step ?? null } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether a saved run may come back after a reload: never in the showcase or a debug run (canSave),
+ * nor under ?tutorial (a fresh opening). A first run's only once its opening is done, so a reload
+ * mid-opening starts the opening again; but a language switch brings it back mid-opening too.
+ */
+export const mayRestore = ({ canSave, tutorial = false, guided = false, relang = null }) => !!canSave && !tutorial && (!!guided || !!relang);
