@@ -40,9 +40,9 @@ export const CREATURE_MAX_W = 0.9; // a creature never gets wider than 90% of it
 export const ROAMER_CELLS = { fusion: 1.0, legend: 1.15 };
 const ROAMER_PAD = { fusion: 1.42 / 1.18, legend: 1.62 / 1.32 };
 /**
- * The widest a generated roaming pet may get, in its own heights. By their contracts the long pets
- * (the platypus, the locust, the toad, the walrus) are 1.5–1.6× wider than tall and keep their full
- * 1.0 cell; only the crocodile (2.2×) is capped, standing about 0.72 cell tall.
+ * The widest a generated roaming pet may get, in its own heights. The babies (2026-10-23) are about
+ * as wide as tall, a long-tailed one up to 1.5×: all keep their full 1.0 cell. (The grown sprites'
+ * long pets were 1.5–1.6×, and the crocodile 2.2×, capped at about 0.72 cell tall.)
  */
 export const ROAMER_MAX_W = 1.6;
 /**
@@ -1092,9 +1092,10 @@ export function createArt(initial = 'sticker') {
     /** A fusion pet's namecard portrait (a pure form's ascended edit, when made). */
     portrait(cls) {
       const k = `${cls.element}.${cls.fusion}.${cls.pure ? 'pure' : ''}`;
-      // the generated 2D portrait in every style (the old blocks too): no 3D card is left
+      // the generated 2D portrait in every style (the old blocks too), else the pet's own 2D sticker
+      // (as the pick cards do, src/ui/cards.js fusionPic): no 3D card is left while any art is loaded
       const id = portraitId(cls);
-      const url = (cls.pure && generatedUrl(`${id}.ascended`)) || generatedUrl(id);
+      const url = (cls.pure && generatedUrl(`${id}.ascended`)) || generatedUrl(id) || generatedUrl(spriteId({ kind: 'fusion', a: cls.element, b: cls.fusion }));
       if (url) return url;
       if (!urls.has(k)) urls.set(k, renderPortrait(cls.element, cls.fusion, { legendary: !!cls.pure, apex: cls.pure ? cls.element : null }).toDataURL('image/png'));
       return urls.get(k);

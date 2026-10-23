@@ -49,6 +49,7 @@ import { PRICES, costOf, checkBudget, loadLimits, loadLedger, appendLedger, week
 import { classify429 } from './gemini-errors.mjs';
 import { postJson } from './curl-post.mjs';
 import { failingGates, gateBrief, imagesFor, insideTolerance, needsStrict, rankCandidates, strictText, acceptedMiss } from './pick.mjs';
+import { followers, isPostOnly, isReady, isStale, sourceOf as sourceIn } from './pipeline-state.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -83,8 +84,12 @@ export function onlyMatcher(list) {
 const log = (o) => appendFileSync(logFile, JSON.stringify({ t: new Date().toISOString(), ...o }) + '\n');
 const rawOf = (id) => join(rawDir, `${id}.png`);
 const outOf = (id) => join(outDir, `${id}.png`);
-/** The raw a job is post-processed from: its own, or the one it is made from (a portrait: its fusion's). */
-const sourceOf = (job) => rawOf(job.from ?? job.id);
+/** Every planned job by id (main sets it): sources and references follow `from` and `approved` through it. */
+let jobsById = new Map();
+/** The image a job is post-processed from (tools/pipeline-state.mjs sourceOf). */
+const sourceOf = (job) => sourceIn(job, { byId: jobsById, root, rawOf });
+/** The source of the job called `id` (an approved file, or its raw), for readiness and references. */
+const sourceOfId = (id) => (jobsById.has(id) ? sourceOf(jobsById.get(id)) : rawOf(id));
 
 /** Last value of NAME in the environment or .env.local (later lines win, so a re-pasted key replaces the old one). */
 function envValue(name) {
@@ -236,9 +241,10 @@ function sweepTemps(file) {
 }
 
 /** A reference is an asset id (its raw image) or a file path inside the repo. */
+/** A reference's file: a path in the repo, or an asset's source (an approved design's own file, else its raw). */
 function refFile(ref) {
   if (ref.includes('/')) return join(root, ref);
-  return rawOf(ref);
+  return sourceOfId(ref);
 }
 
 class Stop extends Error {}
@@ -325,6 +331,7 @@ function postProcess(job, src = rawOf(job.id), dst = outOf(job.id)) {
   const p = job.post;
   const a = [join(root, 'tools', 'post.py'), src, dst, '--bg', job.bg ?? 'none', '--size', String(p.size), '--fit', p.fit];
   if (p.plate) a.push('--plate', p.plate.join(','));
+  if (p.faceLike) a.push('--face-like', join(root, p.faceLike));
   if (p.palette) a.push('--palette', p.palette.join(','));
   if (p.snap) a.push('--snap');
   if (p.stripRim) a.push('--strip-rim');
@@ -410,6 +417,18 @@ function askHash(ask) {
 }
 
 const firstLine = (e) => String(e?.message ?? e).split('\n')[0];
+
+/** What a post-only job's output answers: its post-processing and its source's bytes (a new drawing makes it stale). */
+function postHash(job) {
+  const h = createHash('sha256').update(JSON.stringify({ post: job.post, bg: job.bg ?? 'none', from: job.from ?? job.approved }));
+  const f = sourceOf(job);
+  if (existsSync(f)) h.update(readFileSync(f));
+  return h.digest('hex').slice(0, 20);
+}
+/** The hash a job's output is recorded under (meta.ask): its ask, or for a post-only job its source and post. */
+const jobHash = (job) => (isPostOnly(job) ? postHash(job) : askHash(job));
+/** Whether a job's shipped output is missing or stale (tools/pipeline-state.mjs isStale). */
+const needed = (job, manifest) => !existsSync(outOf(job.id)) || isStale(job, manifest.meta?.[job.id], jobHash(job));
 
 /**
  * Whether a gated job's cached pick still answers today's ask: its sidecar records the ask it was
@@ -561,9 +580,16 @@ function warnGate(job, gate) {
 async function main() {
   const backend = pickBackend();
   const rows = buildAssetRows(PRICES[backend.models.fast] ?? PRICES[MODEL_FAST]);
-  const { jobs: planned, skipped } = plan(rows, root, priorities, backend.models);
+  const { jobs: planned, skipped, all } = plan(rows, root, priorities, backend.models);
+  jobsById = all;
   const wanted = onlyMatcher(only);
   let jobs = only.length ? planned.filter((j) => wanted(j.id)) : planned;
+  // a job made from one in this run follows it (free): a portrait never keeps an older drawing
+  const follow = followers(jobs, planned);
+  if (follow.length) {
+    console.log(`also making ${follow.map((j) => j.id).join(', ')}: made from a job in this run`);
+    jobs = [...jobs, ...follow];
+  }
   sweepTemps(manifestFile);
   const manifest = readManifest(manifestFile);
   /** Take the merged manifest a commit returns, so this run also sees what other processes wrote. */
@@ -576,7 +602,7 @@ async function main() {
     return;
   }
 
-  const todo = jobs.filter((j) => force || !existsSync(outOf(j.id)));
+  const todo = jobs.filter((j) => force || needed(j, manifest));
   const jobIds = new Set(planned.map((j) => j.id));
   const byCode = rows.filter((r) => priorities.includes(r.priority) && !r.method.startsWith('Gemini') && !jobIds.has(r.id)).reduce((n, r) => n + r.count, 0);
   // a gated job makes n candidates, and up to n more if it needs its strict round (tools/pick.mjs imagesFor)
@@ -588,7 +614,7 @@ async function main() {
   const gated = todo.filter((j) => j.pick).length;
   if (!mock) console.log(`backend: ${backend.label}${envValue(backend.keyName) ? '' : ` (no ${backend.keyName} yet)`}`);
   console.log(
-    `plan: ${jobs.length} assets (${priorities.join('+')}), ${todo.length} to make: ${images} images, ~$${cost.toFixed(2)} for one pass (${Object.entries(byModel).map(([k, v]) => `${v} × ${k}`).join(', ')})` +
+    `plan: ${jobs.length} assets (${priorities.join('+')}), ${todo.length} to make: ${images} images, ~$${cost.toFixed(2)} for one pass${images ? ` (${Object.entries(byModel).map(([k, v]) => `${v} × ${k}`).join(', ')})` : ''}` +
       `${gated ? `, counting the candidates of ${gated} gated jobs; up to ${most} images, ~$${costMost.toFixed(2)}, if every gated job needs its strict round` : ''}` +
       `; plus ${byCode} assets drawn in code (glyphs, plates, effects, UI)${skipped.length ? `; no job yet for ${skipped.join(', ')}` : ''}`,
   );
@@ -596,9 +622,10 @@ async function main() {
     writeFileSync(join(cache, 'plan.json'), JSON.stringify(todo, null, 1));
     const order = [];
     const done = new Set(jobs.filter((j) => !todo.includes(j)).map((j) => j.id));
+    const inRun = new Set(jobs.map((j) => j.id));
     let left = [...todo];
     while (left.length) {
-      const ready = left.filter((j) => j.deps.every((d) => done.has(d)));
+      const ready = left.filter((j) => j.deps.every((d) => done.has(d) || (!inRun.has(d) && existsSync(sourceOfId(d)))));
       if (!ready.length) {
         console.log(`unresolvable: ${left.map((j) => j.id).join(', ')}`);
         break;
@@ -641,8 +668,9 @@ async function main() {
     }
     for (const j of jobs.filter((j) => qas.has(j.id))) {
       const qa = qas.get(j.id);
-      const gate = j.pick ? rescore(j, manifest) : manifest.meta[j.id]?.gate;
-      adopt(commitManifest(manifestFile, { [j.id]: { file: `gen/${j.id}.png`, meta: { ...manifest.meta[j.id], qa, ...(gate ? { gate } : {}) } } }));
+      const gate = j.pick ? rescore(j, manifest) : null; // a job without gates keeps no verdict
+      const { gate: _old, ...prev } = manifest.meta[j.id] ?? {};
+      adopt(commitManifest(manifestFile, { [j.id]: { file: `gen/${j.id}.png`, meta: { ...prev, qa, ...(isPostOnly(j) ? { ask: jobHash(j), at: new Date().toISOString() } : {}), ...(gate ? { gate } : {}) } } }));
       if (!qa.ok) console.log(`  ${j.id}: QA flagged ${JSON.stringify(qa)}`);
       if (j.pick) warnGate(j, gate);
     }
@@ -654,15 +682,16 @@ async function main() {
   }
 
   const key = mock ? null : apiKey(backend);
-  const state = new Map(jobs.map((j) => [j.id, existsSync(outOf(j.id)) && !force ? 'done' : 'todo']));
+  const state = new Map(jobs.map((j) => [j.id, todo.includes(j) ? 'todo' : 'done']));
   let stopped = null;
   let made = 0;
   let failed = 0;
 
   function accept(job, qa, t, picked) {
     lastProgress = Date.now();
-    const gate = picked ?? manifest.meta[job.id]?.gate;
-    const meta = { qa, model: job.model, at: new Date().toISOString(), ...(gate ? { gate } : {}) };
+    // a gate only for a gated job: a job that lost its gates (the fusions under the baby recipe) drops its old verdict
+    const gate = job.pick ? (picked ?? manifest.meta[job.id]?.gate) : null;
+    const meta = { qa, model: job.model, at: new Date().toISOString(), ask: jobHash(job), ...(gate ? { gate } : {}) };
     adopt(commitManifest(manifestFile, { [job.id]: { file: `gen/${job.id}.png`, meta } }));
     state.set(job.id, 'done');
     made += 1;
@@ -672,18 +701,23 @@ async function main() {
 
   async function runJob(job) {
     state.set(job.id, 'running');
-    if (!job.model) {
-      // no new image: an approved design (copied in as its raw) or a job made from another's raw (a
-      // portrait from its fusion's), post-processed only
+    if (isPostOnly(job)) {
+      // no new image: an approved design (its committed file) or a job made from another's source (a
+      // portrait from its fusion's), post-processed only; the result moves in only when it passes QA
       const t = Date.now();
+      const next = `${outOf(job.id)}.next.png`;
       try {
-        if (job.approved) copyFileSync(join(root, job.approved), rawOf(job.id));
-        const qa = postProcess(job, sourceOf(job));
+        const src = sourceOf(job);
+        if (!existsSync(src)) throw new Error(`no source (${src})`);
+        const qa = postProcess(job, src, next);
         log({ id: job.id, from: job.from ?? job.approved, qa });
+        if (!qa.ok) throw new Error(`QA failed (${JSON.stringify(qa)}); the shipped file is kept`);
+        renameSync(next, outOf(job.id));
         accept(job, qa, t, null);
       } catch (e) {
+        rmSync(next, { force: true });
         log({ id: job.id, postError: e.message });
-        console.log(`  ${job.id}: post-processing failed (${firstLine(e)})`);
+        console.log(`  ${job.id}: ${firstLine(e)}`);
         state.set(job.id, 'failed');
         failed += 1;
       }
@@ -692,7 +726,7 @@ async function main() {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const t = Date.now();
       // paid for already: post-process only, unless a gated job's words changed since its pick
-      const reuse = attempt === 1 && !force && existsSync(rawOf(job.id)) && (!job.pick || pickCurrent(job));
+      const reuse = attempt === 1 && !force && existsSync(rawOf(job.id)) && (job.pick ? pickCurrent(job) : manifest.meta[job.id]?.ask === askHash(job));
       let picked = null;
       try {
         if (!reuse && job.pick) picked = await pickCandidate(job, key, backend, manifest, { fresh: attempt > 1 });
@@ -732,7 +766,7 @@ async function main() {
   const running = new Set();
   for (;;) {
     if (stopped) break;
-    const ready = jobs.filter((j) => state.get(j.id) === 'todo' && j.deps.every((d) => state.get(d) === 'done' || (!state.has(d) && existsSync(rawOf(d)))));
+    const ready = jobs.filter((j) => state.get(j.id) === 'todo' && isReady(j, state, (d) => existsSync(sourceOfId(d))));
     const blocked = jobs.filter((j) => state.get(j.id) === 'todo' && j.deps.some((d) => state.get(d) === 'failed'));
     for (const j of blocked) state.set(j.id, 'failed');
     while (ready.length && running.size < CONCURRENCY) {
@@ -747,6 +781,10 @@ async function main() {
   adopt(readManifest(manifestFile)); // the sheet shows what every process made
   writeSheet(planned, manifest); // the sheet shows every planned asset, whatever --only picked
   const left = jobs.filter((j) => state.get(j.id) !== 'done').map((j) => j.id);
+  // a job outside this run whose reference was remade is stale now (an ascended edit of a redrawn pet)
+  const remade = new Set(jobs.filter((j) => state.get(j.id) === 'done' && todo.includes(j)).map((j) => j.id));
+  const stale = planned.filter((j) => !state.has(j.id) && j.deps.some((d) => remade.has(d)) && existsSync(outOf(j.id)) && needed(j, manifest)).map((j) => j.id);
+  if (stale.length) console.warn(`⚠️  stale now (a reference was remade): ${stale.join(', ')}; run --only=${stale.join(',')}`);
   const u = weeklyUsage(loadLedger(ledgerFile));
   console.log(`\n${made} made, ${failed} failed, ${left.length} not done; weekly spend $${u.usd.toFixed(2)}; sheet: ${sheetFile}`);
   if (outside.size) console.warn(`⚠️  ${outside.size} gated jobs shipped OUTSIDE their gates: ${[...outside].join(', ')} (exit code 2)`);

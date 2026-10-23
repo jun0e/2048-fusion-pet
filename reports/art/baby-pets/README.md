@@ -44,5 +44,5 @@ node tools/pipeline.mjs --priority=P0,P1,P2 --only=fusion.fire+ice,portrait.fire
 **Records of the grown pass:** the silhouette contracts (`tools/refs/fusions/sil-*.png`) and their gates belonged to the grown sprites. The grown sprites are kept in `tools/refs/fusions/grown/`.
 
 **The comparison:**
-- `python3 reports/art/baby-pets/contact-sheet.py` writes `contact-sheet-1.png`, `contact-sheet-2.png` and `contact-sheet-small.png`.
+- `python3 reports/art/baby-pets/contact-sheet.py` writes `contact-sheet-1.jpg`, `contact-sheet-2.jpg` and `contact-sheet-small.png`.
 - These show the old art (git `470aff4`) next to the new, plus every portrait at 48 px.

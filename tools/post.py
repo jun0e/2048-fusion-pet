@@ -2,7 +2,7 @@
 
 usage: python3 tools/post.py IN OUT --bg green|magenta|none --size N
                              [--fit trim|square|cover|plate] [--plate HEX,HEX[,HEX]]
-                             [--palette HEX,HEX,...] [--snap] [--strip-rim]
+                             [--palette HEX,HEX,...] [--snap] [--strip-rim] [--face-like REF]
 
   --bg       key out a flat chroma background (estimated from the border), despill
   --fit      trim: crop to the subject + small pad (sprites, feet at the bottom)
@@ -18,10 +18,15 @@ usage: python3 tools/post.py IN OUT --bg green|magenta|none --size N
              allowed colour (perceptual distance), alpha kept
   --strip-rim  remove a light sticker rim outside the dark outline (foes have no cream rim:
              it is the heroes' cue); see strip_rim
+  --face-like  REF, a side view that faces left (a pet's grown sprite): the subject is mirrored when
+             its silhouette matches REF much better mirrored (the renderer flips profiles assuming
+             they face left); the QA line says which (facing) and whether it looks front-on
 
 Prints one JSON line of QA metrics (coverage, share of pixels already inside the
 palette before snapping, leftover chroma fringe, size; with --strip-rim the rim removed:
 rim_mode flood|peel|none, rim_share of the opaque pixels, rim_px its depth) for the pipeline log.
+A cut-out (any fit but cover) from a source with no transparency and no key colour fails: the
+background would ship with it.
 """
 import argparse
 import json
@@ -259,6 +264,42 @@ PLATE_DISC = 0.44  # the disc's radius, as a share of the plate's side
 PLATE_RAYS = 16  # flat rays round the disc (every other one in the ray colour)
 
 
+FACE_PX = 40  # silhouettes are compared at this size (tools/silhouette-check.py does the same)
+FACE_MARGIN = 0.05  # mirrored must beat straight by this much IoU to flip
+FRONT_SYM = 0.85  # a subject whose own mirror image overlaps it this much reads as front-on
+
+
+def mask_box(img, px=FACE_PX):
+    """The alpha mask, trimmed and fitted into a px x px box (anchored bottom-centre), as booleans."""
+    a = img.getchannel("A").point(lambda v: 255 if v > 127 else 0)
+    bbox = a.getbbox()
+    if not bbox:
+        return np.zeros((px, px), bool)
+    a = a.crop(bbox)
+    s = px / max(a.size)
+    a = a.resize((max(1, round(a.width * s)), max(1, round(a.height * s))), Image.NEAREST)
+    box = Image.new("L", (px, px), 0)
+    box.paste(a, ((px - a.width) // 2, px - a.height))
+    return np.asarray(box) > 127
+
+
+def iou(a, b):
+    u = (a | b).sum()
+    return float((a & b).sum() / u) if u else 0.0
+
+
+def face_like(img, ref_path):
+    """Mirror `img` when it matches the left-facing `ref` much better mirrored → (img, facing QA)."""
+    ref = mask_box(Image.open(ref_path).convert("RGBA"))
+    m = mask_box(img)
+    mirrored = img.transpose(Image.FLIP_LEFT_RIGHT)
+    mm = mask_box(mirrored)
+    straight, flipped = iou(m, ref), iou(mm, ref)
+    flip = flipped > straight + FACE_MARGIN
+    facing = {"straight": round(straight, 3), "mirrored": round(flipped, 3), "flipped": bool(flip), "front": bool(iou(m, mm) >= FRONT_SYM)}
+    return (mirrored if flip else img), facing
+
+
 def hex_rgba(h):
     return tuple(int(h[i : i + 2], 16) for i in (1, 3, 5)) + (255,)
 
@@ -290,10 +331,13 @@ def main():
     ap.add_argument("--palette", default="")
     ap.add_argument("--snap", action="store_true")
     ap.add_argument("--strip-rim", action="store_true")
+    ap.add_argument("--face-like", default="")
     o = ap.parse_args()
 
     img = Image.open(o.src)
     qa = {"src": img.size}
+    # a cut-out with nothing to key from an opaque source would ship its background (a stale raw on a green screen)
+    opaque = o.bg not in ("green", "magenta") and o.fit != "cover" and img.convert("RGBA").getchannel("A").getextrema()[0] == 255
     key = None
     if o.bg in ("green", "magenta") and o.fit != "cover":
         img, key, _ = key_out(img, o.bg)
@@ -318,6 +362,9 @@ def main():
         qa.update(rim)
         img, _ = trim(img)
         img = fit_longest(img, round(o.size * PLATE_BOX) if o.fit == "plate" else o.size)
+
+    if o.face_like and o.fit != "cover":
+        img, qa["facing"] = face_like(img, o.face_like)
 
     arr = np.asarray(img).astype(np.float32)
     alpha = arr[..., 3]
@@ -353,7 +400,9 @@ def main():
 
     # full-frame images (backgrounds) are opaque by design: no coverage check; a plate's subject
     # is checked as a sprite is, before it goes on the plate
-    ok = o.fit == "cover" or (0.04 < qa["coverage"] < 0.97 and qa.get("fringe", 0) < 0.01 and not qa.get("rim_body"))
+    ok = o.fit == "cover" or (0.04 < qa["coverage"] < 0.97 and qa.get("fringe", 0) < 0.01 and not qa.get("rim_body") and not opaque)
+    if opaque:
+        qa["opaque"] = True
     qa["ok"] = bool(ok)
     if o.fit == "plate":
         colours = [h for h in o.plate.split(",") if h]

@@ -4,7 +4,7 @@ and its 2D portraits as they are on disk now.
 
 usage: python3 reports/art/baby-pets/contact-sheet.py [--old 470aff4] [--out reports/art/baby-pets]
 
-Writes contact-sheet-1.png and contact-sheet-2.png (14 pets each) and contact-sheet-small.png
+Writes contact-sheet-1.jpg and contact-sheet-2.jpg (14 pets each) and contact-sheet-small.png
 (the portraits at the size a phone's namecard shows them, 48 px).
 """
 import argparse
@@ -114,9 +114,9 @@ def main():
     rows = roster()
     out = Path(o.out)
     for n, part in enumerate([rows[:14], rows[14:]], 1):
-        sheet(part, o.old, f"Fusion pets: old ({o.old}) next to new, the baby style ({n}/2)").convert("RGB").save(out / f"contact-sheet-{n}.png", optimize=True)
+        sheet(part, o.old, f"Fusion pets: old ({o.old}) next to new, the baby style ({n}/2)").convert("RGB").save(out / f"contact-sheet-{n}.jpg", quality=88)
     small(rows, o.old).convert("RGB").save(out / "contact-sheet-small.png", optimize=True)
-    print(f"wrote {out}/contact-sheet-1.png, contact-sheet-2.png, contact-sheet-small.png")
+    print(f"wrote {out}/contact-sheet-1.jpg, contact-sheet-2.jpg, contact-sheet-small.png")
 
 
 if __name__ == "__main__":

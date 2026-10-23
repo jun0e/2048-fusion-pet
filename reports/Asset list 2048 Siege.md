@@ -1,5 +1,7 @@
 # 2048 Siege: full asset list
 
+> **2026-10-23:** the namecard portraits, their ascended edits and the boss banner busts are 2D now, and the fusion pets are babies: see `reports/art/baby-pets/`. The vinyl rows below are the original plan.
+
 This is every asset needed for the recommended art direction. Map tiles and roaming fusions use the sticker style; namecard portraits use the soft-vinyl 3D style. The list covers creatures, enemies, effects, tiles, UI, environment and store art. Each row says how the asset gets made, what it references, its priority and an estimated generation cost.
 
 - **Full table:** one row per asset, with IDs matching the code keys: [asset-list.csv](asset-list.csv). There are 251 rows covering 285 assets; `node tools/asset-list.mjs` regenerates it from the game data.

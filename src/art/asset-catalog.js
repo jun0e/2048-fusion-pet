@@ -59,11 +59,11 @@ export function buildAssetRows(price = 0.0336) {
       style: 'Sticker, baby proportions, one cel tone + cream rim',
       src: '320×320',
       display: '1.0 cell tall, up to 1.6 cells wide; its own namecard portrait',
-      method: 'Gemini generate (the babies line-up + its grown sprite as refs), or an approved design',
-      refs: `tools/refs/babies-line.png, tools/refs/fusions/grown/${key}.png`,
+      method: r.approved ? `Approved design (${r.approved}), trimmed and sized` : 'Gemini generate (the babies line-up + its grown sprite as refs)',
+      refs: r.approved ?? `tools/refs/babies-line.png, tools/refs/fusions/grown/${key}.png`,
       priority: hero ? 'P0' : 'P1',
-      gens: 1,
-      notes: 'Pro model; Sparkfrost ships Trailer C’s approved narwhal (tools/refs/fusions/approved/)',
+      gens: r.approved ? 0 : 1,
+      notes: r.approved ? 'Trailer C’s narwhal, as the user saw it' : 'Pro model; a side view is mirrored to face left like its grown sprite (post.py --face-like)',
     });
   }
   for (const [key, f] of Object.entries(FUSIONS)) {
