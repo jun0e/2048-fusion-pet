@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
-import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues, BABIES_LINE, BABY_SINCE, BABY_VIEW, CHIBI, ASCENDED_GOLD, ASCENDED_PLATE, facing, grownRef, portraitPlate, tint, bossPlate, toInk } from '../tools/pipeline-jobs.mjs';
-import { followers, isPostOnly, isReady, isStale, sourceOf } from '../tools/pipeline-state.mjs';
+import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues, BABIES_LINE, BABY_SINCE, BABY_VIEW, CHIBI, ASCENDED_GOLD, ASCENDED_PLATE, PORTRAIT_PX, portraitPlate, tint, bossPlate, toInk } from '../tools/pipeline-jobs.mjs';
+import { followers, isPostOnly, isReady, isStale, rawCurrent, sourceOf, toMake } from '../tools/pipeline-state.mjs';
 import { ENEMY_TYPES } from '../src/sim/enemies.js';
 import { imagesFor } from '../tools/pick.mjs';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -45,7 +45,7 @@ test('P0+P1 plans the 168 core images: eggs, 32 pets, 28 fusions + portraits, 8 
 
 test('every reference is a planned dependency (or an approved file), and the order resolves', () => {
   for (const j of core.jobs) {
-    for (const r of j.refs) assert.ok(r.includes('/') || j.deps.includes(r), `${j.id} refers to ${r} without depending on it`);
+    for (const r of j.refs) assert.ok(r.includes('/') || j.deps.includes(r.replace(/^shipped:/, '')), `${j.id} refers to ${r} without depending on it`);
     for (const d of j.deps) assert.ok(byId.has(d), `${j.id} depends on unplanned ${d}`);
   }
   const done = new Set();
@@ -86,7 +86,6 @@ test('fusions: one animal each, redrawn as a baby in the babies’ style, its pa
     const j = byId.get(`fusion.${k}`);
     assert.equal(j.since, BABY_SINCE, `${k}: an output from before the baby recipe is stale`);
     if (r.approved) continue; // the approved narwhal: its own test
-    assert.deepEqual(j.post.faceLike, r.view === 'profile' ? grownRef(k) : undefined, `${k}: a side view faces left like its grown sprite`);
     const [a, b] = FUSIONS[k].parts;
     assert.ok(j.prompt.includes(r.desc) && j.prompt.includes(`a baby ${r.animal}`), `${k}: its animal, as a baby`);
     assert.match(j.prompt, /huge head, a tiny chubby body/, `${k}: the babies’ proportions`);
@@ -141,7 +140,7 @@ test('an approved design ships as drawn: Sparkfrost is Trailer C’s narwhal, no
   assert.deepEqual(imagesFor(narwhal), { first: 0, most: 0 });
   assert.equal(FUSION_ROSTER['ice+lightning'].view, 'profile', 'drawn side-on, so the field flips it');
   assert.equal(by.get('portrait.ice+lightning').post.palette, undefined);
-  assert.equal(by.get('portrait.ice+lightning').bg, 'none');
+  assert.equal(by.get('portrait.ice+lightning').bg, 'none', 'made from what shipped: keyed already');
   assert.equal(by.get('portrait.ice+lightning.ascended').bg, 'green', 'its edit comes back on a key colour');
   assert.ok(by.get('fusion.fire+ice').model, 'the others are drawn');
 });
@@ -254,12 +253,12 @@ test('the background is full-frame; portraits are 2D: the pet’s own sticker on
     assert.equal(p.model, null, `${k}: no new image`);
     assert.deepEqual(imagesFor(p), { first: 0, most: 0 });
     assert.equal(p.from, `fusion.${k}`);
-    assert.equal(p.bg, all.get(`fusion.${k}`).bg, `${k}: keyed as its fusion’s raw is`);
-    const snapped = (palette) => (r.approved ? {} : { palette, snap: true, ...facing(r, k) });
-    assert.deepEqual(p.post, { fit: 'plate', size: 512, plate: portraitPlate(FUSIONS[k].color), ...snapped([...r.pal, ...UNIVERSAL.map((c) => c.hex)]) });
+    assert.equal(p.bg, 'none', `${k}: made from its shipped sprite, keyed already`);
+    const snapped = (palette) => (r.approved ? {} : { palette, snap: true });
+    assert.deepEqual(p.post, { fit: 'plate', size: PORTRAIT_PX, plate: portraitPlate(FUSIONS[k].color), ...snapped([...r.pal, ...UNIVERSAL.map((c) => c.hex)]) });
     assert.equal(p.since, BABY_SINCE);
     const asc = all.get(`portrait.${k}.ascended`);
-    assert.deepEqual(asc.refs, [BABIES_LINE, `fusion.${k}`], `${k}: an edit of its own sticker`);
+    assert.deepEqual(asc.refs, [BABIES_LINE, `shipped:fusion.${k}`], `${k}: an edit of its own sticker, as it shipped`);
     assert.deepEqual(asc.deps, [`fusion.${k}`]);
     assert.match(asc.prompt, /golden halo ring/);
     assert.match(asc.prompt, /exactly the same design, face, colours, proportions, pose and view/);
@@ -315,45 +314,19 @@ test('post.py --fit plate: the sticker centred on a flat, opaque square plate', 
   try {
     const src = join(dir, 'in.png');
     const out = join(dir, 'out.png');
-    drawPng(src, 'D.ellipse((40, 60, 200, 220), fill=(43, 29, 46, 255))'); // a dark disc on pure green
+    drawPng(src, 'D.ellipse((40, 120, 200, 180), fill=(43, 29, 46, 255))'); // a wide dark oval on pure green
     const qa = post([src, out, '--bg', 'green', '--size', '128', '--fit', 'plate', '--plate', '#99ADDD,#D6DEF2,#FFE07A']);
     assert.equal(qa.ok, true);
     assert.deepEqual(qa.size, [128, 128]);
-    // the middle, a plate corner (no ray reaches it), a ray's middle (straight up from the centre) and the disc
-    const { px, opaque } = pixels(out, [[64, 64], [1, 1], [64, 1]]);
-    assert.deepEqual(px[0].slice(0, 3), [43, 29, 46], 'the subject in the middle');
-    assert.ok(opaque, 'opaque: no keying left for the card');
-    assert.ok(px.slice(1).every((p) => p[3] === 255));
+    // 16 rays from straight up, every other one lit: the middle of the first (78.75° above level, right of
+    // up), the middle of the gap after it, a point of the disc above the oval, and the oval itself
+    const { px, opaque } = pixels(out, [[76, 3], [98, 12], [64, 24], [64, 64]]);
     const flat = (p, hex) => [1, 3, 5].every((i, k) => Math.abs(parseInt(hex.slice(i, i + 2), 16) - p[k]) <= 1);
-    assert.ok(flat(px[1], '#99ADDD') || flat(px[1], '#FFE07A'), `a flat plate or ray colour in the corner (${px[1]})`);
-    assert.ok(flat(px[2], '#FFE07A') || flat(px[2], '#99ADDD'), `flat colour at the top (${px[2]})`);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('post.py --face-like: a side view facing right is mirrored to face left like its reference; a front view is flagged', { skip: hasPil ? false : 'needs python3 with Pillow and NumPy' }, () => {
-  const dir = mkdtempSync(join(tmpdir(), 'face-'));
-  try {
-    // a creature facing left: a big head on the left, a long tail to the right
-    const left = "D.ellipse((40, 80, 180, 220), fill=(43, 29, 46, 255)); D.rectangle((170, 170, 360, 200), fill=(43, 29, 46, 255))";
-    const right = "D.ellipse((220, 80, 360, 220), fill=(43, 29, 46, 255)); D.rectangle((40, 170, 230, 200), fill=(43, 29, 46, 255))";
-    const ref = join(dir, 'ref.png');
-    drawPng(ref, left, '(0, 0, 0, 0)');
-    for (const [name, code, flipped] of [['left', left, false], ['right', right, true]]) {
-      const src = join(dir, `${name}.png`);
-      drawPng(src, code);
-      const out = join(dir, `${name}-out.png`);
-      const qa = post([src, out, '--bg', 'green', '--size', '200', '--fit', 'trim', '--face-like', ref]);
-      assert.equal(qa.facing.flipped, flipped, `${name}: ${JSON.stringify(qa.facing)}`);
-      assert.equal(qa.facing.front, false);
-      // either way it ships facing left: its head (the dark mass) is on the left
-      const { px } = pixels(out, [[Math.round(qa.size[0] * 0.2), Math.round(qa.size[1] * 0.5)]]);
-      assert.ok(px[0][3] > 200, `${name}: the head on the left once shipped`);
-    }
-    const sym = join(dir, 'sym.png');
-    drawPng(sym, 'D.ellipse((100, 50, 300, 250), fill=(43, 29, 46, 255))');
-    assert.equal(post([sym, join(dir, 'sym-out.png'), '--bg', 'green', '--size', '200', '--fit', 'trim', '--face-like', ref]).facing.front, true, 'a symmetric subject reads as front-on');
+    assert.ok(flat(px[0], '#FFE07A'), `a ray (${px[0]})`);
+    assert.ok(flat(px[1], '#99ADDD'), `the plate between the rays (${px[1]})`);
+    assert.ok(flat(px[2], '#D6DEF2'), `the disc behind the subject (${px[2]})`);
+    assert.deepEqual(px[3].slice(0, 3), [43, 29, 46], 'the subject in the middle');
+    assert.ok(opaque, 'opaque: no keying left for the card');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -382,11 +355,11 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   const narwhal = byId.get('fusion.ice+lightning');
   assert.ok(isPostOnly(narwhal) && isPostOnly(byId.get('portrait.fire+ice')));
   assert.ok(!isPostOnly(byId.get('fusion.fire+ice')) && !isPostOnly(byId.get('portrait.fire+ice.ascended')));
-  const ctx = { byId, root: '/repo', rawOf: raw };
+  const ctx = { byId, root: '/repo', rawOf: raw, outOf: (id) => `/out/${id}.png` };
   assert.equal(sourceOf(narwhal, ctx), '/repo/tools/refs/fusions/approved/ice+lightning.png', 'an approved design is its committed file, never the raw cache');
   assert.equal(sourceOf(byId.get('portrait.ice+lightning'), ctx), '/repo/tools/refs/fusions/approved/ice+lightning.png', 'its portrait follows it there');
-  assert.equal(sourceOf(byId.get('portrait.fire+ice'), ctx), '/raw/fusion.fire+ice.png', 'a portrait is made from its fusion’s raw');
-  assert.equal(sourceOf(byId.get('fusion.fire+ice'), ctx), '/raw/fusion.fire+ice.png');
+  assert.equal(sourceOf(byId.get('portrait.fire+ice'), ctx), '/out/fusion.fire+ice.png', 'a portrait is made from its fusion’s shipped sprite (committed), never a raw');
+  assert.equal(sourceOf(byId.get('fusion.fire+ice'), ctx), '/raw/fusion.fire+ice.png', 'a generated job is posted from its raw');
   // stale: another ask, or made before the recipe began; a legacy output with no record counts only without a recipe date
   const job = { since: '2026-10-23' };
   assert.equal(isStale(job, { ask: 'a', at: '2026-10-23T05:00:00Z' }, 'a'), false);
@@ -404,6 +377,15 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   // followers: a fusion remade brings its base portrait (free), not its ascended edit (an image)
   const f = followers([byId.get('fusion.fire+ice')], all.jobs).map((j) => j.id);
   assert.deepEqual(f, ['portrait.fire+ice']);
+  // toMake: a follower whose source is made in this run is made too, even when its own output looked current
+  const run = [byId.get('fusion.fire+ice'), byId.get('portrait.fire+ice'), byId.get('fusion.wind+metal'), byId.get('portrait.wind+metal')];
+  assert.deepEqual(toMake(run, (j) => j.id === 'fusion.fire+ice').map((j) => j.id), ['fusion.fire+ice', 'portrait.fire+ice']);
+  assert.deepEqual(toMake(run, () => false), []);
+  // a cached raw is used only for the ask it was made for; one with no record only for a legacy job
+  assert.equal(rawCurrent({ since: BABY_SINCE }, { ask: 'h' }, 'h'), true);
+  assert.equal(rawCurrent({ since: BABY_SINCE }, { ask: 'old' }, 'h'), false);
+  assert.equal(rawCurrent({ since: BABY_SINCE }, null, 'h'), false, 'a grown raw or a 3D render never ships under the baby recipe');
+  assert.equal(rawCurrent({}, null, 'h'), true, 'a legacy asset’s raw, as before');
 });
 
 test('code-drawn and hand assets get no Gemini job', () => {

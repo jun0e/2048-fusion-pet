@@ -26,6 +26,7 @@
 //                                              # public/assets/_mock/ (free end-to-end test; view with
 //                                              # index.html?kv&manifest=assets/_mock/manifest.json)
 //   node tools/pipeline.mjs --status
+//   node tools/pipeline.mjs --repost --adopt --only=…   # re-post raws checked by eye, recorded as made for today's ask
 // --only takes ids or globs (--only=enemy.*,vfx.fire.*).
 //
 // Gated jobs (the foes, job.pick): n candidates are made, post-processed and scored by
@@ -44,12 +45,12 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
-import { plan, MODEL_FAST, HERO_RIM } from './pipeline-jobs.mjs';
+import { plan, MODEL_FAST, HERO_RIM, SHIPPED } from './pipeline-jobs.mjs';
 import { PRICES, costOf, checkBudget, loadLimits, loadLedger, appendLedger, weeklyUsage } from './gemini-budget.mjs';
 import { classify429 } from './gemini-errors.mjs';
 import { postJson } from './curl-post.mjs';
 import { failingGates, gateBrief, imagesFor, insideTolerance, needsStrict, rankCandidates, strictText, acceptedMiss } from './pick.mjs';
-import { followers, isPostOnly, isReady, isStale, sourceOf as sourceIn } from './pipeline-state.mjs';
+import { followers, isPostOnly, isReady, isStale, rawCurrent, sourceOf as sourceIn, toMake } from './pipeline-state.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -71,6 +72,7 @@ const arg = (k, d = '') => (args.find((a) => a.startsWith(`--${k}=`)) ?? `--${k}
 const dry = args.includes('--dry');
 const force = args.includes('--force');
 const repost = args.includes('--repost');
+const adoptRaws = args.includes('--adopt'); // with --repost: the raws given were checked by eye and answer today's ask
 const priorities = arg('priority', 'P0,P1').split(',');
 const only = arg('only').split(',').filter(Boolean);
 const CONCURRENCY = Number(arg('concurrency', '2')) || 2;
@@ -84,12 +86,24 @@ export function onlyMatcher(list) {
 const log = (o) => appendFileSync(logFile, JSON.stringify({ t: new Date().toISOString(), ...o }) + '\n');
 const rawOf = (id) => join(rawDir, `${id}.png`);
 const outOf = (id) => join(outDir, `${id}.png`);
-/** Every planned job by id (main sets it): sources and references follow `from` and `approved` through it. */
+/** Every job in the catalog by id (main sets it): sources and references follow `from` and `approved` through it. */
 let jobsById = new Map();
-/** The image a job is post-processed from (tools/pipeline-state.mjs sourceOf). */
-const sourceOf = (job) => sourceIn(job, { byId: jobsById, root, rawOf });
-/** The source of the job called `id` (an approved file, or its raw), for readiness and references. */
-const sourceOfId = (id) => (jobsById.has(id) ? sourceOf(jobsById.get(id)) : rawOf(id));
+/** The image a job is post-processed from (tools/pipeline-state.mjs sourceOf): never the raw cache for a post-only job. */
+const sourceOf = (job) => sourceIn(job, { byId: jobsById, root, rawOf, outOf });
+/** What shipped for the job called `id`: its approved design, else its output in public/assets/gen (committed). */
+const shippedOf = (id) => (jobsById.get(id)?.approved ? join(root, jobsById.get(id).approved) : outOf(id));
+/** Whether what `job` needs of its dependency `d` exists: a model's input is its raw (or an approved file), anything else what shipped. */
+const available = (job, d) => existsSync(!isPostOnly(job) && job.refs.includes(d) ? refFile(d) : shippedOf(d));
+/** A raw's record (beside it, written when it lands): the ask it was made for, and when. */
+const rawAskOf = (id) => `${rawOf(id)}.ask.json`;
+function readRawAsk(id) {
+  try {
+    return JSON.parse(readFileSync(rawAskOf(id), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+const writeRawAsk = (job, at = new Date().toISOString()) => writeFileSync(rawAskOf(job.id), JSON.stringify({ ask: askHash(job), at }));
 
 /** Last value of NAME in the environment or .env.local (later lines win, so a re-pasted key replaces the old one). */
 function envValue(name) {
@@ -122,8 +136,8 @@ function pickBackend() {
   const name = forced || (envValue('VERTEX_API_KEY') ? 'vertex' : 'gemini');
   const b = BACKENDS[name];
   if (!b) throw new Error(`unknown --backend=${name} (vertex or gemini)`);
-  const fast = process.env.GEMINI_IMAGE_MODEL ?? b.models.fast;
-  return { name, ...b, models: { fast, best: process.env.GEMINI_BEST_MODEL ?? b.models.best ?? fast } };
+  const fast = process.env.GEMINI_IMAGE_MODEL || b.models.fast; // || : an empty setting is no model
+  return { name, ...b, models: { fast, best: process.env.GEMINI_BEST_MODEL || b.models.best || fast } };
 }
 
 function apiKey(backend) {
@@ -240,11 +254,14 @@ function sweepTemps(file) {
   }
 }
 
-/** A reference is an asset id (its raw image) or a file path inside the repo. */
-/** A reference's file: a path in the repo, or an asset's source (an approved design's own file, else its raw). */
+/**
+ * A reference's file, as the model gets it: a path in the repo; `shipped:<id>`, an asset as it shipped
+ * (its output in this run's assets folder); or an asset's raw on its key colour (an approved design: its own file).
+ */
 function refFile(ref) {
+  if (ref.startsWith(SHIPPED)) return shippedOf(ref.slice(SHIPPED.length));
   if (ref.includes('/')) return join(root, ref);
-  return sourceOfId(ref);
+  return jobsById.get(ref)?.approved ? join(root, jobsById.get(ref).approved) : rawOf(ref);
 }
 
 class Stop extends Error {}
@@ -331,7 +348,6 @@ function postProcess(job, src = rawOf(job.id), dst = outOf(job.id)) {
   const p = job.post;
   const a = [join(root, 'tools', 'post.py'), src, dst, '--bg', job.bg ?? 'none', '--size', String(p.size), '--fit', p.fit];
   if (p.plate) a.push('--plate', p.plate.join(','));
-  if (p.faceLike) a.push('--face-like', join(root, p.faceLike));
   if (p.palette) a.push('--palette', p.palette.join(','));
   if (p.snap) a.push('--snap');
   if (p.stripRim) a.push('--strip-rim');
@@ -406,11 +422,15 @@ function readSidecar(id) {
   }
 }
 
-/** What a candidate was asked: the model, aspect, key colour, prompt and the references' bytes. A stored candidate is reused only for the same ask. */
+/**
+ * What a job is asked: the model, aspect, key colour, prompt, and the references' bytes as they
+ * shipped (a path's committed file, an asset's shipped output; never the raw cache, which differs in
+ * every checkout). A stored candidate or a cached raw is used only for the same ask.
+ */
 function askHash(ask) {
   const h = createHash('sha256').update(JSON.stringify({ model: ask.model, aspect: ask.aspect, bg: ask.bg ?? 'none', prompt: ask.prompt, refs: ask.refs }));
   for (const r of ask.refs) {
-    const f = refFile(r);
+    const f = r.startsWith(SHIPPED) ? shippedOf(r.slice(SHIPPED.length)) : r.includes('/') ? join(root, r) : shippedOf(r);
     if (existsSync(f)) h.update(readFileSync(f));
   }
   return h.digest('hex').slice(0, 20);
@@ -418,7 +438,7 @@ function askHash(ask) {
 
 const firstLine = (e) => String(e?.message ?? e).split('\n')[0];
 
-/** What a post-only job's output answers: its post-processing and its source's bytes (a new drawing makes it stale). */
+/** What a post-only job's output answers: its post-processing and its source's bytes, committed (a new drawing makes it stale). */
 function postHash(job) {
   const h = createHash('sha256').update(JSON.stringify({ post: job.post, bg: job.bg ?? 'none', from: job.from ?? job.approved }));
   const f = sourceOf(job);
@@ -517,6 +537,7 @@ async function pickCandidate(job, key, backend, manifest, { fresh = false } = {}
   if (!b) throw new Error('no usable candidate');
   if (b.mirror) execFileSync('python3', ['-c', 'import sys; from PIL import Image; Image.open(sys.argv[1]).transpose(Image.FLIP_LEFT_RIGHT).save(sys.argv[2])', b.raw, rawOf(job.id)]);
   else copyFileSync(b.raw, rawOf(job.id));
+  writeRawAsk(job);
   side.picked = b.n;
   side.base = askHash(job); // the ask it answers (before any strict lead): a changed ask makes the pick stale
   save();
@@ -596,13 +617,14 @@ async function main() {
   const adopt = (m) => Object.assign(manifest, m);
 
   if (args.includes('--status')) {
-    const done = jobs.filter((j) => existsSync(outOf(j.id))).length;
+    const done = jobs.filter((j) => !needed(j, manifest)).length; // a stale output is not done
     const u = weeklyUsage(loadLedger(ledgerFile));
     console.log(`${done}/${jobs.length} assets done; weekly Gemini spend $${u.usd.toFixed(2)} (${u.images} images)`);
     return;
   }
 
-  const todo = jobs.filter((j) => force || needed(j, manifest));
+  // missing or stale outputs, and every post-only job whose source is made in this run (tools/pipeline-state.mjs toMake)
+  const todo = force ? jobs : toMake(jobs, (j) => needed(j, manifest));
   const jobIds = new Set(planned.map((j) => j.id));
   const byCode = rows.filter((r) => priorities.includes(r.priority) && !r.method.startsWith('Gemini') && !jobIds.has(r.id)).reduce((n, r) => n + r.count, 0);
   // a gated job makes n candidates, and up to n more if it needs its strict round (tools/pick.mjs imagesFor)
@@ -625,7 +647,7 @@ async function main() {
     const inRun = new Set(jobs.map((j) => j.id));
     let left = [...todo];
     while (left.length) {
-      const ready = left.filter((j) => j.deps.every((d) => done.has(d) || (!inRun.has(d) && existsSync(sourceOfId(d)))));
+      const ready = left.filter((j) => j.deps.every((d) => done.has(d) || (!inRun.has(d) && available(j, d))));
       if (!ready.length) {
         console.log(`unresolvable: ${left.map((j) => j.id).join(', ')}`);
         break;
@@ -647,7 +669,18 @@ async function main() {
     const qas = new Map();
     let broken = 0;
     let rejected = 0;
+    let skippedRaws = 0;
     for (const j of jobs.filter((j) => existsSync(sourceOf(j)))) {
+      // a generated job re-posts only a raw made for its ask: an older raw (a grown sprite, a 3D render)
+      // would ship under the new recipe; --adopt records the raws given as made for today's ask (checked by eye)
+      if (!isPostOnly(j)) {
+        if (adoptRaws) writeRawAsk(j, new Date(statSync(rawOf(j.id)).mtimeMs).toISOString());
+        if (!rawCurrent(j, readRawAsk(j.id), askHash(j))) {
+          skippedRaws += 1;
+          console.log(`  ${j.id}: its raw was made for another ask: not re-posted (make it again, or --adopt it once checked)`);
+          continue;
+        }
+      }
       try {
         // a failed QA keeps the shipped file: the new output goes beside it and moves in only when it passes
         const next = `${outOf(j.id)}.repost.png`;
@@ -669,13 +702,17 @@ async function main() {
     for (const j of jobs.filter((j) => qas.has(j.id))) {
       const qa = qas.get(j.id);
       const gate = j.pick ? rescore(j, manifest) : null; // a job without gates keeps no verdict
-      const { gate: _old, ...prev } = manifest.meta[j.id] ?? {};
-      adopt(commitManifest(manifestFile, { [j.id]: { file: `gen/${j.id}.png`, meta: { ...prev, qa, ...(isPostOnly(j) ? { ask: jobHash(j), at: new Date().toISOString() } : {}), ...(gate ? { gate } : {}) } } }));
+      const prev = { ...manifest.meta[j.id] };
+      delete prev.gate;
+      // a post-only output answers its source as it is now; a generated one its raw's ask
+      const rawAsk = isPostOnly(j) ? null : readRawAsk(j.id);
+      const record = isPostOnly(j) ? { ask: jobHash(j), at: new Date().toISOString(), model: null } : rawAsk ? { ask: rawAsk.ask, at: rawAsk.at } : {};
+      adopt(commitManifest(manifestFile, { [j.id]: { file: `gen/${j.id}.png`, meta: { ...prev, qa, ...record, ...(gate ? { gate } : {}) } } }));
       if (!qa.ok) console.log(`  ${j.id}: QA flagged ${JSON.stringify(qa)}`);
       if (j.pick) warnGate(j, gate);
     }
     writeSheet(planned, manifest); // the sheet shows every planned asset, whatever --only picked
-    console.log(`re-post-processed ${qas.size} cached raws${broken ? `, ${broken} failed` : ''}${outside.size ? `; ${outside.size} gated jobs ship outside their gates: ${[...outside].join(', ')}` : ''}`);
+    console.log(`re-post-processed ${qas.size} sources${skippedRaws ? `, skipped ${skippedRaws} raws made for another ask` : ''}${broken ? `, ${broken} failed` : ''}${outside.size ? `; ${outside.size} gated jobs ship outside their gates: ${[...outside].join(', ')}` : ''}`);
     if (rejected) console.warn(`⚠️  ${rejected} reposts failed QA and kept their shipped file`);
     process.exitCode = broken || rejected ? 1 : outside.size ? 2 : 0;
     return;
@@ -725,12 +762,15 @@ async function main() {
     }
     for (let attempt = 1; attempt <= 2; attempt++) {
       const t = Date.now();
-      // paid for already: post-process only, unless a gated job's words changed since its pick
-      const reuse = attempt === 1 && !force && existsSync(rawOf(job.id)) && (job.pick ? pickCurrent(job) : manifest.meta[job.id]?.ask === askHash(job));
+      // paid for already: post-process only, when the raw was made for this ask (a gated job: its pick's ask)
+      const reuse = attempt === 1 && !force && existsSync(rawOf(job.id)) && (job.pick ? pickCurrent(job) : rawCurrent(job, readRawAsk(job.id), askHash(job)));
       let picked = null;
       try {
         if (!reuse && job.pick) picked = await pickCandidate(job, key, backend, manifest, { fresh: attempt > 1 });
-        else if (!reuse) writeFileSync(rawOf(job.id), await callGemini(job, key, backend));
+        else if (!reuse) {
+          writeFileSync(rawOf(job.id), await callGemini(job, key, backend));
+          writeRawAsk(job);
+        }
       } catch (e) {
         if (e instanceof Stop) {
           stopped = e.message;
@@ -766,7 +806,7 @@ async function main() {
   const running = new Set();
   for (;;) {
     if (stopped) break;
-    const ready = jobs.filter((j) => state.get(j.id) === 'todo' && isReady(j, state, (d) => existsSync(sourceOfId(d))));
+    const ready = jobs.filter((j) => state.get(j.id) === 'todo' && isReady(j, state, (d) => available(j, d)));
     const blocked = jobs.filter((j) => state.get(j.id) === 'todo' && j.deps.some((d) => state.get(d) === 'failed'));
     for (const j of blocked) state.set(j.id, 'failed');
     while (ready.length && running.size < CONCURRENCY) {
@@ -781,10 +821,11 @@ async function main() {
   adopt(readManifest(manifestFile)); // the sheet shows what every process made
   writeSheet(planned, manifest); // the sheet shows every planned asset, whatever --only picked
   const left = jobs.filter((j) => state.get(j.id) !== 'done').map((j) => j.id);
-  // a job outside this run whose reference was remade is stale now (an ascended edit of a redrawn pet)
+  // a job outside this run whose reference was remade is stale now (an ascended edit of a redrawn pet),
+  // whatever its priority
   const remade = new Set(jobs.filter((j) => state.get(j.id) === 'done' && todo.includes(j)).map((j) => j.id));
-  const stale = planned.filter((j) => !state.has(j.id) && j.deps.some((d) => remade.has(d)) && existsSync(outOf(j.id)) && needed(j, manifest)).map((j) => j.id);
-  if (stale.length) console.warn(`⚠️  stale now (a reference was remade): ${stale.join(', ')}; run --only=${stale.join(',')}`);
+  const stale = [...jobsById.values()].filter((j) => !state.has(j.id) && j.deps.some((d) => remade.has(d)) && existsSync(outOf(j.id))).map((j) => j.id);
+  if (stale.length) console.warn(`⚠️  stale now (a reference was remade): ${stale.join(', ')}; run --priority=P0,P1,P2,P3 --only=${stale.join(',')}`);
   const u = weeklyUsage(loadLedger(ledgerFile));
   console.log(`\n${made} made, ${failed} failed, ${left.length} not done; weekly spend $${u.usd.toFixed(2)}; sheet: ${sheetFile}`);
   if (outside.size) console.warn(`⚠️  ${outside.size} gated jobs shipped OUTSIDE their gates: ${[...outside].join(', ')} (exit code 2)`);

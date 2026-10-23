@@ -7,7 +7,7 @@
 // plate), apex halo kits, original foes.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ELEMENTS, ELEMENT_KEYS, FUSIONS, APEX } from '../src/sim/classes.js';
+import { ELEMENTS, FUSIONS, APEX } from '../src/sim/classes.js';
 import { ENEMY_TYPES } from '../src/sim/enemies.js';
 import { ELEMENT_PALETTES, UNIVERSAL } from '../src/art/palettes.js';
 import { FOE_ROSTER, CHAPTER_GOLDEN, foeChapters } from '../src/art/foe-roster.js';
@@ -73,13 +73,13 @@ const bgLine = (bg) =>
 // method). Image 1 is the babies' line-up (the style), image 2 the pet's grown sprite (its species,
 // markings and colours), frozen in tools/refs/fusions/grown/. An approved design (the trailer's
 // narwhal, the roster's \`approved\`) ships as it is. The silhouette contracts and their gates were the
-// grown pets' and are not used: a baby's huge head is not a grown body plan. Instead a side-view baby
-// is held to the way its grown sprite faces (post.py --face-like: mirrored when it faces right, since
-// src/kv/roam.js flips profiles assuming they face left).
+// grown pets' and are not used: a baby's huge head is not a grown body plan. A side-view baby must face
+// left (src/kv/roam.js flips profiles assuming it): the prompt says so, and the contact sheet is checked
+// by eye (an automatic check against the grown body plan flipped a sheep that faced left).
 export const BABIES_LINE = 'tools/refs/babies-line.png';
 export const grownRef = (key) => `tools/refs/fusions/grown/${key}.png`;
 /** When the baby recipes began: an output made before it (a grown sprite, a 3D portrait) is stale. */
-export const BABY_SINCE = '2026-10-23';
+export const BABY_SINCE = '2026-10-23T00:00:00.000Z';
 const BABY_STYLE =
   'Image 1 shows the game’s eight baby creatures. Match their rendering exactly: the thick, even dark plum outline (#2B1D2E) around every form, ' +
   'the thin cream-white sticker rim (#FFFAF2) outside the outline, flat colour fills with one crisp cel-shade tone and one small highlight, ' +
@@ -94,13 +94,15 @@ export const BABY_VIEW = {
   front: 'A straight front view, symmetrical, facing the viewer. ',
   spread: 'A straight front view, symmetrical, its wings spread wide and evenly on both sides. ',
 };
-/** A side-view pet's facing check (post.py --face-like its grown sprite, which faces left); none for the others, which the field never flips. */
-export const facing = (r, key) => (r.view === 'profile' ? { faceLike: grownRef(key) } : {});
 /** The ascended portraits' gold: the halo and sparkles on the sticker, and the plate (plate, disc, rays). */
 export const ASCENDED_GOLD = ['#FFC93C', '#FFE89A'];
 export const ASCENDED_PLATE = ['#FFC93C', '#FFF0B8', '#FFE07A'];
 /** `hex` toward white by `t` (0–1): a plate's flat tints. */
 export const tint = (hex, t) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) + (255 - parseInt(hex.slice(i, i + 2), 16)) * t).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+/** A reference to an asset as it shipped (its output, not its raw): the halo edit starts from the sticker the field shows. */
+export const SHIPPED = 'shipped:';
+/** A portrait's side in px: the 320 px sprite fills its plate's box (PLATE_BOX in tools/post.py) without enlarging. */
+export const PORTRAIT_PX = 384;
 /** A base portrait's flat plate: the fusion's own colour, lightened (the plate, the disc behind the pet). */
 export const portraitPlate = (color) => [tint(color, 0.45), tint(color, 0.78)];
 /** `hex` toward the outline's plum ink by `t` (0–1): a boss plate's dark flat tints. */
@@ -280,7 +282,7 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
     // the fast model, with the proportions said outright: the Pro model's quota ran out on 2026-10-23 after the
     // first 8 (they are as good), and a fast baby with CHIBI matches them
     return { ...base, model: models.fast, since: BABY_SINCE, bg: r.bg, refs: [BABIES_LINE, grownRef(key)], deps: [],
-      post: { fit: 'trim', size: 320, palette: [...r.pal, ...UNI], snap: true, ...facing(r, key) }, // keeps the cream rim: the heroes' cue
+      post: { fit: 'trim', size: 320, palette: [...r.pal, ...UNI], snap: true }, // keeps the cream rim: the heroes' cue
       prompt:
         `${BABY_STYLE}Image 2 is ${r.name}, a fusion pet born of ${ELEMENTS[a].name.toLowerCase()} and ${ELEMENTS[b].name.toLowerCase()}: ${r.desc}. It is drawn there in an older, grown-up style. ` +
         `Draw ${r.name} again as a baby ${r.animal} in the exact style and proportions of image 1 (a huge head, a tiny chubby body, short stubby limbs, cute and brave). ${CHIBI}` +
@@ -295,18 +297,19 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
     const r = FUSION_ROSTER[key];
     if (!r) return null;
     const sprite = `fusion.${key}`;
+    const shipped = `${SHIPPED}${sprite}`;
     const approved = r.approved;
-    const bg = approved ? 'none' : r.bg; // an approved sticker comes keyed already
     // 2D namecard portraits: the pet's own sticker on a flat plate (post.py --fit plate), so the tile,
-    // the roaming pet and the card are one drawing. The base portrait is made from the fusion's raw, no
-    // new image; the ascended one is an edit of that sticker (a gold halo, sparkles) on a gold plate.
+    // the roaming pet and the card are one drawing. The base portrait is made from the shipped sprite
+    // (committed, keyed, 320 px: a 384 plate needs no enlarging), no new image; the ascended one is an
+    // edit of that sticker (a gold halo, sparkles) on a gold plate.
     if (!asc)
-      return { ...base, model: null, from: sprite, since: BABY_SINCE, bg, refs: [], deps: [sprite],
-        post: { fit: 'plate', size: 512, plate: portraitPlate(FUSIONS[key].color), ...(approved ? {} : { palette: [...r.pal, ...UNI], snap: true, ...facing(r, key) }) } };
-    const key2 = approved ? 'green' : r.bg; // the edit comes back on a key colour, even for an approved sticker
+      return { ...base, model: null, from: sprite, since: BABY_SINCE, bg: 'none', refs: [], deps: [sprite],
+        post: { fit: 'plate', size: PORTRAIT_PX, plate: portraitPlate(FUSIONS[key].color), ...(approved ? {} : { palette: [...r.pal, ...UNI], snap: true }) } };
+    const key2 = approved ? 'green' : r.bg; // the edit comes back on a key colour (image 2 is the sticker as it shipped)
     // an edit (a halo added): the fast model keeps the design, and its own capacity frees the Pro queue
-    return { ...base, model: models.fast, since: BABY_SINCE, bg: key2, refs: [BABIES_LINE, sprite], deps: [sprite],
-      post: { fit: 'plate', size: 512, plate: ASCENDED_PLATE, ...(approved ? {} : { palette: [...r.pal, ...ASCENDED_GOLD, ...UNI], snap: true, ...facing(r, key) }) },
+    return { ...base, model: models.fast, since: BABY_SINCE, bg: key2, refs: [BABIES_LINE, shipped], deps: [sprite],
+      post: { fit: 'plate', size: PORTRAIT_PX, plate: ASCENDED_PLATE, ...(approved ? {} : { palette: [...r.pal, ...ASCENDED_GOLD, ...UNI], snap: true }) },
       prompt:
         `${BABY_STYLE}Image 2 is ${r.name}, a pet in that style. Draw it again with exactly the same design, face, colours, proportions, pose and view, ` +
         `as its ascended legendary form: a glowing golden halo ring floating just above its head, a few small four-pointed golden sparkles around it, and a proud, brave little smile. ` +

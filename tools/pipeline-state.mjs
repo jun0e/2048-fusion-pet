@@ -1,27 +1,31 @@
 // The asset pipeline's bookkeeping rules (tools/pipeline.mjs), pure so they can be tested: which jobs
-// make no image, which file a job is made from, when a shipped output is stale, when a job may start.
+// make no image, which file a job is made from, when a shipped output is stale, when a job may start,
+// which jobs follow another. Everything here reads committed files only (the shipped outputs, the
+// approved designs, the references in tools/refs): the raw cache is gitignored and differs in every
+// checkout, so it never decides what is current.
 import { join } from 'node:path';
 
-/** A job that makes no image: an approved design (a file in the repo), or one made from another job's raw (a portrait). */
+/** A job that makes no image: an approved design (a file in the repo), or one made from another job's output (a portrait). */
 export const isPostOnly = (job) => !!(job.approved || job.from);
 
 /**
- * The image a job is post-processed from: an approved design's committed file (never the raw cache,
- * which may hold an older drawing), the source of the job it is made from, or its own raw.
- * `byId` holds every planned job; `rawOf(id)` is the raw cache's path for an id.
+ * The image a post-only job is made from, or a generated job's raw: an approved design's committed
+ * file; for a job made from another, that job's shipped output (a portrait from its fusion's
+ * sprite, so it is the drawing the field shows); else its own raw.
+ * `byId` holds every planned job; `rawOf(id)` and `outOf(id)` are the raw cache's and the shipped file's paths.
  */
-export function sourceOf(job, { byId, root, rawOf }) {
+export function sourceOf(job, { byId, root, rawOf, outOf }) {
   if (job.approved) return join(root, job.approved);
   if (job.from) {
     const src = byId.get(job.from);
-    return src ? sourceOf(src, { byId, root, rawOf }) : rawOf(job.from);
+    return src?.approved ? join(root, src.approved) : outOf(job.from);
   }
   return rawOf(job.id);
 }
 
 /**
  * Whether a shipped output no longer answers its job: it was made for another ask (`meta.ask`, the
- * hash of what was asked and, for a post-only job, of its source and post-processing), or before the
+ * hash of what was asked, or for a post-only job of its source and post-processing), or before the
  * job's recipe began (`job.since`: a grown sprite or a 3D portrait under the baby recipes). An output
  * with no record at all counts as current only when its job has no recipe date.
  */
@@ -32,13 +36,35 @@ export function isStale(job, meta, hash) {
 }
 
 /**
- * Whether a job may start: each dependency is done in this run, or is not in this run and its source
- * already exists (`sourceExists(id)`, e.g. an approved design or a cached raw).
+ * Whether a job may start: each dependency is done in this run, or is not in this run and what the
+ * job needs of it exists (`has(id)`: its shipped output, an approved file or a raw).
  */
-export const isReady = (job, state, sourceExists) => job.deps.every((d) => state.get(d) === 'done' || (!state.has(d) && sourceExists(d)));
+export const isReady = (job, state, has) => job.deps.every((d) => state.get(d) === 'done' || (!state.has(d) && has(d)));
 
-/** The post-only jobs to add to a run: those made from a job in it (they are free, and must follow their source). */
+/** The post-only jobs made from a job in `jobs` and not in it: they are free, and must follow their source. */
 export const followers = (jobs, planned) => {
   const inRun = new Set(jobs.map((j) => j.id));
   return planned.filter((j) => j.from && inRun.has(j.from) && !inRun.has(j.id));
 };
+
+/** The jobs to make: the stale or missing ones (`needed`), and every post-only job whose source is made in this run. */
+export function toMake(jobs, needed) {
+  const todo = new Set(jobs.filter(needed).map((j) => j.id));
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const j of jobs) {
+      if (j.from && todo.has(j.from) && !todo.has(j.id)) {
+        todo.add(j.id);
+        grew = true;
+      }
+    }
+  }
+  return jobs.filter((j) => todo.has(j.id));
+}
+
+/**
+ * Whether a cached raw may be used (reused for a resumed job, re-posted by --repost): it was made for
+ * the job's ask today (`rawAsk`, recorded beside the raw when it lands); a raw with no record only
+ * for a job with no recipe date (a legacy asset), never one from before the recipe it would ship under.
+ */
+export const rawCurrent = (job, rawAsk, hash) => (rawAsk ? rawAsk.ask === hash : !job.since);
