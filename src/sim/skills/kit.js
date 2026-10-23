@@ -107,7 +107,7 @@ export function createKit(api) {
         const crit = !!ctx.prof.critChance && rng.next() < ctx.prof.critChance;
         if (crit) d *= ctx.prof.critMult ?? 2;
         const dealt = api.damage(e, d, kinds, { element: ctx.prof.element }); // a skill counts as its pet's main element (v2.1)
-        events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: [c], crit, skill: key });
+        events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: [c], crit, skill: key, element: ctx.prof.element });
         return dealt;
       },
       /** `pct` to every foe within `cells` of (x, y). → the foes hit. */

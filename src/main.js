@@ -10,6 +10,7 @@ import { createStage } from './render/stage.js';
 import { createScenery } from './render/scenery.js';
 import { createBlocks } from './render/blocks.js';
 import { createFoes } from './render/foes.js';
+import { createFeedback } from './render/feedback.js';
 import { createShots } from './render/shots.js';
 import { createTrails } from './render/trails.js';
 import { createAttacks } from './render/attacks.js';
@@ -167,7 +168,9 @@ async function start() {
   const attacks = createAttacks(stage, fx, trails);
   const blocks = createBlocks(stage, fx, { art });
   const foes = createFoes(stage, fx);
-  const shots = createShots(stage, fx, trails, attacks);
+  // readable feedback (2026-10-23): heal "+", impact frames, element sparks, status pops, buff icons
+  const feedback = createFeedback({ stage, fx, foes });
+  const shots = createShots(stage, fx, trails, attacks, undefined, { frostMote: feedback.frostMote, impact: feedback.lanceHit });
   const deck = createDeck(stage);
   // v2: what the fusion skills do on the field (zones, walls, traps, minions, tethers, skillFx events: U2)
   const skillFx = createSkillFx({ stage, fx, art });
@@ -445,6 +448,7 @@ async function start() {
     journey.onRunStart();
     blocks.reset();
     foes.reset();
+    feedback.reset();
     shots.reset();
     attacks.reset();
     fx.reset();
@@ -709,6 +713,7 @@ async function start() {
       pets?.onEvent(e);
       skillFx.onEvent(e); // v2: skillFx events and the summons' moments (src/render/skillfx.js)
       foes.onEvent(e); // v2.1 (views): a resisted hit blinks its foe's shield (src/render/foes.js)
+      feedback.onEvent(e); // what each effect did, at a glance (src/render/feedback.js)
       switch (e.type) {
         case 'merge': {
           fx.burst(e.x, e.y, [0xffffff, 0xffe27a], 10 + e.tier * 2, { speed: 4, size: 0.24, life: 0.45, gravity: 0 });
@@ -939,7 +944,7 @@ async function start() {
           break;
         case 'hit': {
           const big = e.crit && e.amount > 0;
-          fx.number(e.x, e.y + 0.35, e.amount, { color: big ? hex(e.colors.at(-1)) : 0xffffff, crit: false });
+          fx.number(e.x, e.y + 0.35, e.amount, { color: big ? hex(e.colors.at(-1)) : 0xffffff, crit: big }); // a crit: bigger, with "!"
           attacks.onEvent(e); // where the area attacks' thorns and tendrils go
           break;
         }
@@ -1109,6 +1114,7 @@ async function start() {
     deck.sync(run, dt);
     skillFx.update(run, dt); // the skills' standing pieces: zones, walls, traps, minions, tethers (U2)
     foes.sync(run.enemies, dt);
+    feedback.update(dt, run);
     shots.sync(run.shots, dt, run.defense.puddles);
     attacks.update(dt); // and the trails
     fx.update(dt);

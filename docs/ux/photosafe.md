@@ -104,6 +104,22 @@ The rules live in `src/ux/photosafe.js`.
      - It cross-fades with the shadow over 0.3 s as a foe steps onto or off the keep, and moves with the foe.
    - The things that move are outside the budget, as projectiles always were: the harpoon and the glob, the escorts and the add-on riding them, ribbons (a gust racing up its lane, an apex's ribbon behind a shot) and afterimages.
      - A harpoon's tether is booked as a line, for the flight it was thrown for. If a pushed foe makes the chase longer, the tether ends on time and is never drawn longer than booked.
+9. **The readable feedback books like the rest** (2026-10-23, `src/render/feedback.js`).
+   - It adds:
+     - a healed block's green "+" marks over a soft pulse ring;
+     - the impact frame: a comic star in the element's colour, its shards, and the struck foe held with its white flash. It plays on each ice lance hit and each Metal bite; a crit gets a smaller star without the hold, and a skill's slam gets a star without it too;
+     - each pet hit's element spark, and the ice lance's frost trail;
+     - a status's word popping over a foe the first time the status lands;
+     - the stat icons rising over a fed pet.
+   - Sparks and frost come last: they show only while the budget holds less than half its cap (`LOW_ROOM`). They never crowd out an impact star, a pop, a heal or a number.
+   - A status pop, a heal's "+" and a buff icon are drawn whole or not at all. When the hit that brought them has filled the budget, they wait for room: a pop 0.4 s at most, a heal 0.7 s, a buff icon 0.6 s. A Nature pulse's thorns fill it for about 0.4 s, so its "+" rise as the thorns fade.
+   - A foe's hold (hit-stop) is in the view only: its pose stops for 0.075 s (0.12 s at most) and it shakes a little. Its white flash is booked like the hit flash.
+   - Reduce motion drops the hold, the shake and the drifting bits; the marks stay.
+   - Rate limits:
+     - status pops: one per foe every 0.8 s, and 4 a second over the field;
+     - spark bursts: one per foe every 0.12 s, and 40 a second.
+   - `feedbackLight` plans what each event books. The audit counts it, and `test/feedback.test.js` holds the renderer to it.
+   - A status pill is at most 4.6 times as wide as it is tall. A longer word (ĐÓNG BĂNG) is drawn condensed.
 
 **For new effects:**
 

@@ -346,7 +346,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
           const tp = t.cls ? profileOf(t) : null;
           if (tp?.thorns && tp.shoots) {
             const dealt = damage(e, tp.damage * tp.thorns.pct, ['nature'], { element: 'nature' });
-            events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#4cd964'], crit: false, thorns: true });
+            events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#4cd964'], crit: false, thorns: true, element: 'nature' });
           }
           if (t.hp <= 0 && !t.downed && !hooks.down.some((h) => h.fn(t))) {
             t.downed = true;
@@ -404,7 +404,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur);
     const dealt = damage(e, d, prof.kinds, { element: prof.element });
     applyStatuses(e, prof, d, origin);
-    events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: prof.colors, crit: d > dmg });
+    events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: prof.colors, crit: d > dmg, element: prof.element });
   }
 
   /** An area attack lands: every foe in `hits` takes it; a chain (Lightning fusions) jumps on from the target. */
@@ -510,7 +510,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
       if (prof.loot) mark(e, prof.loot.pct, prof.loot.dur); // before the damage, so Metal's own killing blow pays out
       const dealt = damage(e, d, prof.kinds, { element: prof.element });
       applyStatuses(e, prof, d, origin);
-      events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: prof.colors, crit: d > dmg * 0.999 && e === primary });
+      events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: prof.colors, crit: d > dmg * 0.999 && e === primary, element: prof.element });
     }
     events.push({
       type: 'impact',
@@ -1049,7 +1049,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
       if (e.hitT >= SIEGE.biteEvery) {
         e.hitT -= SIEGE.biteEvery;
         const dealt = damage(e, e.tauntReflect, ['physical'], { element: 'earth' });
-        events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#9fb3c8'], crit: false, thorns: true });
+        events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: dealt, colors: ['#9fb3c8'], crit: false, thorns: true, element: 'earth' });
       }
       return true;
     }
@@ -1328,7 +1328,7 @@ export function createDefense({ rng, profile: profileOf = profileFor }) {
     for (const e of alive()) {
       if (e.mode !== 'hunt') continue;
       if (dmg > 0) {
-        events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: damage(e, dmg, ['earth']), colors: ['#c9a582'], crit: false });
+        events.push({ type: 'hit', id: e.id, x: e.x, y: e.y, amount: damage(e, dmg, ['earth']), colors: ['#c9a582'], crit: false, element: 'earth' });
         if (e.dead) {
           n += 1;
           continue;

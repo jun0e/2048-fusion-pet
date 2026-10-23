@@ -157,9 +157,10 @@ test('a damage number books the light of every glyph in it, popping in then sett
   assert.equal(light(0), numberLit(s, '815'));
   assert.equal(light(NUMBER.popShare - 1e-6), numberLit(s, '815'));
   assert.ok(Math.abs(light(0.5) - numberLit(s, '815') / NUMBER.pop ** 2) < 1e-12);
-  // the audit books the texts the game draws: hits, "+" coins, and the burn and poison dealt
+  // the audit books the texts the game draws: hits (a crit bigger, with "!", as main.js draws it), "+" coins, and the burn and poison dealt
   const audit = read('tools/flash-audit.mjs');
-  assert.match(audit, /numbers: \[\['hit', numberText\(e\.amount\)\]\]/);
+  assert.match(audit, /numbers: \[e\.crit \? \['crit', numberText\(e\.amount, \{ crit: true \}\)\] : \['hit', numberText\(e\.amount\)\]\]/);
+  assert.match(read('src/main.js'), /fx\.number\(e\.x, e\.y \+ 0\.35, e\.amount, \{ color: big \? hex\(e\.colors\.at\(-1\)\) : 0xffffff, crit: big \}\)/);
   assert.match(audit, /numbers: \[\['small', numberText\(e\.amount, \{ prefix: '\+' \}\)\]\]/);
   assert.match(audit, /numbers\.push\(\['small', numberText\(burn\)\]\)/);
 });

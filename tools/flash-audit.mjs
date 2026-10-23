@@ -27,6 +27,7 @@ import { ELEMENTS, ELEMENT_KEYS, FUSIONS } from '../src/sim/classes.js';
 import { SKILL_FX, fxWord } from '../src/render/skillfx.js';
 import { STAGES, attackLight, attackOf } from '../src/art/attack-vfx.js';
 import { foeDrawSize } from '../src/art/foe-roster.js';
+import { POP, feedbackLight, popKind, popShown, rateLimit, statusesOf } from '../src/render/feedback.js';
 
 const TAP_GAP = 0.2; // seconds of real time between taps on cards that are ready together
 const PHONE_U = 32; // px per world unit on a phone (the default): text over the canvas is bigger the smaller it is
@@ -166,7 +167,7 @@ function pointEffects(e) {
     case 'foeFlash': // enemies hit this step (play() adds these): before, each run of hits flashed its sprite once
       return e.starts.length ? fx({ foes: e.starts }) : null;
     case 'hit':
-      return e.amount >= 0.5 ? fx({ numbers: [['hit', numberText(e.amount)]] }) : null; // [kind, the text fx.js draws]
+      return e.amount >= 0.5 ? fx({ numbers: [e.crit ? ['crit', numberText(e.amount, { crit: true })] : ['hit', numberText(e.amount)]] }) : null; // [kind, the text fx.js draws] (a crit: bigger, with "!")
     case 'coins':
       if (e.reason === 'kill') return fx({ numbers: [['small', numberText(e.amount, { prefix: '+' })]], coins: Math.min(6, 1 + Math.floor(e.amount / 12)) });
       if (e.reason === 'combo') return fx({ coins: 3, texts: [text('Free swipe!', 6)] });
@@ -181,16 +182,26 @@ function pointEffects(e) {
 /** The events the sprite attacks draw (src/render/attacks.js, shots.js): they book attackLight's items. */
 const SPRITE_EVENTS = new Set(['breath', 'gust', 'pulse', 'quake', 'pounce', 'ping', 'impact', 'fire', 'strike', 'kill', 'stun', 'freeze', 'bite', 'weaken', 'spread', 'meteor', 'pushed']);
 /** How the trim statistics name attackLight's item kinds. */
-const SPRITE_KIND = { bits: 'attack bits', sprite: 'attack sprites', decal: 'decals', line: 'links', ring: 'pings' };
+const SPRITE_KIND = { bits: 'attack bits', sprite: 'attack sprites', decal: 'decals', line: 'links', ring: 'pings', feedback: 'feedback' };
 
 /**
  * What an event draws locally today: the sprite attacks' plan (src/art/attack-vfx.js
  * attackLight: sprites [{ kind, lit, life, all, min }]); the other events as before.
  */
 function nowEffects(e) {
-  if (!SPRITE_EVENTS.has(e.type)) return pointEffects(e);
-  const plan = attackLight(e);
-  return plan?.items.length ? { rings: [], lines: [], bursts: [], sprites: plan.items } : null;
+  // the readable feedback (src/render/feedback.js: sparks, impact frames, heal pluses, status pops, buff
+  // icons, the lance's frost) books on top of what the event draws; a foe's hold flash at a big foe's size
+  const fb = feedbackLight(e, { foeSize: 1.2 });
+  const heal = e.type === 'tileHeal' ? [[0.4, 1.0, 0.4]] : []; // its green pulse ring (feedback.js HEAL.pulse)
+  let out;
+  if (!SPRITE_EVENTS.has(e.type)) out = pointEffects(e);
+  else {
+    const plan = attackLight(e);
+    out = plan?.items.length ? { rings: [], lines: [], bursts: [], sprites: plan.items } : null;
+  }
+  if (!fb.length && !heal.length) return out;
+  out ??= { rings: [], lines: [], bursts: [] };
+  return { ...out, rings: [...out.rings, ...heal], sprites: [...(out.sprites ?? []), ...fb] };
 }
 
 /**
@@ -252,7 +263,8 @@ function pointLight(items, safe) {
       }
       for (const it of p.sprites ?? []) {
         // the sprite attacks: whole or not at all, or smaller, thinner, fewer (as attacks.js bookPlan), each from its delay on
-        if (it.all) count(SPRITE_KIND[it.kind], !budget.bookAll(it.lit, it.life, it.delay ?? 0));
+        if (it.room != null && budget.used > POINT.cap * it.room) count(SPRITE_KIND[it.kind], true, 0); // the lowest marks yield (feedback.js LOW_ROOM)
+        else if (it.all) count(SPRITE_KIND[it.kind], !budget.bookAll(it.lit, it.life, it.delay ?? 0));
         else {
           const k = budget.book(it.lit, it.life, it.min ?? 0, it.delay ?? 0);
           count(SPRITE_KIND[it.kind], k < 1, k);
@@ -299,6 +311,8 @@ function play(run, { seconds, bot }) {
   const out = [];
   const flashing = new Set(); // enemies whose hit flash is on
   const emit = new Map(); // enemy id → its status-particle and DoT-number timers
+  const seen = new Map(); // enemy id → { st, next, pending }: its statuses last step (feedback.js status pops)
+  const pops = rateLimit(POP.perSecond);
   let wasLit = false; // some foe's hit flash was on last step
   let t = 0;
   let next = 0;
@@ -355,6 +369,18 @@ function play(run, { seconds, bot }) {
       emit.set(f.id, tm);
     }
     if (embers.length || numbers.length) out.push([run.time, { type: 'embers', embers, numbers }, danger]);
+    // feedback.js: the first time a status lands on a foe, its word pops (one per foe a while, a few a second)
+    for (const f of run.enemies) {
+      if (f.dead || f.gone) continue;
+      const now = statusesOf(f);
+      const s = seen.get(f.id);
+      if (s && popKind(s, now, run.time) && pops.take(run.time)) {
+        out.push([run.time, { type: 'statusPop' }, danger]);
+        popShown(s, run.time);
+      }
+      if (s) s.st = now;
+      else seen.set(f.id, { st: now, next: 0, pending: null });
+    }
     castReady(run);
     if (bot && t >= next && run.coins >= run.swipeCost) {
       const d = bestDir(run);

@@ -15,6 +15,9 @@ import { allowed, bookPlan } from './attacks.js';
 import { PUDDLE_TEXELS, puddleTex, shadowTex, vfxTex } from './textures.js';
 import { PUDDLE, puddleAlpha } from '../ux/photosafe.js';
 
+/** The ice lance sheds a frost mote every this many world units of flight (src/render/feedback.js TRAIL.every). */
+export const TRAIL_EVERY = 0.3;
+
 /** The textures the shots draw with (tests pass stand-ins). */
 export const SHOT_TEXTURES = { vfxTex, puddleTex, shadowTex };
 
@@ -62,7 +65,11 @@ function lookFor(s, vfx) {
 /** A body's length along its flight (world units). */
 const lengthOf = (look) => (look.piece === 'harpoon' ? S.harpoon[0] : look.piece === 'glob' ? S.glob : 0.3) * look.g;
 
-export function createShots(stage, fx, trails, attacks, tx = SHOT_TEXTURES) {
+/**
+ * `hooks` (src/render/feedback.js): `frostMote(x, y)` along the ice lance's flight, every TRAIL_EVERY
+ * world units; `impact(e)` where a shot lands, for its impact frame.
+ */
+export function createShots(stage, fx, trails, attacks, tx = SHOT_TEXTURES, hooks = {}) {
   const vfx = tx.vfxTex;
   const shadowLayer = new Container();
   const layer = new Container();
@@ -288,6 +295,15 @@ export function createShots(stage, fx, trails, attacks, tx = SHOT_TEXTURES) {
           r.n = Math.min(RIBBON_POINTS, r.n + 1);
         }
       }
+      // the ice lance's frost: a mote from its tail every TRAIL_EVERY world units of flight (feedback.js)
+      if (s.pattern === 'lance' && hooks.frostMote) {
+        v.frost = (v.frost ?? 0) + moved;
+        const tail = len * 0.45;
+        while (v.frost >= TRAIL_EVERY) {
+          v.frost -= TRAIL_EVERY;
+          hooks.frostMote(wx - Math.cos(v.angle) * tail, wy + Math.sin(v.angle) * tail);
+        }
+      }
       // what it sheds as it flies, on the schedule its plan booked (SHED): drips from the throw
       // (Venom Spit 32+), then a fusion's add-on bits. A late one lives that much less.
       const m = stage.reduced ? 0.2 : 1;
@@ -308,6 +324,7 @@ export function createShots(stage, fx, trails, attacks, tx = SHOT_TEXTURES) {
 
   /** Where a shot lands (the sim already applied the damage): the element's burst, a decal, a fusion's add-on, a chain's links. */
   function impact(e) {
+    if (e.pattern === 'lance' && !e.miss) hooks.impact?.(e); // the ice lance lands with an impact frame (feedback.js)
     const plan = attackLight(e, { reduced: stage.reduced });
     if (!plan) return;
     const got = bookPlan(fx, plan);

@@ -10,11 +10,15 @@
 // foeDrawSize), its bar and a crowd's fan follow the lane, and a foe that resists an element
 // (e.resist) wears a small shield in that element's colour by its health bar, which blinks when a
 // resisted hit lands (the `resisted` event; at most RESIST.perSecond blinks a second overall).
+// Readable statuses (2026-10-23, src/render/feedback.js): a stunned foe has stars circling its head, a
+// rooted one vines round its feet, and a heavy hit holds it for a moment (`punch`: its pose stops, it
+// shakes and flashes white: the impact frame's hit-stop, the view only).
 import { BitmapText, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { DOT, FOE_FLASH, FOE_PATCH, spriteLit } from '../ux/photosafe.js';
 import { FOE_ROSTER, FOE_SIZE_FLOOR, foeDrawSize } from '../art/foe-roster.js';
 import { FRAME_GEOM, laneFit } from '../art/frame-kit.js';
 import { enemyTex, resistTex, shadowTex, shieldTex, softDot, statusTex, ENEMY_PX, hasGenerated } from './textures.js';
+import { FEEDBACK_TEXTURES } from './feedback-textures.js';
 import { bossResistLevel } from '../sim/defense.js';
 import { ELEMENTS } from '../sim/classes.js';
 import { DESIGN_CELL, GRID } from '../config.js';
@@ -38,6 +42,13 @@ export function statusMarks(e) {
   const head = on('sleepT') ? 'sleep' : on('fearT') ? 'fear' : on('tauntT') ? 'taunt' : null;
   return { head, blind: on('blindT'), bleed: on('bleedT'), vuln: on('vulnT') };
 }
+
+/** Stun stars: how many circle the head, their size (world units at a foe of MOTION_SIZE) and turns a second. */
+export const STUN_STARS = { n: 3, size: 0.3, turns: 0.9 };
+/** A punch's hold (hit-stop): the most it lasts (s), its shake (share of the foe's size) and its swell. */
+export const PUNCH = { maxHold: 0.12, shake: 0.05, swell: 0.12 };
+/** Root vines round a foe's feet: their colour and its ink, the share of the foe's size they span. */
+export const VINES = { color: 0x5fbf4a, ink: 0x2b1d2a, span: 0.8 };
 
 /** Its body's tint for them (after frozen and stunned, which read first): dreamy when asleep, pale violet when afraid, dusty when blind. */
 export const markTint = (m) => (m.head === 'sleep' ? 0xc9d2f2 : m.head === 'fear' ? 0xead8ff : m.blind ? 0xd8ccb8 : null);
@@ -209,11 +220,44 @@ function whiteOf(tex) {
   return out;
 }
 
+/** Root vines round a foe's feet, `w` px across: three green arcs with ink, and two leaves. */
+export function drawVines(g, w) {
+  g.clear();
+  const y = w * 0.3;
+  const rx = (w * VINES.span) / 2;
+  const ry = rx * 0.32;
+  for (let i = 0; i < 3; i++) {
+    const a0 = Math.PI * (0.05 + i * 0.62);
+    const a1 = a0 + Math.PI * 0.55;
+    const r = 1 - i * 0.12;
+    // each arc twice: its ink, then its green over it
+    g.moveTo(Math.cos(a0) * rx * r, y - i * w * 0.07 + Math.sin(a0) * ry * r);
+    for (let k = 1; k <= 8; k++) {
+      const a = a0 + ((a1 - a0) * k) / 8;
+      g.lineTo(Math.cos(a) * rx * r, y - i * w * 0.07 + Math.sin(a) * ry * r);
+    }
+    g.stroke({ width: w * 0.075, color: VINES.ink, cap: 'round', join: 'round' });
+    g.moveTo(Math.cos(a0) * rx * r, y - i * w * 0.07 + Math.sin(a0) * ry * r);
+    for (let k = 1; k <= 8; k++) {
+      const a = a0 + ((a1 - a0) * k) / 8;
+      g.lineTo(Math.cos(a) * rx * r, y - i * w * 0.07 + Math.sin(a) * ry * r);
+    }
+    g.stroke({ width: w * 0.04, color: VINES.color, cap: 'round', join: 'round' });
+  }
+  for (const side of [-1, 1]) {
+    const lx = side * rx * 0.75;
+    const ly = y - w * 0.12;
+    g.ellipse(lx, ly, w * 0.07, w * 0.035).fill({ color: VINES.color }).stroke({ width: w * 0.02, color: VINES.ink });
+  }
+  return g;
+}
+
 /** The textures the foes draw with (tests pass stand-ins: Node has no canvas). */
-const FOE_TEXTURES = { enemyTex, resistTex, shadowTex, shieldTex, softDot, statusTex, hasGenerated };
+const FOE_TEXTURES = { enemyTex, resistTex, shadowTex, shieldTex, softDot, statusTex, hasGenerated, stunStar: FEEDBACK_TEXTURES.stunStar };
 
 export function createFoes(stage, fx, { tx = FOE_TEXTURES } = {}) {
   const { enemyTex, resistTex, shadowTex, shieldTex, softDot, statusTex, hasGenerated } = tx;
+  const stunStar = tx.stunStar ?? (() => Texture.EMPTY);
   const layer = stage.layers.enemies;
   const views = new Map();
   const blinks = createBlinkGate();
@@ -266,7 +310,14 @@ export function createFoes(stage, fx, { tx = FOE_TEXTURES } = {}) {
       s.visible = false;
       return s;
     });
-    c.addChild(shadow, patch, body, flash, ice, barBg, barFg, ...resists, hpText, badges);
+    const vines = new Graphics(); // rooted: vines round its feet (drawn when it is first rooted)
+    const stars = Array.from({ length: STUN_STARS.n }, () => {
+      const st = new Sprite(stunStar());
+      st.anchor.set(0.5);
+      st.visible = false;
+      return st;
+    });
+    c.addChild(shadow, patch, body, flash, ice, vines, ...stars, barBg, barFg, ...resists, hpText, badges);
     layer.addChild(c);
     const r = FOE_ROSTER[e.type];
     return {
@@ -285,7 +336,28 @@ export function createFoes(stage, fx, { tx = FOE_TEXTURES } = {}) {
       resists, // its resistance shields (v2.1), and the elements they show
       resistEls: [],
       blink: null, // a resisted hit's blink: { el, t }
+      vines, // root vines (drawn while it is rooted)
+      vinesAt: 0, // the size they were drawn for (0: none)
+      stars, // stun stars
+      hold: 0, // a punch's hold left (s): its pose stops and it shakes (hit-stop)
+      holdFull: 0,
+      holdAt: 0, // the animation time its pose stopped at
     };
+  }
+
+  /**
+   * A heavy hit on foe `id` (src/render/feedback.js's impact frame): its pose holds for `hold` s, it shakes
+   * and swells a little, and it flashes white for the hold (booked: no flash when the budget is short).
+   */
+  function punch(id, { hold = 0.075 } = {}) {
+    const v = views.get(id);
+    if (!v || stage.reduced) return false;
+    const h = Math.min(PUNCH.maxHold, hold);
+    if (v.hold <= 0) v.holdAt = time + v.seed;
+    v.hold = Math.max(v.hold, h);
+    v.holdFull = Math.max(v.holdFull, h);
+    v.punchFlash = !!v.white && fx.flashAll(FOE_FLASH.share * (v.lastSize ?? 1) ** 2, h);
+    return true;
   }
 
   /** The v2 status marks of a foe, made the first time it has one: a target under its feet, a mark over its head, a slashed eye. */
@@ -492,7 +564,8 @@ export function createFoes(stage, fx, { tx = FOE_TEXTURES } = {}) {
       // narrowing their span. Units: lift (base: its resting height, without the bob) and dx in
       // MOTION_SIZE world units, scaled to the foe's size; sway in radians. A freeze eases it all
       // out (the flyer settles to the ground) and a thaw eases it back in.
-      const t = time + v.seed;
+      const t = v.hold > 0 ? v.holdAt : time + v.seed; // a punch holds its pose (hit-stop)
+      v.lastSize = size;
       let base = 0;
       let lift = 0;
       let dx = 0;
@@ -570,6 +643,16 @@ export function createFoes(stage, fx, { tx = FOE_TEXTURES } = {}) {
       v.body.tint = frozen ? 0xb9ecff : e.stunT > 0 ? 0xfff0a0 : (markTint(marks) ?? (e.rootT > 0 ? 0xc9f2b4 : e.chillT > 0 ? 0xa8d8ff : e.poison.stacks > 0 ? 0xe2c8ff : 0xffffff));
       if (e.stunT > 0) v.body.rotation = Math.sin(time * 40 + v.seed) * 0.08; // dazed shake
       else if (marks.head === 'fear' && !stage.reduced) v.body.position.x += Math.sin(time * 34 + v.seed) * 0.03 * U; // it shivers
+      if (v.hold > 0) {
+        // the impact frame's hold: a shake and a little swell that eases out as the hold ends
+        const k = v.hold / Math.max(1e-6, v.holdFull);
+        v.body.position.x += Math.sin(time * 90 + v.seed) * PUNCH.shake * size * U * k;
+        v.body.position.y += Math.cos(time * 77 + v.seed) * PUNCH.shake * 0.5 * size * U * k;
+        v.body.scale.x *= 1 + PUNCH.swell * k;
+        v.body.scale.y *= 1 + PUNCH.swell * k;
+        v.hold = Math.max(0, v.hold - dt);
+        if (v.hold <= 0) v.holdFull = 0;
+      }
       v.flash.scale.set(v.body.scale.x * v.flashKx, v.body.scale.y * v.flashKy);
       v.flash.position.copyFrom(v.body.position);
       v.flash.rotation = v.body.rotation;
@@ -580,7 +663,31 @@ export function createFoes(stage, fx, { tx = FOE_TEXTURES } = {}) {
         v.flashing = fx.flashAll(FOE_FLASH.share * size * size, FOE_FLASH.life) ? 1 : -1;
         v.flashUntil = time + FOE_FLASH.life;
       } else if (e.flash <= 0) v.flashing = 0;
-      v.flash.alpha = v.flashing === 1 ? FOE_FLASH.alpha : 0;
+      v.flash.alpha = v.flashing === 1 || (v.hold > 0 && v.punchFlash) ? FOE_FLASH.alpha : 0;
+      if (v.hold <= 0) v.punchFlash = false;
+
+      // stunned: stars circle its head (they hold still under Reduce motion)
+      const stunned = e.stunT > 0;
+      for (let i = 0; i < v.stars.length; i++) {
+        const st = v.stars[i];
+        st.visible = stunned;
+        if (!stunned) continue;
+        const a = (stage.reduced ? 0 : time * STUN_STARS.turns * Math.PI * 2) + (i / v.stars.length) * Math.PI * 2;
+        const k = size / MOTION_SIZE;
+        st.position.set(Math.cos(a) * size * U * 0.34, -size * U * 0.98 - base * U + Math.sin(a) * size * U * 0.09);
+        const px = STUN_STARS.size * Math.max(0.8, Math.min(1.6, k)) * U * (0.85 + 0.15 * Math.sin(a));
+        st.width = st.height = px;
+      }
+
+      // rooted: vines round its feet (drawn once for its size, cleared when it is free)
+      const rooted = e.rootT > 0;
+      if (rooted && v.vinesAt !== size * U) {
+        drawVines(v.vines, size * U);
+        v.vinesAt = size * U;
+      } else if (!rooted && v.vinesAt) {
+        v.vines.clear();
+        v.vinesAt = 0;
+      }
 
       // frozen: ice block overlay
       v.ice.clear();
@@ -723,5 +830,5 @@ export function createFoes(stage, fx, { tx = FOE_TEXTURES } = {}) {
     views.clear();
   }
 
-  return { sync, onEvent, reset, viewOf: (id) => views.get(id) ?? null };
+  return { sync, onEvent, reset, punch, viewOf: (id) => views.get(id) ?? null };
 }
