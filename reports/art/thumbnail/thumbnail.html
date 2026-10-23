@@ -1,0 +1,141 @@
+<!doctype html>
+<!-- 2048 Fusion Pet thumbnail (1280 × 720): the four starter pets, each on a block as tall as its
+     number, under the title. Rendered to PNG by render.mjs; the pets are cut from the same renders as the game's
+     sprites (tools/.cache/pipeline/raw, keyed with tools/chroma.py, a cream sticker rim added). -->
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&display=swap" />
+<style>
+  html, body { margin: 0; background: #1b1442; }
+  svg { display: block; }
+  text { font-family: 'Baloo 2', system-ui, sans-serif; font-weight: 800; paint-order: stroke fill; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<svg id="thumb" width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#191240" />
+      <stop offset="0.62" stop-color="#3a2a6b" />
+      <stop offset="1" stop-color="#271c4f" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.78" r="0.62">
+      <stop offset="0" stop-color="#8a62d6" stop-opacity="0.75" />
+      <stop offset="1" stop-color="#8a62d6" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="goldGlow">
+      <stop offset="0" stop-color="#ffd34a" stop-opacity="0.85" />
+      <stop offset="1" stop-color="#ffd34a" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe27a" />
+      <stop offset="1" stop-color="#ffb21f" />
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.6" /></filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8" /></filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#sky)" />
+  <rect width="1280" height="720" fill="url(#glow)" />
+  <g fill="#fff8e6" id="stars"></g>
+
+  <!-- number tiles drifting in the sky: the 2048 board, at a glance -->
+  <g id="drift" opacity="0.5" filter="url(#soft)"></g>
+
+  <!-- the title, read left to right along the top, in the corner the staircase leaves empty: the 2048
+       tile, then Fusion Pet -->
+  <circle id="tileGlow" cx="128" cy="118" r="150" fill="url(#goldGlow)" />
+  <g id="tile2048" transform="rotate(-6 128 112)">
+    <rect x="48" y="40" width="160" height="160" rx="30" fill="#c98a0f" />
+    <rect x="48" y="32" width="160" height="160" rx="30" fill="url(#gold)" stroke="#2b1d2e" stroke-width="7" />
+    <rect x="64" y="46" width="128" height="18" rx="9" fill="#fff6c9" opacity="0.55" />
+    <text x="128" y="130" text-anchor="middle" font-size="64" fill="#ffffff" stroke="#2b1d2e" stroke-width="10">2048</text>
+  </g>
+  <text id="word" x="240" y="152" font-size="112" letter-spacing="1" fill="#fffaf2" stroke="#2b1d2e" stroke-width="13">Fusion Pet</text>
+
+  <!-- the starters on their number tiles -->
+  <g id="row"></g>
+</svg>
+<script>
+  const STARS = '<circle cx="374" cy="175" r="2.0" opacity="0.76"/><circle cx="425" cy="303" r="1.2" opacity="0.79"/><circle cx="152" cy="287" r="1.6" opacity="0.40"/><circle cx="888" cy="291" r="1.6" opacity="0.81"/><circle cx="768" cy="226" r="2.0" opacity="0.59"/><circle cx="566" cy="321" r="1.2" opacity="0.43"/><circle cx="307" cy="170" r="2.0" opacity="0.56"/><circle cx="317" cy="209" r="2.6" opacity="0.88"/><circle cx="122" cy="28" r="1.6" opacity="0.63"/><circle cx="886" cy="211" r="1.6" opacity="0.36"/><circle cx="327" cy="308" r="1.2" opacity="0.38"/><circle cx="28" cy="13" r="2.6" opacity="0.38"/><circle cx="79" cy="319" r="1.6" opacity="0.59"/><circle cx="874" cy="251" r="1.2" opacity="0.63"/><circle cx="502" cy="274" r="1.2" opacity="0.52"/><circle cx="366" cy="100" r="1.6" opacity="0.60"/><circle cx="267" cy="276" r="2.6" opacity="0.64"/><circle cx="887" cy="300" r="2.6" opacity="0.66"/><circle cx="747" cy="26" r="2.0" opacity="0.85"/><circle cx="409" cy="10" r="2.0" opacity="0.53"/><circle cx="494" cy="271" r="2.0" opacity="0.58"/><circle cx="1198" cy="170" r="2.0" opacity="0.42"/><circle cx="681" cy="290" r="2.6" opacity="0.66"/><circle cx="1091" cy="74" r="2.0" opacity="0.84"/><circle cx="722" cy="227" r="1.2" opacity="0.41"/><circle cx="187" cy="14" r="1.6" opacity="0.69"/><circle cx="304" cy="322" r="2.0" opacity="0.41"/><circle cx="1123" cy="192" r="1.2" opacity="0.81"/><circle cx="951" cy="47" r="1.6" opacity="0.77"/><circle cx="622" cy="69" r="1.2" opacity="0.58"/><circle cx="544" cy="316" r="2.0" opacity="0.50"/><circle cx="966" cy="21" r="2.0" opacity="0.45"/><circle cx="1252" cy="255" r="1.6" opacity="0.85"/><circle cx="1020" cy="124" r="1.6" opacity="0.56"/><circle cx="1017" cy="10" r="1.6" opacity="0.80"/><circle cx="1030" cy="318" r="1.2" opacity="0.80"/><circle cx="907" cy="171" r="1.2" opacity="0.76"/><circle cx="220" cy="142" r="1.2" opacity="0.57"/><circle cx="415" cy="176" r="2.6" opacity="0.46"/><circle cx="10" cy="306" r="2.6" opacity="0.65"/><circle cx="1227" cy="190" r="2.0" opacity="0.42"/><circle cx="900" cy="32" r="1.6" opacity="0.57"/><circle cx="757" cy="159" r="1.6" opacity="0.87"/><circle cx="782" cy="242" r="2.0" opacity="0.46"/><circle cx="820" cy="238" r="2.0" opacity="0.42"/><circle cx="939" cy="110" r="2.0" opacity="0.65"/><circle cx="891" cy="323" r="1.6" opacity="0.44"/><circle cx="461" cy="177" r="1.6" opacity="0.59"/><circle cx="903" cy="33" r="1.6" opacity="0.42"/><circle cx="669" cy="56" r="2.0" opacity="0.84"/><circle cx="1065" cy="227" r="1.2" opacity="0.36"/><circle cx="564" cy="168" r="1.2" opacity="0.48"/><circle cx="657" cy="54" r="1.6" opacity="0.74"/><circle cx="217" cy="109" r="1.6" opacity="0.79"/><circle cx="139" cy="297" r="2.0" opacity="0.49"/><circle cx="106" cy="69" r="1.2" opacity="0.80"/><circle cx="671" cy="49" r="1.2" opacity="0.39"/><circle cx="222" cy="236" r="2.0" opacity="0.37"/><circle cx="859" cy="109" r="1.2" opacity="0.77"/><circle cx="590" cy="314" r="1.2" opacity="0.62"/><circle cx="846" cy="199" r="2.0" opacity="0.54"/><circle cx="934" cy="327" r="1.2" opacity="0.49"/><circle cx="819" cy="319" r="1.6" opacity="0.67"/><circle cx="760" cy="10" r="2.0" opacity="0.53"/><circle cx="921" cy="209" r="1.2" opacity="0.59"/><circle cx="235" cy="219" r="2.6" opacity="0.39"/><circle cx="1114" cy="151" r="1.6" opacity="0.88"/><circle cx="989" cy="62" r="1.2" opacity="0.36"/><circle cx="1020" cy="24" r="1.2" opacity="0.80"/><circle cx="322" cy="216" r="2.0" opacity="0.64"/>';
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (name, attrs, parent) => {
+    const n = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    parent.appendChild(n);
+    return n;
+  };
+  const shade = (hex, f) => {
+    const n = parseInt(hex.slice(1), 16);
+    const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f));
+    return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+  };
+  /** A 2048 tile: its colour, the number in white inside an ink outline, a darker foot for depth. */
+  function tile(parent, { x, y, w, h, color, n, size, rot = 0 }) {
+    const g = el('g', { transform: `rotate(${rot} ${x + w / 2} ${y + h / 2})` }, parent);
+    const r = Math.min(w, h) * 0.2;
+    el('rect', { x, y: y + h * 0.08, width: w, height: h, rx: r, fill: shade(color, -0.35) }, g);
+    el('rect', { x, y, width: w, height: h, rx: r, fill: color, stroke: '#2b1d2e', 'stroke-width': Math.max(4, w * 0.035) }, g);
+    el('rect', { x: x + w * 0.12, y: y + h * 0.1, width: w * 0.76, height: h * 0.12, rx: h * 0.06, fill: '#fff', opacity: 0.35 }, g);
+    const t = el('text', { x: x + w / 2, y: y + h / 2 + size * 0.36, 'text-anchor': 'middle', 'font-size': size, fill: '#fff', stroke: '#2b1d2e', 'stroke-width': size * 0.16 }, g);
+    t.textContent = n;
+    return g;
+  }
+  /** A block as tall as its number: the tile's face and outline, a lit top band with the number. */
+  function block(parent, { x, y, w, h, color, n, course }) {
+    const g = el('g', {}, parent);
+    const r = 16;
+    el('rect', { x, y: y + 6, width: w, height: h, rx: r, fill: shade(color, -0.38) }, g);
+    el('rect', { x, y, width: w, height: h, rx: r, fill: shade(color, -0.12), stroke: '#2b1d2e', 'stroke-width': 6 }, g);
+    const band = Math.min(h, course);
+    el('rect', { x: x + 3, y: y + 3, width: w - 6, height: band - 6, rx: r - 4, fill: color }, g);
+    el('rect', { x: x + 18, y: y + 7, width: w - 36, height: 7, rx: 3.5, fill: '#fff', opacity: 0.4 }, g);
+    // the body's courses: a block reads as that many 2s stacked (a 2 is one course)
+    for (let yy = y + band; yy < y + h - 8; yy += course) el('rect', { x: x + 10, y: yy, width: w - 20, height: 3, rx: 1.5, fill: '#2b1d2e', opacity: 0.16 }, g);
+    // the number on the block's face, as on a podium: centred, and as big as the block allows (one
+    // size step per doubling, 38 px on a 2 to 98 on a 16; never wider than the face)
+    const size = Math.min(38 + 20 * Math.log2(n / 2), h * 0.74, ((w - 44) / String(n).length) * 1.7);
+    const t = el('text', { x: x + w / 2, y: y + h / 2 + size * 0.36, 'text-anchor': 'middle', 'font-size': size, fill: '#fff', stroke: '#2b1d2e', 'stroke-width': size * 0.17 }, g);
+    t.textContent = n;
+    return g;
+  }
+  const C = { 2: '#8ecae6', 4: '#95d5b2', 8: '#ffd166', 16: '#f4a261', 32: '#ef6f8b', 64: '#c39bff', 128: '#5fd0f0', 256: '#7fdc8f', 512: '#ffae94', 1024: '#f25c9c' };
+
+  document.getElementById('stars').outerHTML = `<g fill="#fff8e6">${STARS}</g>`;
+  const drift = document.getElementById('drift');
+  for (const d of [
+    { x: 900, y: 44, s: 80, n: 32, rot: 10 },
+    { x: 868, y: 196, s: 62, n: 64, rot: -8 },
+    { x: 452, y: 250, s: 74, n: 128, rot: -12 },
+    { x: 646, y: 196, s: 60, n: 512, rot: 9 },
+    { x: 300, y: 196, s: 56, n: 1024, rot: -14 },
+    { x: 246, y: 336, s: 54, n: 256, rot: 12 },
+  ])
+    tile(drift, { x: d.x, y: d.y, w: d.s, h: d.s, color: C[d.n], n: d.n, size: d.s * (String(d.n).length > 2 ? 0.34 : 0.56), rot: d.rot });
+
+  // the lineup: baby dragon, orca, turtle, unicorn, each on a block as tall as its number (one
+  // pixel-scale for all four: 2 → 4 → 8 → 16, each block twice the last), on one ground line
+  const row = document.getElementById('row');
+  const PETS = [
+    { src: 'src/pet.fire.png', n: 2, w: 640, h: 551 },
+    { src: 'src/pet.ice.png', n: 4, w: 640, h: 545 },
+    { src: 'src/pet.nature.png', n: 8, w: 613, h: 640 },
+    { src: 'src/pet.lightning.png', n: 16, w: 547, h: 640 },
+  ];
+  const GROUND = 702;
+  const PER = 25.6; // block height per unit of its number
+  PETS.forEach((p, i) => {
+    const cx = 172 + i * 310;
+    const h = p.n * PER;
+    const top = GROUND - h;
+    el('ellipse', { cx, cy: GROUND + 4, rx: 136, ry: 14, fill: '#0b0720', opacity: 0.6, filter: 'url(#shadow)' }, row);
+    block(row, { x: cx - 116, y: top, w: 232, h, color: C[p.n], n: p.n, course: 2 * PER });
+    const k = Math.min(270 / p.w, 236 / p.h);
+    const pw = p.w * k;
+    const ph = p.h * k;
+    el('image', { href: p.src, x: cx - pw / 2, y: top + 8 - ph, width: pw, height: ph }, row);
+  });
+</script>
+</body>
+</html>
