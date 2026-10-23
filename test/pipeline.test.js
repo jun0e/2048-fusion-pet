@@ -365,6 +365,7 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   assert.equal(isStale(job, { ask: 'a', at: '2026-10-23T05:00:00Z' }, 'a'), false);
   assert.equal(isStale(job, { ask: 'a', at: '2026-10-23T05:00:00Z' }, 'b'), true, 'asked otherwise');
   assert.equal(isStale(job, { at: '2026-10-16T05:00:00Z' }, 'a'), true, 'a grown sprite or a 3D portrait');
+  assert.equal(isStale(job, { at: '2026-10-23T05:00:00Z' }, 'a'), true, 'under a recipe, an output must say what it was made for');
   assert.equal(isStale(job, undefined, 'a'), true);
   assert.equal(isStale({}, undefined, 'a'), false, 'a legacy output with no recipe date is current');
   assert.equal(isStale({}, { ask: 'x' }, 'a'), true);

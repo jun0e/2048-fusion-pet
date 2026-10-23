@@ -25,13 +25,14 @@ export function sourceOf(job, { byId, root, rawOf, outOf }) {
 
 /**
  * Whether a shipped output no longer answers its job: it was made for another ask (`meta.ask`, the
- * hash of what was asked, or for a post-only job of its source and post-processing), or before the
- * job's recipe began (`job.since`: a grown sprite or a 3D portrait under the baby recipes). An output
- * with no record at all counts as current only when its job has no recipe date.
+ * hash of what was asked, or for a post-only job of its source and post-processing), or its job has a
+ * recipe date (`job.since`) and the output was made before it (a grown sprite, a 3D portrait) or
+ * carries no ask (so nothing ties it to what it was made from). An output with no record at all
+ * counts as current only when its job has no recipe date (a legacy asset).
  */
 export function isStale(job, meta, hash) {
   if (meta?.ask && meta.ask !== hash) return true;
-  if (job.since && !(meta?.at >= job.since)) return true;
+  if (job.since && (!(meta?.at >= job.since) || !meta?.ask)) return true;
   return false;
 }
 
