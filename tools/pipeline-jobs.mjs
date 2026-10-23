@@ -84,6 +84,10 @@ const BABY_STYLE =
   'Image 1 shows the game’s eight baby creatures. Match their rendering exactly: the thick, even dark plum outline (#2B1D2E) around every form, ' +
   'the thin cream-white sticker rim (#FFFAF2) outside the outline, flat colour fills with one crisp cel-shade tone and one small highlight, ' +
   'light from the upper left, big glossy expressive eyes, simple big rounded shapes with very few small details. Flat 2D sticker art, not a 3D render. ';
+/** The babies' proportions, said outright: without it the fast model draws a young adult (2026-10-23). */
+export const CHIBI =
+  'CHIBI PROPORTION RULE, as in every baby of image 1: the head is about as big as the whole rest of the body (half the creature’s height or more), ' +
+  'the body a small soft round bean, the legs short stubby nubs, big round eyes low on the face. Not a young adult: a newborn baby. ';
 /** How a baby stands, by the view the field draws it in (src/kv/roam.js flips only the profile ones). */
 export const BABY_VIEW = {
   profile: 'It faces LEFT: a three-quarter side view, its head toward the left edge of the image and its back and tail toward the right, its face turned a little toward the viewer so both eyes show. ',
@@ -273,11 +277,13 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
     if (!r) return null;
     // an approved design ships as drawn: trimmed and sized, its own colours kept
     if (r.approved) return { ...base, model: null, approved: r.approved, since: BABY_SINCE, bg: 'none', refs: [], deps: [], post: { fit: 'trim', size: 320 } };
-    return { ...base, model: models.best, since: BABY_SINCE, bg: r.bg, refs: [BABIES_LINE, grownRef(key)], deps: [],
+    // the fast model, with the proportions said outright: the Pro model's quota ran out on 2026-10-23 after the
+    // first 8 (they are as good), and a fast baby with CHIBI matches them
+    return { ...base, model: models.fast, since: BABY_SINCE, bg: r.bg, refs: [BABIES_LINE, grownRef(key)], deps: [],
       post: { fit: 'trim', size: 320, palette: [...r.pal, ...UNI], snap: true, ...facing(r, key) }, // keeps the cream rim: the heroes' cue
       prompt:
         `${BABY_STYLE}Image 2 is ${r.name}, a fusion pet born of ${ELEMENTS[a].name.toLowerCase()} and ${ELEMENTS[b].name.toLowerCase()}: ${r.desc}. It is drawn there in an older, grown-up style. ` +
-        `Draw ${r.name} again as a baby ${r.animal} in the exact style and proportions of image 1 (a huge head, a tiny chubby body, short stubby limbs, cute and brave), ` +
+        `Draw ${r.name} again as a baby ${r.animal} in the exact style and proportions of image 1 (a huge head, a tiny chubby body, short stubby limbs, cute and brave). ${CHIBI}` +
         `keeping what makes it this species and this pet: ${r.from[a]}; ${r.from[b]}. ${BABY_VIEW[r.view]}` +
         `${petValues(r)}HARD COLOUR RULE: use only these colours: ${list(r.pal)}, plus the outline ${UNI[0]}, the cream rim ${UNI[1]} and black and white for the eyes; most of the body in three or four of them. ` +
         `${petSticker(r)} ${bgLine(r.bg)}` };
@@ -337,12 +343,13 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
     // a half-body sticker in the foes' own style on a dark flat plate; a casual-game villain, not a scary one
     if (portrait) {
       const accent = r.accent.match(/#[0-9A-Fa-f]{6}/)?.[0] ?? ENEMY_TYPES[type].color;
-      return { ...base, model: models.best, since: BABY_SINCE, bg: r.bg, refs: [`enemy.${type}`], deps: [`enemy.${type}`],
+      return { ...base, model: models.fast, since: BABY_SINCE, bg: r.bg, refs: [`enemy.${type}`], deps: [`enemy.${type}`],
         post: { fit: 'plate', size: 512, plate: bossPlate(ENEMY_TYPES[type].color, accent), stripRim: true }, // a foe has no cream rim
         prompt:
           `Image 1 is ${r.name}, a boss of the animal army that besieges the player’s keep: ${r.desc}. Draw it again as a half-body portrait sticker for its "boss approaches" card, ` +
           'in exactly the same sticker style as image 1: the thick even dark plum outline (#2B1D2E) and no cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left. ' +
-          'Flat 2D sticker art, not a 3D render. Its head and upper body only, facing the viewer in a slight three-quarter view, the face large; the bottom of the body closed off with a clean rounded outline, as a half-body sticker is. ' +
+          'Flat 2D sticker art, not a 3D render. A BUST: only its head and shoulders (no legs, no tail, no full body), facing the viewer in a slight three-quarter view, the face filling most of the picture; ' +
+          'exactly one head; the bottom of the bust closed off with a clean rounded outline, as a half-body sticker is. ' +
           'Keep its design, face, markings, accessories and colours exactly. A casual-game villain: cute but clearly a boss, never scary: a smug, confident grin, one eyebrow raised, chin up. ' +
           `HARD COLOUR RULE: use only these colours: ${list(r.pal)}, with ${r.accent} as the single bright accent, plus the outline ${UNI[0]} and black and white for the eyes. ` +
           `Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. ${bgLine(r.bg)}` };

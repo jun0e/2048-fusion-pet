@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
-import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues, BABIES_LINE, BABY_SINCE, BABY_VIEW, ASCENDED_GOLD, ASCENDED_PLATE, facing, grownRef, portraitPlate, tint, bossPlate, toInk } from '../tools/pipeline-jobs.mjs';
+import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues, BABIES_LINE, BABY_SINCE, BABY_VIEW, CHIBI, ASCENDED_GOLD, ASCENDED_PLATE, facing, grownRef, portraitPlate, tint, bossPlate, toInk } from '../tools/pipeline-jobs.mjs';
 import { followers, isPostOnly, isReady, isStale, sourceOf } from '../tools/pipeline-state.mjs';
 import { ENEMY_TYPES } from '../src/sim/enemies.js';
 import { imagesFor } from '../tools/pick.mjs';
@@ -90,6 +90,7 @@ test('fusions: one animal each, redrawn as a baby in the babies’ style, its pa
     const [a, b] = FUSIONS[k].parts;
     assert.ok(j.prompt.includes(r.desc) && j.prompt.includes(`a baby ${r.animal}`), `${k}: its animal, as a baby`);
     assert.match(j.prompt, /huge head, a tiny chubby body/, `${k}: the babies’ proportions`);
+    assert.ok(j.prompt.includes(CHIBI), `${k}: said outright`);
     assert.match(j.prompt, /Flat 2D sticker art, not a 3D render/, `${k}: 2D`);
     assert.ok(j.prompt.includes(r.name), `${k}: its name`);
     assert.ok(j.prompt.includes(r.from[a]) && j.prompt.includes(r.from[b]), `${k}: both parents, in words`);
@@ -282,6 +283,8 @@ test('no avatar is 3D: a boss’s intro bust is a 2D half-body sticker of the bo
     const r = FOE_ROSTER[type];
     assert.deepEqual(j.refs, [`enemy.${type}`], `${type}: drawn from its own sprite`);
     assert.match(j.prompt, /half-body portrait sticker/);
+    assert.match(j.prompt, /A BUST: only its head and shoulders/);
+    assert.match(j.prompt, /exactly one head/);
     assert.match(j.prompt, /Flat 2D sticker art, not a 3D render/);
     assert.match(j.prompt, /cute but clearly a boss, never scary/);
     assert.match(j.prompt, /no cream rim/, `${type}: the foes’ style`);
@@ -451,7 +454,8 @@ test('the backend chooses the models: sprites use fast, portraits and the backgr
   const p = plan(rows, root, ['P0', 'P1'], { fast: 'gemini-3.1-flash-image', best: 'gemini-3-pro-image' });
   const m = new Map(p.jobs.map((j) => [j.id, j.model]));
   assert.equal(m.get('pet.fire.16'), 'gemini-3.1-flash-image');
-  assert.equal(m.get('fusion.fire+ice'), 'gemini-3-pro-image', 'the fusion pets and the foes use best');
+  assert.equal(m.get('fusion.fire+ice'), 'gemini-3.1-flash-image', 'the baby pets: fast, their proportions said outright');
+  assert.equal(m.get('enemy.pixie'), 'gemini-3-pro-image', 'the foes use best');
   assert.equal(m.get('portrait.fire+ice'), null, 'a portrait is made from its fusion, no image');
   assert.equal(new Map(plan(rows, root, ['P2'], { fast: 'gemini-3.1-flash-image', best: 'gemini-3-pro-image' }).jobs.map((j) => [j.id, j.model])).get('portrait.fire+ice.ascended'), 'gemini-3.1-flash-image', 'the halo edit: fast');
   assert.equal(m.get('env.background'), 'gemini-3-pro-image');
