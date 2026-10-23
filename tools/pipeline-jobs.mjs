@@ -30,9 +30,6 @@ const STICKER =
   'Polished mobile-game character art, sticker style: simple big clean rounded shapes with very few small details, a thick even dark plum outline (#2B1D2E) ' +
   'around every form, a thin cream-white sticker rim (#FFFAF2) outside the outline, flat colour fills with one crisp cel-shade tone and one small highlight, ' +
   'light from the upper left, big expressive eyes. Original design. No text, no logo, no watermark, no frame, no ground, no cast shadow.';
-const VINYL =
-  'Stylized 3D render of a collectible soft-vinyl designer toy: smooth matte materials, large soft colour gradients, gentle ambient occlusion, warm key light from the upper left, ' +
-  'a strong rim light in the creature’s own element colour from behind right, no fur strands or texture noise. Original design. No text, no logo, no watermark.';
 // Foes (the visual overhaul, proposal 7.3): each fills its own silhouette contract (image 1) in a
 // view the renderer can flip, with a dark mass and a cream zone so it reads on a light road and a
 // dark hedge. Three candidates each; tools/silhouette-check.py scores them and tools/pick.mjs keeps
@@ -113,6 +110,13 @@ export const ASCENDED_PLATE = ['#FFC93C', '#FFF0B8', '#FFE07A'];
 export const tint = (hex, t) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) + (255 - parseInt(hex.slice(i, i + 2), 16)) * t).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
 /** A base portrait's flat plate: the fusion's own colour, lightened (the plate, the disc behind the pet). */
 export const portraitPlate = (color) => [tint(color, 0.45), tint(color, 0.78)];
+/** `hex` toward the outline's plum ink by `t` (0–1): a boss plate's dark flat tints. */
+export const toInk = (hex, t) => {
+  const ink = [0x2b, 0x1d, 0x2e];
+  return `#${[1, 3, 5].map((i, k) => Math.round(parseInt(hex.slice(i, i + 2), 16) + (ink[k] - parseInt(hex.slice(i, i + 2), 16)) * t).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+};
+/** A boss bust's flat plate: its colour darkened toward the ink, a disc in its own accent (darkened), flat rays. */
+export const bossPlate = (color, accent) => [toInk(color, 0.62), toInk(accent, 0.45), toInk(color, 0.48)];
 
 /**
  * The grounds a roaming pet must read on: every chapter's lanes and the hedges between them (the
@@ -340,9 +344,20 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
     const [, type, portrait] = m;
     const r = FOE_ROSTER[type];
     if (!r) return null;
-    if (portrait)
-      return { ...base, model: models.best, bg: 'none', refs: [`enemy.${type}`], deps: [`enemy.${type}`], post: { fit: 'cover', size: 512 },
-        prompt: `${VINYL} A dramatic head-and-shoulders portrait of the boss in image 1, ${r.name} (${r.desc}); keep its design and colours exactly. For a "boss approaches" banner: low camera, menacing but cute. Dark stormy plate behind. Square.` };
+    // a boss's intro card bust (T6): 2D like every avatar (the user: "check all avatar … leave all at 2d"),
+    // a half-body sticker in the foes' own style on a dark flat plate; a casual-game villain, not a scary one
+    if (portrait) {
+      const accent = r.accent.match(/#[0-9A-Fa-f]{6}/)?.[0] ?? ENEMY_TYPES[type].color;
+      return { ...base, model: models.best, bg: r.bg, refs: [`enemy.${type}`], deps: [`enemy.${type}`],
+        post: { fit: 'plate', size: 512, plate: bossPlate(ENEMY_TYPES[type].color, accent), stripRim: true }, // a foe has no cream rim
+        prompt:
+          `Image 1 is ${r.name}, a boss of the animal army that besieges the player’s keep: ${r.desc}. Draw it again as a half-body portrait sticker for its "boss approaches" card, ` +
+          'in exactly the same sticker style as image 1: the thick even dark plum outline (#2B1D2E) and no cream rim, flat colour fills with one crisp cel-shade tone and one small highlight, light from the upper left. ' +
+          'Flat 2D sticker art, not a 3D render. Its head and upper body only, facing the viewer in a slight three-quarter view, the face large; the bottom of the body closed off with a clean rounded outline, as a half-body sticker is. ' +
+          'Keep its design, face, markings, accessories and colours exactly. A casual-game villain: cute but clearly a boss, never scary: a smug, confident grin, one eyebrow raised, chin up. ' +
+          `HARD COLOUR RULE: use only these colours: ${list(r.pal)}, with ${r.accent} as the single bright accent, plus the outline ${UNI[0]} and black and white for the eyes. ` +
+          `Original design that does not copy any existing game or franchise character. No text, no logo, no watermark, no frame, no ground, no cast shadow. ${bgLine(r.bg)}` };
+    }
     // rendering reference: the forest golden starts from the frozen render, each chapter golden
     // follows the forest golden, and every other foe follows its own chapter's golden
     const golden = CHAPTER_GOLDEN[r.chapter];

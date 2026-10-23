@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
-import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues, BABIES_LINE, BABY_VIEW, ASCENDED_GOLD, ASCENDED_PLATE, portraitPlate, tint } from '../tools/pipeline-jobs.mjs';
+import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues, BABIES_LINE, BABY_VIEW, ASCENDED_GOLD, ASCENDED_PLATE, portraitPlate, tint, bossPlate, toInk } from '../tools/pipeline-jobs.mjs';
+import { ENEMY_TYPES } from '../src/sim/enemies.js';
 import { imagesFor } from '../tools/pick.mjs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -261,6 +262,30 @@ test('the background is full-frame; portraits are 2D: the pet’s own sticker on
   assert.equal(tint('#000000', 0.5), '#808080');
   assert.equal(tint('#FF8000', 1), '#FFFFFF');
   if (!process.env.GEMINI_BEST_MODEL && !process.env.GEMINI_IMAGE_MODEL) assert.ok(core.jobs.filter((j) => j.model).every((j) => j.model === MODEL_FAST));
+});
+
+test('no avatar is 3D: a boss’s intro bust is a 2D half-body sticker of the boss on a dark flat plate', () => {
+  const all = plan(rows, root, ['P0', 'P1', 'P2']);
+  const busts = all.jobs.filter((j) => /^enemy\.[a-zA-Z]+\.portrait$/.test(j.id));
+  assert.deepEqual(busts.map((j) => j.id).sort(), ['enemy.dragonRider.portrait', 'enemy.elfRuler.portrait', 'enemy.kiteNinja.portrait']);
+  for (const j of busts) {
+    const type = j.id.split('.')[1];
+    const r = FOE_ROSTER[type];
+    assert.deepEqual(j.refs, [`enemy.${type}`], `${type}: drawn from its own sprite`);
+    assert.match(j.prompt, /half-body portrait sticker/);
+    assert.match(j.prompt, /Flat 2D sticker art, not a 3D render/);
+    assert.match(j.prompt, /cute but clearly a boss, never scary/);
+    assert.match(j.prompt, /no cream rim/, `${type}: the foes’ style`);
+    for (const h of r.pal) assert.ok(j.prompt.includes(h), `${type}: its own palette (${h})`);
+    assert.equal(j.bg, r.bg);
+    assert.equal(j.post.fit, 'plate');
+    assert.equal(j.post.stripRim, true);
+    const accent = r.accent.match(/#[0-9A-Fa-f]{6}/)[0];
+    assert.deepEqual(j.post.plate, bossPlate(ENEMY_TYPES[type].color, accent), `${type}: dark plate in its colour, a disc in its accent`);
+  }
+  assert.ok(!all.jobs.some((j) => /3D render of|soft-vinyl/i.test(j.prompt ?? '')), 'no job asks for a 3D render');
+  assert.equal(toInk('#FFFFFF', 1), '#2B1D2E');
+  assert.equal(toInk('#2B1D2E', 0.5), '#2B1D2E');
 });
 
 test('post.py --fit plate: the sticker centred on a flat, opaque square plate', { skip: spawnSync('python3', ['-c', 'import PIL, numpy']).status === 0 ? false : 'needs python3 with Pillow and NumPy' }, () => {

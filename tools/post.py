@@ -317,7 +317,7 @@ def main():
         img, rim = strip_rim(img, max(2, round(max(img.size) * 0.025)))
         qa.update(rim)
         img, _ = trim(img)
-        img = fit_longest(img, o.size)
+        img = fit_longest(img, round(o.size * PLATE_BOX) if o.fit == "plate" else o.size)
 
     arr = np.asarray(img).astype(np.float32)
     alpha = arr[..., 3]

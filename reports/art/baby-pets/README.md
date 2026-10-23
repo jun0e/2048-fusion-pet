@@ -22,7 +22,7 @@ The user asked: "check all avatar and remove all 3d art for fusion pet, leave al
 | Roaming pet, its tile at 256+ | `fusion.<a>+<b>` (28) | 2D, grown-up proportions | 2D baby |
 | Die pick, tiles 16 to 128 | `pet.<el>.<value>`, moods | 2D babies | unchanged (the style reference) |
 | Eggs, halos, badges, foes, attacks | various | 2D | unchanged |
-| Boss intro card | `enemy.<boss>.portrait` (3) | 3D soft-vinyl render | unchanged: a foe, not a pet |
+| Boss intro card | `enemy.<boss>.portrait` (3) | 3D soft-vinyl render | 2D: a half-body sticker of the boss (a casual-game villain: cute, smug, clearly a boss) on a dark flat plate, its own palette |
 
 ## How it is made
 
@@ -33,6 +33,7 @@ The user asked: "check all avatar and remove all 3d art for fusion pet, leave al
 | `fusion.<a>+<b>` | Gemini 3 Pro | images: `tools/refs/babies-line.png` (the eight babies, the style) and `tools/refs/fusions/grown/<key>.png` (the grown sprite: the species, its markings and colours); text: the roster's description, both parents in words, the value rule, the hard colour rule |
 | `portrait.<a>+<b>` | no new image | the fusion's raw, keyed, snapped and placed on its plate (`tools/post.py --fit plate`) |
 | `portrait.<a>+<b>.ascended` | Gemini 3 Pro edit of the fusion sticker | a gold plate (`ASCENDED_PLATE`) |
+| `enemy.<boss>.portrait` | Gemini 3 Pro, drawn from the boss's own sprite | the foes' style (no cream rim, `--strip-rim`), on a plate of its colour darkened toward the ink with a disc in its accent (`bossPlate`) |
 
 To redo one pet:
 

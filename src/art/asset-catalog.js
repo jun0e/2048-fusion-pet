@@ -98,7 +98,7 @@ export function buildAssetRows(price = 0.0336) {
     add({ id: `enemy.${k}`, cat: 'Enemy', layer: 'Map field', name: e.name, desc: `Chibi fantasy hero, ${CH[k] ?? ''}; dark outline, no cream rim, red-tinted shadow (foe cues)`, style: 'Sticker (foe variant)', src: '256×256', display: e.boss ? '1.6 cell' : '0.5 cell', method: 'Gemini generate', refs: 'enemy golden + originality pass', priority: e.boss ? 'P1' : 'P1', gens: 4, notes: 'redesign away from Slime Legion references' });
   }
   for (const [k, e] of Object.entries(ENEMY_TYPES).filter(([, e]) => e.boss)) {
-    add({ id: `enemy.${k}.portrait`, cat: 'Enemy', layer: 'UI', name: `${e.name} banner portrait`, desc: 'Boss-approaches banner bust', style: 'Vinyl 3D render', src: '512×512', display: 'banner', method: `Gemini generate (enemy.${k} as ref)`, refs: `enemy.${k}`, priority: 'P2', gens: 3 });
+    add({ id: `enemy.${k}.portrait`, cat: 'Enemy', layer: 'UI', name: `${e.name} intro card bust`, desc: 'Half-body sticker of the boss, a casual-game villain (cute, smug, clearly a boss), on a dark flat plate in its colour', style: 'Sticker on a flat plate (2D)', src: '512×512', display: 'boss intro card, 64 pt', method: `Gemini generate (enemy.${k} as ref)`, refs: `enemy.${k}`, priority: 'P2', gens: 1 });
   }
 
   // --- projectiles & effects ------------------------------------------------------------------
