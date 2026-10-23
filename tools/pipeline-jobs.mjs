@@ -310,12 +310,13 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
       return { ...base, model: null, from: sprite, bg, refs: [], deps: [sprite],
         post: { fit: 'plate', size: 512, plate: portraitPlate(FUSIONS[key].color), ...(approved ? {} : { palette: [...r.pal, ...UNI], snap: true }) } };
     const key2 = approved ? 'green' : r.bg; // the edit comes back on a key colour, even for an approved sticker
-    return { ...base, model: models.best, bg: key2, refs: [BABIES_LINE, sprite], deps: [sprite],
+    // an edit (a halo added): the fast model keeps the design, and its own capacity frees the Pro queue
+    return { ...base, model: models.fast, bg: key2, refs: [BABIES_LINE, sprite], deps: [sprite],
       post: { fit: 'plate', size: 512, plate: ASCENDED_PLATE, ...(approved ? {} : { palette: [...r.pal, ...ASCENDED_GOLD, ...UNI], snap: true }) },
       prompt:
         `${BABY_STYLE}Image 2 is ${r.name}, a pet in that style. Draw it again with exactly the same design, face, colours, proportions, pose and view, ` +
         `as its ascended legendary form: a glowing golden halo ring floating just above its head, a few small four-pointed golden sparkles around it, and a proud, brave little smile. ` +
-        `HARD COLOUR RULE: the pet keeps its own colours from image 2; the halo and the sparkles only in ${list(ASCENDED_GOLD)}; plus the outline ${UNI[0]}, the cream rim ${UNI[1]} and black and white for the eyes. ` +
+        `HARD COLOUR RULE: the pet keeps exactly its own colours from image 2${approved ? '' : ` (${list(r.pal)}), as light or dark as they are there`}; the halo and the sparkles only in ${list(ASCENDED_GOLD)}; plus the outline ${UNI[0]}, the cream rim ${UNI[1]} and black and white for the eyes. ` +
         `${STICKER} ${bgLine(key2)}` };
   }
 

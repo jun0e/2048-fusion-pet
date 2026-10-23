@@ -255,6 +255,7 @@ test('the background is full-frame; portraits are 2D: the pet’s own sticker on
     assert.deepEqual(asc.deps, [`fusion.${k}`]);
     assert.match(asc.prompt, /golden halo ring/);
     assert.match(asc.prompt, /exactly the same design, face, colours, proportions, pose and view/);
+    for (const h of r.pal) assert.ok(asc.prompt.includes(h), `${k}: its own colours named (${h})`);
     assert.deepEqual(asc.post.plate, ASCENDED_PLATE);
     assert.deepEqual(asc.post.palette, [...r.pal, ...ASCENDED_GOLD, ...UNIVERSAL.map((c) => c.hex)], `${k}: its colours and the halo’s gold`);
   }
@@ -365,7 +366,7 @@ test('the backend chooses the models: sprites use fast, portraits and the backgr
   assert.equal(m.get('pet.fire.16'), 'gemini-3.1-flash-image');
   assert.equal(m.get('fusion.fire+ice'), 'gemini-3-pro-image', 'the fusion pets and the foes use best');
   assert.equal(m.get('portrait.fire+ice'), null, 'a portrait is made from its fusion, no image');
-  assert.equal(new Map(plan(rows, root, ['P2'], { fast: 'gemini-3.1-flash-image', best: 'gemini-3-pro-image' }).jobs.map((j) => [j.id, j.model])).get('portrait.fire+ice.ascended'), 'gemini-3-pro-image');
+  assert.equal(new Map(plan(rows, root, ['P2'], { fast: 'gemini-3.1-flash-image', best: 'gemini-3-pro-image' }).jobs.map((j) => [j.id, j.model])).get('portrait.fire+ice.ascended'), 'gemini-3.1-flash-image', 'the halo edit: fast');
   assert.equal(m.get('env.background'), 'gemini-3-pro-image');
 });
 
