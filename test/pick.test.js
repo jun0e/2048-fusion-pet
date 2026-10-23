@@ -96,8 +96,9 @@ test('gateBrief keeps the version, the verdicts and the margins; imagesFor count
   assert.equal(b.inside, true);
   assert.equal(b.margins.ally, -0.02);
   assert.equal(b.path, undefined, 'no local paths in the manifest');
-  assert.deepEqual(imagesFor({ pick: { n: 3 } }), { first: 3, most: 6 });
-  assert.deepEqual(imagesFor({}), { first: 1, most: 1 });
+  assert.deepEqual(imagesFor({ model: 'm', pick: { n: 3 } }), { first: 3, most: 6 });
+  assert.deepEqual(imagesFor({ model: 'm' }), { first: 1, most: 1 });
+  assert.deepEqual(imagesFor({ model: null, from: 'fusion.fire+ice' }), { first: 0, most: 0 }, 'a job made from another’s raw makes no image');
 });
 
 test('an accepted miss is only the reviewed one: the same gates, each no worse than reviewed (+ slack)', () => {

@@ -1,6 +1,6 @@
 // Key-visual demo mode (index.html?kv): the recommended art direction running in
 // the real game. ?style=sticker|pixel|classic picks the map style (the namecard
-// portraits stay soft-vinyl 3D in every style); ?embed hides the switcher (the
+// portraits are the 2D ones in every style); ?embed hides the switcher (the
 // side-by-side compare page uses it).
 //   - Board (v2, docs/v2/SPEC.md section 1): plain stone blocks, elemental eggs and a fusion
 //     egg, single pets at each growth stage, fusion pets (fed a few singles), and two pure forms

@@ -1,12 +1,17 @@
 """Post-process one generated image for the game (used by tools/pipeline.mjs).
 
 usage: python3 tools/post.py IN OUT --bg green|magenta|none --size N
-                             [--fit trim|square|cover] [--palette HEX,HEX,...] [--snap] [--strip-rim]
+                             [--fit trim|square|cover|plate] [--plate HEX,HEX[,HEX]]
+                             [--palette HEX,HEX,...] [--snap] [--strip-rim]
 
   --bg       key out a flat chroma background (estimated from the border), despill
   --fit      trim: crop to the subject + small pad (sprites, feet at the bottom)
              square: trim, then centre on a square canvas
-             cover: no keying/trim, just resize (portraits, backgrounds)
+             cover: no keying/trim, just resize (backgrounds)
+             plate: trim, then centre on a square flat plate (the 2D namecard portraits):
+             the sticker keyed, trimmed and snapped as a sprite is, on --plate's colours
+  --plate    the plate's flat colours: the plate, a lighter disc behind the subject, and
+             optionally flat rays round the disc (the ascended portraits)
   --size     longest side of the output in px
   --palette  allowed colours (the element palette + universal colours)
   --snap     enforce the palette hard limit: every visible pixel takes its nearest
@@ -249,6 +254,31 @@ def fit_longest(img, size):
     return img.resize((max(1, round(img.width * s)), max(1, round(img.height * s))), Image.LANCZOS)
 
 
+PLATE_BOX = 0.86  # the subject's longest side, as a share of the plate's
+PLATE_DISC = 0.44  # the disc's radius, as a share of the plate's side
+PLATE_RAYS = 16  # flat rays round the disc (every other one in the ray colour)
+
+
+def hex_rgba(h):
+    return tuple(int(h[i : i + 2], 16) for i in (1, 3, 5)) + (255,)
+
+
+def plate_card(sticker, size, colours):
+    """A square 2D avatar: the sticker centred on a flat plate (flat fills only, no gradient): the
+    plate colour, a lighter disc behind the subject and, with a third colour, flat rays round it."""
+    card = Image.new("RGBA", (size, size), hex_rgba(colours[0]))
+    d = ImageDraw.Draw(card)
+    c = size / 2
+    if len(colours) > 2:
+        step = 360 / PLATE_RAYS
+        for i in range(0, PLATE_RAYS, 2):
+            d.pieslice((c - size, c - size, c + size, c + size), i * step - 90, (i + 1) * step - 90, fill=hex_rgba(colours[2]))
+    r = size * PLATE_DISC
+    d.ellipse((c - r, c - r, c + r, c + r), fill=hex_rgba(colours[1]))
+    card.alpha_composite(sticker, ((size - sticker.width) // 2, (size - sticker.height) // 2))
+    return card
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("src")
@@ -256,6 +286,7 @@ def main():
     ap.add_argument("--bg", default="none")
     ap.add_argument("--size", type=int, default=320)
     ap.add_argument("--fit", default="trim")
+    ap.add_argument("--plate", default="")
     ap.add_argument("--palette", default="")
     ap.add_argument("--snap", action="store_true")
     ap.add_argument("--strip-rim", action="store_true")
@@ -279,7 +310,8 @@ def main():
             sq = Image.new("RGBA", (side, side), (0, 0, 0, 0))
             sq.paste(img, ((side - img.width) // 2, (side - img.height) // 2))
             img = sq
-        img = fit_longest(img, o.size)
+        # a plate's subject is sized for the plate: snapped and checked at the size it ships
+        img = fit_longest(img, round(o.size * PLATE_BOX) if o.fit == "plate" else o.size)
 
     if o.strip_rim and o.fit != "cover":
         img, rim = strip_rim(img, max(2, round(max(img.size) * 0.025)))
@@ -319,9 +351,16 @@ def main():
         edge = (np.asarray(clear) > 0) & (alpha > 20)
         qa["fringe"] = round(float((fringe & edge).mean()), 4)
 
-    # full-frame images (portraits, backgrounds) are opaque by design: no coverage check
+    # full-frame images (backgrounds) are opaque by design: no coverage check; a plate's subject
+    # is checked as a sprite is, before it goes on the plate
     ok = o.fit == "cover" or (0.04 < qa["coverage"] < 0.97 and qa.get("fringe", 0) < 0.01 and not qa.get("rim_body"))
     qa["ok"] = bool(ok)
+    if o.fit == "plate":
+        colours = [h for h in o.plate.split(",") if h]
+        if len(colours) < 2:
+            raise SystemExit("--fit plate needs --plate PLATE,DISC[,RAYS]")
+        img = plate_card(img, o.size, colours)
+        qa["size"] = list(img.size)
     img.save(o.dst, optimize=True)
     print(json.dumps(qa))
 

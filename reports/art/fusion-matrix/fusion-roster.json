@@ -284,9 +284,10 @@
    "species": "Monodon monoceros",
    "kind": "real",
    "bodyPlan": "spy-hop",
-   "view": "front",
+   "view": "profile",
+   "contractView": "front",
    "move": "float",
-   "pose": "spy-hopping, a straight front view, symmetrical: the body upright and vertical, the round head at the top with the long spiral tusk pointing straight up at the sky, the two small flippers held out at both sides, the crescent tail flukes spread at the bottom",
+   "pose": "a floating calf in a three-quarter side view facing left (the baby redraw of 2026-10-23, Trailer C's narwhal): a huge round head with the long spiral tusk rising from its forehead, a chubby body, small flippers, the crescent tail flukes curled up behind",
    "desc": "a narwhal: a chubby torpedo body with a mottled back and a snow belly, a long spiral tusk, small flippers, crescent tail flukes",
    "why": "The unicorn of the sea: an arctic whale whose spiral tusk is a unicorn horn. The whale is the ice, the tusk is the lightning rod that the Horn Arc leaps from.",
    "parents": {

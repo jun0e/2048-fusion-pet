@@ -55,15 +55,15 @@ export function buildAssetRows(price = 0.0336) {
       cat: 'Creature',
       layer: 'Roaming',
       name: `${petName(a, b)} (${f.name})`,
-      desc: `A ${r.animal} filling its own silhouette contract (${r.view === 'profile' ? 'side view facing left' : r.view === 'front' ? 'front view' : 'seen from above'}); ${ELEMENTS[a].name} and ${ELEMENTS[b].name} in its markings; dominant colour ${f.color}`,
-      style: 'Sticker, one cel tone + cream rim',
+      desc: `A baby ${r.animal} in the babies' own style (huge head, tiny chubby body; ${r.view === 'profile' ? 'three-quarter side view facing left' : r.view === 'front' ? 'front view' : 'front view, wings spread'}); ${ELEMENTS[a].name} and ${ELEMENTS[b].name} in its markings; dominant colour ${f.color}`,
+      style: 'Sticker, baby proportions, one cel tone + cream rim',
       src: '320×320',
-      display: '1.0 cell tall, up to 1.6 cells wide',
-      method: 'Gemini generate (silhouette contract + render ref, 3 gated candidates)',
-      refs: `tools/refs/fusions/sil-${key}.png, render ref`,
+      display: '1.0 cell tall, up to 1.6 cells wide; its own namecard portrait',
+      method: 'Gemini generate (the babies line-up + its grown sprite as refs), or an approved design',
+      refs: `tools/refs/babies-line.png, tools/refs/fusions/grown/${key}.png`,
       priority: hero ? 'P0' : 'P1',
-      gens: 3,
-      notes: 'Pro model; gated like the foes (contract, twin, ally, ground)',
+      gens: 1,
+      notes: 'Pro model; Sparkfrost ships Trailer C’s approved narwhal (tools/refs/fusions/approved/)',
     });
   }
   for (const [key, f] of Object.entries(FUSIONS)) {
@@ -73,15 +73,15 @@ export function buildAssetRows(price = 0.0336) {
       cat: 'Creature',
       layer: 'Namecard',
       name: `${petName(a, b)} portrait`,
-      desc: `Soft-vinyl toy bust, warm key light upper-left, ${f.color} rim light (its aura), radial plate painted in`,
-      style: 'Vinyl 3D render',
+      desc: `Its own fusion sticker on a flat 2D plate: ${f.color} lightened, a lighter disc behind the pet`,
+      style: 'Sticker on a flat plate (2D)',
       src: '512×512',
-      display: '56–64 pt card, 132 pt cut-in',
-      method: 'Gemini generate (fusion sprite as character ref)',
+      display: '56–64 pt card, 132 pt cut-in, pick cards',
+      method: `Post: fusion.${key}'s raw on its plate (tools/post.py --fit plate)`,
       refs: `fusion.${key}`,
       priority: key === 'fire+ice' ? 'P0' : 'P1',
-      gens: 4,
-      notes: 'no keying: plate is part of the image',
+      gens: 0,
+      notes: 'no new image: the tile, the roaming pet and the card are one drawing',
     });
   }
   for (const el of ELEMENT_KEYS) {
@@ -90,7 +90,7 @@ export function buildAssetRows(price = 0.0336) {
   }
   for (const [key, f] of Object.entries(FUSIONS)) {
     const [a, b] = f.parts;
-    add({ id: `portrait.${key}.ascended`, cat: 'Creature', layer: 'Namecard', name: `${petName(a, b)} ascended portrait`, desc: 'Edit of the portrait: low camera, chin up, backlight halo, gold trim', style: 'Vinyl 3D render', src: '512×512', display: 'legend card', method: `Gemini edit of portrait.${key}`, refs: `portrait.${key}`, priority: 'P2', gens: 2 });
+    add({ id: `portrait.${key}.ascended`, cat: 'Creature', layer: 'Namecard', name: `${petName(a, b)} ascended portrait`, desc: 'Edit of its sticker: a gold halo, sparkles and a proud smile, on a gold plate with flat rays', style: 'Sticker on a flat plate (2D)', src: '512×512', display: 'pure form card', method: `Gemini edit of fusion.${key}`, refs: `fusion.${key}`, priority: 'P2', gens: 1 });
   }
 
   // --- enemies --------------------------------------------------------------------------

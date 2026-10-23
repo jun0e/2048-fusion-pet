@@ -1,8 +1,9 @@
 // Namecards: one card per fusion pet that can summon (1024 and up, docs/v2/SPEC.md section 7), on the
 // rail that hangs on the right tower (proposal 4.1): never over lane 4. The rail has four slots; from a
 // fifth pet on, the fourth slot is a stack whose face is the card to tap (railSlots), so every pet's
-// skill can be cast and the rail never grows. The portrait uses the second art style, a soft-vinyl toy
-// render, so the card reads as a reward. The charge lives in the sim (run.skillCharge); a tap on a ready
+// skill can be cast and the rail never grows. The portrait is the pet's own baby sticker on a flat 2D
+// plate (a pure form's: with a gold halo, on a gold plate), so the card and the pet on the field are
+// one drawing. The charge lives in the sim (run.skillCharge); a tap on a ready
 // card asks its creator to cast (onCast: src/kv/pets.js calls run.castSkill). States follow the style
 // brief: charging (dimmed; a fill bar under the portrait), ready (full colour, an element rim, the bar
 // turns into an inverted READY pill, a shine sweep, a small bob), out (the pet is on the field: the time

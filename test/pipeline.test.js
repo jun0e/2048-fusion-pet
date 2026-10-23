@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
-import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues } from '../tools/pipeline-jobs.mjs';
+import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues, BABIES_LINE, BABY_VIEW, ASCENDED_GOLD, ASCENDED_PLATE, portraitPlate, tint } from '../tools/pipeline-jobs.mjs';
+import { imagesFor } from '../tools/pick.mjs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { classify429 } from '../tools/gemini-errors.mjs';
 import { checkBudget, MONTH_MS } from '../tools/gemini-budget.mjs';
 import { spriteId, portraitId } from '../src/art/sprite-ids.js';
@@ -61,69 +64,79 @@ test('a priority slice pulls in what it references: the P0 portrait needs its fu
   for (const j of p0.jobs) for (const d of j.deps) assert.ok(ids.includes(d), `${j.id} → ${d}`);
 });
 
-test('stages are edits of the previous stage; a fusion fills its own contract in the frozen render, with no parent images', () => {
+test('stages are edits of the previous stage; a fusion is its grown sprite redrawn in the babies’ line-up, with no parent images', () => {
   assert.deepEqual(byId.get('pet.fire.32').refs, ['pet.fire.16']);
   assert.deepEqual(byId.get('pet.fire.128').refs, ['pet.fire.64', 'pet.fire.16'], 'later stages are anchored to the original baby');
-  assert.deepEqual(byId.get('fusion.fire+ice').refs, ['tools/refs/fusions/sil-fire+ice.png', 'tools/refs/fusions/render-ref.png']);
-  assert.deepEqual(byId.get('fusion.wind+metal').refs, ['tools/refs/fusions/sil-wind+metal.png', 'tools/refs/fusions/render-ref.png']);
-  for (const k of Object.keys(FUSIONS)) assert.deepEqual(byId.get(`fusion.${k}`).deps, [], `${k}: nothing to wait for`);
-  for (const f of ['render-ref.png', 'silhouettes.svg']) assert.ok(existsSync(new URL(`../tools/refs/fusions/${f}`, import.meta.url)), f);
-  assert.deepEqual(byId.get('portrait.poison+earth').refs, ['fusion.poison+earth'], 'portraits see only their own fusion');
+  assert.deepEqual(byId.get('fusion.fire+ice').refs, [BABIES_LINE, 'tools/refs/fusions/grown/fire+ice.png']);
+  assert.deepEqual(byId.get('fusion.wind+metal').refs, [BABIES_LINE, 'tools/refs/fusions/grown/wind+metal.png']);
+  for (const k of Object.keys(FUSIONS)) {
+    assert.deepEqual(byId.get(`fusion.${k}`).deps, [], `${k}: nothing to wait for`);
+    assert.ok(existsSync(new URL(`../tools/refs/fusions/grown/${k}.png`, import.meta.url)), `${k}: its grown sprite is frozen as a reference`);
+  }
+  assert.ok(existsSync(new URL(`../${BABIES_LINE}`, import.meta.url)), 'the babies’ line-up');
+  assert.deepEqual(byId.get('portrait.poison+earth').refs, [], 'a portrait is no new image');
+  assert.equal(byId.get('portrait.poison+earth').from, 'fusion.poison+earth', 'it is its own fusion’s raw on a plate');
+  assert.deepEqual(byId.get('portrait.poison+earth').deps, ['fusion.poison+earth']);
 });
 
-test('fusions: one animal each, gated like the foes against the other fusions, every foe and the base pets', () => {
+test('fusions: one animal each, redrawn as a baby in the babies’ style, its parents in words and its palette snapped', () => {
   for (const [k, r] of Object.entries(FUSION_ROSTER)) {
     const j = byId.get(`fusion.${k}`);
     const [a, b] = FUSIONS[k].parts;
-    assert.ok(j.prompt.includes(r.desc) && j.prompt.includes(r.pose), `${k}: its animal and pose`);
+    assert.ok(j.prompt.includes(r.desc) && j.prompt.includes(`a baby ${r.animal}`), `${k}: its animal, as a baby`);
+    assert.match(j.prompt, /huge head, a tiny chubby body/, `${k}: the babies’ proportions`);
+    assert.match(j.prompt, /Flat 2D sticker art, not a 3D render/, `${k}: 2D`);
     assert.ok(j.prompt.includes(r.name), `${k}: its name`);
     assert.ok(j.prompt.includes(r.from[a]) && j.prompt.includes(r.from[b]), `${k}: both parents, in words`);
     assert.ok(j.prompt.includes(petValues(r)), `${k}: its value rule`);
+    assert.ok(j.prompt.includes(BABY_VIEW[r.view]), `${k}: drawn in the view the field moves it in`);
     for (const h of r.pal) assert.ok(j.prompt.includes(h), `${k}: ${h} in the colour rule`);
     assert.ok(j.prompt.includes('cream rim') && !j.post.stripRim, `${k}: keeps the heroes' cream rim`);
     assert.deepEqual(j.post.palette, [...r.pal, ...UNIVERSAL.map((c) => c.hex)]);
+    assert.equal(j.post.snap, true);
     assert.equal(j.post.size, 320);
     assert.equal(j.bg, r.bg);
-    const p = j.pick;
-    assert.equal(p.n, 3);
-    assert.equal(p.side, 'pet');
-    assert.equal(p.contract, j.refs[0]);
-    assert.equal(p.view, r.view);
-    assert.equal(p.chapter, undefined, 'no chapter: an empty marching pool');
-    assert.deepEqual(p.grounds, PET_GROUNDS);
-    assert.equal(p.band, PET_BAND);
-    assert.equal(p.rim, HERO_RIM, `${k}: its cream rim is stripped before outlines are compared`);
-    assert.equal(p.light, r.pal[2]);
+    assert.equal(j.pick, undefined, `${k}: no silhouette gates (a baby’s head is not a grown body plan)`);
     assert.ok(j.prompt.includes(petSticker(r)), `${k}: the sticker line${r.prop ? ' with its prop' : ''}`);
-    assert.equal(p.others.length, 27, `${k}: checked against the other 27`);
-    for (const o of p.others) assert.match(o.sil, /^tools\/refs\/fusions\/sil-[a-z]+\+[a-z]+\.png$/);
-    assert.equal(p.allies.length, 17 + 8, `${k}: every foe and every base pet at 128`);
-    assert.equal(p.cel, r.cel);
   }
   assert.deepEqual(PET_GROUNDS, { lane: '#D9C7A3', hedge: '#4A5A52', 'fareast.hedge': '#3F5A48', 'peaks.lane': '#CFC9BF', 'peaks.hedge': '#4A4A52' }, 'every lane and hedge, where pets roam (not the keep floor)');
   assert.equal(HERO_RIM, 0.02);
-  // a prop in the contract is drawn: the mole's molehill is no ground
+  assert.equal(PET_BAND, 0.035);
+  // a prop is drawn: the mole's molehill is no ground
   assert.match(byId.get('fusion.fire+earth').prompt, /no ground except its molehill, which is part of the sticker/);
   assert.match(byId.get('fusion.poison+nature').prompt, /no ground except its branch/);
   assert.match(byId.get('fusion.fire+ice').prompt, /no frame, no ground, no cast shadow\./, 'the others keep the plain rule');
   // the value rule names zones the view shows
-  assert.match(petValues(FUSION_ROSTER['ice+lightning']), /large markings in the darker #3B3FE0 \(the head, the sides, stripes or the limbs\)/, 'a front view has no saddle');
   assert.match(petValues(FUSION_ROSTER['fire+wind']), /large light zone in #D8FAF0 \(the four wings\) covers at least a third of the creature, so it reads on dark hedges/);
   assert.match(petValues(FUSION_ROSTER['fire+poison']), /light zone in #FF9E3D \(the belly and the throat\)/, 'where its record puts it');
   assert.match(petValues(FUSION_ROSTER['ice+poison']), /\(the top of the bell and its scalloped rim\)/, 'a jellyfish has no chest');
-  const view = (k) => byId.get(`fusion.${k}`).prompt;
-  assert.match(view('fire+ice'), /strict side view \(profile\) facing left/);
-  assert.match(view('fire+poison'), /straight front view/);
-  assert.match(view('wind+nature'), /seen from directly above/, 'a spread pet has limbs, not only wings');
-  assert.ok(!view('wind+nature').includes('both wings'));
-  for (const k of ['fire+earth', 'ice+lightning']) assert.match(view(k), /straight front view/, `${k}: drawn as its contract is (front)`);
-  assert.match(view('lightning+poison'), /strict side view/, 'the diving platypus is a profile');
   assert.match(petValues(FUSION_ROSTER['wind+nature']), /large markings in the darker #8A5A33/, 'a pale pet gets dark markings');
   assert.match(petValues(FUSION_ROSTER['poison+nature']), /large light zone in #CDEFA2/, 'a dark pet gets a light zone');
   assert.ok(!petValues(FUSION_ROSTER['poison+nature']).includes('highlight in #CDEFA2'));
   assert.match(petValues(FUSION_ROSTER['fire+ice']), /cel-shade tone in #456ac2 over at least a third/);
-  const portrait = byId.get('portrait.wind+metal').prompt;
-  assert.ok(portrait.includes(FUSION_ROSTER['wind+metal'].desc) && portrait.includes('Whirlblade'), 'the portrait names the same animal');
+  const view = (k) => byId.get(`fusion.${k}`).prompt;
+  assert.match(view('fire+ice'), /three-quarter side view facing left/, 'a profile pet faces left: the field flips it');
+  assert.match(view('fire+poison'), /straight front view/);
+  assert.match(view('wind+nature'), /its wings spread wide and evenly on both sides/, 'a spread pet keeps its wings out (the field beats them)');
+  assert.match(view('lightning+poison'), /three-quarter side view facing left/, 'the platypus is a profile');
+});
+
+test('an approved design ships as drawn: Sparkfrost is Trailer C’s narwhal, no new image', () => {
+  const real = fileURLToPath(new URL('..', import.meta.url));
+  const all = plan(rows, real, ['P0', 'P1', 'P2']);
+  const by = new Map(all.jobs.map((j) => [j.id, j]));
+  const narwhal = by.get('fusion.ice+lightning');
+  assert.equal(narwhal.model, null);
+  assert.equal(narwhal.approved, 'tools/refs/fusions/approved/ice+lightning.png');
+  assert.ok(existsSync(join(real, narwhal.approved)));
+  assert.equal(narwhal.bg, 'none', 'it comes keyed');
+  assert.equal(narwhal.post.palette, undefined, 'its own colours, unsnapped');
+  assert.deepEqual(imagesFor(narwhal), { first: 0, most: 0 });
+  assert.equal(FUSION_ROSTER['ice+lightning'].view, 'profile', 'drawn side-on, so the field flips it');
+  assert.equal(by.get('portrait.ice+lightning').post.palette, undefined);
+  assert.equal(by.get('portrait.ice+lightning').bg, 'none');
+  assert.equal(by.get('portrait.ice+lightning.ascended').bg, 'green', 'its edit comes back on a key colour');
+  assert.ok(by.get('fusion.fire+ice').model, 'the others are drawn');
 });
 
 test('foes fill their own silhouette contract, styled by their chapter golden, three candidates each', () => {
@@ -162,7 +175,10 @@ test('gateSpec: a pet has no marching chapter, its allies are the listed sprites
   const dir = mkdtempSync(join(tmpdir(), 'mb-gatespec-'));
   try {
     for (const f of ['enemy.pixie', 'enemy.pixie.portrait', 'pet.fire.128', 'pet.fire.16', 'fusion.fire+lightning']) writeFileSync(join(dir, `${f}.png`), '');
-    const pet = byId.get('fusion.fire+ice');
+    // the pets' gates (the grown pass, kept for a gated redraw): a pet job as that pass planned it
+    const others = Object.keys(FUSION_ROSTER).filter((k) => k !== 'fire+ice').map((k) => ({ id: `fusion.${k}`, sil: `tools/refs/fusions/sil-${k}.png` }));
+    const allies = [...Object.keys(FOE_ROSTER).map((k) => `enemy.${k}`), ...Object.keys(ELEMENT_PALETTES).map((el) => `pet.${el}.128`)];
+    const pet = { id: 'fusion.fire+ice', pick: { n: 3, side: 'pet', contract: 'tools/refs/fusions/sil-fire+ice.png', view: 'profile', grounds: PET_GROUNDS, band: PET_BAND, rim: HERO_RIM, others, allies } };
     const spec = gateSpec(pet, { meta: {} }, ['c.png'], dir);
     assert.deepEqual(spec.chapters, []);
     assert.ok(!('chapter' in spec));
@@ -220,14 +236,58 @@ test('green-screen only where the palette has no greens', () => {
   }
 });
 
-test('portraits and the background are full-frame; one model by default (fits the AI Pro credit)', () => {
-  for (const id of ['portrait.fire+ice', 'env.background']) {
-    const j = byId.get(id);
-    assert.equal(j.bg, 'none');
-    assert.equal(j.post.fit, 'cover');
+test('the background is full-frame; portraits are 2D: the pet’s own sticker on a flat plate; one model by default', () => {
+  const bg = byId.get('env.background');
+  assert.equal(bg.bg, 'none');
+  assert.equal(bg.post.fit, 'cover');
+  assert.equal(bg.aspect, '9:16');
+  const all = new Map(plan(rows, root, ['P0', 'P1', 'P2']).jobs.map((j) => [j.id, j]));
+  for (const [k, r] of Object.entries(FUSION_ROSTER)) {
+    const p = all.get(`portrait.${k}`);
+    assert.equal(p.model, null, `${k}: no new image`);
+    assert.deepEqual(imagesFor(p), { first: 0, most: 0 });
+    assert.equal(p.from, `fusion.${k}`);
+    assert.equal(p.bg, all.get(`fusion.${k}`).bg, `${k}: keyed as its fusion’s raw is`);
+    assert.deepEqual(p.post, { fit: 'plate', size: 512, plate: portraitPlate(FUSIONS[k].color), palette: [...r.pal, ...UNIVERSAL.map((c) => c.hex)], snap: true });
+    const asc = all.get(`portrait.${k}.ascended`);
+    assert.deepEqual(asc.refs, [BABIES_LINE, `fusion.${k}`], `${k}: an edit of its own sticker`);
+    assert.deepEqual(asc.deps, [`fusion.${k}`]);
+    assert.match(asc.prompt, /golden halo ring/);
+    assert.match(asc.prompt, /exactly the same design, face, colours, proportions, pose and view/);
+    assert.deepEqual(asc.post.plate, ASCENDED_PLATE);
+    assert.deepEqual(asc.post.palette, [...r.pal, ...ASCENDED_GOLD, ...UNIVERSAL.map((c) => c.hex)], `${k}: its colours and the halo’s gold`);
   }
-  assert.equal(byId.get('env.background').aspect, '9:16');
-  if (!process.env.GEMINI_BEST_MODEL && !process.env.GEMINI_IMAGE_MODEL) assert.ok(core.jobs.every((j) => j.model === MODEL_FAST));
+  assert.deepEqual(portraitPlate('#456ac2'), [tint('#456ac2', 0.45), tint('#456ac2', 0.78)]);
+  assert.equal(tint('#000000', 0.5), '#808080');
+  assert.equal(tint('#FF8000', 1), '#FFFFFF');
+  if (!process.env.GEMINI_BEST_MODEL && !process.env.GEMINI_IMAGE_MODEL) assert.ok(core.jobs.filter((j) => j.model).every((j) => j.model === MODEL_FAST));
+});
+
+test('post.py --fit plate: the sticker centred on a flat, opaque square plate', { skip: spawnSync('python3', ['-c', 'import PIL, numpy']).status === 0 ? false : 'needs python3 with Pillow and NumPy' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'plate-'));
+  try {
+    const src = join(dir, 'in.png');
+    const out = join(dir, 'out.png');
+    // a dark disc on pure green: keyed, trimmed and centred on the plate
+    execFileSync('python3', ['-c', `
+from PIL import Image, ImageDraw
+im = Image.new('RGB', (400, 300), (0, 255, 0))
+ImageDraw.Draw(im).ellipse((40, 60, 200, 220), fill=(43, 29, 46))
+im.save('${src}')`]);
+    const qa = JSON.parse(execFileSync('python3', ['tools/post.py', src, out, '--bg', 'green', '--size', '128', '--fit', 'plate', '--plate', '#99ADDD,#D6DEF2,#FFE07A'], { encoding: 'utf8' }).trim().split('\n').pop());
+    assert.equal(qa.ok, true);
+    assert.deepEqual(qa.size, [128, 128]);
+    const px = JSON.parse(execFileSync('python3', ['-c', `
+from PIL import Image
+import json
+im = Image.open('${out}').convert('RGBA')
+print(json.dumps([im.getpixel((64, 64)), im.getpixel((1, 64)), [p[3] for p in im.getdata()].count(255) == 128 * 128]))`], { encoding: 'utf8' }));
+    assert.deepEqual(px[0].slice(0, 3), [43, 29, 46], 'the subject in the middle');
+    assert.ok([[0x99, 0xad, 0xdd], [0xff, 0xe0, 0x7a]].some((c) => c.every((v, i) => Math.abs(v - px[1][i]) <= 1)), 'flat plate or ray colour at the edge');
+    assert.equal(px[2], true, 'opaque: no keying left for the card');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('code-drawn and hand assets get no Gemini job', () => {
@@ -278,8 +338,9 @@ test('the backend chooses the models: sprites use fast, portraits and the backgr
   const p = plan(rows, root, ['P0', 'P1'], { fast: 'gemini-3.1-flash-image', best: 'gemini-3-pro-image' });
   const m = new Map(p.jobs.map((j) => [j.id, j.model]));
   assert.equal(m.get('pet.fire.16'), 'gemini-3.1-flash-image');
-  assert.equal(m.get('fusion.fire+ice'), 'gemini-3-pro-image', 'gated sprites (fusions, foes) use best');
-  assert.equal(m.get('portrait.fire+ice'), 'gemini-3-pro-image');
+  assert.equal(m.get('fusion.fire+ice'), 'gemini-3-pro-image', 'the fusion pets and the foes use best');
+  assert.equal(m.get('portrait.fire+ice'), null, 'a portrait is made from its fusion, no image');
+  assert.equal(new Map(plan(rows, root, ['P2'], { fast: 'gemini-3.1-flash-image', best: 'gemini-3-pro-image' }).jobs.map((j) => [j.id, j.model])).get('portrait.fire+ice.ascended'), 'gemini-3-pro-image');
   assert.equal(m.get('env.background'), 'gemini-3-pro-image');
 });
 

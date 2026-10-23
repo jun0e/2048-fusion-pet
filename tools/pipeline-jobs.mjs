@@ -2,8 +2,9 @@
 // that is generated with Gemini. A job = prompt + references (other assets, or the
 // approved images in reports/kv/approved/) + model + aspect + background + post-process.
 // The design decisions live here: the element animals, simple smooth babies that grow
-// one feature per stage, the palette hard limit, fusions = one animal each filling its own
-// silhouette contract (src/art/fusion-roster.js), soft-vinyl portraits, apex halo kits, original foes.
+// one feature per stage, the palette hard limit, fusions = one animal each (src/art/fusion-roster.js)
+// drawn as a baby in the babies' own style, 2D namecard portraits (the fusion's own sticker on a flat
+// plate), apex halo kits, original foes.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ELEMENTS, ELEMENT_KEYS, FUSIONS, APEX } from '../src/sim/classes.js';
@@ -84,6 +85,35 @@ const PET_VIEW = {
 const PET_RENDER =
   'Image 2 shows the required rendering (outline weight, cel shading, eye style, the cream sticker rim): match it, but not its species, colours or pose. ' +
   'An original creature that does not copy any existing game or franchise character. ';
+// Baby fusions (2026-10-23, the user: "remove all 3d art for fusion pet, leave all at 2d, and turn all
+// into cute art style, similar to the narwhal and babies"): each fusion pet is its roster animal drawn
+// again as a baby in the exact style and proportions of the eight base babies (Trailer C's narwhal
+// method). Image 1 is the babies' line-up (the style), image 2 the pet's grown sprite (its species,
+// markings and colours), frozen in tools/refs/fusions/grown/. An approved design (the trailer's
+// narwhal) ships as it is. The silhouette contracts and their gates were the grown pets' and are not
+// used: a baby's huge head is not a grown body plan.
+export const BABIES_LINE = 'tools/refs/babies-line.png';
+const grownRef = (key) => `tools/refs/fusions/grown/${key}.png`;
+/** A fusion whose design was approved as drawn (tools/refs/fusions/approved/<key>.png), else null. */
+export const approvedFusion = (root, key) => (existsSync(join(root, 'tools', 'refs', 'fusions', 'approved', `${key}.png`)) ? `tools/refs/fusions/approved/${key}.png` : null);
+const BABY_STYLE =
+  'Image 1 shows the game’s eight baby creatures. Match their rendering exactly: the thick, even dark plum outline (#2B1D2E) around every form, ' +
+  'the thin cream-white sticker rim (#FFFAF2) outside the outline, flat colour fills with one crisp cel-shade tone and one small highlight, ' +
+  'light from the upper left, big glossy expressive eyes, simple big rounded shapes with very few small details. Flat 2D sticker art, not a 3D render. ';
+/** How a baby stands, by the view the field draws it in (src/kv/roam.js flips only the profile ones). */
+export const BABY_VIEW = {
+  profile: 'A three-quarter side view facing left, like the babies in image 1. ',
+  front: 'A straight front view, symmetrical, facing the viewer. ',
+  spread: 'A straight front view, symmetrical, its wings spread wide and evenly on both sides. ',
+};
+/** The ascended portraits' gold: the halo and sparkles on the sticker, and the plate (plate, disc, rays). */
+export const ASCENDED_GOLD = ['#FFC93C', '#FFE89A'];
+export const ASCENDED_PLATE = ['#FFC93C', '#FFF0B8', '#FFE07A'];
+/** `hex` toward white by `t` (0–1): a plate's flat tints. */
+export const tint = (hex, t) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) + (255 - parseInt(hex.slice(i, i + 2), 16)) * t).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+/** A base portrait's flat plate: the fusion's own colour, lightened (the plate, the disc behind the pet). */
+export const portraitPlate = (color) => [tint(color, 0.45), tint(color, 0.78)];
+
 /**
  * The grounds a roaming pet must read on: every chapter's lanes and the hedges between them (the
  * first chapter's by name, the others where they differ). Pets stand on the field above the parapet
@@ -248,38 +278,41 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
     const key = `${a}+${b}`;
     const r = FUSION_ROSTER[key];
     if (!r) return null;
-    const refs = [fusionSil(key), FUSION_RENDER_REF];
-    // the twin pool: the other 27 (their contracts, then their sprites as they are made);
-    // the ally pool: every foe and the base pets at 128, so no fusion reads as either
-    const others = Object.keys(FUSION_ROSTER)
-      .filter((k) => k !== key)
-      .map((k) => ({ id: `fusion.${k}`, sil: fusionSil(k) }));
-    const allies = [...Object.keys(FOE_ROSTER).map((k) => `enemy.${k}`), ...ELEMENT_KEYS.map((el) => `pet.${el}.128`)];
-    return { ...base, model: models.best, bg: r.bg, refs, deps: [],
+    const approved = approvedFusion(root, key);
+    // an approved design ships as drawn: trimmed and sized, its own colours kept
+    if (approved) return { ...base, model: null, approved, bg: 'none', refs: [], deps: [], post: { fit: 'trim', size: 320 } };
+    return { ...base, model: models.best, bg: r.bg, refs: [BABIES_LINE, grownRef(key)], deps: [],
       post: { fit: 'trim', size: 320, palette: [...r.pal, ...UNI], snap: true }, // keeps the cream rim: the heroes' cue
-      pick: { n: 3, side: 'pet', contract: fusionSil(key), view: r.view, grounds: PET_GROUNDS, band: PET_BAND, rim: HERO_RIM, others, allies, animal: r.animal, pose: r.pose, cel: r.cel, lift: r.lift, light: r.pal[2], accepted: r.gateAccepted },
       prompt:
-        `${FOE_SIL}${PET_VIEW[r.view]}${PET_RENDER}` +
-        `The creature: ${r.desc}, a hero pet named ${r.name}, born of ${ELEMENTS[a].name.toLowerCase()} and ${ELEMENTS[b].name.toLowerCase()}: ${r.from[a]}; ${r.from[b]}. Pose: ${r.pose}. ` +
-        `${petValues(r)}HARD COLOUR RULE: use only these colours: ${list(r.pal)}, plus the outline ${UNI[0]}, the cream rim ${UNI[1]} and black/white for the eyes. ${petSticker(r)} ${bgLine(r.bg)}` };
+        `${BABY_STYLE}Image 2 is ${r.name}, a fusion pet born of ${ELEMENTS[a].name.toLowerCase()} and ${ELEMENTS[b].name.toLowerCase()}: ${r.desc}. It is drawn there in an older, grown-up style. ` +
+        `Draw ${r.name} again as a baby ${r.animal} in the exact style and proportions of image 1 (a huge head, a tiny chubby body, short stubby limbs, cute and brave), ` +
+        `keeping what makes it this species and this pet: ${r.from[a]}; ${r.from[b]}. ${BABY_VIEW[r.view]}` +
+        `${petValues(r)}HARD COLOUR RULE: use only these colours: ${list(r.pal)}, plus the outline ${UNI[0]}, the cream rim ${UNI[1]} and black and white for the eyes; most of the body in three or four of them. ` +
+        `${petSticker(r)} ${bgLine(r.bg)}` };
   }
 
   if ((m = id.match(/^portrait\.([a-z]+)\+([a-z]+)(\.ascended)?$/))) {
     const [, a, b, asc] = m;
-    const r = FUSION_ROSTER[`${a}+${b}`];
+    const key = `${a}+${b}`;
+    const r = FUSION_ROSTER[key];
     if (!r) return null;
-    const sprite = `fusion.${a}+${b}`;
-    // no golden portrait as a reference: given one, the model drew the golden's dragon on every
-    // card. Each portrait sees only its own fusion sprite, and the text names the creature.
-    const refs = asc ? [`portrait.${a}+${b}`] : [sprite];
-    const keyA = ELEMENT_PALETTES[a].key;
-    const keyB = ELEMENT_PALETTES[b].key;
-    return { ...base, model: models.best, bg: 'none', refs, deps: refs, post: { fit: 'cover', size: 512 },
-      prompt: asc
-        ? `Same portrait as the input image, same creature and framing, now ascended to legendary: lower camera, chin up, a glowing halo of backlight, gold trim, magical sparkles. Keep the face identical. Square.`
-        : `${VINYL} A portrait of the creature in image 1 (${r.name}: ${r.desc}), keeping its exact silhouette, colours, markings and face. Draw this creature only, not any other animal. ` +
-          `Head-and-shoulders bust (the face and upper body), three-quarter view facing left, eye-level camera, the face about 60% of the frame height. Rim light colour ${keyB}. ` +
-          `Background: a simple radial gradient plate in ${keyA} with soft light rays behind the head, no scenery. Square 1:1.` };
+    const sprite = `fusion.${key}`;
+    const approved = approvedFusion(root, key);
+    const bg = approved ? 'none' : r.bg; // an approved sticker comes keyed already
+    // 2D namecard portraits: the pet's own sticker on a flat plate (post.py --fit plate), so the tile,
+    // the roaming pet and the card are one drawing. The base portrait is made from the fusion's raw, no
+    // new image; the ascended one is an edit of that sticker (a gold halo, sparkles) on a gold plate.
+    if (!asc)
+      return { ...base, model: null, from: sprite, bg, refs: [], deps: [sprite],
+        post: { fit: 'plate', size: 512, plate: portraitPlate(FUSIONS[key].color), ...(approved ? {} : { palette: [...r.pal, ...UNI], snap: true }) } };
+    const key2 = approved ? 'green' : r.bg; // the edit comes back on a key colour, even for an approved sticker
+    return { ...base, model: models.best, bg: key2, refs: [BABIES_LINE, sprite], deps: [sprite],
+      post: { fit: 'plate', size: 512, plate: ASCENDED_PLATE, ...(approved ? {} : { palette: [...r.pal, ...ASCENDED_GOLD, ...UNI], snap: true }) },
+      prompt:
+        `${BABY_STYLE}Image 2 is ${r.name}, a pet in that style. Draw it again with exactly the same design, face, colours, proportions, pose and view, ` +
+        `as its ascended legendary form: a glowing golden halo ring floating just above its head, a few small four-pointed golden sparkles around it, and a proud, brave little smile. ` +
+        `HARD COLOUR RULE: the pet keeps its own colours from image 2; the halo and the sparkles only in ${list(ASCENDED_GOLD)}; plus the outline ${UNI[0]}, the cream rim ${UNI[1]} and black and white for the eyes. ` +
+        `${STICKER} ${bgLine(key2)}` };
   }
 
   if ((m = id.match(/^badge\.([a-z]+)$/))) {
@@ -374,11 +407,14 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
  * Jobs for the requested priorities, plus every asset they reference (transitively),
  * whatever its own priority: a portrait needs its fusion sprite, an apex halo the hero fusion.
  */
+/** A catalog row the pipeline makes: a Gemini image, or one post-processed from another's raw (a portrait). */
+export const isPipelineRow = (r) => /^(Gemini|Post)\b/.test(r.method);
+
 export function plan(rows, root, priorities, models) {
   const all = new Map();
   const skipped = [];
   for (const r of rows) {
-    if (!r.method.startsWith('Gemini')) continue;
+    if (!isPipelineRow(r)) continue;
     const j = jobFor(r, root, models);
     if (j) all.set(j.id, { deps: [], ...j });
     else if (priorities.includes(r.priority)) skipped.push(r.id);

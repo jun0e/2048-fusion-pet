@@ -83,6 +83,8 @@ export function onlyMatcher(list) {
 const log = (o) => appendFileSync(logFile, JSON.stringify({ t: new Date().toISOString(), ...o }) + '\n');
 const rawOf = (id) => join(rawDir, `${id}.png`);
 const outOf = (id) => join(outDir, `${id}.png`);
+/** The raw a job is post-processed from: its own, or the one it is made from (a portrait: its fusion's). */
+const sourceOf = (job) => rawOf(job.from ?? job.id);
 
 /** Last value of NAME in the environment or .env.local (later lines win, so a re-pasted key replaces the old one). */
 function envValue(name) {
@@ -322,6 +324,7 @@ async function callGemini(job, key, backend) {
 function postProcess(job, src = rawOf(job.id), dst = outOf(job.id)) {
   const p = job.post;
   const a = [join(root, 'tools', 'post.py'), src, dst, '--bg', job.bg ?? 'none', '--size', String(p.size), '--fit', p.fit];
+  if (p.plate) a.push('--plate', p.plate.join(','));
   if (p.palette) a.push('--palette', p.palette.join(','));
   if (p.snap) a.push('--snap');
   if (p.stripRim) a.push('--strip-rim');
@@ -581,7 +584,7 @@ async function main() {
   const most = todo.reduce((n, j) => n + imagesFor(j).most, 0);
   const cost = todo.reduce((s, j) => s + costOf(j.model) * imagesFor(j).first, 0);
   const costMost = todo.reduce((s, j) => s + costOf(j.model) * imagesFor(j).most, 0);
-  const byModel = todo.reduce((m, j) => ((m[j.model] = (m[j.model] ?? 0) + imagesFor(j).first), m), {});
+  const byModel = todo.filter((j) => j.model).reduce((m, j) => ((m[j.model] = (m[j.model] ?? 0) + imagesFor(j).first), m), {});
   const gated = todo.filter((j) => j.pick).length;
   if (!mock) console.log(`backend: ${backend.label}${envValue(backend.keyName) ? '' : ` (no ${backend.keyName} yet)`}`);
   console.log(
@@ -617,11 +620,11 @@ async function main() {
     const qas = new Map();
     let broken = 0;
     let rejected = 0;
-    for (const j of jobs.filter((j) => existsSync(rawOf(j.id)))) {
+    for (const j of jobs.filter((j) => existsSync(sourceOf(j)))) {
       try {
         // a failed QA keeps the shipped file: the new output goes beside it and moves in only when it passes
         const next = `${outOf(j.id)}.repost.png`;
-        const qa = postProcess(j, rawOf(j.id), next);
+        const qa = postProcess(j, sourceOf(j), next);
         if (qa.ok) renameSync(next, outOf(j.id));
         else {
           rmSync(next, { force: true });
@@ -669,6 +672,23 @@ async function main() {
 
   async function runJob(job) {
     state.set(job.id, 'running');
+    if (!job.model) {
+      // no new image: an approved design (copied in as its raw) or a job made from another's raw (a
+      // portrait from its fusion's), post-processed only
+      const t = Date.now();
+      try {
+        if (job.approved) copyFileSync(join(root, job.approved), rawOf(job.id));
+        const qa = postProcess(job, sourceOf(job));
+        log({ id: job.id, from: job.from ?? job.approved, qa });
+        accept(job, qa, t, null);
+      } catch (e) {
+        log({ id: job.id, postError: e.message });
+        console.log(`  ${job.id}: post-processing failed (${firstLine(e)})`);
+        state.set(job.id, 'failed');
+        failed += 1;
+      }
+      return;
+    }
     for (let attempt = 1; attempt <= 2; attempt++) {
       const t = Date.now();
       // paid for already: post-process only, unless a gated job's words changed since its pick

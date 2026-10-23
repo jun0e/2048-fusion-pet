@@ -140,8 +140,10 @@ print(json.dumps(out))`;
   const mirror = JSON.parse(spawnSync('python3', ['-c', py, dir], { encoding: 'utf8' }).stdout);
   assert.equal(Object.keys(mirror).length, 28);
   for (const [k, r] of Object.entries(FUSION_ROSTER)) {
-    if (r.view === 'profile') assert.ok(mirror[k] < 0.85, `${k}: a profile contract is not symmetric (${mirror[k].toFixed(2)})`);
-    else assert.ok(mirror[k] >= 0.9, `${k}: a ${r.view} contract mirrors itself (${mirror[k].toFixed(2)})`);
+    // the grown pass's view, where the baby is drawn otherwise (contractView)
+    const view = r.contractView ?? r.view;
+    if (view === 'profile') assert.ok(mirror[k] < 0.85, `${k}: a profile contract is not symmetric (${mirror[k].toFixed(2)})`);
+    else assert.ok(mirror[k] >= 0.9, `${k}: a ${view} contract mirrors itself (${mirror[k].toFixed(2)})`);
   }
 });
 

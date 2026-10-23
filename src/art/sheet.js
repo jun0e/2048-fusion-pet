@@ -38,7 +38,7 @@ for (const style of ['sticker', 'pixel']) {
     show(f, renderCreature({ kind: 'fusion', a, b, legendary: !!leg }, style).canvas, `${a}+${b}${leg ? ' legend' : ''}`, 130, px);
   show(f, renderCreature({ kind: 'halo', apex: 'ice' }, style).canvas, 'halo: Timestop', 130, px);
 }
-const p = section('Namecard portraits, soft vinyl');
+const p = section('Namecard portraits, soft vinyl (code stand-ins; retired from the game 2026-10-23)');
 for (const [a, b, leg, apex] of [['fire', 'ice'], ['fire', 'lightning'], ['earth', 'nature'], ['lightning', 'metal', true, 'ice'], ['ice', 'wind'], ['poison', 'nature']])
   show(p, renderPortrait(a, b, { legendary: !!leg, apex }), `${a}+${b}`, 140);
 const v = section('Fusions, vinyl full body');

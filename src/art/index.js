@@ -3,7 +3,7 @@
 //   number(tier, px), badge(el), paws() → the sticker tile's numeral, glyph badges and a den's paw prints
 //   roamer(cls)  → full-body fusion texture (a summoned pet on the field)
 //   halo(el)     → an element's halo kit (a pure form wears its main element's)
-//   portrait(cls)→ data URL of the soft-vinyl namecard portrait (DOM)
+//   portrait(cls)→ URL of the namecard portrait (DOM): the generated 2D one in every style, else a code stand-in
 //   tileCanvas(t, px) → the whole tile in its pit as one canvas (the inspect card's picture)
 // Styles: 'sticker' (recommended), 'pixel' (comparison), 'classic' (the old blocks).
 // Sticker style uses the Gemini sprites from tools/pipeline.mjs wherever they exist
@@ -1092,11 +1092,10 @@ export function createArt(initial = 'sticker') {
     /** A fusion pet's namecard portrait (a pure form's ascended edit, when made). */
     portrait(cls) {
       const k = `${cls.element}.${cls.fusion}.${cls.pure ? 'pure' : ''}`;
-      if (style === 'sticker') {
-        const id = portraitId(cls);
-        const url = (cls.pure && generatedUrl(`${id}.ascended`)) || generatedUrl(id);
-        if (url) return url;
-      }
+      // the generated 2D portrait in every style (the old blocks too): no 3D card is left
+      const id = portraitId(cls);
+      const url = (cls.pure && generatedUrl(`${id}.ascended`)) || generatedUrl(id);
+      if (url) return url;
       if (!urls.has(k)) urls.set(k, renderPortrait(cls.element, cls.fusion, { legendary: !!cls.pure, apex: cls.pure ? cls.element : null }).toDataURL('image/png'));
       return urls.get(k);
     },
