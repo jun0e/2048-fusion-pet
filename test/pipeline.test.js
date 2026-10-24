@@ -409,6 +409,9 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   // what the run makes: for sure, maybe, or keeps
   const fates = drawPlan([fu, po, asc, kitJob], { needed: (j) => j === fu, reusable: (j) => j !== kitJob, stale: () => false, tracked: (j) => j !== kitJob }).fates;
   assert.deepEqual([fu, po, asc, kitJob].map((j) => fates.get(j.id).make), ['yes', 'maybe', 'maybe', 'no'], 'a lost pet re-posted: its portrait and halo edit may be made, the legacy kit is kept');
+  // a held output (its shipped file is not the one its entry records) is kept as it ships, whatever its references do
+  const heldPlan = drawPlan([fu, po, asc], { needed: (j) => j === fu, reusable: (j) => j !== fu, stale: (j) => j === fu, tracked: () => true, held: (j) => j === asc });
+  assert.deepEqual([ids(heldPlan.sure), heldPlan.fates.get(asc.id).make], [['fusion.fire+ice'], 'no']);
   // a raw is the drawing that shipped: by its record (its ask and its time), or with none (an older pipeline's) by its time
   const at = '2026-10-16T05:00:00.000Z';
   const later = (ms) => new Date(Date.parse(at) + ms).toISOString();

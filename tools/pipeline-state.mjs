@@ -87,14 +87,16 @@ export function toMake(jobs, needed) {
  * - a legacy output (no ask, no recipe date) is made only when it is needed (lost), and is otherwise
  *   kept, whatever its references do;
  * - a post-only output draws nothing, and changes with its source.
+ * - a held output (its shipped file is not the one its entry records) is kept as it ships.
  * `stale(job)`: its output exists and is needed (it comes back with new pixels).
  * → { sure, maybe } (the generated jobs that draw, and that may) and `fates` by id: { make ('yes' |
  * 'maybe' | 'no': kept), draw ('sure' | 'maybe' | 'no'), out }
  */
-export function drawPlan(todo, { needed, reusable, stale, tracked, ownChanged = () => false }) {
+export function drawPlan(todo, { needed, reusable, stale, tracked, ownChanged = () => false, held = () => false }) {
   const byId = new Map(todo.map((j) => [j.id, j]));
   const fates = new Map();
   const fate = (j) => {
+    if (!fates.has(j.id) && held(j)) fates.set(j.id, { make: 'no', draw: 'no', out: 'same' });
     if (!fates.has(j.id)) {
       const ups = j.deps.filter((d) => byId.has(d)).map((d) => fate(byId.get(d)).out);
       const changes = ups.includes('redrawn') || ups.includes('changed');

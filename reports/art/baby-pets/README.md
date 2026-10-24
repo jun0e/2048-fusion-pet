@@ -51,7 +51,7 @@ The user asked: "check all avatar and remove all 3d art for fusion pet, leave al
 - A model is sent a reference's cached raw only when that raw is the drawing that shipped; otherwise it is sent the shipped output.
 - A raw from before these records is re-posted only for an older asset whose output records no ask either, and only if the raw is the drawing that shipped (stamped within the hour). It is never labelled with an ask.
 - `--repost --adopt --only=<ids>` records cached raws that were checked by eye as drawn for today's ask. It never takes a raw from before the recipe date.
-- Each output records its file's hash. A shipped file that is not the one its entry records (a merge, an edit outside the pipeline) is kept as it is and named, with the commands that bring back the recorded drawing (`--repost`) or draw it again (`--force`); jobs made from it follow the file that ships.
+- Each output records its file's hash. A shipped file that is not the one its entry records (a merge, an edit outside the pipeline) is held as it is and named. Only `--force`, or a `--repost` naming its id, replaces it: the first draws it again, the second brings back the recorded drawing. Jobs made from it follow the file that ships.
 
 To redo one pet (its portrait follows on its own; its halo is an edit of the new sticker):
 

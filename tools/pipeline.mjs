@@ -511,10 +511,15 @@ const postKey = (job) => createHash('sha256').update(JSON.stringify({ post: job.
 const needed = (job, manifest) => !existsSync(outOf(job.id)) || isStale(job, manifest.meta?.[job.id], jobHash(job), isPostOnly(job) ? null : postKey(job));
 /** Whether a job's shipped file is not the one its entry records (tools/pipeline-state.mjs differs): kept, and named. */
 const fileDiffers = (job, manifest) => existsSync(outOf(job.id)) && differs(manifest.meta?.[job.id], fileSha(outOf(job.id)));
-/** Name the shipped files that are not the ones their entries record: kept as they are; the commands that bring back the recorded drawing or draw it again. */
+/**
+ * Whether a job's output is held as it ships: its file is not the one its entry records (it may be
+ * newer art a merge brought), so nothing replaces it but --force or a --repost naming its id.
+ */
+const isHeld = (job, manifest) => fileDiffers(job, manifest) && !force && !(repost && only.includes(job.id));
+/** Name the shipped files that are not the ones their entries record: held as they are; the commands that bring back the recorded drawing or draw it again. */
 function warnDiffers(jobs, manifest) {
   const ids = jobs.filter((j) => fileDiffers(j, manifest)).map((j) => j.id);
-  if (ids.length) console.warn(`⚠️  shipped file differs from its entry (a merge, or an edit outside the pipeline), kept as it is: ${ids.join(', ')}; to bring back the recorded drawing from its raw: --repost --only=${ids.join(',')}; to draw it again: --force --only=${ids.join(',')}`);
+  if (ids.length) console.warn(`⚠️  shipped file differs from its entry (a merge, or an edit outside the pipeline), kept as it is: ${ids.join(', ')}; to bring back the recorded drawing from its raw: --repost --only=${ids.join(',')}; to draw it again: --force --only=${ids.join(',')}; to keep it, take its entry from the branch it came from`);
 }
 
 /** Why a generated job's cached raw may not be re-posted in place of a new drawing (tools/pipeline-state.mjs rawRefusal), or null. */
@@ -736,7 +741,7 @@ async function main() {
   }
 
   // missing or stale outputs, and every job in the run made from one of them (tools/pipeline-state.mjs toMake)
-  const todo = force ? jobs : toMake(jobs, (j) => needed(j, manifest));
+  const todo = force ? jobs : toMake(jobs, (j) => needed(j, manifest) && !isHeld(j, manifest));
   const jobIds = new Set(planned.map((j) => j.id));
   const byCode = rows.filter((r) => priorities.includes(r.priority) && !r.method.startsWith('Gemini') && !jobIds.has(r.id)).reduce((n, r) => n + r.count, 0);
   const inCode = `plus ${byCode} assets drawn in code (glyphs, plates, effects, UI)${skipped.length ? `; no job yet for ${skipped.join(', ')}` : ''}`;
@@ -755,6 +760,7 @@ async function main() {
           stale: (j) => existsSync(outOf(j.id)) && needed(j, manifest),
           tracked: (j) => !!(j.since || manifest.meta?.[j.id]?.ask),
           ownChanged: (j) => !!manifest.meta?.[j.id]?.own && manifest.meta[j.id].own !== ownHash(j),
+          held: (j) => isHeld(j, manifest),
         });
   const count = (make) => todo.filter((j) => fates.get(j.id)?.make === make).length;
   // a gated job resumed for the same ask reuses the candidates it paid for (pickCandidate): fewer images,
@@ -821,6 +827,11 @@ async function main() {
     let broken = 0;
     let rejected = 0;
     for (const j of jobs.filter((j) => existsSync(sourceOf(j)))) {
+      if (isHeld(j, manifest)) {
+        refused.push(j.id);
+        console.log(`  ${j.id}: its shipped file differs from its entry: kept as it is (name it in --only to bring back the recorded drawing)`);
+        continue;
+      }
       // a generated job re-posts only a raw that answers it (tools/pipeline-state.mjs rawRefusal): an
       // older raw (a grown sprite, a 3D render, another checkout's) would ship under today's ask.
       // --adopt first records the raws given as drawn for today's ask (checked by eye), never one from
@@ -995,7 +1006,7 @@ async function main() {
     // was, or failed and stayed; or the job is a legacy output) is kept, not made
     let settled = 0;
     for (const j of [...blocked, ...ready]) {
-      if (!force && !needed(j, manifest)) {
+      if (isHeld(j, manifest) || (!force && !needed(j, manifest))) {
         state.set(j.id, 'done');
         kept.push(j.id);
         settled += 1;

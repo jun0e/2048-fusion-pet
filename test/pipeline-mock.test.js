@@ -381,35 +381,44 @@ test('pipeline (mock): an attempt that fails QA, then a retry that draws nothing
   }
 });
 
-test('pipeline (mock): a shipped file that is not the one its entry records is kept and named, never restored or redrawn unasked', { skip }, () => {
+test('pipeline (mock): a shipped file that is not the one its entry records is held as it is and named, replaced only by --force or a --repost naming it', { skip }, () => {
   const dir = sandbox();
-  const named = /shipped file differs from its entry \(a merge, or an edit outside the pipeline\), kept as it is: fusion\.fire\+ice; to bring back the recorded drawing from its raw: --repost --only=fusion\.fire\+ice; to draw it again: --force --only=fusion\.fire\+ice/;
+  const ASC = 'portrait.fire+ice.ascended';
+  const names = (out, ids) => new RegExp(`shipped file differs from its entry \\(a merge, or an edit outside the pipeline\\), kept as it is: ${ids.map((id) => id.replace(/[.+]/g, '\\$&')).join(', ')};`).test(out);
+  const touchUp = 'import sys; from PIL import Image, ImageDraw; im = Image.open(sys.argv[1]).convert("RGBA"); ImageDraw.Draw(im).rectangle((120, 120, 160, 160), fill=(43, 29, 46, 255)); im.save(sys.argv[1])';
   try {
     run(dir, [only(PET)]);
-    const recorded = sha(outFile(dir, 'fusion.fire+ice'));
-    // a merge brought another branch's drawing of the pet (its sticker, touched up), and kept this branch's entry
-    const merged = join(dir, 'merged.png');
-    const touchUp = 'import sys; from PIL import Image, ImageDraw; im = Image.open(sys.argv[1]).convert("RGBA"); ImageDraw.Draw(im).rectangle((120, 120, 160, 160), fill=(43, 29, 46, 255)); im.save(sys.argv[2])';
-    assert.equal(spawnSync('python3', ['-c', touchUp, outFile(dir, 'fusion.fire+ice'), merged]).status, 0);
-    copyFileSync(merged, outFile(dir, 'fusion.fire+ice'));
-    // the pet is kept as it ships; its portrait and its halo edit, made from the file that ships, follow it
+    // a merge brought another branch's pet and its halo edit (touched up), and kept this branch's entries
+    for (const id of ['fusion.fire+ice', ASC]) assert.equal(spawnSync('python3', ['-c', touchUp, outFile(dir, id)]).status, 0);
+    const merged = { pet: sha(outFile(dir, 'fusion.fire+ice')), asc: sha(outFile(dir, ASC)) };
     const plan = run(dir, [only(PET), '--dry']);
-    assert.match(plan.out, named, plan.out);
-    assert.match(plan.out, /2 to make: 1 images/, plan.out);
+    assert.ok(names(plan.out, ['fusion.fire+ice', ASC]), plan.out);
+    assert.match(plan.out, /1 to make: 0 images/, 'only the portrait, made from the merged pet');
     const r = run(dir, [only(PET)]);
-    assert.deepEqual(Object.keys(r.sent), ['portrait.fire+ice.ascended'], 'only the halo edit is drawn, from the merged sticker');
-    assert.match(r.out, named);
-    assert.equal(sha(outFile(dir, 'fusion.fire+ice')), sha(merged), 'the merged drawing is kept');
-    // with no raw here, the same: named, kept, nothing more to make
+    assert.equal(r.drawn, 0, r.out);
+    assert.deepEqual([sha(outFile(dir, 'fusion.fire+ice')), sha(outFile(dir, ASC))], [merged.pet, merged.asc], 'both held as they ship');
+    assert.ok(names(r.out, ['fusion.fire+ice', ASC]), 'and named at the end of the run');
+    // its post-processing changes: still held, not re-posted over
+    edit(dir, 'tools/pipeline-jobs.mjs', FUSION_POST, FUSION_POST.replace('320', '300'));
+    const resized = run(dir, [only(PET)]);
+    assert.equal(sha(outFile(dir, 'fusion.fire+ice')), merged.pet, resized.out);
+    // a plain --repost (npm run pipeline:repost, no ids named) holds them too
+    const re = run(dir, ['--repost']);
+    assert.match(re.out, /fusion\.fire\+ice: its shipped file differs from its entry: kept as it is/, re.out);
+    assert.deepEqual([sha(outFile(dir, 'fusion.fire+ice')), sha(outFile(dir, ASC))], [merged.pet, merged.asc]);
+    // with no raw here, the same: named, held, nothing to make
+    const raw = readFileSync(rawFile(dir, 'fusion.fire+ice'));
     unlinkSync(rawFile(dir, 'fusion.fire+ice'));
     const fresh = run(dir, [only(PET), '--dry']);
-    assert.match(fresh.out, named);
+    assert.ok(names(fresh.out, ['fusion.fire+ice', ASC]), fresh.out);
     assert.match(fresh.out, /0 to make: 0 images/);
-    // asked for, --force draws it again, and the entry describes the file once more
-    const forced = run(dir, ['--only=fusion.fire+ice', '--force'], 'b');
+    writeFileSync(rawFile(dir, 'fusion.fire+ice'), raw);
+    // asked for by name, --repost brings back the recorded drawing, and --force draws the halo edit again
+    run(dir, ['--repost', '--only=fusion.fire+ice']);
+    assert.notEqual(sha(outFile(dir, 'fusion.fire+ice')), merged.pet);
+    const forced = run(dir, [`--only=${ASC}`, '--force'], 'b');
     assert.equal(forced.drawn, 1, forced.out);
-    assert.doesNotMatch(run(dir, [only(PET), '--dry']).out, /shipped file differs/);
-    assert.notEqual(sha(outFile(dir, 'fusion.fire+ice')), recorded);
+    assert.doesNotMatch(run(dir, [only(PET), '--dry']).out, /shipped file differs/, 'each entry describes its file again');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
