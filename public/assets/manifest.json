@@ -216,7 +216,7 @@
     "env.fareast.backdrop": "gen/env.fareast.backdrop.png",
     "env.peaks.backdrop": "gen/env.peaks.backdrop.png"
   },
-  "generatedAt": "2026-10-24T05:56:36.221Z",
+  "generatedAt": "2026-10-24T07:37:14.328Z",
   "meta": {
     "pet.fire.16": {
       "qa": {
@@ -1374,7 +1374,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T03:07:46.363Z",
       "ask": "e646aa4ab0a45b519152",
-      "post": "997059869158a4b6bd2f"
+      "own": "e646aa4ab0a45b519152",
+      "post": "997059869158a4b6bd2f",
+      "sha": "036d5c26774e0e7b3c95"
     },
     "fusion.fire+lightning": {
       "qa": {
@@ -1401,7 +1403,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:21:01.759Z",
       "ask": "40f37a52ed4efd1b76ea",
-      "post": "da0a54f7fe4713ff2a33"
+      "own": "40f37a52ed4efd1b76ea",
+      "post": "da0a54f7fe4713ff2a33",
+      "sha": "67f5c2e7e71c3fcbb516"
     },
     "fusion.fire+poison": {
       "qa": {
@@ -1428,7 +1432,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T03:08:11.611Z",
       "ask": "5fbc5b98ad97bd44e4e4",
-      "post": "182d9a8699d9e7afdf38"
+      "own": "5fbc5b98ad97bd44e4e4",
+      "post": "182d9a8699d9e7afdf38",
+      "sha": "fae5c8320cd8d154c6d7"
     },
     "fusion.fire+earth": {
       "qa": {
@@ -1455,7 +1461,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T03:24:53.428Z",
       "ask": "258a03fb6e65e147cd21",
-      "post": "a074ef2d12353272a160"
+      "own": "258a03fb6e65e147cd21",
+      "post": "a074ef2d12353272a160",
+      "sha": "709d3f63ba93851072c7"
     },
     "fusion.fire+wind": {
       "qa": {
@@ -1482,7 +1490,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T03:37:41.757Z",
       "ask": "ea739cbe48d8f5ded00f",
-      "post": "1e2aa7808c2199e9a1ec"
+      "own": "ea739cbe48d8f5ded00f",
+      "post": "1e2aa7808c2199e9a1ec",
+      "sha": "1fdc70990f2f019a0dc4"
     },
     "fusion.ice+lightning": {
       "qa": {
@@ -1499,7 +1509,8 @@
       },
       "model": null,
       "at": "2026-10-23T07:20:43.667Z",
-      "ask": "d50b0fd1a3a577a30b2b"
+      "ask": "d50b0fd1a3a577a30b2b",
+      "sha": "eeee57f6a89c96767a96"
     },
     "fusion.ice+poison": {
       "qa": {
@@ -1526,7 +1537,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T03:41:46.097Z",
       "ask": "983640cf42b04ce3e72a",
-      "post": "a2db0488b94085ca22d0"
+      "own": "983640cf42b04ce3e72a",
+      "post": "a2db0488b94085ca22d0",
+      "sha": "9f519c3839a8e545e322"
     },
     "fusion.ice+earth": {
       "qa": {
@@ -1553,7 +1566,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T06:49:32.403Z",
       "ask": "6a83b676e8fe5558dba8",
-      "post": "47668c3b2e559a9a4d87"
+      "own": "6a83b676e8fe5558dba8",
+      "post": "47668c3b2e559a9a4d87",
+      "sha": "a76609af80f2d0437f34"
     },
     "fusion.ice+wind": {
       "qa": {
@@ -1580,7 +1595,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T06:50:01.536Z",
       "ask": "540580a1af367e757b5d",
-      "post": "62d0c937fb8054995e59"
+      "own": "540580a1af367e757b5d",
+      "post": "62d0c937fb8054995e59",
+      "sha": "8443da026ae1ab44df7f"
     },
     "fusion.lightning+poison": {
       "qa": {
@@ -1607,7 +1624,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:03:47.252Z",
       "ask": "34d8c0fbdca8ed7dad88",
-      "post": "b9af2d6213f5f26f3f96"
+      "own": "34d8c0fbdca8ed7dad88",
+      "post": "b9af2d6213f5f26f3f96",
+      "sha": "333be69f21d094fa94d7"
     },
     "fusion.lightning+earth": {
       "qa": {
@@ -1634,7 +1653,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T06:50:51.613Z",
       "ask": "18f8c16734fd50b5aa8a",
-      "post": "c3d286f7b02aab327348"
+      "own": "18f8c16734fd50b5aa8a",
+      "post": "c3d286f7b02aab327348",
+      "sha": "e793c02b99a2c58d04ca"
     },
     "fusion.lightning+wind": {
       "qa": {
@@ -1661,7 +1682,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T06:52:32.358Z",
       "ask": "07fee5be46fb5e4e3525",
-      "post": "d2087efc375e9f9f331b"
+      "own": "07fee5be46fb5e4e3525",
+      "post": "d2087efc375e9f9f331b",
+      "sha": "575355c69c5d85335c18"
     },
     "fusion.poison+earth": {
       "qa": {
@@ -1688,7 +1711,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T06:54:13.528Z",
       "ask": "3fe6f0d1c116fa2d8c0f",
-      "post": "c56e4311ba30c3e5e540"
+      "own": "3fe6f0d1c116fa2d8c0f",
+      "post": "c56e4311ba30c3e5e540",
+      "sha": "70dfde5a977ffd5955b0"
     },
     "fusion.poison+wind": {
       "qa": {
@@ -1715,7 +1740,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:22:29.542Z",
       "ask": "0e74a570c52f46636e24",
-      "post": "34c0087537218a7c9432"
+      "own": "0e74a570c52f46636e24",
+      "post": "34c0087537218a7c9432",
+      "sha": "d4e752845b4386c169a2"
     },
     "fusion.earth+wind": {
       "qa": {
@@ -1742,7 +1769,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:04:02.009Z",
       "ask": "4ec78a2b20648dd1eb79",
-      "post": "6857bf17a812a5165f68"
+      "own": "4ec78a2b20648dd1eb79",
+      "post": "6857bf17a812a5165f68",
+      "sha": "fa6249dd513f2cdf42d4"
     },
     "fusion.fire+metal": {
       "qa": {
@@ -1769,7 +1798,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:04:15.644Z",
       "ask": "9293eb1bb01f123bb71c",
-      "post": "7384894ccf7f5a4ddbf0"
+      "own": "9293eb1bb01f123bb71c",
+      "post": "7384894ccf7f5a4ddbf0",
+      "sha": "47f062020ed8d7a84f25"
     },
     "fusion.ice+metal": {
       "qa": {
@@ -1796,7 +1827,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:04:28.930Z",
       "ask": "77d907ae574bd11a2bde",
-      "post": "aa2da82c4e9c37e7d79f"
+      "own": "77d907ae574bd11a2bde",
+      "post": "aa2da82c4e9c37e7d79f",
+      "sha": "02d48b60a3a55ad4be26"
     },
     "fusion.lightning+metal": {
       "qa": {
@@ -1823,7 +1856,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:04:59.106Z",
       "ask": "efea1ba94933935c7c8e",
-      "post": "244d2b7a06bea3862993"
+      "own": "efea1ba94933935c7c8e",
+      "post": "244d2b7a06bea3862993",
+      "sha": "3653da534c1671d47250"
     },
     "fusion.poison+metal": {
       "qa": {
@@ -1850,7 +1885,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:05:13.768Z",
       "ask": "c86b4db4f36e3a6df89f",
-      "post": "ab93718b1ea1f5b85b1c"
+      "own": "c86b4db4f36e3a6df89f",
+      "post": "ab93718b1ea1f5b85b1c",
+      "sha": "d4fd635ea5eaae850738"
     },
     "fusion.earth+metal": {
       "qa": {
@@ -1877,7 +1914,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:28:04.361Z",
       "ask": "921e4a2e6d93c99638f2",
-      "post": "2fab4c1ca2421ead6afa"
+      "own": "921e4a2e6d93c99638f2",
+      "post": "2fab4c1ca2421ead6afa",
+      "sha": "9420bfa5b597d62e4194"
     },
     "fusion.wind+metal": {
       "qa": {
@@ -1904,7 +1943,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:12:39.267Z",
       "ask": "3e25eb65f255af046118",
-      "post": "1b623c07cf5b87f1f93a"
+      "own": "3e25eb65f255af046118",
+      "post": "1b623c07cf5b87f1f93a",
+      "sha": "15fe350fc6f5e67ca125"
     },
     "fusion.fire+nature": {
       "qa": {
@@ -1931,7 +1972,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:07:17.660Z",
       "ask": "d11b79d12dd94b3fa6ed",
-      "post": "248839f72aa91da307d1"
+      "own": "d11b79d12dd94b3fa6ed",
+      "post": "248839f72aa91da307d1",
+      "sha": "e6352549a49288eb0a4c"
     },
     "fusion.ice+nature": {
       "qa": {
@@ -1958,7 +2001,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:07:52.794Z",
       "ask": "c57d3fba59b9a0f6fab8",
-      "post": "1c9f95aa8b8434344aa4"
+      "own": "c57d3fba59b9a0f6fab8",
+      "post": "1c9f95aa8b8434344aa4",
+      "sha": "443b0ab141eea6337b33"
     },
     "fusion.lightning+nature": {
       "qa": {
@@ -1985,7 +2030,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:08:27.744Z",
       "ask": "7d50e0eb5ebab371d2ea",
-      "post": "d6790664a2d07937c9f6"
+      "own": "7d50e0eb5ebab371d2ea",
+      "post": "d6790664a2d07937c9f6",
+      "sha": "72a42f429defb76c2f77"
     },
     "fusion.poison+nature": {
       "qa": {
@@ -2012,7 +2059,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:09:45.723Z",
       "ask": "e417af9b28987574060b",
-      "post": "1685817f81908b2d4ba5"
+      "own": "e417af9b28987574060b",
+      "post": "1685817f81908b2d4ba5",
+      "sha": "0e5036fa2d2631388662"
     },
     "fusion.earth+nature": {
       "qa": {
@@ -2039,7 +2088,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:10:10.002Z",
       "ask": "1027d252db24817a1963",
-      "post": "a2dbea47053cdca70ebd"
+      "own": "1027d252db24817a1963",
+      "post": "a2dbea47053cdca70ebd",
+      "sha": "d56a1502b179032d0416"
     },
     "fusion.wind+nature": {
       "qa": {
@@ -2066,7 +2117,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T03:09:01.278Z",
       "ask": "20417db9e849467f438e",
-      "post": "360af28ca00cdf129d1b"
+      "own": "20417db9e849467f438e",
+      "post": "360af28ca00cdf129d1b",
+      "sha": "a805c5e7167f267bd406"
     },
     "fusion.metal+nature": {
       "qa": {
@@ -2093,7 +2146,9 @@
       "model": "gemini-3-pro-image",
       "at": "2026-10-23T07:10:22.291Z",
       "ask": "c2f76fdda929e671dda0",
-      "post": "9705190d8543fc8dcc82"
+      "own": "c2f76fdda929e671dda0",
+      "post": "9705190d8543fc8dcc82",
+      "sha": "c42d76e879c289c38359"
     },
     "portrait.fire+ice": {
       "qa": {
@@ -2113,7 +2168,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.882Z",
-      "ask": "b533c47ceb62bf2912b4"
+      "ask": "b533c47ceb62bf2912b4",
+      "sha": "57e36f3b54876d4a8b31"
     },
     "portrait.fire+lightning": {
       "qa": {
@@ -2133,7 +2189,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.889Z",
-      "ask": "cd5741f7b89f3be4a198"
+      "ask": "cd5741f7b89f3be4a198",
+      "sha": "6f308f99cc38fb6c1073"
     },
     "portrait.fire+poison": {
       "qa": {
@@ -2153,7 +2210,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.896Z",
-      "ask": "21579b0c175321315053"
+      "ask": "21579b0c175321315053",
+      "sha": "574962d0c53b6ee24118"
     },
     "portrait.fire+earth": {
       "qa": {
@@ -2173,7 +2231,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.902Z",
-      "ask": "b0d735abd32bee05ce5a"
+      "ask": "b0d735abd32bee05ce5a",
+      "sha": "4f394bff2734f168704e"
     },
     "portrait.fire+wind": {
       "qa": {
@@ -2193,7 +2252,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.909Z",
-      "ask": "5ef7d13587adb1ac66dd"
+      "ask": "5ef7d13587adb1ac66dd",
+      "sha": "6509c67e3b160b7d9cdb"
     },
     "portrait.ice+lightning": {
       "qa": {
@@ -2210,7 +2270,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:56:36.221Z",
-      "ask": "d1662eddce5e022ee029"
+      "ask": "d1662eddce5e022ee029",
+      "sha": "a67841bae8cafe937570"
     },
     "portrait.ice+poison": {
       "qa": {
@@ -2230,7 +2291,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.915Z",
-      "ask": "9027e06cdf74fa12e9fe"
+      "ask": "9027e06cdf74fa12e9fe",
+      "sha": "61c8ff654663a6a86a10"
     },
     "portrait.ice+earth": {
       "qa": {
@@ -2250,7 +2312,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.923Z",
-      "ask": "973ca00e473b9499c4c8"
+      "ask": "973ca00e473b9499c4c8",
+      "sha": "99ee5244bd1661f06ef4"
     },
     "portrait.ice+wind": {
       "qa": {
@@ -2270,7 +2333,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.931Z",
-      "ask": "7fe6798b6b07fc0d3452"
+      "ask": "7fe6798b6b07fc0d3452",
+      "sha": "46a5c479afab738f233f"
     },
     "portrait.lightning+poison": {
       "qa": {
@@ -2290,7 +2354,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.938Z",
-      "ask": "bce518c8a29ec1d26caf"
+      "ask": "bce518c8a29ec1d26caf",
+      "sha": "a3f69d464190eaa32225"
     },
     "portrait.lightning+earth": {
       "qa": {
@@ -2310,7 +2375,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.943Z",
-      "ask": "ba302e0f63f70609831b"
+      "ask": "ba302e0f63f70609831b",
+      "sha": "5c17f5cec0a338eb3fff"
     },
     "portrait.lightning+wind": {
       "qa": {
@@ -2330,7 +2396,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.950Z",
-      "ask": "038d730c3267b1497e99"
+      "ask": "038d730c3267b1497e99",
+      "sha": "519de6fed546edf208de"
     },
     "portrait.poison+earth": {
       "qa": {
@@ -2350,7 +2417,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.957Z",
-      "ask": "4353d6eeec8e310797d9"
+      "ask": "4353d6eeec8e310797d9",
+      "sha": "af2501cc6129733ec7cb"
     },
     "portrait.poison+wind": {
       "qa": {
@@ -2370,7 +2438,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.963Z",
-      "ask": "e72fbcd1193985e2b269"
+      "ask": "e72fbcd1193985e2b269",
+      "sha": "3893cbbff5911af61617"
     },
     "portrait.earth+wind": {
       "qa": {
@@ -2390,7 +2459,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.970Z",
-      "ask": "966e09827840b8a36390"
+      "ask": "966e09827840b8a36390",
+      "sha": "9e19a8d350ce7e0403dc"
     },
     "portrait.fire+metal": {
       "qa": {
@@ -2410,7 +2480,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.976Z",
-      "ask": "4b08ba0cc6943f47f435"
+      "ask": "4b08ba0cc6943f47f435",
+      "sha": "f3a42cd56c80827019ac"
     },
     "portrait.ice+metal": {
       "qa": {
@@ -2430,7 +2501,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.984Z",
-      "ask": "e0599fb1ba7f2485d2fb"
+      "ask": "e0599fb1ba7f2485d2fb",
+      "sha": "5f1b6ec2e3baa2ea78a3"
     },
     "portrait.lightning+metal": {
       "qa": {
@@ -2450,7 +2522,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.990Z",
-      "ask": "ac5a5e655e11197da230"
+      "ask": "ac5a5e655e11197da230",
+      "sha": "c8d57b0ea049acc1f14b"
     },
     "portrait.poison+metal": {
       "qa": {
@@ -2470,7 +2543,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:12.998Z",
-      "ask": "77c9c12a72767e6fd4e2"
+      "ask": "77c9c12a72767e6fd4e2",
+      "sha": "26acb6c23c95571bab24"
     },
     "portrait.earth+metal": {
       "qa": {
@@ -2490,7 +2564,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:13.004Z",
-      "ask": "3354f6be41449faf8692"
+      "ask": "3354f6be41449faf8692",
+      "sha": "7cec0cbecb17903dd934"
     },
     "portrait.wind+metal": {
       "qa": {
@@ -2510,7 +2585,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:13.012Z",
-      "ask": "3ed42e8bf05cd8b737be"
+      "ask": "3ed42e8bf05cd8b737be",
+      "sha": "287a561aa06a43bf12ea"
     },
     "portrait.fire+nature": {
       "qa": {
@@ -2530,7 +2606,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:13.018Z",
-      "ask": "c51415b0a1ba14273f91"
+      "ask": "c51415b0a1ba14273f91",
+      "sha": "aedb2499a47ed90324bf"
     },
     "portrait.ice+nature": {
       "qa": {
@@ -2550,7 +2627,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:13.026Z",
-      "ask": "263d5efd5cc5c032662f"
+      "ask": "263d5efd5cc5c032662f",
+      "sha": "2b227636757651e4d7a6"
     },
     "portrait.lightning+nature": {
       "qa": {
@@ -2570,7 +2648,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:13.032Z",
-      "ask": "fccf46e5711208266df5"
+      "ask": "fccf46e5711208266df5",
+      "sha": "c4cac258147c45f8430d"
     },
     "portrait.poison+nature": {
       "qa": {
@@ -2590,7 +2669,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:13.040Z",
-      "ask": "3170ffeb41acec26f330"
+      "ask": "3170ffeb41acec26f330",
+      "sha": "2a63601e9d776a425adb"
     },
     "portrait.earth+nature": {
       "qa": {
@@ -2610,7 +2690,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:13.048Z",
-      "ask": "a27210e61dc562be65da"
+      "ask": "a27210e61dc562be65da",
+      "sha": "801eb4d0059a082ed0a9"
     },
     "portrait.wind+nature": {
       "qa": {
@@ -2630,7 +2711,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:13.054Z",
-      "ask": "d66128a6ec1973c9c806"
+      "ask": "d66128a6ec1973c9c806",
+      "sha": "b614d253cd733b4cf0bb"
     },
     "portrait.metal+nature": {
       "qa": {
@@ -2650,7 +2732,8 @@
       },
       "model": null,
       "at": "2026-10-24T05:55:13.061Z",
-      "ask": "66276f7ad11644f6e0a9"
+      "ask": "66276f7ad11644f6e0a9",
+      "sha": "f69b0aa79a2f64db7db0"
     },
     "halo.fire": {
       "qa": {
@@ -4299,7 +4382,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T03:40:37.358Z",
       "ask": "b990a00fa9e655bd0d74",
-      "post": "768ee34b4e34f861b560"
+      "own": "f78afc35706dec59d122",
+      "post": "768ee34b4e34f861b560",
+      "sha": "992867040acb6edc27d7"
     },
     "portrait.fire+lightning.ascended": {
       "qa": {
@@ -4326,7 +4411,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:30:01.564Z",
       "ask": "964301e5825f4a94c2cb",
-      "post": "6c2a1545e927b2b0c2f6"
+      "own": "cbee608a453de5ec293e",
+      "post": "6c2a1545e927b2b0c2f6",
+      "sha": "033e83204dea9080cb9b"
     },
     "portrait.fire+poison.ascended": {
       "qa": {
@@ -4353,7 +4440,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T03:42:03.449Z",
       "ask": "d348dcbe6b04e3f47f42",
-      "post": "935554d0b5533ca88bc1"
+      "own": "2b54028db25ac2cb2acf",
+      "post": "935554d0b5533ca88bc1",
+      "sha": "3164f9c6ae922088539c"
     },
     "portrait.fire+earth.ascended": {
       "qa": {
@@ -4380,7 +4469,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T03:42:38.301Z",
       "ask": "15ae026f19110930e3a7",
-      "post": "f9fdf35c9c3a8268e5c3"
+      "own": "f9f1099c0fb06abe22e8",
+      "post": "f9fdf35c9c3a8268e5c3",
+      "sha": "f9fd9ed78d6e11b3eb25"
     },
     "portrait.fire+wind.ascended": {
       "qa": {
@@ -4407,7 +4498,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T03:43:54.670Z",
       "ask": "3d506d1bc2b569c0a73f",
-      "post": "bfb851c2824246083753"
+      "own": "5fab908216fbe4791dc8",
+      "post": "bfb851c2824246083753",
+      "sha": "c190d5870367799dacc8"
     },
     "portrait.ice+lightning.ascended": {
       "qa": {
@@ -4431,7 +4524,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T03:45:11.319Z",
       "ask": "a5b489f0c677f0c04fb2",
-      "post": "292c4a2a369df99f6e7d"
+      "own": "ba9e555813614d49fcb7",
+      "post": "292c4a2a369df99f6e7d",
+      "sha": "4edff82cf0d2f7beff1c"
     },
     "portrait.ice+poison.ascended": {
       "qa": {
@@ -4458,7 +4553,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T03:47:02.722Z",
       "ask": "77c9263a9291bb7325fc",
-      "post": "e11412e02b2611df6214"
+      "own": "b8a20b2d99fdfb749537",
+      "post": "e11412e02b2611df6214",
+      "sha": "95129e1e33c868bb3419"
     },
     "portrait.ice+earth.ascended": {
       "qa": {
@@ -4485,7 +4582,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:29:20.804Z",
       "ask": "f5aefc24e6b6cd034acc",
-      "post": "f3182fe753d7245a2f3c"
+      "own": "aa2fca9a0b0b54678319",
+      "post": "f3182fe753d7245a2f3c",
+      "sha": "51df6d3a8986499c336c"
     },
     "portrait.ice+wind.ascended": {
       "qa": {
@@ -4512,7 +4611,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:17:04.245Z",
       "ask": "9bf91634442a149b2bb0",
-      "post": "8007afc1e4008d3dbc8d"
+      "own": "fa83e6c10fc8b23131fb",
+      "post": "8007afc1e4008d3dbc8d",
+      "sha": "20d4ac20ad9a5ee561e2"
     },
     "portrait.lightning+poison.ascended": {
       "qa": {
@@ -4539,7 +4640,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:31:33.182Z",
       "ask": "9c7edf8b1c9759220f14",
-      "post": "0b16654e1427b4a3ec3e"
+      "own": "a7b5dda3d3299913d979",
+      "post": "0b16654e1427b4a3ec3e",
+      "sha": "61da598a45dcb5c13434"
     },
     "portrait.lightning+earth.ascended": {
       "qa": {
@@ -4566,7 +4669,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:17:10.448Z",
       "ask": "72935815530325197310",
-      "post": "fa158867731387f4e959"
+      "own": "865a27d5c6c859b08491",
+      "post": "fa158867731387f4e959",
+      "sha": "fd3e09b3f082d3651762"
     },
     "portrait.lightning+wind.ascended": {
       "qa": {
@@ -4593,7 +4698,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:17:13.810Z",
       "ask": "2c021b264f6aabda8c8d",
-      "post": "de14ce0fa104a90e45ab"
+      "own": "8ea73ec25e99d248f41c",
+      "post": "de14ce0fa104a90e45ab",
+      "sha": "fbaefef9f928730338f0"
     },
     "portrait.poison+earth.ascended": {
       "qa": {
@@ -4620,7 +4727,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:16:11.028Z",
       "ask": "b71a3ce6e58de4305547",
-      "post": "3656981a68cdb184215b"
+      "own": "e995521479e337df43e8",
+      "post": "3656981a68cdb184215b",
+      "sha": "8bdc0f1a7c1a8bc707ff"
     },
     "portrait.poison+wind.ascended": {
       "qa": {
@@ -4647,7 +4756,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:17:34.103Z",
       "ask": "38ffdedfca73578afd59",
-      "post": "0918b068c17d6fff01f6"
+      "own": "d3c7b2c2a846cc8c8ad1",
+      "post": "0918b068c17d6fff01f6",
+      "sha": "e296ec8b30e751cb4267"
     },
     "portrait.earth+wind.ascended": {
       "qa": {
@@ -4674,7 +4785,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:17:37.822Z",
       "ask": "0c2821fa4563c59d7820",
-      "post": "8c046e58bb4d6fc73f47"
+      "own": "168801aaa1100aa3b20f",
+      "post": "8c046e58bb4d6fc73f47",
+      "sha": "17e10a7362d3abb8270c"
     },
     "portrait.fire+metal.ascended": {
       "qa": {
@@ -4701,7 +4814,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:18:34.002Z",
       "ask": "ee38b5dc4f9a45857462",
-      "post": "e3829b765b8f98416e1c"
+      "own": "add6d5327b82cebe60b2",
+      "post": "e3829b765b8f98416e1c",
+      "sha": "383a89d5c97caa74d809"
     },
     "portrait.ice+metal.ascended": {
       "qa": {
@@ -4728,7 +4843,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:18:31.373Z",
       "ask": "e51669171099bc413fbb",
-      "post": "e11ff3c0807f9d6d6877"
+      "own": "6ffaa446970cddcf35af",
+      "post": "e11ff3c0807f9d6d6877",
+      "sha": "e716aec104d5452c2507"
     },
     "portrait.lightning+metal.ascended": {
       "qa": {
@@ -4755,7 +4872,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:19:00.977Z",
       "ask": "6f1e5f1d3d19382c80b6",
-      "post": "2094e099e08110134d6f"
+      "own": "0bf5ccc4e2efdc534d1c",
+      "post": "2094e099e08110134d6f",
+      "sha": "0d2747d2f0e9f541462e"
     },
     "portrait.poison+metal.ascended": {
       "qa": {
@@ -4782,7 +4901,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:19:40.857Z",
       "ask": "fd880df6749a713f6280",
-      "post": "82369d6fa552a34108df"
+      "own": "1b0b768017c5659ed038",
+      "post": "82369d6fa552a34108df",
+      "sha": "d93178495660ce728899"
     },
     "portrait.earth+metal.ascended": {
       "qa": {
@@ -4809,7 +4930,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:20:03.235Z",
       "ask": "bc3401987e7f98aaf8f9",
-      "post": "bfa16193d69ac2273a5c"
+      "own": "b88e68980bf944ebfab8",
+      "post": "bfa16193d69ac2273a5c",
+      "sha": "ba41b2eface7a61074af"
     },
     "portrait.wind+metal.ascended": {
       "qa": {
@@ -4836,7 +4959,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:22:23.589Z",
       "ask": "7eba29e2afe640b030cc",
-      "post": "e3e255e045959692ceca"
+      "own": "f2bb7036160ce6989c8f",
+      "post": "e3e255e045959692ceca",
+      "sha": "0cd32fc4fce1ab136090"
     },
     "portrait.fire+nature.ascended": {
       "qa": {
@@ -4863,7 +4988,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:20:23.784Z",
       "ask": "eb83ba44c980d9db6277",
-      "post": "2d0e5e89d78111ea8c2e"
+      "own": "0b2c892010a190bdaf3b",
+      "post": "2d0e5e89d78111ea8c2e",
+      "sha": "5a9e8d56b26b02f750ec"
     },
     "portrait.ice+nature.ascended": {
       "qa": {
@@ -4890,7 +5017,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:24:25.401Z",
       "ask": "109f68646aa2426e1a93",
-      "post": "29cbb447bb96fe6d90e3"
+      "own": "0e24383ec02c497042bc",
+      "post": "29cbb447bb96fe6d90e3",
+      "sha": "824cb1222be59c3ce10b"
     },
     "portrait.lightning+nature.ascended": {
       "qa": {
@@ -4917,7 +5046,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:24:26.384Z",
       "ask": "06d9e3cb8f8aecb5f5e1",
-      "post": "4d0e0fdb3347871ae43b"
+      "own": "239fe777207605815cbf",
+      "post": "4d0e0fdb3347871ae43b",
+      "sha": "16578b4d0ccde2169c70"
     },
     "portrait.poison+nature.ascended": {
       "qa": {
@@ -4944,7 +5075,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:24:34.961Z",
       "ask": "b60b717657083ac49503",
-      "post": "22fd0a4f140249731b24"
+      "own": "227172221ec1dee9d351",
+      "post": "22fd0a4f140249731b24",
+      "sha": "85be1f04c70e9a226bfc"
     },
     "portrait.earth+nature.ascended": {
       "qa": {
@@ -4971,7 +5104,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:26:59.323Z",
       "ask": "012f2104455e26e0aa15",
-      "post": "ad6e7558462a8b2c5908"
+      "own": "55887e6e1d7e63359fba",
+      "post": "ad6e7558462a8b2c5908",
+      "sha": "7c7a617cb0ae1c64114a"
     },
     "portrait.wind+nature.ascended": {
       "qa": {
@@ -4998,7 +5133,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T03:45:46.819Z",
       "ask": "c0faea799b961366f062",
-      "post": "43cdda78b31accbcb677"
+      "own": "ccbf25a67882a6d409be",
+      "post": "43cdda78b31accbcb677",
+      "sha": "f2d942a9b445dee84665"
     },
     "portrait.metal+nature.ascended": {
       "qa": {
@@ -5025,7 +5162,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-24T05:25:53.433Z",
       "ask": "96d1731fedcce5c7b0a5",
-      "post": "650459889a798500ce30"
+      "own": "b46410637e1c521ae345",
+      "post": "650459889a798500ce30",
+      "sha": "06584f86dc7ff26d39de"
     },
     "enemy.elfRuler.portrait": {
       "qa": {
@@ -5053,7 +5192,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:16:26.841Z",
       "ask": "8d57e4492206b84b3c14",
-      "post": "6f84781580e38cc2b174"
+      "own": "bc287643d157bc7c5e23",
+      "post": "6f84781580e38cc2b174",
+      "sha": "7105be68892e9b664457"
     },
     "enemy.kiteNinja.portrait": {
       "qa": {
@@ -5081,7 +5222,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:18:56.569Z",
       "ask": "e8cc3e3906b518835ba3",
-      "post": "06b9d83d9314199ed3ea"
+      "own": "5ee7ce22b144f3ca75ca",
+      "post": "06b9d83d9314199ed3ea",
+      "sha": "a9f5b2e237bbd382c18b"
     },
     "enemy.dragonRider.portrait": {
       "qa": {
@@ -5108,7 +5251,9 @@
       "model": "gemini-3.1-flash-image",
       "at": "2026-10-23T07:17:32.631Z",
       "ask": "7e7110752b177c898abb",
-      "post": "c8e709e8b37395e7129f"
+      "own": "353cea83a1199024df41",
+      "post": "c8e709e8b37395e7129f",
+      "sha": "ffd8e81f7d45c43393f7"
     },
     "vfx.fire.tongue": {
       "qa": {
