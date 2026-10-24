@@ -30,19 +30,35 @@ The user asked: "check all avatar and remove all 3d art for fusion pet, leave al
 
 | Asset | How it is made | Inputs |
 | --- | --- | --- |
-| `fusion.<a>+<b>` | Gemini 3 Pro | images: `tools/refs/babies-line.png` (the eight babies, the style) and `tools/refs/fusions/grown/<key>.png` (the grown sprite: the species, its markings and colours); text: the roster's description, both parents in words, the value rule, the hard colour rule |
-| `portrait.<a>+<b>` | no new image | the fusion's raw, keyed, snapped and placed on its plate (`tools/post.py --fit plate`) |
-| `portrait.<a>+<b>.ascended` | Gemini 3 Pro edit of the fusion sticker | a gold plate (`ASCENDED_PLATE`) |
-| `enemy.<boss>.portrait` | Gemini 3 Pro, drawn from the boss's own sprite | the foes' style (no cream rim, `--strip-rim`), on a plate of its colour darkened toward the ink with a disc in its accent (`bossPlate`) |
+| `fusion.<a>+<b>` | Gemini, a new image | images: `tools/refs/babies-line.png` (the eight babies, the style) and `tools/refs/fusions/grown/<key>.png` (the grown sprite: the species, its markings and colours); text: the roster's description, both parents in words, the baby proportions (`CHIBI`), the facing, the value rule, the hard colour rule |
+| `portrait.<a>+<b>` | no new image | the fusion's sprite as it shipped, on its plate at 372 px, so the 320 px sprite fills the plate box without enlarging (`tools/post.py --fit plate`) |
+| `portrait.<a>+<b>.ascended` | Gemini edit of the shipped sticker | a gold halo and sparkles, on a gold plate (`ASCENDED_PLATE`) |
+| `enemy.<boss>.portrait` | Gemini, drawn from the boss's sprite as it shipped | the foes' style (no cream rim, `--strip-rim`), on a plate of its colour darkened toward the ink, with a disc in its accent (`bossPlate`) |
 
-To redo one pet:
+**Models.**
+- The first eight pets were drawn on Gemini 3 Pro.
+- Its quota ran out, so the other twenty pets, every halo and the busts are on the fast model (gemini-3.1-flash-image). A side-by-side test showed the fast model kept the style once the baby proportions were stated outright.
+- The fast model is now the recipe's default.
+
+**Facing.** Each side-view pet faces left, checked by eye on a review sheet; a pet that faced right was drawn again. There is no automatic flip: one flipped a sheep that already faced left.
+
+**Bookkeeping.** What is current is decided from committed files only, never from the gitignored raw cache, which differs in every checkout.
+- Every output records `meta.ask`. For a generated output this is the hash of its prompt and its references as committed. For a portrait it is the hash of its source sprite and its post-processing.
+- A generated output also records `meta.post`, its post-processing. If that changes, the output is re-posted from its raw for free.
+- A run makes every job in it that is made from one it makes. A pet's portrait always follows. Its halo edit follows when it is in the run, and is drawn again once the pet is redrawn. A halo edit outside the run is listed as stale, with the command to make it.
+- The plan line counts the images a run will draw, including the halo edits it will draw again.
+- A model is sent a reference's cached raw only when that raw is the drawing that shipped; otherwise it is sent the shipped output.
+- A raw from before these records is re-posted only for an older asset whose output records no ask either, and only if the raw is the drawing that shipped (stamped within the hour). It is never labelled with an ask.
+- `--repost --adopt --only=<ids>` records cached raws that were checked by eye as drawn for today's ask. It never takes a raw from before the recipe date.
+
+To redo one pet (its portrait follows on its own; its halo is an edit of the new sticker):
 
 ```bash
-node tools/pipeline.mjs --priority=P0,P1,P2 --only=fusion.fire+ice,portrait.fire+ice,portrait.fire+ice.ascended --force --concurrency=1
+node tools/pipeline.mjs --priority=P0,P1,P2 --only=fusion.fire+ice,portrait.fire+ice.ascended --force --concurrency=1
 ```
 
 **Records of the grown pass:** the silhouette contracts (`tools/refs/fusions/sil-*.png`) and their gates belonged to the grown sprites. The grown sprites are kept in `tools/refs/fusions/grown/`.
 
 **The comparison:**
-- `python3 reports/art/baby-pets/contact-sheet.py` writes `contact-sheet-1.jpg`, `contact-sheet-2.jpg` and `contact-sheet-small.png`.
-- These show the old art (git `470aff4`) next to the new, plus every portrait at 48 px.
+- `python3 reports/art/baby-pets/contact-sheet.py` writes `contact-sheet-1.jpg`, `contact-sheet-2.jpg`, `contact-sheet-small.png` and `contact-sheet-busts.jpg`.
+- They show the old art (git `470aff4`) next to the new, every portrait at 48 px, and the boss busts.

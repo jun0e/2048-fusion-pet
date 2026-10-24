@@ -1,110 +1,241 @@
 // The asset pipeline end to end, in mock mode (labelled placeholder images, no API key) on a temp copy
-// of what it needs: which jobs a run makes, which follow, which go stale, what --repost and --adopt
-// take. tools/pipeline-state.mjs holds the rules; this checks tools/pipeline.mjs applies them.
+// of what it needs: which jobs a run makes and draws, which follow, which go stale, what --repost and
+// --adopt take, which file a model is sent. tools/pipeline-state.mjs holds the rules; this checks
+// tools/pipeline.mjs applies them, to the jobs under the baby recipe and to the older (legacy) ones.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const hasPil = spawnSync('python3', ['-c', 'import PIL, numpy']).status === 0;
+const skip = hasPil ? false : 'needs python3 with Pillow and NumPy';
 
-/** A temp copy of the pipeline and what the fusion pets' jobs read; mock mode writes inside it only. */
+/** A temp copy of the pipeline and what its jobs read; mock mode writes inside it only. */
 function sandbox() {
   const dir = mkdtempSync(join(tmpdir(), 'pipeline-mock-'));
   cpSync(join(repo, 'package.json'), join(dir, 'package.json'));
   cpSync(join(repo, 'src'), join(dir, 'src'), { recursive: true });
-  mkdirSync(join(dir, 'tools', 'refs', 'fusions'), { recursive: true });
-  for (const f of ['pipeline.mjs', 'pipeline-jobs.mjs', 'pipeline-state.mjs', 'pick.mjs', 'gemini-budget.mjs', 'gemini-errors.mjs', 'curl-post.mjs', 'post.py', 'mock_raw.py', 'gemini-budget.json']) cpSync(join(repo, 'tools', f), join(dir, 'tools', f));
-  for (const f of ['babies-line.png', 'fusions/grown', 'fusions/approved']) cpSync(join(repo, 'tools', 'refs', f), join(dir, 'tools', 'refs', f), { recursive: true });
+  mkdirSync(join(dir, 'tools'), { recursive: true });
+  for (const f of ['pipeline.mjs', 'pipeline-jobs.mjs', 'pipeline-state.mjs', 'pick.mjs', 'gemini-budget.mjs', 'gemini-errors.mjs', 'curl-post.mjs', 'post.py', 'mock_raw.py', 'silhouette-check.py', 'gemini-budget.json']) cpSync(join(repo, 'tools', f), join(dir, 'tools', f));
+  cpSync(join(repo, 'tools', 'refs'), join(dir, 'tools', 'refs'), { recursive: true });
   mkdirSync(join(dir, 'tools', '.cache'), { recursive: true });
   writeFileSync(join(dir, 'tools', '.cache', 'gemini-usage.json'), '[]');
   return dir;
 }
 
-/** Run the pipeline in mock mode in `dir` → { out (stdout + stderr), code }. */
+/** Run the pipeline in mock mode in `dir` → { out (stdout + stderr), code, drawn (images asked for, from the run's log), sent (each drawn job's reference files) }. */
 function run(dir, args, salt = 'a') {
+  const logFile = join(dir, 'tools/.cache/pipeline/mock-log.jsonl');
+  const before = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).length : 0;
   const env = { PATH: process.env.PATH, HOME: process.env.HOME, MOCK_SALT: salt }; // no API keys: mock needs none
   const r = spawnSync(process.execPath, ['tools/pipeline.mjs', '--mock', '--priority=P0,P1,P2', ...args], { cwd: dir, env, encoding: 'utf8' });
-  return { out: `${r.stdout}${r.stderr}`, code: r.status };
+  const lines = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).slice(before).map((l) => JSON.parse(l)) : [];
+  const sent = Object.fromEntries(lines.filter((l) => l.sent).map((l) => [l.id, l.sent]));
+  return { out: `${r.stdout}${r.stderr}`, code: r.status, drawn: lines.filter((l) => l.sent).length, sent };
 }
-const manifest = (dir) => JSON.parse(readFileSync(join(dir, 'public', 'assets', '_mock', 'manifest.json'), 'utf8'));
+const manifestFile = (dir) => join(dir, 'public/assets/_mock/manifest.json');
+const manifest = (dir) => JSON.parse(readFileSync(manifestFile(dir), 'utf8'));
+/** Change manifest entries in place: `edit(meta)` for each id. */
+function editMeta(dir, ids, edit) {
+  const m = manifest(dir);
+  for (const id of ids) edit(m.meta[id]);
+  writeFileSync(manifestFile(dir), JSON.stringify(m));
+}
+const rawFile = (dir, id) => join(dir, `tools/.cache/pipeline/mock-raw/${id}.png`);
+const outFile = (dir, id) => join(dir, `public/assets/_mock/gen/${id}.png`);
 const made = (out) => Number(/(\d+) made,/.exec(out)?.[1]);
 const toMake = (out) => Number(/(\d+) to make/.exec(out)?.[1]);
 const PET = ['fusion.fire+ice', 'portrait.fire+ice', 'portrait.fire+ice.ascended'];
+const only = (ids) => `--only=${ids.join(',')}`;
 
-test('pipeline (mock): a run makes what is missing, then nothing; a stale pet is re-posted or redrawn, its portrait follows, its halo when the drawing changed', { skip: hasPil ? false : 'needs python3 with Pillow and NumPy' }, () => {
+test('pipeline (mock): a pet, its portrait and its halo edit: made, current, re-posted after a post change, redrawn after a new ask', { skip }, () => {
   const dir = sandbox();
   try {
-    const first = run(dir, [`--only=${[...PET, 'fusion.ice+lightning', 'portrait.ice+lightning'].join(',')}`]);
+    const first = run(dir, [only([...PET, 'fusion.ice+lightning', 'portrait.ice+lightning'])]);
     assert.equal(made(first.out), 5, first.out);
+    assert.equal(first.drawn, 2, 'the pet and its halo edit; the narwhal is an approved file, the portraits no image');
     const m = manifest(dir);
     for (const id of [...PET, 'fusion.ice+lightning', 'portrait.ice+lightning']) assert.ok(m.meta[id].ask, `${id}: records its ask`);
     assert.equal(m.meta['portrait.fire+ice'].model, null, 'a portrait is no image');
     assert.equal(m.meta['fusion.ice+lightning'].model, null, 'the approved narwhal is no image');
-    assert.ok(JSON.parse(readFileSync(join(dir, 'tools/.cache/pipeline/mock-raw/fusion.fire+ice.png.ask.json'), 'utf8')).ask, 'a raw carries its record');
-    // nothing left
-    assert.equal(toMake(run(dir, [`--only=${PET.join(',')}`, '--dry']).out), 0);
-    const older = (field) => {
-      const mm = manifest(dir);
-      mm.meta['fusion.fire+ice'][field] = `an older ${field}`;
-      writeFileSync(join(dir, 'public/assets/_mock/manifest.json'), JSON.stringify(mm));
-    };
-    assert.ok(manifest(dir).meta['fusion.fire+ice'].post, 'a generated output records its post-processing');
-    // the shipped pet was post-processed otherwise (a new size), and its cached raw answers today's
-    // ask: it is re-posted (no image), its portrait follows, and its halo, made from the same drawing,
-    // stays current
-    older('post');
-    const repost = run(dir, [`--only=${PET.join(',')}`], 'b');
-    assert.match(repost.out, /2 to make: 0 images, ~\$0\.00 for one pass; 1 re-posted from their cached raws/);
-    assert.equal(made(repost.out), 2, repost.out);
-    // and when it answers an older ask, and so does its raw, a plain run draws it again, its portrait
-    // follows, and its halo, found current at the start, is made in the run once the pet is redrawn
-    older('ask');
-    const rec = join(dir, 'tools/.cache/pipeline/mock-raw/fusion.fire+ice.png.ask.json');
-    writeFileSync(rec, JSON.stringify({ ...JSON.parse(readFileSync(rec, 'utf8')), ask: 'an older ask' }));
-    const redraw = run(dir, [`--only=${PET.join(',')}`], 'b');
-    assert.match(redraw.out, /2 to make: 1 images/);
+    assert.ok(m.meta['fusion.fire+ice'].post, 'a generated output records its post-processing');
+    const rec = JSON.parse(readFileSync(`${rawFile(dir, 'fusion.fire+ice')}.ask.json`, 'utf8'));
+    assert.equal(rec.ask, m.meta['fusion.fire+ice'].ask, 'the output records the ask its raw was drawn for');
+    assert.equal(rec.at, m.meta['fusion.fire+ice'].at, 'and when it was drawn');
+    assert.equal(toMake(run(dir, [only(PET), '--dry']).out), 0, 'nothing left');
+    // a real post change (the pet's sprite size): the pet is re-posted from its raw (no image), its
+    // portrait follows, and its halo edit, made from the old pixels, is drawn again; the plan says so
+    const jobsFile = join(dir, 'tools/pipeline-jobs.mjs');
+    const src = readFileSync(jobsFile, 'utf8');
+    const sized = src.replace("post: { fit: 'trim', size: 320, palette: [...r.pal, ...UNI], snap: true }", "post: { fit: 'trim', size: 300, palette: [...r.pal, ...UNI], snap: true }");
+    assert.notEqual(sized, src, 'the fusion recipe has its sprite size where this test expects it');
+    writeFileSync(jobsFile, sized);
+    const resized = run(dir, [only(PET)], 'b');
+    assert.match(resized.out, /3 to make: 1 images/, resized.out);
+    assert.equal(made(resized.out), 3, resized.out);
+    assert.equal(resized.drawn, 1, 'only the halo edit is drawn');
+    assert.equal(toMake(run(dir, [only(PET), '--dry']).out), 0, 'nothing left');
+    // a new ask for the pet (its recipe changed: the output and its raw answer an older one): the pet
+    // is drawn again, its portrait follows, and its halo edit is drawn again after it
+    editMeta(dir, ['fusion.fire+ice'], (e) => (e.ask = 'an older ask'));
+    const recFile = `${rawFile(dir, 'fusion.fire+ice')}.ask.json`;
+    writeFileSync(recFile, JSON.stringify({ ...JSON.parse(readFileSync(recFile, 'utf8')), ask: 'an older ask' }));
+    const redraw = run(dir, [only(PET)], 'c');
+    assert.match(redraw.out, /3 to make: 2 images/, redraw.out);
     assert.equal(made(redraw.out), 3, redraw.out);
-    assert.equal(toMake(run(dir, [`--only=${PET.join(',')}`, '--dry']).out), 0, 'and nothing is left stale');
+    assert.equal(redraw.drawn, 2);
+    assert.equal(toMake(run(dir, [only(PET), '--dry']).out), 0, 'nothing left');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('pipeline (mock): a pet redrawn alone lists its halo as stale, and a plain run then makes exactly that', { skip: hasPil ? false : 'needs python3 with Pillow and NumPy' }, () => {
+test('pipeline (mock): a pet redrawn alone brings its portrait and names its halo edit as stale', { skip }, () => {
   const dir = sandbox();
   try {
-    run(dir, [`--only=${PET.join(',')}`]);
-    const alone = run(dir, ['--only=fusion.fire+ice', '--force'], 'c');
-    assert.match(alone.out, /also making portrait\.fire\+ice/);
-    assert.match(alone.out, /stale now \(a reference was remade\): portrait\.fire\+ice\.ascended; run --priority=P0,P1,P2 --only=portrait\.fire\+ice\.ascended/);
-    const halo = run(dir, ['--only=portrait.fire+ice.ascended'], 'c');
+    run(dir, [only(PET)]);
+    const alone = run(dir, ['--only=fusion.fire+ice', '--force'], 'b');
+    assert.match(alone.out, /also making portrait\.fire\+ice: made from a job in this run/);
+    assert.match(alone.out, /stale now \(a reference changed\): portrait\.fire\+ice\.ascended; run --priority=P0,P1,P2 --only=portrait\.fire\+ice\.ascended/);
+    const halo = run(dir, ['--only=portrait.fire+ice.ascended'], 'b');
     assert.equal(made(halo.out), 1, halo.out);
+    assert.equal(halo.drawn, 1);
+    assert.doesNotMatch(run(dir, ['--only=fusion.fire+ice', '--dry']).out, /also making/, 'nothing to make: no follower named');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('pipeline (mock): --adopt needs --repost and --only, and never takes a raw from before the recipe', { skip: hasPil ? false : 'needs python3 with Pillow and NumPy' }, () => {
+test('pipeline (mock): --repost re-posts from sources and records what they answer; --adopt takes ids, never a raw from before the recipe', { skip }, () => {
   const dir = sandbox();
   try {
-    run(dir, [`--only=${PET.join(',')}`]);
-    const all = run(dir, ['--repost', '--adopt']);
-    assert.equal(all.code, 1);
-    assert.match(all.out, /only with --repost and --only/);
+    run(dir, [only(PET)]);
+    // a pet and its portrait re-posted: no image, and nothing is left stale (the portrait's ask is taken after its pet's re-post)
+    const re = run(dir, ['--repost', only(PET.slice(0, 2))]);
+    assert.match(re.out, /plan: 2 assets \(P0\+P1\+P2\), each re-posted from its source: no images/);
+    assert.match(re.out, /re-post-processed 2 sources/);
+    assert.equal(toMake(run(dir, [only(PET), '--dry']).out), 0, 'nothing left');
+    // --adopt: only with --repost and --only naming each id
+    for (const bad of [['--repost', '--adopt'], ['--repost', '--adopt', '--only=fusion.*'], ['--adopt', '--only=fusion.fire+ice']]) {
+      const r = run(dir, bad);
+      assert.equal(r.code, 1, bad.join(' '));
+      assert.match(r.out, /only with --repost and --only naming each id/);
+    }
     // a raw from before the baby recipe (a grown sprite left in a cache), with no record
-    const raw = join(dir, 'tools/.cache/pipeline/mock-raw/fusion.fire+ice.png');
+    const raw = rawFile(dir, 'fusion.fire+ice');
+    const record = readFileSync(`${raw}.ask.json`, 'utf8');
     unlinkSync(`${raw}.ask.json`);
     const old = new Date('2026-10-16T05:00:00Z');
     utimesSync(raw, old, old);
-    const adopt = run(dir, ['--repost', '--adopt', '--only=fusion.fire+ice']);
-    assert.match(adopt.out, /fusion\.fire\+ice: its raw is from before the recipe \(2026-10-16\): not re-posted/);
-    // and a plain --repost (which draws nothing) does not take a record-less raw for a job under the recipe either
-    assert.match(run(dir, ['--repost', '--only=fusion.fire+ice']).out, /: 0 images, ~\$0\.00 for one pass; 1 re-posted from their cached raws.*not re-posted/s);
+    assert.match(run(dir, ['--repost', '--adopt', '--only=fusion.fire+ice']).out, /fusion\.fire\+ice: its raw is from before the recipe \(2026-10-16\): not re-posted/);
+    assert.match(run(dir, ['--repost', '--only=fusion.fire+ice']).out, /fusion\.fire\+ice: its raw has no record, and its recipe dates its drawings: not re-posted/, 'a plain --repost does not take it either');
+    // a copied cache: the file is new, its record says it was drawn before the recipe
+    utimesSync(raw, new Date(), new Date());
+    writeFileSync(`${raw}.ask.json`, JSON.stringify({ ...JSON.parse(record), at: '2026-10-16T05:00:00.000Z' }));
+    assert.match(run(dir, ['--repost', '--adopt', '--only=fusion.fire+ice']).out, /its raw is from before the recipe \(2026-10-16\): not re-posted/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('pipeline (mock): older assets (raws with no record, outputs with no ask) are re-posted as before, never labelled with an ask they were not drawn for', { skip }, () => {
+  const dir = sandbox();
+  const PETS = ['pet.fire.16', 'pet.fire.32'];
+  /** As an older pipeline left them: no raw record, no ask or post in the manifest. */
+  const legacy = (ids) => {
+    for (const id of ids) rmSync(`${rawFile(dir, id)}.ask.json`, { force: true });
+    editMeta(dir, ids, (e) => {
+      delete e.ask;
+      delete e.post;
+    });
+  };
+  try {
+    run(dir, [only(PETS)]);
+    legacy(PETS);
+    // a plain --repost takes them (each raw is the drawing that shipped, written seconds before it)
+    const re = run(dir, ['--repost', only(PETS)]);
+    assert.match(re.out, /re-post-processed 2 sources/, re.out);
+    assert.doesNotMatch(re.out, /not re-posted/);
+    assert.ok(!manifest(dir).meta['pet.fire.32'].ask, 'a re-post records no ask for a raw with no record');
+    // its output lost: a plain run re-posts its raw (no image), and still records no ask
+    unlinkSync(outFile(dir, 'pet.fire.32'));
+    const back = run(dir, [only(PETS)]);
+    assert.equal(made(back.out), 1, back.out);
+    assert.equal(back.drawn, 0, 're-posted, not drawn');
+    assert.ok(!manifest(dir).meta['pet.fire.32'].ask, 'no ask it was not drawn for');
+    // an output that records its ask, its recipe since changed, and a raw with no record: drawn again
+    editMeta(dir, ['pet.fire.32'], (e) => (e.ask = 'an older ask'));
+    const edited = run(dir, [only(PETS)]);
+    assert.match(edited.out, /1 to make: 1 images/, edited.out);
+    assert.equal(edited.drawn, 1);
+    const m = manifest(dir);
+    assert.equal(m.meta['pet.fire.32'].ask, JSON.parse(readFileSync(`${rawFile(dir, 'pet.fire.32')}.ask.json`, 'utf8')).ask, 'it records the ask its new raw was drawn for');
+    // the baby redrawn alone: an older later stage (no ask) is kept, and named with the command that redraws it
+    legacy(['pet.fire.32']);
+    const baby = run(dir, ['--only=pet.fire.16', '--force'], 'b');
+    assert.match(baby.out, /drawn before a reference that changed, and kept \(they record no ask\): pet\.fire\.32; to draw them again: --priority=P0,P1,P2 --force --only=pet\.fire\.32/, baby.out);
+    assert.equal(toMake(run(dir, [only(PETS), '--dry']).out), 0, 'kept: nothing says it is stale');
+    // and a run that makes it (its output lost) draws it again: its raw is older than the baby it was drawn from
+    unlinkSync(outFile(dir, 'pet.fire.32'));
+    const later = run(dir, [only(PETS)]);
+    assert.equal(later.drawn, 1, later.out);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('pipeline (mock): a model is sent a reference’s raw only when it is the drawing that shipped, else its output', { skip }, () => {
+  const dir = sandbox();
+  try {
+    run(dir, [only(['pet.fire.16', 'pet.fire.32'])]);
+    const shipped = 'public/assets/_mock/gen/pet.fire.16.png';
+    const cached = 'tools/.cache/pipeline/mock-raw/pet.fire.16.png';
+    assert.deepEqual(run(dir, ['--only=pet.fire.32', '--force']).sent['pet.fire.32'], [cached], 'its raw is the drawing that shipped');
+    // the baby's raw drawn for another ask (another checkout's cache, a redraw that never shipped)
+    const recFile = `${rawFile(dir, 'pet.fire.16')}.ask.json`;
+    writeFileSync(recFile, JSON.stringify({ ...JSON.parse(readFileSync(recFile, 'utf8')), ask: 'another ask' }));
+    assert.deepEqual(run(dir, ['--only=pet.fire.32', '--force']).sent['pet.fire.32'], [shipped]);
+    // the baby with no raw here (current, made in another checkout) and the stage lost with its raw:
+    // the stage is drawn from the baby's output, and the run does not stall
+    unlinkSync(rawFile(dir, 'pet.fire.16'));
+    unlinkSync(outFile(dir, 'pet.fire.32'));
+    unlinkSync(rawFile(dir, 'pet.fire.32'));
+    const r = run(dir, [only(['pet.fire.16', 'pet.fire.32'])]);
+    assert.equal(r.code, 0, r.out);
+    assert.equal(made(r.out), 1, r.out);
+    assert.deepEqual(r.sent['pet.fire.32'], [shipped]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('pipeline (mock): a gated foe records the ask of its pick, and an older pick with no record is drawn again once its output records an ask', { skip }, () => {
+  const dir = sandbox();
+  try {
+    const first = run(dir, ['--only=enemy.pixie']);
+    assert.equal(made(first.out), 1, first.out);
+    const side = JSON.parse(readFileSync(join(dir, 'tools/.cache/pipeline/mock-cand/enemy.pixie.gate.json'), 'utf8'));
+    assert.equal(manifest(dir).meta['enemy.pixie'].ask, side.base, 'the output records the ask its pick answers');
+    assert.equal(toMake(run(dir, ['--only=enemy.pixie', '--dry']).out), 0);
+    // a pick from before records (no raw record, no sidecar), its output lost: re-posted and scored again, no ask recorded
+    unlinkSync(`${rawFile(dir, 'enemy.pixie')}.ask.json`);
+    rmSync(join(dir, 'tools/.cache/pipeline/mock-cand/enemy.pixie.gate.json'));
+    editMeta(dir, ['enemy.pixie'], (e) => delete e.ask);
+    unlinkSync(outFile(dir, 'enemy.pixie'));
+    const back = run(dir, ['--only=enemy.pixie']);
+    assert.equal(made(back.out), 1, back.out);
+    assert.equal(back.drawn, 0, 're-posted, not drawn');
+    assert.ok(!manifest(dir).meta['enemy.pixie'].ask);
+    // its roster changed since (its output records an older ask): the unrecorded pick is not taken for it
+    editMeta(dir, ['enemy.pixie'], (e) => (e.ask = 'an older ask'));
+    const edited = run(dir, ['--only=enemy.pixie']);
+    assert.match(edited.out, /1 to make: 3 images, ~\$[\d.]+ for one pass \([^)]*counting the candidates of 1 gated jobs\); up to 6 images/, edited.out);
+    assert.ok(edited.drawn >= 3 && edited.drawn <= 6, `three candidates, and three more when none is inside the gates (${edited.drawn})`);
+    assert.equal(manifest(dir).meta['enemy.pixie'].ask, JSON.parse(readFileSync(join(dir, 'tools/.cache/pipeline/mock-cand/enemy.pixie.gate.json'), 'utf8')).base);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -1,4 +1,4 @@
-// How tools/pipeline.mjs chooses among a gated job's candidates (the foes, the fusion pets): small pure rules,
+// How tools/pipeline.mjs chooses among a gated job's candidates (the foes): small pure rules,
 // unit-tested in test/pick.test.js. tools/silhouette-check.py scores each candidate; a candidate
 // whose worst gate margin is at least GATE_TOLERANCE is inside the gates, give or take a hair.
 //
@@ -40,7 +40,7 @@ export function acceptedMiss(gate, accepted) {
 }
 
 /** The images a job costs: a gated job makes pick.n candidates, then up to pick.n more in its strict round. → { first, most } */
-export const imagesFor = (job) => (!job.model ? { first: 0, most: 0 } : job.pick ? { first: job.pick.n, most: 2 * job.pick.n } : { first: 1, most: 1 }); // no model: an approved design, or made from another's raw
+export const imagesFor = (job) => (!job.model ? { first: 0, most: 0 } : job.pick ? { first: job.pick.n, most: 2 * job.pick.n } : { first: 1, most: 1 }); // no model: an approved design, or made from another job's output
 
 /** The gates a candidate misses (negative margins), worst first. */
 export function failingGates(margins = {}) {
