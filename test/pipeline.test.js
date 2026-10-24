@@ -367,6 +367,10 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   assert.equal(isStale(job, { ask: 'a', post: 'p', at: '2026-10-23T05:00:00Z' }, 'a', 'p'), false);
   assert.equal(isStale(job, { ask: 'a', post: 'p', at: '2026-10-23T05:00:00Z' }, 'a', 'q'), true, 'its post-processing changed');
   assert.equal(isStale(job, { ask: 'a', at: '2026-10-23T05:00:00Z' }, 'a', 'q'), false, 'an output from before the post record');
+  // a shipped file that is not the one its entry records (changed outside the pipeline, a merge)
+  assert.equal(isStale(job, { ask: 'a', sha: 's', at: '2026-10-23T05:00:00Z' }, 'a', null, 's'), false);
+  assert.equal(isStale(job, { ask: 'a', sha: 's', at: '2026-10-23T05:00:00Z' }, 'a', null, 't'), true, 'another file');
+  assert.equal(isStale(job, { ask: 'a', at: '2026-10-23T05:00:00Z' }, 'a', null, 't'), false, 'an entry from before the file hash');
   // ready: deps done in this run (or current at its start), or outside it, with what it needs on disk
   const p = byId.get('portrait.fire+ice');
   assert.equal(isReady(p, new Map([['fusion.fire+ice', 'todo']]), () => true), false, 'its fusion is still to make in this run');

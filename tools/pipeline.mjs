@@ -119,6 +119,16 @@ function rawRecord(job) {
   const side = readSidecar(job.id);
   return side.base ? { ask: side.base, at: side.updated } : null; // no model: the sidecar does not say which drew it
 }
+/**
+ * A raw's record with its own part of the ask: one recorded before `own` existed that answers today's
+ * ask was drawn for today's own part, so it is recorded so (beside the raw, and then in the output).
+ */
+function withOwn(job, rec) {
+  if (!rec?.ask || rec.own || rec.ask !== askHash(job)) return rec;
+  const full = { ...rec, own: ownHash(job) };
+  writeJsonAtomic(rawAskOf(job.id), full, 0);
+  return full;
+}
 /** A job's cached raw as the bookkeeping sees it (tools/pipeline-state.mjs): its record, its file's time, and when it was drawn. */
 function rawInfo(job) {
   const mtime = new Date(statSync(rawOf(job.id)).mtimeMs).toISOString();
@@ -497,8 +507,8 @@ function postHash(job) {
 const jobHash = (job) => (isPostOnly(job) ? postHash(job) : askHash(job));
 /** A generated job's post-processing (with its key colour): a change re-posts its output, from its raw when that answers the ask. */
 const postKey = (job) => createHash('sha256').update(JSON.stringify({ post: job.post, bg: job.bg ?? 'none' })).digest('hex').slice(0, 20);
-/** Whether a job's shipped output is missing or stale (tools/pipeline-state.mjs isStale). */
-const needed = (job, manifest) => !existsSync(outOf(job.id)) || isStale(job, manifest.meta?.[job.id], jobHash(job), isPostOnly(job) ? null : postKey(job));
+/** Whether a job's shipped output is missing or stale (tools/pipeline-state.mjs isStale), or is not the file its entry records. */
+const needed = (job, manifest) => !existsSync(outOf(job.id)) || isStale(job, manifest.meta?.[job.id], jobHash(job), isPostOnly(job) ? null : postKey(job), fileSha(outOf(job.id)));
 
 /** Why a generated job's cached raw may not be re-posted in place of a new drawing (tools/pipeline-state.mjs rawRefusal), or null. */
 const reuseRefusal = (job, manifest) => (existsSync(rawOf(job.id)) ? rawRefusal(job, rawInfo(job), manifest.meta?.[job.id], askHash(job)) : 'no raw');
@@ -848,7 +858,7 @@ async function main() {
       const { qa, changed } = done.get(j.id);
       const gate = j.pick ? rescore(j, manifest) : null; // a job without gates keeps no verdict
       // a post-only job's ask is taken after every re-post: its source, a fusion, comes earlier in the run
-      const meta = outputMeta(j, { qa, prev: manifest.meta[j.id], rec: isPostOnly(j) ? null : rawRecord(j), changed, gate });
+      const meta = outputMeta(j, { qa, prev: manifest.meta[j.id], rec: isPostOnly(j) ? null : withOwn(j, rawRecord(j)), changed, gate });
       syncManifest(commitManifest(manifestFile, { [j.id]: { file: `gen/${j.id}.png`, meta } }));
       if (!qa.ok) console.log(`  ${j.id}: QA flagged ${JSON.stringify(qa)}`);
       if (j.pick) warnGate(j, gate);
@@ -908,51 +918,60 @@ async function main() {
       return;
     }
     const before = shippedBytes(job);
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      const t = Date.now();
-      // paid for already: post-process only, when the raw answers this ask (a gated job: its pick's ask)
-      const reuse = attempt === 1 && reusable(job, manifest);
-      let picked = null;
-      try {
-        if (!reuse && job.pick) picked = await pickCandidate(job, key, backend, manifest, { fresh: attempt > 1 });
-        else if (!reuse) {
-          const ask = askHash(job); // taken before the request: a reference may change while the model draws
-          const own = ownHash(job);
-          writeFileSync(rawOf(job.id), await callGemini(job, key, backend));
-          writeRawAsk(job, { ask, own });
+    // each attempt is post-processed beside the shipped file, which it replaces only once accepted: a
+    // failed attempt, a retry that draws nothing or a stop leaves what shipped as it was
+    const next = `${outOf(job.id)}.next.png`;
+    try {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const t = Date.now();
+        // paid for already: post-process only, when the raw answers this ask (a gated job: its pick's ask)
+        const reuse = attempt === 1 && reusable(job, manifest);
+        let picked = null;
+        try {
+          if (!reuse && job.pick) picked = await pickCandidate(job, key, backend, manifest, { fresh: attempt > 1 });
+          else if (!reuse) {
+            const ask = askHash(job); // taken before the request: a reference may change while the model draws
+            const own = ownHash(job);
+            writeFileSync(rawOf(job.id), await callGemini(job, key, backend));
+            writeRawAsk(job, { ask, own });
+          }
+        } catch (e) {
+          if (e instanceof Stop) {
+            stopped = e.message;
+            state.set(job.id, 'todo');
+            return;
+          }
+          log({ id: job.id, attempt, error: e.message });
+          console.log(`  ${job.id}: ${e.message}${attempt < 2 ? ', retrying' : ''}`);
+          continue;
         }
-      } catch (e) {
-        if (e instanceof Stop) {
-          stopped = e.message;
-          state.set(job.id, 'todo');
-          return;
+        let qa;
+        try {
+          qa = postProcess(job, rawOf(job.id), next);
+        } catch (e) {
+          log({ id: job.id, attempt, postError: e.message });
+          console.log(`  ${job.id}: post-processing failed (${e.message.split('\n')[0]}); raw kept, fix and run --repost`);
+          break;
         }
-        log({ id: job.id, attempt, error: e.message });
-        console.log(`  ${job.id}: ${e.message}${attempt < 2 ? ', retrying' : ''}`);
-        continue;
+        log({ id: job.id, attempt, reused: reuse, model: job.model, secs: (Date.now() - t) / 1000, qa });
+        if (!qa.ok && attempt < 2) {
+          console.log(`  ${job.id}: QA failed (coverage ${qa.coverage}, fringe ${qa.fringe}), ${reuse ? 'generating fresh' : 'retrying'}`);
+          continue;
+        }
+        const pixels = pixelsChanged(next, before, manifest.meta[job.id]?.sha);
+        renameSync(next, outOf(job.id));
+        if (job.pick && !picked) picked = rescore(job, manifest); // a reused raw: scored as it ships, with today's gates
+        // a gate only for a gated job: a job that lost its gates (the fusions under the baby recipe) drops its old verdict
+        const gate = job.pick ? (picked ?? manifest.meta[job.id]?.gate) : null;
+        accept(job, outputMeta(job, { qa, prev: manifest.meta[job.id], rec: withOwn(job, rawRecord(job)), gate }), t, pixels);
+        if (job.pick) warnGate(job, gate);
+        return;
       }
-      let qa;
-      try {
-        qa = postProcess(job);
-      } catch (e) {
-        log({ id: job.id, attempt, postError: e.message });
-        console.log(`  ${job.id}: post-processing failed (${e.message.split('\n')[0]}); raw kept, fix and run --repost`);
-        break;
-      }
-      log({ id: job.id, attempt, reused: reuse, model: job.model, secs: (Date.now() - t) / 1000, qa });
-      if (!qa.ok && attempt < 2) {
-        console.log(`  ${job.id}: QA failed (coverage ${qa.coverage}, fringe ${qa.fringe}), ${reuse ? 'generating fresh' : 'retrying'}`);
-        continue;
-      }
-      if (job.pick && !picked) picked = rescore(job, manifest); // a reused raw: scored as it ships, with today's gates
-      // a gate only for a gated job: a job that lost its gates (the fusions under the baby recipe) drops its old verdict
-      const gate = job.pick ? (picked ?? manifest.meta[job.id]?.gate) : null;
-      accept(job, outputMeta(job, { qa, prev: manifest.meta[job.id], rec: rawRecord(job), gate }), t, pixelsChanged(outOf(job.id), before, manifest.meta[job.id]?.sha));
-      if (job.pick) warnGate(job, gate);
-      return;
+      state.set(job.id, 'failed');
+      failed += 1;
+    } finally {
+      rmSync(next, { force: true });
     }
-    state.set(job.id, 'failed');
-    failed += 1;
   }
 
   // dependency-ordered scheduler with a small pool

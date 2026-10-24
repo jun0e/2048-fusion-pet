@@ -28,14 +28,16 @@ export function sourceOf(job, { byId, root, rawOf, outOf }) {
  * Whether a shipped output no longer answers its job: it was made for another ask (`meta.ask`, the
  * hash of what was asked, or for a post-only job of its source and post-processing); a generated
  * job's output was post-processed otherwise (`meta.post` against `post`: its raw may still answer,
- * and it is only re-posted); or its job has a recipe date (`job.since`) and the output was made
- * before it (a grown sprite, a 3D portrait) or carries no ask (so nothing ties it to what it was
- * made from). An output with no record at all counts as current only when its job has no recipe
- * date (a legacy asset).
+ * and it is only re-posted); the file is not the one its entry records (`meta.sha` against `sha`:
+ * changed outside the pipeline, or a merge took one without the other); or its job has a recipe date
+ * (`job.since`) and the output was made before it (a grown sprite, a 3D portrait) or carries no ask
+ * (so nothing ties it to what it was made from). An output with no record at all counts as current
+ * only when its job has no recipe date (a legacy asset).
  */
-export function isStale(job, meta, hash, post = null) {
+export function isStale(job, meta, hash, post = null, sha = null) {
   if (meta?.ask && meta.ask !== hash) return true;
   if (post && meta?.post && meta.post !== post) return true;
+  if (sha && meta?.sha && meta.sha !== sha) return true;
   if (job.since && (!(meta?.at >= job.since) || !meta?.ask)) return true;
   return false;
 }

@@ -5,7 +5,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,12 +28,12 @@ function sandbox() {
   return dir;
 }
 
-/** Run the pipeline in mock mode in `dir` → { out (stdout + stderr), code, drawn (images asked for, from the run's log), sent (each drawn job's reference files) }. */
-function run(dir, args, salt = 'a') {
+/** Run the pipeline in mock mode in `dir` (`env`: more variables) → { out (stdout + stderr), code, drawn (images asked for, from the run's log), sent (each drawn job's reference files) }. */
+function run(dir, args, salt = 'a', env = {}) {
   const logFile = join(dir, 'tools/.cache/pipeline/mock-log.jsonl');
   const before = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).length : 0;
-  const env = { PATH: process.env.PATH, HOME: process.env.HOME, MOCK_SALT: salt }; // no API keys: mock needs none
-  const r = spawnSync(process.execPath, ['tools/pipeline.mjs', '--mock', '--priority=P0,P1,P2', ...args], { cwd: dir, env, encoding: 'utf8' });
+  const vars = { PATH: process.env.PATH, HOME: process.env.HOME, MOCK_SALT: salt, ...env }; // no API keys: mock needs none
+  const r = spawnSync(process.execPath, ['tools/pipeline.mjs', '--mock', '--priority=P0,P1,P2', ...args], { cwd: dir, env: vars, encoding: 'utf8' });
   const lines = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).slice(before).map((l) => JSON.parse(l)) : [];
   const sent = Object.fromEntries(lines.filter((l) => l.sent).map((l) => [l.id, l.sent]));
   return { out: `${r.stdout}${r.stderr}`, code: r.status, drawn: lines.filter((l) => l.sent).length, sent };
@@ -46,6 +47,7 @@ function editMeta(dir, ids, edit) {
   writeFileSync(manifestFile(dir), JSON.stringify(m));
 }
 const rawFile = (dir, id) => join(dir, `tools/.cache/pipeline/mock-raw/${id}.png`);
+const sha = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 const outFile = (dir, id) => join(dir, `public/assets/_mock/gen/${id}.png`);
 /** Rewrite a sandbox file: `from` must be in it. */
 function edit(dir, rel, from, to) {
@@ -346,6 +348,61 @@ test('pipeline (mock): a chapter’s lead foe redrawn keeps an older foe drawn f
     assert.equal(kept(lead.out), 1, lead.out);
     assert.deepEqual(Object.keys(lead.sent), ['enemy.pixie'], 'only the lead is drawn');
     assert.match(lead.out, /drawn before their reference was last drawn, and kept \(they record no ask\): enemy\.griffinChick/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('pipeline (mock): an attempt that fails QA, then a retry that draws nothing, leaves the shipped file as it was', { skip }, () => {
+  const dir = sandbox();
+  try {
+    run(dir, ['--only=pet.fire.16']);
+    const before = sha(outFile(dir, 'pet.fire.16'));
+    const entry = manifest(dir).meta['pet.fire.16'];
+    // injected: the first attempt fails QA, and the retry draws nothing
+    edit(dir, 'tools/post.py', '    qa["ok"] = bool(ok)\n', '    qa["ok"] = bool(ok)\n    import os\n    if os.environ.get("FAIL_QA") and "pet.fire.16" in o.src:\n        qa["ok"] = False\n        open(os.environ["FAIL_QA"], "w").close()\n');
+    edit(dir, 'tools/mock_raw.py', '    o = ap.parse_args()\n', '    o = ap.parse_args()\n    import os\n    if os.environ.get("FAIL_QA") and os.path.exists(os.environ["FAIL_QA"]):\n        raise SystemExit("injected: the retry draws nothing")\n');
+    const r = run(dir, ['--only=pet.fire.16', '--force'], 'b', { FAIL_QA: join(dir, 'qa-failed') });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /pet\.fire\.16: QA failed/, r.out);
+    assert.equal(sha(outFile(dir, 'pet.fire.16')), before, 'the shipped file is as it was');
+    assert.deepEqual(manifest(dir).meta['pet.fire.16'], entry, 'and so is its entry');
+    assert.ok(!existsSync(`${outFile(dir, 'pet.fire.16')}.next.png`), 'no attempt left beside it');
+    assert.equal(toMake(run(dir, ['--only=pet.fire.16', '--dry']).out), 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('pipeline (mock): a shipped file that is not the one its entry records is stale, and restored from its raw', { skip }, () => {
+  const dir = sandbox();
+  try {
+    run(dir, [only(['pet.fire.16', 'pet.fire.32'])]);
+    const before = sha(outFile(dir, 'pet.fire.32'));
+    copyFileSync(outFile(dir, 'pet.fire.16'), outFile(dir, 'pet.fire.32')); // a merge took another picture without its entry
+    assert.equal(toMake(run(dir, ['--only=pet.fire.32', '--dry']).out), 1);
+    const r = run(dir, ['--only=pet.fire.32']);
+    assert.equal(r.drawn, 0, 're-posted from its raw');
+    assert.equal(sha(outFile(dir, 'pet.fire.32')), before);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('pipeline (mock): a raw recorded before its own part of the ask was, which answers today, is recorded with it when re-posted', { skip }, () => {
+  const dir = sandbox();
+  const ASC = 'portrait.fire+ice.ascended';
+  try {
+    run(dir, [only(PET)]);
+    const recFile = `${rawFile(dir, ASC)}.ask.json`;
+    const own = JSON.parse(readFileSync(recFile, 'utf8')).own;
+    assert.ok(own && manifest(dir).meta[ASC].own === own, 'recorded when drawn');
+    const { own: _, ...older } = JSON.parse(readFileSync(recFile, 'utf8'));
+    writeFileSync(recFile, JSON.stringify(older));
+    editMeta(dir, [ASC], (e) => delete e.own);
+    run(dir, ['--repost', `--only=${ASC}`]);
+    assert.equal(JSON.parse(readFileSync(recFile, 'utf8')).own, own, 'beside its raw');
+    assert.equal(manifest(dir).meta[ASC].own, own, 'and in its entry');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
