@@ -55,8 +55,9 @@ export const followers = (jobs, all) => {
 
 /**
  * The jobs to make: the stale or missing ones (`needed`), and every job in the run made from one of
- * them, directly or not (a portrait, a halo edit, a later stage, a chapter's foes). Each follows its
- * reference; one whose raw still answers its ask once the reference is made is only re-posted.
+ * them, directly or not (a portrait, a halo edit, a later stage, a chapter's foes), so it waits for
+ * them. The run asks again at each job's turn: one current once its references are made (they came
+ * back as they were, or it is a legacy output, which is kept) is not made.
  */
 export function toMake(jobs, needed) {
   const todo = new Set(jobs.filter(needed).map((j) => j.id));
@@ -73,27 +74,40 @@ export function toMake(jobs, needed) {
 }
 
 /**
- * What a run draws, for its plan: `sure`, the generated jobs whose raw does not answer them
- * (`reusable`), and those made from an output that changes in the run (a new drawing, a stale output
- * made again (`stale`), anything made from either); `maybe`, the other generated jobs made from a job
- * in the run (re-posted from a missing output, which may come back as it was).
+ * What a run draws, for its plan, as the run decides it: a job in `todo` (toMake) is made when it is
+ * stale or missing at its turn, after the jobs it is made from. Each job's output is 'redrawn',
+ * 'changed' (re-posted with new pixels), 'maybe' (re-posted, perhaps as it was) or 'same' (kept), and:
+ * - a job whose references stay as they are draws when it is `needed` and its raw does not answer it (`reusable`);
+ * - a job that records what it answers (`tracked`: an ask, or a recipe date) draws for sure once a
+ *   reference's pixels change (its ask changes), and may draw when a reference may change;
+ * - a legacy output (no ask, no recipe date) is made only when it is needed (lost), and is otherwise
+ *   kept, whatever its references do;
+ * - a post-only output draws nothing, and changes with its source.
+ * `stale(job)`: its output exists and is needed (it comes back with new pixels). → { sure, maybe }
  */
-export function drawPlan(todo, { reusable, stale }) {
-  const inRun = new Set(todo.map((j) => j.id));
-  const draws = (j) => !isPostOnly(j) && !reusable(j);
-  const changed = new Set(todo.filter((j) => draws(j) || stale(j)).map((j) => j.id));
-  for (let grew = true; grew; ) {
-    grew = false;
-    for (const j of todo) {
-      if (!changed.has(j.id) && j.deps.some((d) => changed.has(d))) {
-        changed.add(j.id);
-        grew = true;
+export function drawPlan(todo, { needed, reusable, stale, tracked }) {
+  const byId = new Map(todo.map((j) => [j.id, j]));
+  const fates = new Map();
+  const fate = (j) => {
+    if (!fates.has(j.id)) {
+      const ups = j.deps.filter((d) => byId.has(d)).map((d) => fate(byId.get(d)).out);
+      const changes = ups.includes('redrawn') || ups.includes('changed');
+      const might = ups.includes('maybe');
+      // a job's own staleness is judged with its references as they are now: for one that records an
+      // ask (or a post-only one) only when none of them may change; a legacy output's never depends on them
+      const own = needed(j);
+      const need = (tracked(j) || isPostOnly(j)) && (changes || might) ? false : own;
+      const out = (draw) => (draw === 'sure' ? 'redrawn' : draw === 'maybe' ? 'maybe' : need ? (stale(j) ? 'changed' : 'maybe') : 'same');
+      if (isPostOnly(j)) fates.set(j.id, { draw: 'no', out: changes ? 'changed' : might ? 'maybe' : out('no') });
+      else {
+        const draw = !tracked(j) ? (own && !reusable(j) ? 'sure' : 'no') : changes ? 'sure' : might ? 'maybe' : need && !reusable(j) ? 'sure' : 'no';
+        fates.set(j.id, { draw, out: out(draw) });
       }
     }
-  }
-  const sure = todo.filter((j) => !isPostOnly(j) && (draws(j) || j.deps.some((d) => changed.has(d))));
-  const maybe = todo.filter((j) => !isPostOnly(j) && !sure.includes(j) && j.deps.some((d) => inRun.has(d)));
-  return { sure, maybe };
+    return fates.get(j.id);
+  };
+  for (const j of todo) fate(j);
+  return { sure: todo.filter((j) => fate(j).draw === 'sure'), maybe: todo.filter((j) => fate(j).draw === 'maybe') };
 }
 
 /** How far a raw with no record may be from the output stamped after it: the pipeline writes a raw seconds before it records the output. */
@@ -101,29 +115,32 @@ export const SOURCE_WINDOW_MS = 60 * 60 * 1000;
 
 /**
  * Whether a cached raw is the drawing a shipped output was made from (`meta`, the output's manifest
- * entry): a raw with a record when it records the output's ask; one with none (an older pipeline's)
- * when the output records no ask either and was stamped within SOURCE_WINDOW_MS of it (another
- * checkout's cache holds older drawings). `raw` = { at (ISO: its record's time, else its file's), record }.
+ * entry): a raw with a record when the output records its ask and its time (a later drawing for the
+ * same ask that never shipped is not it); one with none (an older pipeline's) when the output records
+ * no ask either and was stamped within SOURCE_WINDOW_MS of it (another checkout's cache holds older
+ * drawings). `raw` = { at (ISO: its record's time, else its file's), record }.
  */
 export function isSourceOf(raw, meta) {
-  if (raw.record) return !!meta?.ask && raw.record.ask === meta.ask;
+  if (raw.record) return !!meta?.ask && raw.record.ask === meta.ask && raw.record.at === meta.at;
   if (meta?.ask) return false;
   return !meta?.at || Math.abs(Date.parse(meta.at) - Date.parse(raw.at)) <= SOURCE_WINDOW_MS;
 }
 
 /**
  * Why a cached raw may not stand for a generated job today (be re-posted instead of drawn again), or
- * null when it may. A raw with a record answers the ask it was drawn for (`hash`: today's). A raw
- * with none (an older pipeline's) answers nothing known, so it is taken only for a job with no recipe
- * date whose output records no ask either, when it is the drawing that shipped (isSourceOf) and no
- * reference was drawn after it (`refsAt`: when each dependency's shipped drawing was made).
+ * null when it may. A raw with a record answers the ask it was drawn for (`hash`: today's), when it
+ * was drawn on or after the job's recipe date. A raw with none (an older pipeline's) answers nothing
+ * known, so it is taken only for a job with no recipe date whose output records no ask either, and
+ * only when it is the drawing that shipped (isSourceOf): re-posting it brings back what shipped.
  */
-export function rawRefusal(job, raw, meta, hash, refsAt = []) {
-  if (raw.record) return raw.record.ask === hash ? null : 'its raw was drawn for another ask';
+export function rawRefusal(job, raw, meta, hash) {
+  if (raw.record) {
+    if (job.since && raw.at < job.since) return `its raw was drawn before its recipe (${raw.at.slice(0, 10)})`;
+    return raw.record.ask === hash ? null : 'its raw was drawn for another ask';
+  }
   if (job.since) return 'its raw has no record, and its recipe dates its drawings';
   if (meta?.ask) return 'its raw has no record, and its output records what it answers';
   if (!isSourceOf(raw, meta)) return `its raw is not the drawing that shipped (drawn ${raw.at.slice(0, 10)}, the shipped one ${meta.at.slice(0, 10)})`;
-  if (refsAt.some((at) => at > raw.at)) return 'a reference was drawn again after it';
   return null;
 }
 

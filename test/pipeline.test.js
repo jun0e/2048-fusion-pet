@@ -383,22 +383,28 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   assert.deepEqual(toMake(run, () => false), []);
   const stages = ['pet.fire.16', 'pet.fire.32', 'pet.fire.64', 'pet.fire.128'].map((id) => byId.get(id));
   assert.deepEqual(toMake(stages, (j) => j.id === 'pet.fire.16').map((j) => j.id), stages.map((j) => j.id), 'a redrawn baby brings every later stage');
-  // drawPlan: what a run draws for sure, and what it may
+  // drawPlan: what a run draws for sure, and what it may, as the run decides it at each job's turn
   const [fu, po, asc] = run;
-  const plan1 = drawPlan([fu, po, asc], { reusable: (j) => j !== fu, stale: (j) => j === fu });
-  assert.deepEqual([plan1.sure.map((j) => j.id), plan1.maybe], [['fusion.fire+ice', 'portrait.fire+ice.ascended'], []], 'a redrawn pet: its halo edit is drawn again too');
-  const plan2 = drawPlan([fu, po, asc], { reusable: () => true, stale: (j) => j === fu });
-  assert.deepEqual([plan2.sure.map((j) => j.id), plan2.maybe], [['portrait.fire+ice.ascended'], []], 'a pet re-posted with other post args: new pixels, so its halo is drawn again');
-  const plan3 = drawPlan([fu, po, asc], { reusable: () => true, stale: () => false });
-  assert.deepEqual([plan3.sure, plan3.maybe.map((j) => j.id)], [[], ['portrait.fire+ice.ascended']], 'a missing pet re-posted from its raw may come back as it was');
+  const kitJob = byId.get('halo.fire'); // a legacy job made from fusion.fire+ice (for its style)
+  const ids = (l) => l.map((j) => j.id);
+  const planOf = (todo, { needed = () => false, reusable = () => true, stale = () => false, legacy = [] } = {}) => {
+    const p = drawPlan(todo, { needed, reusable, stale, tracked: (j) => !legacy.includes(j) });
+    return [ids(p.sure), ids(p.maybe)];
+  };
+  assert.deepEqual(planOf([fu, po, asc], { needed: (j) => j === fu, reusable: (j) => j !== fu, stale: (j) => j === fu }), [['fusion.fire+ice', 'portrait.fire+ice.ascended'], []], 'a redrawn pet: its halo edit is drawn again too');
+  assert.deepEqual(planOf([fu, po, asc], { needed: (j) => j === fu, stale: (j) => j === fu }), [['portrait.fire+ice.ascended'], []], 'a pet re-posted with other post args: new pixels, so its halo edit is drawn again');
+  assert.deepEqual(planOf([fu, po, asc], { needed: () => true, reusable: (j) => j === fu }), [[], ['portrait.fire+ice.ascended']], 'a lost pet re-posted from its raw may come back as it was: its halo edit, stale while the pet is missing, may stay');
+  assert.deepEqual(planOf([fu, po, asc, kitJob], { needed: (j) => j === fu, reusable: (j) => j !== fu && j !== kitJob, stale: (j) => j === fu, legacy: [kitJob] }), [['fusion.fire+ice', 'portrait.fire+ice.ascended'], []], 'a legacy output made from a redrawn pet is kept, not drawn');
+  assert.deepEqual(planOf([fu, kitJob], { needed: () => true, reusable: (j) => j !== kitJob, legacy: [kitJob] }), [['halo.fire'], []], 'a lost legacy output with no raw to stand for it is drawn');
   const kit = { id: 'kit', deps: ['portrait.fire+ice'], model: 'm' }; // a drawing made from a post-only output
-  assert.deepEqual(drawPlan([fu, po, kit], { reusable: (j) => j !== fu, stale: () => false }).sure.map((j) => j.id), ['fusion.fire+ice', 'kit'], 'a change passes through a post-only output');
-  // a raw is the drawing that shipped: by its record, or with none (an older pipeline's) by its time
+  assert.deepEqual(planOf([fu, po, kit], { needed: (j) => j === fu, reusable: (j) => j !== fu, stale: (j) => j === fu }), [['fusion.fire+ice', 'kit'], []], 'a change passes through a post-only output');
+  // a raw is the drawing that shipped: by its record (its ask and its time), or with none (an older pipeline's) by its time
   const at = '2026-10-16T05:00:00.000Z';
   const later = (ms) => new Date(Date.parse(at) + ms).toISOString();
-  assert.equal(isSourceOf({ at, record: { ask: 'h' } }, { ask: 'h', at }), true);
-  assert.equal(isSourceOf({ at, record: { ask: 'h' } }, { ask: 'x', at }), false);
-  assert.equal(isSourceOf({ at, record: { ask: 'h' } }, { at }), false, 'a recorded raw is not the source of an output that records nothing');
+  assert.equal(isSourceOf({ at, record: { ask: 'h', at } }, { ask: 'h', at }), true);
+  assert.equal(isSourceOf({ at, record: { ask: 'h', at } }, { ask: 'x', at }), false);
+  assert.equal(isSourceOf({ at: later(1000), record: { ask: 'h', at: later(1000) } }, { ask: 'h', at }), false, 'a later drawing for the same ask, which never shipped');
+  assert.equal(isSourceOf({ at, record: { ask: 'h', at } }, { at }), false, 'a recorded raw is not the source of an output that records nothing');
   assert.equal(isSourceOf({ at, record: null }, { ask: 'h', at }), false);
   assert.equal(isSourceOf({ at, record: null }, { at: later(30e3) }), true, 'its own raw: written seconds before the output was stamped');
   assert.equal(isSourceOf({ at, record: null }, { at: later(46 * 3600e3) }), false, 'another checkout’s older drawing');
@@ -407,14 +413,14 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   // rawRefusal: whether a cached raw may stand for its job today (re-posted, not drawn)
   const legacy = {};
   const baby = { since: BABY_SINCE };
-  assert.equal(rawRefusal(baby, { at, record: { ask: 'h' } }, { ask: 'h', at }, 'h'), null);
-  assert.match(rawRefusal(baby, { at, record: { ask: 'old' } }, { ask: 'old', at }, 'h'), /drawn for another ask/);
+  const fresh = '2026-10-23T05:00:00.000Z';
+  assert.equal(rawRefusal(baby, { at: fresh, record: { ask: 'h', at: fresh } }, { ask: 'h', at: fresh }, 'h'), null);
+  assert.match(rawRefusal(baby, { at: fresh, record: { ask: 'old', at: fresh } }, { ask: 'old', at: fresh }, 'h'), /drawn for another ask/);
+  assert.match(rawRefusal(baby, { at, record: { ask: 'h', at } }, { ask: 'h', at }, 'h'), /drawn before its recipe \(2026-10-16\)/, 'a recipe date moved past it: drawn again');
   assert.match(rawRefusal(baby, { at, record: null }, undefined, 'h'), /recipe dates its drawings/, 'a grown raw or a 3D render never ships under the baby recipe');
   assert.match(rawRefusal(legacy, { at, record: null }, { ask: 'old', at }, 'h'), /output records what it answers/, 'a prompt edit: an unrecorded raw is drawn again, never labelled with the new ask');
   assert.equal(rawRefusal(legacy, { at, record: null }, { at: later(30e3) }, 'h'), null, 'a legacy asset’s own raw, as before');
   assert.match(rawRefusal(legacy, { at, record: null }, { at: later(46 * 3600e3) }, 'h'), /not the drawing that shipped \(drawn 2026-10-16, the shipped one 2026-10-18\)/);
-  assert.match(rawRefusal(legacy, { at, record: null }, { at: later(30e3) }, 'h', [later(3600e3 * 24)]), /a reference was drawn again after it/, 'a later stage of a redrawn baby');
-  assert.equal(rawRefusal(legacy, { at, record: null }, { at: later(30e3) }, 'h', [later(-60e3)]), null);
   // --adopt: never a raw from before its recipe, by the earlier of its record's time and its file's
   assert.match(adoptRefusal(baby, { mtime: '2026-10-16T05:00:00.000Z', record: null }), /from before the recipe \(2026-10-16\)/);
   assert.equal(adoptRefusal(baby, { mtime: '2026-10-23T05:00:00.000Z', record: null }), null);
