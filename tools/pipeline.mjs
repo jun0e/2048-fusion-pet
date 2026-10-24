@@ -516,10 +516,23 @@ const fileDiffers = (job, manifest) => existsSync(outOf(job.id)) && differs(mani
  * newer art a merge brought), so nothing replaces it but --force or a --repost naming its id.
  */
 const isHeld = (job, manifest) => fileDiffers(job, manifest) && !force && !(repost && only.includes(job.id));
-/** Name the shipped files that are not the ones their entries record: held as they are; the commands that bring back the recorded drawing or draw it again. */
+/**
+ * Name the shipped files that are not the ones their entries record: those held as they are, with the
+ * commands that replace them (--repost for one whose raw or source still stands for it, else --force),
+ * and those this run replaces as asked.
+ */
 function warnDiffers(jobs, manifest) {
-  const ids = jobs.filter((j) => fileDiffers(j, manifest)).map((j) => j.id);
-  if (ids.length) console.warn(`⚠️  shipped file differs from its entry (a merge, or an edit outside the pipeline), kept as it is: ${ids.join(', ')}; to bring back the recorded drawing from its raw: --repost --only=${ids.join(',')}; to draw it again: --force --only=${ids.join(',')}; to keep it, take its entry from the branch it came from`);
+  const differ = jobs.filter((j) => fileDiffers(j, manifest));
+  const held = differ.filter((j) => isHeld(j, manifest));
+  const asked = differ.filter((j) => !isHeld(j, manifest)).map((j) => j.id);
+  const restorable = held.filter((j) => (isPostOnly(j) ? existsSync(sourceOf(j)) : !reuseRefusal(j, manifest))).map((j) => j.id);
+  const ids = held.map((j) => j.id);
+  if (ids.length)
+    console.warn(
+      `⚠️  shipped file differs from its entry (a merge, or an edit outside the pipeline), kept as it is: ${ids.join(', ')}` +
+        `${restorable.length ? `; to bring back the recorded drawing: --repost --only=${restorable.join(',')}` : ''}; to draw it again: --force --only=${ids.join(',')}; to keep it, take its entry from the branch it came from`,
+    );
+  if (asked.length) console.warn(`⚠️  shipped file differs from its entry, replaced as asked: ${asked.join(', ')}`);
 }
 
 /** Why a generated job's cached raw may not be re-posted in place of a new drawing (tools/pipeline-state.mjs rawRefusal), or null. */
@@ -540,7 +553,7 @@ const outdated = (job, manifest) => !manifest.meta?.[job.id]?.ask && job.deps.so
 function warnDownstream(changed, made, manifest) {
   const shipped = [...jobsById.values()].filter((j) => existsSync(outOf(j.id)));
   const fromChanged = (j) => j.deps.some((d) => changed.has(d));
-  const stale = shipped.filter((j) => !made.has(j.id) && fromChanged(j) && needed(j, manifest)).map((j) => j.id);
+  const stale = shipped.filter((j) => !made.has(j.id) && fromChanged(j) && needed(j, manifest) && !isHeld(j, manifest)).map((j) => j.id);
   const older = shipped.filter((j) => (fromChanged(j) || made.has(j.id)) && !needed(j, manifest) && outdated(j, manifest)).map((j) => j.id);
   if (stale.length) console.warn(`⚠️  stale now (a reference changed): ${stale.join(', ')}; run --priority=P0,P1,P2 --only=${stale.join(',')}`);
   if (older.length) console.warn(`⚠️  drawn before their reference was last drawn, and kept (they record no ask): ${older.join(', ')}; to draw them again: --priority=P0,P1,P2 --force --only=${older.join(',')}`);
@@ -824,11 +837,12 @@ async function main() {
     // into the manifest on disk on its own
     const done = new Map();
     const refused = [];
+    const held = [];
     let broken = 0;
     let rejected = 0;
     for (const j of jobs.filter((j) => existsSync(sourceOf(j)))) {
       if (isHeld(j, manifest)) {
-        refused.push(j.id);
+        held.push(j.id);
         console.log(`  ${j.id}: its shipped file differs from its entry: kept as it is (name it in --only to bring back the recorded drawing)`);
         continue;
       }
@@ -886,7 +900,7 @@ async function main() {
     writeSheet(planned, manifest); // the sheet shows every planned asset, whatever --only picked
     // what was made from outputs this re-post changed (a job refused here included), and the older ones it re-posted
     warnDownstream(new Set([...done].filter(([, v]) => v.changed).map(([id]) => id)), new Set(done.keys()), manifest);
-    console.log(`re-post-processed ${done.size} sources${refused.length ? `; ${refused.length} raws not re-posted (why above)` : ''}${broken ? `, ${broken} failed` : ''}${outside.size ? `; ${outside.size} gated jobs ship outside their gates: ${[...outside].join(', ')}` : ''}`);
+    console.log(`re-post-processed ${done.size} sources${refused.length ? `; ${refused.length} raws not re-posted (why above)` : ''}${held.length ? `; ${held.length} held (their shipped file differs from their entry)` : ''}${broken ? `, ${broken} failed` : ''}${outside.size ? `; ${outside.size} gated jobs ship outside their gates: ${[...outside].join(', ')}` : ''}`);
     if (rejected) console.warn(`⚠️  ${rejected} reposts failed QA and kept their shipped file`);
     process.exitCode = broken || rejected ? 1 : outside.size ? 2 : 0;
     return;

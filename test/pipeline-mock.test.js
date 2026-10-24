@@ -405,6 +405,7 @@ test('pipeline (mock): a shipped file that is not the one its entry records is h
     // a plain --repost (npm run pipeline:repost, no ids named) holds them too
     const re = run(dir, ['--repost']);
     assert.match(re.out, /fusion\.fire\+ice: its shipped file differs from its entry: kept as it is/, re.out);
+    assert.match(re.out, /re-post-processed \d+ sources; 2 held \(their shipped file differs from their entry\)/, re.out);
     assert.deepEqual([sha(outFile(dir, 'fusion.fire+ice')), sha(outFile(dir, ASC))], [merged.pet, merged.asc]);
     // with no raw here, the same: named, held, nothing to make
     const raw = readFileSync(rawFile(dir, 'fusion.fire+ice'));
@@ -413,9 +414,13 @@ test('pipeline (mock): a shipped file that is not the one its entry records is h
     assert.ok(names(fresh.out, ['fusion.fire+ice', ASC]), fresh.out);
     assert.match(fresh.out, /0 to make: 0 images/);
     writeFileSync(rawFile(dir, 'fusion.fire+ice'), raw);
-    // asked for by name, --repost brings back the recorded drawing, and --force draws the halo edit again
-    run(dir, ['--repost', '--only=fusion.fire+ice']);
+    // asked for by name, --repost brings back the recorded drawing (said so before it runs), and --force draws the halo edit again
+    assert.match(run(dir, ['--repost', '--only=fusion.fire+ice']).out, /shipped file differs from its entry, replaced as asked: fusion\.fire\+ice/);
     assert.notEqual(sha(outFile(dir, 'fusion.fire+ice')), merged.pet);
+    // the halo edit's raw no longer answers it (the pet came back at its new size): only --force is offered for it
+    const left = run(dir, [only(PET), '--dry']).out;
+    assert.match(left, /kept as it is: portrait\.fire\+ice\.ascended; to draw it again: --force --only=portrait\.fire\+ice\.ascended/, left);
+    assert.doesNotMatch(left, /stale now/, 'a held output is not sent to a command that holds it');
     const forced = run(dir, [`--only=${ASC}`, '--force'], 'b');
     assert.equal(forced.drawn, 1, forced.out);
     assert.doesNotMatch(run(dir, [only(PET), '--dry']).out, /shipped file differs/, 'each entry describes its file again');
