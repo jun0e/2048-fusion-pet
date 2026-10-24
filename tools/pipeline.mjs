@@ -107,10 +107,11 @@ function readRawAsk(id) {
   }
 }
 /**
- * Record a raw (atomically: a torn record would read as none, and a paid raw be drawn again). `ask` is
- * taken before the request, from what was sent: a reference may change while the model draws.
+ * Record a raw (atomically: a torn record would read as none, and a paid raw be drawn again). `ask`
+ * (and `own`, its own part) is taken before the request, from what was sent: a reference may change
+ * while the model draws.
  */
-const writeRawAsk = (job, { ask, at = new Date().toISOString(), model = job.model }) => writeJsonAtomic(rawAskOf(job.id), { ask, at, model }, 0);
+const writeRawAsk = (job, { ask, own, at = new Date().toISOString(), model = job.model }) => writeJsonAtomic(rawAskOf(job.id), { ask, own, at, model }, 0);
 /** What a job's raw was drawn for: its record, or for a gated job picked before records, its sidecar's (`base`, its first round's ask). */
 function rawRecord(job) {
   const rec = readRawAsk(job.id);
@@ -465,6 +466,24 @@ function askHash(ask) {
   return h.digest('hex').slice(0, 20);
 }
 
+/**
+ * A job's own part of its ask: its aspect, key colour, prompt and the references that are not jobs it
+ * waits for (a path's committed file). The rest is what its dependencies are drawn as. Recorded with
+ * its raw, it says whether a job's prompt changed while a reference is lost (its ask then hashes it as missing).
+ */
+function ownHash(job) {
+  const h = createHash('sha256').update(JSON.stringify({ aspect: job.aspect, bg: job.bg ?? 'none', prompt: job.prompt, refs: job.refs }));
+  for (const r of job.refs) {
+    const id = r.startsWith(SHIPPED) ? r.slice(SHIPPED.length) : r.includes('/') ? null : r;
+    if (id && job.deps.includes(id)) continue;
+    const f = id ? shippedOf(id) : join(root, r);
+    h.update(existsSync(f) ? readFileSync(f) : `missing:${r}`);
+  }
+  return h.digest('hex').slice(0, 20);
+}
+/** A file's content hash (an output's, in its manifest entry: a lost output restored as it was is no change). */
+const fileSha = (f) => createHash('sha256').update(readFileSync(f)).digest('hex').slice(0, 20);
+
 const firstLine = (e) => String(e?.message ?? e).split('\n')[0];
 
 /** What a post-only job's output answers: its post-processing and its source's bytes, committed (a new drawing makes it stale). */
@@ -506,19 +525,26 @@ function warnDownstream(changed, made, manifest) {
 }
 
 /**
- * An output's manifest entry. A generated output takes what its raw was drawn for, when, and by which
- * model from the raw's record (`rec`; a raw with none, an older pipeline's, answers no ask known, so
- * none is recorded, and the output keeps its date and model), and records its post-processing. A
- * post-only output answers its source and post, and is dated by when its pixels last changed (or
- * today, for one dated before its recipe).
+ * An output's manifest entry, written once its file ships. A generated output takes what its raw was
+ * drawn for (and its own part), when, and by which model from the raw's record (`rec`; a raw with
+ * none, an older pipeline's, answers no ask known, so none is recorded, and the output keeps its date
+ * and model), and records its post-processing. A post-only output answers its source and post, and is
+ * dated by when its pixels last changed (or today, for one dated before its recipe). Each records its
+ * file's hash.
  */
 function outputMeta(job, { qa, prev, rec = null, changed = true, gate = null }) {
   const now = new Date().toISOString();
-  if (isPostOnly(job)) return { qa, model: null, at: changed || !prev?.at || (job.since && prev.at < job.since) ? now : prev.at, ask: postHash(job) };
-  return { qa, model: rec?.model ?? prev?.model ?? job.model, at: rec?.at ?? prev?.at ?? now, ...(rec?.ask ? { ask: rec.ask } : {}), post: postKey(job), ...(gate ? { gate } : {}) };
+  const sha = fileSha(outOf(job.id));
+  if (isPostOnly(job)) return { qa, model: null, at: changed || !prev?.at || (job.since && prev.at < job.since) ? now : prev.at, ask: postHash(job), sha };
+  return { qa, model: rec?.model ?? prev?.model ?? job.model, at: rec?.at ?? prev?.at ?? now, ...(rec?.ask ? { ask: rec.ask } : {}), ...(rec?.own ? { own: rec.own } : {}), post: postKey(job), sha, ...(gate ? { gate } : {}) };
 }
-/** Whether a new output differs from the shipped one, byte for byte (post.py is deterministic): a post-only output is dated by its last change. */
-const pixelsChanged = (next, out) => !existsSync(out) || !readFileSync(next).equals(readFileSync(out));
+/**
+ * Whether a new output (`next`, or the file just written) differs from what shipped, byte for byte
+ * (post.py is deterministic): the shipped file (`before`), else, for one lost, the hash its entry records.
+ */
+const pixelsChanged = (next, before, sha) => (before ? !readFileSync(next).equals(before) : !sha || fileSha(next) !== sha);
+/** What ships for a job now, to tell whether its new output differs (null when lost). */
+const shippedBytes = (job) => (existsSync(outOf(job.id)) ? readFileSync(outOf(job.id)) : null);
 
 /**
  * Make `pick.n` candidates of a gated job, post-process and score each (contract, twin, ally,
@@ -538,6 +564,7 @@ async function pickCandidate(job, key, backend, manifest, { fresh = false } = {}
   const scored = [];
   let strict = '';
   const base = askHash(job); // the ask the pick answers, taken before anything is drawn (a reference may change meanwhile)
+  const own = ownHash(job);
   for (let round = 0; round < 2; round++) {
     const ask = round ? { ...job, prompt: strict + job.prompt } : job;
     const hash = round ? askHash(ask) : base;
@@ -601,7 +628,7 @@ async function pickCandidate(job, key, backend, manifest, { fresh = false } = {}
   if (!b) throw new Error('no usable candidate');
   if (b.mirror) execFileSync('python3', ['-c', 'import sys; from PIL import Image; Image.open(sys.argv[1]).transpose(Image.FLIP_LEFT_RIGHT).save(sys.argv[2])', b.raw, rawOf(job.id)]);
   else copyFileSync(b.raw, rawOf(job.id));
-  writeRawAsk(job, { ask: base });
+  writeRawAsk(job, { ask: base, own });
   side.picked = b.n;
   side.base = base; // the ask it answers (before any strict lead): a changed ask makes the pick stale
   save();
@@ -692,35 +719,56 @@ async function main() {
 
   // missing or stale outputs, and every job in the run made from one of them (tools/pipeline-state.mjs toMake)
   const todo = force ? jobs : toMake(jobs, (j) => needed(j, manifest));
-  const along = repost ? follow : follow.filter((j) => todo.includes(j));
-  if (along.length) console.log(`also ${repost ? 're-posting' : 'making'} ${along.map((j) => j.id).join(', ')}: made from a job in this run`);
   const jobIds = new Set(planned.map((j) => j.id));
   const byCode = rows.filter((r) => priorities.includes(r.priority) && !r.method.startsWith('Gemini') && !jobIds.has(r.id)).reduce((n, r) => n + r.count, 0);
   const inCode = `plus ${byCode} assets drawn in code (glyphs, plates, effects, UI)${skipped.length ? `; no job yet for ${skipped.join(', ')}` : ''}`;
   if (!mock) console.log(`backend: ${backend.label}${envValue(backend.keyName) ? '' : ` (no ${backend.keyName} yet)`}`);
+  // what the run makes and draws, as it decides at each job's turn (tools/pipeline-state.mjs drawPlan): a
+  // job whose raw answers it is re-posted, no image; one made from an output that changes draws; one
+  // current once its references are made is kept. A gated job makes n candidates, and up to n more if it
+  // needs its strict round (tools/pick.mjs imagesFor). --force makes and draws every job given.
+  const { sure, maybe, fates } = repost
+    ? { sure: [], maybe: [], fates: new Map() }
+    : force
+      ? { sure: todo.filter((j) => !isPostOnly(j)), maybe: [], fates: new Map(todo.map((j) => [j.id, { make: 'yes', draw: isPostOnly(j) ? 'no' : 'sure' }])) }
+      : drawPlan(todo, {
+          needed: (j) => needed(j, manifest),
+          reusable: (j) => reusable(j, manifest),
+          stale: (j) => existsSync(outOf(j.id)) && needed(j, manifest),
+          tracked: (j) => !!(j.since || manifest.meta?.[j.id]?.ask),
+          ownChanged: (j) => !!manifest.meta?.[j.id]?.own && manifest.meta[j.id].own !== ownHash(j),
+        });
+  const count = (make) => todo.filter((j) => fates.get(j.id)?.make === make).length;
+  // a gated job resumed for the same ask reuses the candidates it paid for (pickCandidate): fewer images,
+  // known only for one whose references stay as they are
+  const inTodo = new Set(todo.map((j) => j.id));
+  const imagesLeft = (j) => {
+    const all = imagesFor(j);
+    if (!j.pick || force || j.deps.some((d) => inTodo.has(d))) return all;
+    const hash = askHash(j);
+    const cached = Object.entries(readSidecar(j.id).candidates).filter(([n, c]) => c.hash === hash && c.made && existsSync(join(candDir, `${j.id}~${n}.raw.png`))).length;
+    return { first: Math.max(0, all.first - cached), most: Math.max(0, all.most - cached) };
+  };
+  const along = repost ? follow : follow.filter((j) => todo.includes(j) && fates.get(j.id)?.make !== 'no');
+  if (along.length) console.log(`also ${repost ? 're-posting' : 'making'} ${along.map((j) => j.id).join(', ')}: made from a job in this run`);
   if (repost) console.log(`plan: ${jobs.length} assets (${priorities.join('+')}), each re-posted from its source: no images; ${inCode}`);
   else {
-    // a job whose raw answers it is re-posted, no image; one made from an output that changes draws
-    // (tools/pipeline-state.mjs drawPlan). A gated job makes n candidates, and up to n more if it needs
-    // its strict round (tools/pick.mjs imagesFor).
-    const { sure, maybe } = force
-      ? { sure: todo.filter((j) => !isPostOnly(j)), maybe: [] }
-      : drawPlan(todo, { needed: (j) => needed(j, manifest), reusable: (j) => reusable(j, manifest), stale: (j) => existsSync(outOf(j.id)) && needed(j, manifest), tracked: (j) => !!(j.since || manifest.meta?.[j.id]?.ask) });
-    const images = sure.reduce((n, j) => n + imagesFor(j).first, 0);
-    const cost = sure.reduce((s, j) => s + costOf(j.model) * imagesFor(j).first, 0);
-    const most = [...sure, ...maybe].reduce((n, j) => n + imagesFor(j).most, 0);
-    const costMost = [...sure, ...maybe].reduce((s, j) => s + costOf(j.model) * imagesFor(j).most, 0);
-    const byModel = sure.reduce((m, j) => ((m[j.model] = (m[j.model] ?? 0) + imagesFor(j).first), m), {});
+    const images = sure.reduce((n, j) => n + imagesLeft(j).first, 0);
+    const cost = sure.reduce((s, j) => s + costOf(j.model) * imagesLeft(j).first, 0);
+    const most = [...sure, ...maybe].reduce((n, j) => n + imagesLeft(j).most, 0);
+    const costMost = [...sure, ...maybe].reduce((s, j) => s + costOf(j.model) * imagesLeft(j).most, 0);
+    const byModel = sure.reduce((m, j) => ((m[j.model] = (m[j.model] ?? 0) + imagesLeft(j).first), m), {});
     const gated = sure.filter((j) => j.pick).length;
     const ifs = [gated ? 'every gated job needs its strict round' : '', maybe.length ? `a re-post in the run changes what ${maybe.length} more are drawn from` : ''].filter(Boolean);
+    const [yes, may, no] = [count('yes'), count('maybe'), count('no')];
     console.log(
-      `plan: ${jobs.length} assets (${priorities.join('+')}), ${todo.length} to make: ${images} images, ~$${cost.toFixed(2)} for one pass` +
+      `plan: ${jobs.length} assets (${priorities.join('+')}), ${yes} to make${may ? ` (up to ${yes + may})` : ''}${no ? `, ${no} more kept if still current` : ''}: ${images} images, ~$${cost.toFixed(2)} for one pass` +
         `${images ? ` (${Object.entries(byModel).map(([k, v]) => `${v} × ${k}`).join(', ')}${gated ? `, counting the candidates of ${gated} gated jobs` : ''})` : ''}` +
         `${most > images ? `; up to ${most} images, ~$${costMost.toFixed(2)}, if ${ifs.join(' and ')}` : ''}; ${inCode}`,
     );
   }
   if (dry) {
-    writeFileSync(join(cache, 'plan.json'), JSON.stringify(todo, null, 1));
+    writeFileSync(join(cache, 'plan.json'), JSON.stringify(todo.map((j) => ({ ...j, fate: fates.get(j.id) })), null, 1));
     const order = [];
     // a dependency made in this run counts once its wave is done; any other must be on disk (a raw,
     // an approved file, a shipped output), as the scheduler asks
@@ -733,11 +781,13 @@ async function main() {
         console.log(`unresolvable: ${left.map((j) => j.id).join(', ')}`);
         break;
       }
-      order.push(ready.map((j) => j.id));
+      order.push(ready);
       for (const j of ready) done.add(j.id);
       left = left.filter((j) => !ready.includes(j));
     }
-    order.forEach((wave, i) => console.log(`wave ${i + 1}: ${wave.length} → ${wave.slice(0, 6).join(', ')}${wave.length > 6 ? ', …' : ''}`));
+    // a job the plan expects to keep (current once its references are made) is marked "(check)"
+    const label = (j) => `${j.id}${fates.get(j.id)?.make === 'no' ? ' (check)' : fates.get(j.id)?.make === 'maybe' ? ' (maybe)' : ''}`;
+    order.forEach((wave, i) => console.log(`wave ${i + 1}: ${wave.length} → ${wave.slice(0, 6).map(label).join(', ')}${wave.length > 6 ? ', …' : ''}`));
     console.log(`prompts written to ${join(cache, 'plan.json')}`);
     writeSheet(planned, manifest); // the sheet shows every planned asset, whatever --only picked
     return;
@@ -766,7 +816,7 @@ async function main() {
             continue;
           }
           const at = raw.record?.at && raw.record.at < raw.mtime ? raw.record.at : raw.mtime;
-          writeRawAsk(j, { ask: askHash(j), at, model: raw.record?.model ?? manifest.meta?.[j.id]?.model ?? j.model });
+          writeRawAsk(j, { ask: askHash(j), own: ownHash(j), at, model: raw.record?.model ?? manifest.meta?.[j.id]?.model ?? j.model });
         }
         const no = rawRefusal(j, rawInfo(j), manifest.meta?.[j.id], askHash(j));
         if (no) {
@@ -785,7 +835,7 @@ async function main() {
           console.log(`  ${j.id}: QA failed on repost (${JSON.stringify(qa)}); the shipped file is kept`);
           continue;
         }
-        const changed = pixelsChanged(next, outOf(j.id));
+        const changed = pixelsChanged(next, shippedBytes(j), manifest.meta?.[j.id]?.sha);
         renameSync(next, outOf(j.id));
         done.set(j.id, { qa, changed });
       } catch (e) {
@@ -845,7 +895,7 @@ async function main() {
         const qa = postProcess(job, src, next);
         log({ id: job.id, from: job.from ?? job.approved, qa });
         if (!qa.ok) throw new Error(`QA failed (${JSON.stringify(qa)}); the shipped file is kept`);
-        const pixels = pixelsChanged(next, outOf(job.id));
+        const pixels = pixelsChanged(next, shippedBytes(job), manifest.meta[job.id]?.sha);
         renameSync(next, outOf(job.id));
         accept(job, outputMeta(job, { qa, prev: manifest.meta[job.id], changed: pixels }), t, pixels);
       } catch (e) {
@@ -857,7 +907,7 @@ async function main() {
       }
       return;
     }
-    const before = existsSync(outOf(job.id)) ? readFileSync(outOf(job.id)) : null; // what ships now, to tell whether the new output differs
+    const before = shippedBytes(job);
     for (let attempt = 1; attempt <= 2; attempt++) {
       const t = Date.now();
       // paid for already: post-process only, when the raw answers this ask (a gated job: its pick's ask)
@@ -867,8 +917,9 @@ async function main() {
         if (!reuse && job.pick) picked = await pickCandidate(job, key, backend, manifest, { fresh: attempt > 1 });
         else if (!reuse) {
           const ask = askHash(job); // taken before the request: a reference may change while the model draws
+          const own = ownHash(job);
           writeFileSync(rawOf(job.id), await callGemini(job, key, backend));
-          writeRawAsk(job, { ask });
+          writeRawAsk(job, { ask, own });
         }
       } catch (e) {
         if (e instanceof Stop) {
@@ -896,7 +947,7 @@ async function main() {
       if (job.pick && !picked) picked = rescore(job, manifest); // a reused raw: scored as it ships, with today's gates
       // a gate only for a gated job: a job that lost its gates (the fusions under the baby recipe) drops its old verdict
       const gate = job.pick ? (picked ?? manifest.meta[job.id]?.gate) : null;
-      accept(job, outputMeta(job, { qa, prev: manifest.meta[job.id], rec: rawRecord(job), gate }), t, !before || !before.equals(readFileSync(outOf(job.id))));
+      accept(job, outputMeta(job, { qa, prev: manifest.meta[job.id], rec: rawRecord(job), gate }), t, pixelsChanged(outOf(job.id), before, manifest.meta[job.id]?.sha));
       if (job.pick) warnGate(job, gate);
       return;
     }
@@ -908,17 +959,24 @@ async function main() {
   const running = new Set();
   for (;;) {
     if (stopped) break;
+    const pending = (d) => state.get(d) === 'todo' || state.get(d) === 'running';
     const ready = jobs.filter((j) => state.get(j.id) === 'todo' && isReady(j, state, (d) => available(j, d)));
-    const blocked = jobs.filter((j) => state.get(j.id) === 'todo' && j.deps.some((d) => state.get(d) === 'failed'));
-    for (const j of blocked) state.set(j.id, 'failed');
+    // a job whose reference failed (none still to come) waits no longer: the reference stays as it was
+    const blocked = jobs.filter((j) => state.get(j.id) === 'todo' && j.deps.some((d) => state.get(d) === 'failed' || state.get(d) === 'blocked') && !j.deps.some(pending));
     // asked again at its turn: a job current once what it is made from was made (it came back as it
-    // was, or the job is a legacy output, which is kept) is not made
-    const current = force ? [] : ready.filter((j) => !needed(j, manifest));
-    for (const j of current) {
-      state.set(j.id, 'done');
-      kept.push(j.id);
+    // was, or failed and stayed; or the job is a legacy output) is kept, not made
+    let settled = 0;
+    for (const j of [...blocked, ...ready]) {
+      if (!force && !needed(j, manifest)) {
+        state.set(j.id, 'done');
+        kept.push(j.id);
+        settled += 1;
+      } else if (blocked.includes(j)) {
+        state.set(j.id, 'blocked');
+        settled += 1;
+      }
     }
-    if (current.length) continue; // jobs made from them may be ready now
+    if (settled) continue; // jobs made from them may be ready now
     while (ready.length && running.size < CONCURRENCY) {
       const j = ready.shift();
       const p = runJob(j).finally(() => running.delete(p));

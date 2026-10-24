@@ -47,7 +47,7 @@ The user asked: "check all avatar and remove all 3d art for fusion pet, leave al
 - A generated output also records `meta.post`, its post-processing. If that changes, the output is re-posted from its raw for free.
 - A job made from one in the run waits for it and is checked again at its turn: it is made only if it is stale by then. A pet's portrait follows its pet, and the halo edit is drawn again when the pet's pixels changed. A stale halo edit outside the run is listed with the command to make it.
 - Older assets that record no ask (the babies' later stages, the element halo kits) are kept, restored from their raw when lost, and listed when they were drawn before their reference; `--force` redraws them.
-- The plan line counts the images a run will draw, including the halo edits it will draw again.
+- The plan line gives the assets the run makes (and may make), those it will check and keep, and the images it draws for sure and at most, counted the way the run decides them.
 - A model is sent a reference's cached raw only when that raw is the drawing that shipped; otherwise it is sent the shipped output.
 - A raw from before these records is re-posted only for an older asset whose output records no ask either, and only if the raw is the drawing that shipped (stamped within the hour). It is never labelled with an ask.
 - `--repost --adopt --only=<ids>` records cached raws that were checked by eye as drawn for today's ask. It never takes a raw from before the recipe date.

@@ -80,10 +80,18 @@ test('pipeline (mock): a pet, its portrait and its halo edit: made, current, re-
     // halo edit (stale while it is missing) are kept; the plan says it may draw the halo edit, no more
     unlinkSync(outFile(dir, 'fusion.fire+ice'));
     const lost = run(dir, [only(PET)]);
-    assert.match(lost.out, /3 to make: 0 images, ~\$0\.00 for one pass; up to 1 images/, lost.out);
+    assert.match(lost.out, /1 to make \(up to 3\): 0 images, ~\$0\.00 for one pass; up to 1 images/, lost.out);
     assert.equal(made(lost.out), 1, lost.out);
     assert.equal(kept(lost.out), 2, lost.out);
     assert.equal(lost.drawn, 0);
+    // the halo edit's own prompt changed while the pet is lost: its ask cannot be judged (the pet hashes
+    // as missing), but its own part can, so the plan counts its image for sure
+    edit(dir, 'tools/pipeline-jobs.mjs', 'a proud, brave little smile', 'a proud, happy little smile');
+    unlinkSync(outFile(dir, 'fusion.fire+ice'));
+    const own = run(dir, [only(PET)]);
+    assert.match(own.out, /: 1 images, ~\$[\d.]+ for one pass/, own.out);
+    assert.equal(own.drawn, 1, own.out);
+    assert.equal(toMake(run(dir, [only(PET), '--dry']).out), 0, 'nothing left');
     // a real post change (the pet's sprite size): the pet is re-posted from its raw (no image), its
     // portrait follows, and its halo edit, made from the old pixels, is drawn again; the plan says so
     edit(dir, 'tools/pipeline-jobs.mjs', FUSION_POST, FUSION_POST.replace('320', '300'));
@@ -109,6 +117,13 @@ test('pipeline (mock): a pet, its portrait and its halo edit: made, current, re-
     assert.match(moved.out, /3 to make: 2 images/, moved.out);
     assert.equal(moved.drawn, 2, moved.out);
     assert.equal(toMake(run(dir, [only(PET), '--dry']).out), 0, 'current under the new date');
+    // the pet's re-post fails (its raw is broken): the pet keeps what shipped, so its portrait and its
+    // halo edit, made from that, are kept, not left as work; the run exits 1
+    edit(dir, 'tools/pipeline-jobs.mjs', FUSION_POST.replace('320', '300'), FUSION_POST.replace('320', '280'));
+    writeFileSync(rawFile(dir, 'fusion.fire+ice'), 'not a png');
+    const broken = run(dir, [only(PET)]);
+    assert.equal(broken.code, 1, broken.out);
+    assert.match(broken.out, /0 made, 2 kept \(current once what they are made from was made\), 1 failed, 1 not done/, broken.out);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -227,8 +242,9 @@ test('pipeline (mock): a legacy output made from a pet in the run (a halo kit dr
     // the pet's output lost and restored as it was: its portrait and the kit are kept, and nothing is drawn
     unlinkSync(outFile(dir, 'fusion.fire+ice'));
     const lost = run(dir, [only(KIT)]);
-    assert.match(lost.out, /3 to make: 0 images, ~\$0\.00 for one pass;(?! up to)/, lost.out);
+    assert.match(lost.out, /1 to make \(up to 2\), 1 more kept if still current: 0 images, ~\$0\.00 for one pass;(?! up to)/, lost.out);
     assert.equal(lost.drawn, 0);
+    assert.equal(made(lost.out), 1, lost.out);
     assert.equal(kept(lost.out), 2, lost.out);
     // the pet re-posted with new pixels: the kit is still kept, and named
     edit(dir, 'tools/pipeline-jobs.mjs', FUSION_POST, FUSION_POST.replace('320', '300'));
@@ -299,6 +315,37 @@ test('pipeline (mock): a gated foe records the ask of its pick, and an older pic
     assert.match(edited.out, /1 to make: 3 images, ~\$[\d.]+ for one pass \([^)]*counting the candidates of 1 gated jobs\); up to 6 images/, edited.out);
     assert.ok(edited.drawn >= 3 && edited.drawn <= 6, `three candidates, and three more when none is inside the gates (${edited.drawn})`);
     assert.equal(manifest(dir).meta['enemy.pixie'].ask, JSON.parse(readFileSync(join(dir, 'tools/.cache/pipeline/mock-cand/enemy.pixie.gate.json'), 'utf8')).base);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('pipeline (mock): a chapter’s lead foe redrawn keeps an older foe drawn from it (no ask), and names it', { skip }, () => {
+  const dir = sandbox();
+  const FOES = ['enemy.pixie', 'enemy.griffinChick'];
+  const cand = (id) => join(dir, `tools/.cache/pipeline/mock-cand/${id}.gate.json`);
+  try {
+    run(dir, [only(FOES)]);
+    // the follower as an older pipeline left it: no raw record, no pick record, no ask, an older date
+    const old = '2026-10-14T05:00:00.000Z';
+    rmSync(`${rawFile(dir, 'enemy.griffinChick')}.ask.json`);
+    rmSync(cand('enemy.griffinChick'));
+    utimesSync(rawFile(dir, 'enemy.griffinChick'), new Date(old), new Date(old));
+    editMeta(dir, ['enemy.griffinChick'], (e) => {
+      delete e.ask;
+      delete e.own;
+      delete e.post;
+      e.at = old;
+    });
+    // the lead's roster changed: the lead is drawn again (new candidates), the follower is kept, and
+    // named with the command that redraws it
+    edit(dir, 'src/art/foe-roster.js', 'two long tail streamers', 'two long curling tail streamers');
+    const lead = run(dir, [only(FOES)], 'b');
+    assert.match(lead.out, /1 to make, 1 more kept if still current: 3 images/, lead.out);
+    assert.equal(made(lead.out), 1, lead.out);
+    assert.equal(kept(lead.out), 1, lead.out);
+    assert.deepEqual(Object.keys(lead.sent), ['enemy.pixie'], 'only the lead is drawn');
+    assert.match(lead.out, /drawn before their reference was last drawn, and kept \(they record no ask\): enemy\.griffinChick/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

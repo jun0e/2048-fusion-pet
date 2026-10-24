@@ -398,6 +398,13 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   assert.deepEqual(planOf([fu, kitJob], { needed: () => true, reusable: (j) => j !== kitJob, legacy: [kitJob] }), [['halo.fire'], []], 'a lost legacy output with no raw to stand for it is drawn');
   const kit = { id: 'kit', deps: ['portrait.fire+ice'], model: 'm' }; // a drawing made from a post-only output
   assert.deepEqual(planOf([fu, po, kit], { needed: (j) => j === fu, reusable: (j) => j !== fu, stale: (j) => j === fu }), [['fusion.fire+ice', 'kit'], []], 'a change passes through a post-only output');
+  // its own part of the ask changed: drawn for sure, whatever its references do
+  const lostPet = { needed: () => true, reusable: (j) => j === fu };
+  assert.deepEqual(ids(drawPlan([fu, po, asc], { ...lostPet, stale: () => false, tracked: () => true, ownChanged: (j) => j === asc }).sure), ['portrait.fire+ice.ascended'], 'its prompt changed while the pet is lost (its ask hashes the pet as missing)');
+  assert.deepEqual(planOf([fu, po, kit], { needed: () => true, reusable: (j) => j === fu, stale: (j) => j === po }), [['kit'], []], 'stale with every reference on disk, one of them maybe re-posted: it stays stale, so it draws');
+  // what the run makes: for sure, maybe, or keeps
+  const fates = drawPlan([fu, po, asc, kitJob], { needed: (j) => j === fu, reusable: (j) => j !== kitJob, stale: () => false, tracked: (j) => j !== kitJob }).fates;
+  assert.deepEqual([fu, po, asc, kitJob].map((j) => fates.get(j.id).make), ['yes', 'maybe', 'maybe', 'no'], 'a lost pet re-posted: its portrait and halo edit may be made, the legacy kit is kept');
   // a raw is the drawing that shipped: by its record (its ask and its time), or with none (an older pipeline's) by its time
   const at = '2026-10-16T05:00:00.000Z';
   const later = (ms) => new Date(Date.parse(at) + ms).toISOString();

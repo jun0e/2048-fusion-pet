@@ -74,18 +74,23 @@ export function toMake(jobs, needed) {
 }
 
 /**
- * What a run draws, for its plan, as the run decides it: a job in `todo` (toMake) is made when it is
- * stale or missing at its turn, after the jobs it is made from. Each job's output is 'redrawn',
- * 'changed' (re-posted with new pixels), 'maybe' (re-posted, perhaps as it was) or 'same' (kept), and:
+ * What a run makes and draws, for its plan, as the run decides it: a job in `todo` (toMake) is made
+ * when it is stale or missing at its turn, after the jobs it is made from. Each job's output is
+ * 'redrawn', 'changed' (re-posted with new pixels), 'maybe' (re-posted, perhaps as it was) or 'same'
+ * (kept), and:
  * - a job whose references stay as they are draws when it is `needed` and its raw does not answer it (`reusable`);
  * - a job that records what it answers (`tracked`: an ask, or a recipe date) draws for sure once a
- *   reference's pixels change (its ask changes), and may draw when a reference may change;
+ *   reference's pixels change (its ask changes), or when its own part of the ask changed (stale with
+ *   every reference on disk, or `ownChanged` while a reference is lost), and may draw when a
+ *   reference may change;
  * - a legacy output (no ask, no recipe date) is made only when it is needed (lost), and is otherwise
  *   kept, whatever its references do;
  * - a post-only output draws nothing, and changes with its source.
- * `stale(job)`: its output exists and is needed (it comes back with new pixels). → { sure, maybe }
+ * `stale(job)`: its output exists and is needed (it comes back with new pixels).
+ * → { sure, maybe } (the generated jobs that draw, and that may) and `fates` by id: { make ('yes' |
+ * 'maybe' | 'no': kept), draw ('sure' | 'maybe' | 'no'), out }
  */
-export function drawPlan(todo, { needed, reusable, stale, tracked }) {
+export function drawPlan(todo, { needed, reusable, stale, tracked, ownChanged = () => false }) {
   const byId = new Map(todo.map((j) => [j.id, j]));
   const fates = new Map();
   const fate = (j) => {
@@ -98,16 +103,22 @@ export function drawPlan(todo, { needed, reusable, stale, tracked }) {
       const own = needed(j);
       const need = (tracked(j) || isPostOnly(j)) && (changes || might) ? false : own;
       const out = (draw) => (draw === 'sure' ? 'redrawn' : draw === 'maybe' ? 'maybe' : need ? (stale(j) ? 'changed' : 'maybe') : 'same');
-      if (isPostOnly(j)) fates.set(j.id, { draw: 'no', out: changes ? 'changed' : might ? 'maybe' : out('no') });
-      else {
-        const draw = !tracked(j) ? (own && !reusable(j) ? 'sure' : 'no') : changes ? 'sure' : might ? 'maybe' : need && !reusable(j) ? 'sure' : 'no';
-        fates.set(j.id, { draw, out: out(draw) });
+      if (isPostOnly(j)) fates.set(j.id, { make: changes || need ? 'yes' : might ? 'maybe' : 'no', draw: 'no', out: changes ? 'changed' : might ? 'maybe' : out('no') });
+      else if (!tracked(j)) {
+        const draw = own && !reusable(j) ? 'sure' : 'no';
+        fates.set(j.id, { make: own ? 'yes' : 'no', draw, out: out(draw) });
+      } else {
+        // a lost reference hashes as missing, so its ask cannot be judged now; its own part can
+        const blind = j.deps.some((d) => byId.has(d) && needed(byId.get(d)) && !stale(byId.get(d)));
+        const ownStale = blind ? ownChanged(j) : own && !reusable(j);
+        const draw = changes || ownStale ? 'sure' : might ? 'maybe' : 'no';
+        fates.set(j.id, { make: draw === 'sure' || (!blind && own) ? 'yes' : might ? 'maybe' : need ? 'yes' : 'no', draw, out: out(draw) });
       }
     }
     return fates.get(j.id);
   };
   for (const j of todo) fate(j);
-  return { sure: todo.filter((j) => fate(j).draw === 'sure'), maybe: todo.filter((j) => fate(j).draw === 'maybe') };
+  return { sure: todo.filter((j) => fate(j).draw === 'sure'), maybe: todo.filter((j) => fate(j).draw === 'maybe'), fates };
 }
 
 /** How far a raw with no record may be from the output stamped after it: the pipeline writes a raw seconds before it records the output. */
