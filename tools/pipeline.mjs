@@ -51,7 +51,7 @@ import { PRICES, costOf, checkBudget, loadLimits, loadLedger, appendLedger, week
 import { classify429 } from './gemini-errors.mjs';
 import { postJson } from './curl-post.mjs';
 import { failingGates, gateBrief, imagesFor, insideTolerance, needsStrict, rankCandidates, strictText, acceptedMiss } from './pick.mjs';
-import { adoptRefusal, drawPlan, followers, isPostOnly, isReady, isSourceOf, isStale, rawRefusal, sourceOf as sourceIn, toMake } from './pipeline-state.mjs';
+import { adoptRefusal, differs, drawPlan, followers, isPostOnly, isReady, isSourceOf, isStale, rawRefusal, sourceOf as sourceIn, toMake } from './pipeline-state.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -296,7 +296,7 @@ function refFile(ref) {
   if (ref.includes('/')) return join(root, ref);
   const dep = jobsById.get(ref);
   if (dep?.approved) return join(root, dep.approved);
-  return dep && existsSync(rawOf(ref)) && isSourceOf(rawInfo(dep), book.meta?.[ref]) ? rawOf(ref) : outOf(ref);
+  return dep && existsSync(rawOf(ref)) && existsSync(outOf(ref)) && isSourceOf(rawInfo(dep), book.meta?.[ref], fileSha(outOf(ref))) ? rawOf(ref) : outOf(ref);
 }
 
 class Stop extends Error {}
@@ -507,8 +507,15 @@ function postHash(job) {
 const jobHash = (job) => (isPostOnly(job) ? postHash(job) : askHash(job));
 /** A generated job's post-processing (with its key colour): a change re-posts its output, from its raw when that answers the ask. */
 const postKey = (job) => createHash('sha256').update(JSON.stringify({ post: job.post, bg: job.bg ?? 'none' })).digest('hex').slice(0, 20);
-/** Whether a job's shipped output is missing or stale (tools/pipeline-state.mjs isStale), or is not the file its entry records. */
-const needed = (job, manifest) => !existsSync(outOf(job.id)) || isStale(job, manifest.meta?.[job.id], jobHash(job), isPostOnly(job) ? null : postKey(job), fileSha(outOf(job.id)));
+/** Whether a job's shipped output is missing or stale (tools/pipeline-state.mjs isStale). */
+const needed = (job, manifest) => !existsSync(outOf(job.id)) || isStale(job, manifest.meta?.[job.id], jobHash(job), isPostOnly(job) ? null : postKey(job));
+/** Whether a job's shipped file is not the one its entry records (tools/pipeline-state.mjs differs): kept, and named. */
+const fileDiffers = (job, manifest) => existsSync(outOf(job.id)) && differs(manifest.meta?.[job.id], fileSha(outOf(job.id)));
+/** Name the shipped files that are not the ones their entries record: kept as they are; the commands that bring back the recorded drawing or draw it again. */
+function warnDiffers(jobs, manifest) {
+  const ids = jobs.filter((j) => fileDiffers(j, manifest)).map((j) => j.id);
+  if (ids.length) console.warn(`⚠️  shipped file differs from its entry (a merge, or an edit outside the pipeline), kept as it is: ${ids.join(', ')}; to bring back the recorded drawing from its raw: --repost --only=${ids.join(',')}; to draw it again: --force --only=${ids.join(',')}`);
+}
 
 /** Why a generated job's cached raw may not be re-posted in place of a new drawing (tools/pipeline-state.mjs rawRefusal), or null. */
 const reuseRefusal = (job, manifest) => (existsSync(rawOf(job.id)) ? rawRefusal(job, rawInfo(job), manifest.meta?.[job.id], askHash(job)) : 'no raw');
@@ -722,8 +729,9 @@ async function main() {
 
   if (args.includes('--status')) {
     const done = jobs.filter((j) => !needed(j, manifest)).length; // a stale output is not done
+    const differ = jobs.filter((j) => fileDiffers(j, manifest)).length;
     const u = weeklyUsage(loadLedger(ledgerFile));
-    console.log(`${done}/${jobs.length} assets done; weekly Gemini spend $${u.usd.toFixed(2)} (${u.images} images)`);
+    console.log(`${done}/${jobs.length} assets done${differ ? `; ${differ} shipped files differ from their entries` : ''}; weekly Gemini spend $${u.usd.toFixed(2)} (${u.images} images)`);
     return;
   }
 
@@ -761,6 +769,7 @@ async function main() {
   };
   const along = repost ? follow : follow.filter((j) => todo.includes(j) && fates.get(j.id)?.make !== 'no');
   if (along.length) console.log(`also ${repost ? 're-posting' : 'making'} ${along.map((j) => j.id).join(', ')}: made from a job in this run`);
+  warnDiffers(jobs, manifest);
   if (repost) console.log(`plan: ${jobs.length} assets (${priorities.join('+')}), each re-posted from its source: no images; ${inCode}`);
   else {
     const images = sure.reduce((n, j) => n + imagesLeft(j).first, 0);
@@ -1012,6 +1021,7 @@ async function main() {
   const stalled = stopped ? [] : jobs.filter((j) => state.get(j.id) === 'todo').map((j) => j.id);
   if (stalled.length) console.warn(`⚠️  never ready: ${stalled.join(', ')} (a reference is missing: ${[...new Set(jobs.filter((j) => stalled.includes(j.id)).flatMap((j) => j.deps.filter((d) => !available(j, d))))].join(', ')})`);
   warnDownstream(changed, made, manifest);
+  warnDiffers(jobs, manifest);
   const u = weeklyUsage(loadLedger(ledgerFile));
   console.log(`\n${made.size} made${kept.length ? `, ${kept.length} kept (current once what they are made from was made)` : ''}, ${failed} failed, ${left.length} not done; weekly spend $${u.usd.toFixed(2)}; sheet: ${sheetFile}`);
   if (outside.size) console.warn(`⚠️  ${outside.size} gated jobs shipped OUTSIDE their gates: ${[...outside].join(', ')} (exit code 2)`);

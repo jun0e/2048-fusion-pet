@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
 import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues, BABIES_LINE, BABY_SINCE, BABY_VIEW, CHIBI, ASCENDED_GOLD, ASCENDED_PLATE, PORTRAIT_PX, portraitPlate, tint, bossPlate, toInk } from '../tools/pipeline-jobs.mjs';
-import { adoptRefusal, drawPlan, followers, isPostOnly, isReady, isSourceOf, isStale, rawRefusal, SOURCE_WINDOW_MS, sourceOf, toMake } from '../tools/pipeline-state.mjs';
+import { adoptRefusal, differs, drawPlan, followers, isPostOnly, isReady, isSourceOf, isStale, rawRefusal, SOURCE_WINDOW_MS, sourceOf, toMake } from '../tools/pipeline-state.mjs';
 import { ENEMY_TYPES } from '../src/sim/enemies.js';
 import { imagesFor } from '../tools/pick.mjs';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -367,10 +367,10 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   assert.equal(isStale(job, { ask: 'a', post: 'p', at: '2026-10-23T05:00:00Z' }, 'a', 'p'), false);
   assert.equal(isStale(job, { ask: 'a', post: 'p', at: '2026-10-23T05:00:00Z' }, 'a', 'q'), true, 'its post-processing changed');
   assert.equal(isStale(job, { ask: 'a', at: '2026-10-23T05:00:00Z' }, 'a', 'q'), false, 'an output from before the post record');
-  // a shipped file that is not the one its entry records (changed outside the pipeline, a merge)
-  assert.equal(isStale(job, { ask: 'a', sha: 's', at: '2026-10-23T05:00:00Z' }, 'a', null, 's'), false);
-  assert.equal(isStale(job, { ask: 'a', sha: 's', at: '2026-10-23T05:00:00Z' }, 'a', null, 't'), true, 'another file');
-  assert.equal(isStale(job, { ask: 'a', at: '2026-10-23T05:00:00Z' }, 'a', null, 't'), false, 'an entry from before the file hash');
+  // a shipped file that is not the one its entry records (changed outside the pipeline, a merge): not stale, it differs
+  assert.equal(differs({ sha: 's' }, 's'), false);
+  assert.equal(differs({ sha: 's' }, 't'), true, 'another file');
+  assert.equal(differs({}, 't'), false, 'an entry from before the file hash');
   // ready: deps done in this run (or current at its start), or outside it, with what it needs on disk
   const p = byId.get('portrait.fire+ice');
   assert.equal(isReady(p, new Map([['fusion.fire+ice', 'todo']]), () => true), false, 'its fusion is still to make in this run');
@@ -421,6 +421,8 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   assert.equal(isSourceOf({ at, record: null }, { at: later(46 * 3600e3) }), false, 'another checkout’s older drawing');
   assert.equal(isSourceOf({ at: later(SOURCE_WINDOW_MS + 1), record: null }, { at }), false, 'a later drawing that never shipped');
   assert.equal(isSourceOf({ at, record: null }, undefined), true, 'nothing on record to say otherwise');
+  assert.equal(isSourceOf({ at, record: { ask: 'h', at } }, { ask: 'h', at, sha: 's' }, 's'), true);
+  assert.equal(isSourceOf({ at, record: { ask: 'h', at } }, { ask: 'h', at, sha: 's' }, 't'), false, 'the shipped file is not the one its entry records: its raw is not what ships');
   // rawRefusal: whether a cached raw may stand for its job today (re-posted, not drawn)
   const legacy = {};
   const baby = { since: BABY_SINCE };

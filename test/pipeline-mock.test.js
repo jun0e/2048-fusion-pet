@@ -275,6 +275,13 @@ test('pipeline (mock): a model is sent a reference’s raw only when it is the d
     // drawn for another ask (another checkout's cache)
     writeFileSync(recFile, JSON.stringify({ ...rec, ask: 'another ask' }));
     assert.deepEqual(run(dir, ['--only=pet.fire.32', '--force']).sent['pet.fire.32'], [shipped]);
+    // its own record again, but the shipped file is another (a merge took it without its entry): the file that ships
+    writeFileSync(recFile, JSON.stringify(rec));
+    assert.deepEqual(run(dir, ['--only=pet.fire.32', '--force']).sent['pet.fire.32'], [cached], 'its raw, while the file is the one recorded');
+    const ownFile = readFileSync(outFile(dir, 'pet.fire.16'));
+    copyFileSync(outFile(dir, 'pet.fire.32'), outFile(dir, 'pet.fire.16'));
+    assert.deepEqual(run(dir, ['--only=pet.fire.32', '--force']).sent['pet.fire.32'], [shipped]);
+    writeFileSync(outFile(dir, 'pet.fire.16'), ownFile);
     // the baby with no raw here (current, made in another checkout) and the stage lost with its raw:
     // the stage is drawn from the baby's output, and the run does not stall
     unlinkSync(rawFile(dir, 'pet.fire.16'));
@@ -374,16 +381,35 @@ test('pipeline (mock): an attempt that fails QA, then a retry that draws nothing
   }
 });
 
-test('pipeline (mock): a shipped file that is not the one its entry records is stale, and restored from its raw', { skip }, () => {
+test('pipeline (mock): a shipped file that is not the one its entry records is kept and named, never restored or redrawn unasked', { skip }, () => {
   const dir = sandbox();
+  const named = /shipped file differs from its entry \(a merge, or an edit outside the pipeline\), kept as it is: fusion\.fire\+ice; to bring back the recorded drawing from its raw: --repost --only=fusion\.fire\+ice; to draw it again: --force --only=fusion\.fire\+ice/;
   try {
-    run(dir, [only(['pet.fire.16', 'pet.fire.32'])]);
-    const before = sha(outFile(dir, 'pet.fire.32'));
-    copyFileSync(outFile(dir, 'pet.fire.16'), outFile(dir, 'pet.fire.32')); // a merge took another picture without its entry
-    assert.equal(toMake(run(dir, ['--only=pet.fire.32', '--dry']).out), 1);
-    const r = run(dir, ['--only=pet.fire.32']);
-    assert.equal(r.drawn, 0, 're-posted from its raw');
-    assert.equal(sha(outFile(dir, 'pet.fire.32')), before);
+    run(dir, [only(PET)]);
+    const recorded = sha(outFile(dir, 'fusion.fire+ice'));
+    // a merge brought another branch's drawing of the pet (its sticker, touched up), and kept this branch's entry
+    const merged = join(dir, 'merged.png');
+    const touchUp = 'import sys; from PIL import Image, ImageDraw; im = Image.open(sys.argv[1]).convert("RGBA"); ImageDraw.Draw(im).rectangle((120, 120, 160, 160), fill=(43, 29, 46, 255)); im.save(sys.argv[2])';
+    assert.equal(spawnSync('python3', ['-c', touchUp, outFile(dir, 'fusion.fire+ice'), merged]).status, 0);
+    copyFileSync(merged, outFile(dir, 'fusion.fire+ice'));
+    // the pet is kept as it ships; its portrait and its halo edit, made from the file that ships, follow it
+    const plan = run(dir, [only(PET), '--dry']);
+    assert.match(plan.out, named, plan.out);
+    assert.match(plan.out, /2 to make: 1 images/, plan.out);
+    const r = run(dir, [only(PET)]);
+    assert.deepEqual(Object.keys(r.sent), ['portrait.fire+ice.ascended'], 'only the halo edit is drawn, from the merged sticker');
+    assert.match(r.out, named);
+    assert.equal(sha(outFile(dir, 'fusion.fire+ice')), sha(merged), 'the merged drawing is kept');
+    // with no raw here, the same: named, kept, nothing more to make
+    unlinkSync(rawFile(dir, 'fusion.fire+ice'));
+    const fresh = run(dir, [only(PET), '--dry']);
+    assert.match(fresh.out, named);
+    assert.match(fresh.out, /0 to make: 0 images/);
+    // asked for, --force draws it again, and the entry describes the file once more
+    const forced = run(dir, ['--only=fusion.fire+ice', '--force'], 'b');
+    assert.equal(forced.drawn, 1, forced.out);
+    assert.doesNotMatch(run(dir, [only(PET), '--dry']).out, /shipped file differs/);
+    assert.notEqual(sha(outFile(dir, 'fusion.fire+ice')), recorded);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
