@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAssetRows } from '../src/art/asset-catalog.js';
 import { plan, jobFor, BG_FOR, MODEL_FAST, HERO_RIM, PET_BAND, PET_GROUNDS, petSticker, petValues, BABIES_LINE, BABY_SINCE, BABY_VIEW, CHIBI, ASCENDED_GOLD, ASCENDED_PLATE, PORTRAIT_PX, portraitPlate, tint, bossPlate, toInk } from '../tools/pipeline-jobs.mjs';
-import { followers, isPostOnly, isReady, isStale, rawCurrent, sourceOf, toMake } from '../tools/pipeline-state.mjs';
+import { followers, isPostOnly, isReady, isStale, rawCurrent, repostRefusal, sourceOf, toMake } from '../tools/pipeline-state.mjs';
 import { ENEMY_TYPES } from '../src/sim/enemies.js';
 import { imagesFor } from '../tools/pick.mjs';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -280,7 +280,8 @@ test('no avatar is 3D: a boss’s intro bust is a 2D half-body sticker of the bo
   for (const j of busts) {
     const type = j.id.split('.')[1];
     const r = FOE_ROSTER[type];
-    assert.deepEqual(j.refs, [`enemy.${type}`], `${type}: drawn from its own sprite`);
+    assert.deepEqual(j.refs, [`shipped:enemy.${type}`], `${type}: drawn from its own sprite as it shipped (never an older checkout's raw)`);
+    assert.deepEqual(j.deps, [`enemy.${type}`]);
     assert.match(j.prompt, /half-body portrait sticker/);
     assert.match(j.prompt, /A BUST: only its head and shoulders/);
     assert.match(j.prompt, /exactly one head/);
@@ -369,10 +370,15 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   assert.equal(isStale(job, undefined, 'a'), true);
   assert.equal(isStale({}, undefined, 'a'), false, 'a legacy output with no recipe date is current');
   assert.equal(isStale({}, { ask: 'x' }, 'a'), true);
+  // a generated output post-processed otherwise (a new size): stale, re-posted from a raw that still answers
+  assert.equal(isStale(job, { ask: 'a', post: 'p', at: '2026-10-23T05:00:00Z' }, 'a', 'p'), false);
+  assert.equal(isStale(job, { ask: 'a', post: 'p', at: '2026-10-23T05:00:00Z' }, 'a', 'q'), true, 'its post-processing changed');
+  assert.equal(isStale(job, { ask: 'a', at: '2026-10-23T05:00:00Z' }, 'a', 'q'), false, 'an output from before the post record');
   // ready: deps done in this run, or outside it with a source on disk
   const p = byId.get('portrait.fire+ice');
   assert.equal(isReady(p, new Map([['fusion.fire+ice', 'todo']]), () => true), false, 'its fusion is still to make in this run');
-  assert.equal(isReady(p, new Map([['fusion.fire+ice', 'done']]), () => false), true);
+  assert.equal(isReady(p, new Map([['fusion.fire+ice', 'done']]), () => true), true);
+  assert.equal(isReady(p, new Map([['fusion.fire+ice', 'done']]), () => false), false, 'found current at the start, but what it needs is not on disk here');
   assert.equal(isReady(p, new Map(), (d) => d === 'fusion.fire+ice'), true, 'outside the run: its source exists');
   assert.equal(isReady(p, new Map(), () => false), false);
   // followers: a fusion remade brings its base portrait (free), not its ascended edit (an image)
@@ -387,6 +393,13 @@ test('pipeline state: post-only jobs, their sources, stale outputs, readiness, f
   assert.equal(rawCurrent({ since: BABY_SINCE }, { ask: 'old' }, 'h'), false);
   assert.equal(rawCurrent({ since: BABY_SINCE }, null, 'h'), false, 'a grown raw or a 3D render never ships under the baby recipe');
   assert.equal(rawCurrent({}, null, 'h'), true, 'a legacy asset’s raw, as before');
+  // --repost: --adopt never takes a raw from before the recipe; a record-less raw older than its output is not its source
+  const since = { since: BABY_SINCE };
+  assert.match(repostRefusal(since, { mtime: '2026-10-16T05:00:00.000Z', record: null }, {}, { adopt: true }), /from before the recipe/);
+  assert.equal(repostRefusal(since, { mtime: '2026-10-23T05:00:00.000Z', record: null }, {}, { adopt: true }), null);
+  assert.match(repostRefusal({}, { mtime: '2026-10-14T05:00:00.000Z', record: null }, { at: '2026-10-16T05:00:00.000Z' }), /older than the shipped output/, 'an older checkout’s foe raw');
+  assert.equal(repostRefusal({}, { mtime: '2026-10-16T06:00:00.000Z', record: null }, { at: '2026-10-16T05:00:00.000Z' }), null, 'its own raw');
+  assert.equal(repostRefusal({}, { mtime: '2026-10-14T05:00:00.000Z', record: { ask: 'h' } }, { at: '2026-10-16T05:00:00.000Z' }), null, 'a raw with a record is judged by its ask');
 });
 
 test('code-drawn and hand assets get no Gemini job', () => {

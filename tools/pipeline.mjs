@@ -50,7 +50,7 @@ import { PRICES, costOf, checkBudget, loadLimits, loadLedger, appendLedger, week
 import { classify429 } from './gemini-errors.mjs';
 import { postJson } from './curl-post.mjs';
 import { failingGates, gateBrief, imagesFor, insideTolerance, needsStrict, rankCandidates, strictText, acceptedMiss } from './pick.mjs';
-import { followers, isPostOnly, isReady, isStale, rawCurrent, sourceOf as sourceIn, toMake } from './pipeline-state.mjs';
+import { followers, isPostOnly, isReady, isStale, rawCurrent, repostRefusal, sourceOf as sourceIn, toMake } from './pipeline-state.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -72,7 +72,7 @@ const arg = (k, d = '') => (args.find((a) => a.startsWith(`--${k}=`)) ?? `--${k}
 const dry = args.includes('--dry');
 const force = args.includes('--force');
 const repost = args.includes('--repost');
-const adoptRaws = args.includes('--adopt'); // with --repost: the raws given were checked by eye and answer today's ask
+const adoptRaws = args.includes('--adopt'); // with --repost and --only: the raws given were checked by eye and answer today's ask
 const priorities = arg('priority', 'P0,P1').split(',');
 const only = arg('only').split(',').filter(Boolean);
 const CONCURRENCY = Number(arg('concurrency', '2')) || 2;
@@ -103,7 +103,8 @@ function readRawAsk(id) {
     return null;
   }
 }
-const writeRawAsk = (job, at = new Date().toISOString()) => writeFileSync(rawAskOf(job.id), JSON.stringify({ ask: askHash(job), at }));
+/** Record a raw (atomically: a torn record would read as none, and a paid raw be drawn again). */
+const writeRawAsk = (job, at = new Date().toISOString()) => writeJsonAtomic(rawAskOf(job.id), { ask: askHash(job), at, model: job.model }, 0);
 
 /** Last value of NAME in the environment or .env.local (later lines win, so a re-pasted key replaces the old one). */
 function envValue(name) {
@@ -423,15 +424,17 @@ function readSidecar(id) {
 }
 
 /**
- * What a job is asked: the model, aspect, key colour, prompt, and the references' bytes as they
- * shipped (a path's committed file, an asset's shipped output; never the raw cache, which differs in
- * every checkout). A stored candidate or a cached raw is used only for the same ask.
+ * What a job is asked: its aspect, key colour, prompt, and the references' bytes as they shipped (a
+ * path's committed file, an asset's shipped output; never the raw cache, which differs in every
+ * checkout). Not the model: which model a job gets depends on the key a checkout has (Vertex or AI
+ * Studio), and every checkout must agree on what is current (the model is in meta.model and the raw's
+ * record). A stored candidate or a cached raw is used only for the same ask.
  */
 function askHash(ask) {
-  const h = createHash('sha256').update(JSON.stringify({ model: ask.model, aspect: ask.aspect, bg: ask.bg ?? 'none', prompt: ask.prompt, refs: ask.refs }));
+  const h = createHash('sha256').update(JSON.stringify({ aspect: ask.aspect, bg: ask.bg ?? 'none', prompt: ask.prompt, refs: ask.refs }));
   for (const r of ask.refs) {
     const f = r.startsWith(SHIPPED) ? shippedOf(r.slice(SHIPPED.length)) : r.includes('/') ? join(root, r) : shippedOf(r);
-    if (existsSync(f)) h.update(readFileSync(f));
+    h.update(existsSync(f) ? readFileSync(f) : `missing:${r}`); // a missing reference, said so: the job cannot run as it is
   }
   return h.digest('hex').slice(0, 20);
 }
@@ -447,8 +450,10 @@ function postHash(job) {
 }
 /** The hash a job's output is recorded under (meta.ask): its ask, or for a post-only job its source and post. */
 const jobHash = (job) => (isPostOnly(job) ? postHash(job) : askHash(job));
+/** A generated job's post-processing (with its key colour): a change re-posts its output, from its raw when that answers the ask. */
+const postKey = (job) => createHash('sha256').update(JSON.stringify({ post: job.post, bg: job.bg ?? 'none' })).digest('hex').slice(0, 20);
 /** Whether a job's shipped output is missing or stale (tools/pipeline-state.mjs isStale). */
-const needed = (job, manifest) => !existsSync(outOf(job.id)) || isStale(job, manifest.meta?.[job.id], jobHash(job));
+const needed = (job, manifest) => !existsSync(outOf(job.id)) || isStale(job, manifest.meta?.[job.id], jobHash(job), isPostOnly(job) ? null : postKey(job));
 
 /**
  * Whether a gated job's cached pick still answers today's ask: its sidecar records the ask it was
@@ -456,6 +461,8 @@ const needed = (job, manifest) => !existsSync(outOf(job.id)) || isStale(job, man
  */
 export const sidecarCurrent = (side, hash) => side?.base == null || side.base === hash;
 const pickCurrent = (job) => sidecarCurrent(readSidecar(job.id), askHash(job));
+/** Whether a generated job is only re-posted, no image: its cached raw (a gated job's, its pick) answers its ask. */
+const reusable = (job) => !!job.model && !force && existsSync(rawOf(job.id)) && (job.pick ? pickCurrent(job) : rawCurrent(job, readRawAsk(job.id), askHash(job)));
 
 /**
  * Make `pick.n` candidates of a gated job, post-process and score each (contract, twin, ally,
@@ -625,29 +632,42 @@ async function main() {
 
   // missing or stale outputs, and every post-only job whose source is made in this run (tools/pipeline-state.mjs toMake)
   const todo = force ? jobs : toMake(jobs, (j) => needed(j, manifest));
+  if (adoptRaws && (!repost || !only.length)) {
+    console.error('--adopt records raws as made for today\'s ask: only with --repost and --only, on raws checked by eye');
+    process.exitCode = 1;
+    return;
+  }
   const jobIds = new Set(planned.map((j) => j.id));
   const byCode = rows.filter((r) => priorities.includes(r.priority) && !r.method.startsWith('Gemini') && !jobIds.has(r.id)).reduce((n, r) => n + r.count, 0);
-  // a gated job makes n candidates, and up to n more if it needs its strict round (tools/pick.mjs imagesFor)
-  const images = todo.reduce((n, j) => n + imagesFor(j).first, 0);
-  const most = todo.reduce((n, j) => n + imagesFor(j).most, 0);
-  const cost = todo.reduce((s, j) => s + costOf(j.model) * imagesFor(j).first, 0);
-  const costMost = todo.reduce((s, j) => s + costOf(j.model) * imagesFor(j).most, 0);
-  const byModel = todo.filter((j) => j.model).reduce((m, j) => ((m[j.model] = (m[j.model] ?? 0) + imagesFor(j).first), m), {});
-  const gated = todo.filter((j) => j.pick).length;
+  // a gated job makes n candidates, and up to n more if it needs its strict round (tools/pick.mjs imagesFor);
+  // a job whose cached raw answers its ask is re-posted, no image; --repost draws none, and re-posts
+  // every job given from its source
+  const making = repost ? jobs : todo;
+  const reposted = making.filter((j) => j.model && (repost || reusable(j))).length;
+  const drawn = repost ? [] : todo.filter((j) => !reusable(j));
+  const images = drawn.reduce((n, j) => n + imagesFor(j).first, 0);
+  const most = drawn.reduce((n, j) => n + imagesFor(j).most, 0);
+  const cost = drawn.reduce((s, j) => s + costOf(j.model) * imagesFor(j).first, 0);
+  const costMost = drawn.reduce((s, j) => s + costOf(j.model) * imagesFor(j).most, 0);
+  const byModel = drawn.filter((j) => j.model).reduce((m, j) => ((m[j.model] = (m[j.model] ?? 0) + imagesFor(j).first), m), {});
+  const gated = drawn.filter((j) => j.pick).length;
   if (!mock) console.log(`backend: ${backend.label}${envValue(backend.keyName) ? '' : ` (no ${backend.keyName} yet)`}`);
   console.log(
-    `plan: ${jobs.length} assets (${priorities.join('+')}), ${todo.length} to make: ${images} images, ~$${cost.toFixed(2)} for one pass${images ? ` (${Object.entries(byModel).map(([k, v]) => `${v} × ${k}`).join(', ')})` : ''}` +
+    `plan: ${jobs.length} assets (${priorities.join('+')}), ${making.length} to make: ${images} images, ~$${cost.toFixed(2)} for one pass${images ? ` (${Object.entries(byModel).map(([k, v]) => `${v} × ${k}`).join(', ')})` : ''}` +
+      `${reposted ? `; ${reposted} re-posted from their cached raws` : ''}` +
       `${gated ? `, counting the candidates of ${gated} gated jobs; up to ${most} images, ~$${costMost.toFixed(2)}, if every gated job needs its strict round` : ''}` +
       `; plus ${byCode} assets drawn in code (glyphs, plates, effects, UI)${skipped.length ? `; no job yet for ${skipped.join(', ')}` : ''}`,
   );
   if (dry) {
     writeFileSync(join(cache, 'plan.json'), JSON.stringify(todo, null, 1));
     const order = [];
-    const done = new Set(jobs.filter((j) => !todo.includes(j)).map((j) => j.id));
-    const inRun = new Set(jobs.map((j) => j.id));
+    // a dependency made in this run counts once its wave is done; any other must be on disk (a raw,
+    // an approved file, a shipped output), as the scheduler asks
+    const willMake = new Set(todo.map((j) => j.id));
+    const done = new Set();
     let left = [...todo];
     while (left.length) {
-      const ready = left.filter((j) => j.deps.every((d) => done.has(d) || (!inRun.has(d) && available(j, d))));
+      const ready = left.filter((j) => j.deps.every((d) => (willMake.has(d) ? done.has(d) : available(j, d))));
       if (!ready.length) {
         console.log(`unresolvable: ${left.map((j) => j.id).join(', ')}`);
         break;
@@ -674,7 +694,14 @@ async function main() {
       // a generated job re-posts only a raw made for its ask: an older raw (a grown sprite, a 3D render)
       // would ship under the new recipe; --adopt records the raws given as made for today's ask (checked by eye)
       if (!isPostOnly(j)) {
-        if (adoptRaws) writeRawAsk(j, new Date(statSync(rawOf(j.id)).mtimeMs).toISOString());
+        const mtime = new Date(statSync(rawOf(j.id)).mtimeMs).toISOString();
+        const refusal = repostRefusal(j, { mtime, record: readRawAsk(j.id) }, manifest.meta?.[j.id], { adopt: adoptRaws });
+        if (refusal) {
+          skippedRaws += 1;
+          console.log(`  ${j.id}: ${refusal}: not re-posted`);
+          continue;
+        }
+        if (adoptRaws) writeRawAsk({ ...j, model: readRawAsk(j.id)?.model ?? manifest.meta?.[j.id]?.model ?? j.model }, mtime);
         if (!rawCurrent(j, readRawAsk(j.id), askHash(j))) {
           skippedRaws += 1;
           console.log(`  ${j.id}: its raw was made for another ask: not re-posted (make it again, or --adopt it once checked)`);
@@ -706,7 +733,10 @@ async function main() {
       delete prev.gate;
       // a post-only output answers its source as it is now; a generated one its raw's ask
       const rawAsk = isPostOnly(j) ? null : readRawAsk(j.id);
-      const record = isPostOnly(j) ? { ask: jobHash(j), at: new Date().toISOString(), model: null } : rawAsk ? { ask: rawAsk.ask, at: rawAsk.at } : {};
+      // (a post-only job's ask is taken after every re-post: its source, a fusion, comes earlier in the run)
+      const record = isPostOnly(j)
+        ? { ask: jobHash(j), at: new Date().toISOString(), model: null }
+        : { ...(rawAsk ? { ask: rawAsk.ask, at: rawAsk.at, ...(rawAsk.model ? { model: rawAsk.model } : {}) } : {}), post: postKey(j) };
       adopt(commitManifest(manifestFile, { [j.id]: { file: `gen/${j.id}.png`, meta: { ...prev, qa, ...record, ...(gate ? { gate } : {}) } } }));
       if (!qa.ok) console.log(`  ${j.id}: QA flagged ${JSON.stringify(qa)}`);
       if (j.pick) warnGate(j, gate);
@@ -723,15 +753,19 @@ async function main() {
   let stopped = null;
   let made = 0;
   let failed = 0;
+  const remade = new Set(); // made in this run
 
   function accept(job, qa, t, picked) {
     lastProgress = Date.now();
     // a gate only for a gated job: a job that lost its gates (the fusions under the baby recipe) drops its old verdict
     const gate = job.pick ? (picked ?? manifest.meta[job.id]?.gate) : null;
-    const meta = { qa, model: job.model, at: new Date().toISOString(), ask: jobHash(job), ...(gate ? { gate } : {}) };
+    const meta = { qa, model: job.model, at: new Date().toISOString(), ask: jobHash(job), ...(isPostOnly(job) ? {} : { post: postKey(job) }), ...(gate ? { gate } : {}) };
     adopt(commitManifest(manifestFile, { [job.id]: { file: `gen/${job.id}.png`, meta } }));
     state.set(job.id, 'done');
+    remade.add(job.id);
     made += 1;
+    // a job in this run found current at its start, made from this one, is stale now: make it too
+    for (const d of jobs) if (d.deps.includes(job.id) && state.get(d.id) === 'done' && !remade.has(d.id) && needed(d, manifest)) state.set(d.id, 'todo');
     console.log(`✓ ${job.id} (${((Date.now() - t) / 1000).toFixed(0)} s${qa.in_palette != null ? `, palette ${Math.round(qa.in_palette * 100)}% before snap` : ''}${qa.ok ? '' : ', QA flagged'})`);
     if (job.pick) warnGate(job, gate);
   }
@@ -763,7 +797,7 @@ async function main() {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const t = Date.now();
       // paid for already: post-process only, when the raw was made for this ask (a gated job: its pick's ask)
-      const reuse = attempt === 1 && !force && existsSync(rawOf(job.id)) && (job.pick ? pickCurrent(job) : rawCurrent(job, readRawAsk(job.id), askHash(job)));
+      const reuse = attempt === 1 && reusable(job);
       let picked = null;
       try {
         if (!reuse && job.pick) picked = await pickCandidate(job, key, backend, manifest, { fresh: attempt > 1 });
@@ -821,11 +855,10 @@ async function main() {
   adopt(readManifest(manifestFile)); // the sheet shows what every process made
   writeSheet(planned, manifest); // the sheet shows every planned asset, whatever --only picked
   const left = jobs.filter((j) => state.get(j.id) !== 'done').map((j) => j.id);
-  // a job outside this run whose reference was remade is stale now (an ascended edit of a redrawn pet),
-  // whatever its priority
-  const remade = new Set(jobs.filter((j) => state.get(j.id) === 'done' && todo.includes(j)).map((j) => j.id));
-  const stale = [...jobsById.values()].filter((j) => !state.has(j.id) && j.deps.some((d) => remade.has(d)) && existsSync(outOf(j.id))).map((j) => j.id);
-  if (stale.length) console.warn(`⚠️  stale now (a reference was remade): ${stale.join(', ')}; run --priority=P0,P1,P2,P3 --only=${stale.join(',')}`);
+  // a job outside this run whose reference was remade, and which is stale now (an ascended edit of a
+  // redrawn pet), whatever its priority
+  const stale = [...jobsById.values()].filter((j) => !state.has(j.id) && j.deps.some((d) => remade.has(d)) && existsSync(outOf(j.id)) && needed(j, manifest)).map((j) => j.id);
+  if (stale.length) console.warn(`⚠️  stale now (a reference was remade): ${stale.join(', ')}; run --priority=P0,P1,P2 --only=${stale.join(',')}`);
   const u = weeklyUsage(loadLedger(ledgerFile));
   console.log(`\n${made} made, ${failed} failed, ${left.length} not done; weekly spend $${u.usd.toFixed(2)}; sheet: ${sheetFile}`);
   if (outside.size) console.warn(`⚠️  ${outside.size} gated jobs shipped OUTSIDE their gates: ${[...outside].join(', ')} (exit code 2)`);

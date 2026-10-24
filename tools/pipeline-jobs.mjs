@@ -101,8 +101,8 @@ export const ASCENDED_PLATE = ['#FFC93C', '#FFF0B8', '#FFE07A'];
 export const tint = (hex, t) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) + (255 - parseInt(hex.slice(i, i + 2), 16)) * t).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
 /** A reference to an asset as it shipped (its output, not its raw): the halo edit starts from the sticker the field shows. */
 export const SHIPPED = 'shipped:';
-/** A portrait's side in px: the 320 px sprite fills its plate's box (PLATE_BOX in tools/post.py) without enlarging. */
-export const PORTRAIT_PX = 384;
+/** A portrait's side in px: the 320 px sprite fills its plate's box (PLATE_BOX 0.86 in tools/post.py: 372 × 0.86 = 320) without enlarging. */
+export const PORTRAIT_PX = 372;
 /** A base portrait's flat plate: the fusion's own colour, lightened (the plate, the disc behind the pet). */
 export const portraitPlate = (color) => [tint(color, 0.45), tint(color, 0.78)];
 /** `hex` toward the outline's plum ink by `t` (0–1): a boss plate's dark flat tints. */
@@ -301,7 +301,7 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
     const approved = r.approved;
     // 2D namecard portraits: the pet's own sticker on a flat plate (post.py --fit plate), so the tile,
     // the roaming pet and the card are one drawing. The base portrait is made from the shipped sprite
-    // (committed, keyed, 320 px: a 384 plate needs no enlarging), no new image; the ascended one is an
+    // (committed, keyed, 320 px: it fills a PORTRAIT_PX plate's box without enlarging), no new image; the ascended one is an
     // edit of that sticker (a gold halo, sparkles) on a gold plate.
     if (!asc)
       return { ...base, model: null, from: sprite, since: BABY_SINCE, bg: 'none', refs: [], deps: [sprite],
@@ -346,7 +346,8 @@ export function jobFor(row, root, models = { fast: MODEL_FAST, best: MODEL_BEST 
     // a half-body sticker in the foes' own style on a dark flat plate; a casual-game villain, not a scary one
     if (portrait) {
       const accent = r.accent.match(/#[0-9A-Fa-f]{6}/)?.[0] ?? ENEMY_TYPES[type].color;
-      return { ...base, model: models.fast, since: BABY_SINCE, bg: r.bg, refs: [`enemy.${type}`], deps: [`enemy.${type}`],
+      // drawn from the boss as it shipped (the raw cache of an older checkout holds an older foe)
+      return { ...base, model: models.fast, since: BABY_SINCE, bg: r.bg, refs: [`${SHIPPED}enemy.${type}`], deps: [`enemy.${type}`],
         post: { fit: 'plate', size: 512, plate: bossPlate(ENEMY_TYPES[type].color, accent), stripRim: true }, // a foe has no cream rim
         prompt:
           `Image 1 is ${r.name}, a boss of the animal army that besieges the player’s keep: ${r.desc}. Draw it again as a half-body portrait sticker for its "boss approaches" card, ` +

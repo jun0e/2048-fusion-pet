@@ -8,6 +8,7 @@ a square portrait, a tall background), on the job's chroma background, so the wh
 pipeline (keying, trim, palette snap, manifest, game placement) can be tested free.
 """
 import argparse
+import os
 import hashlib
 
 from PIL import Image, ImageDraw, ImageFont
@@ -131,6 +132,9 @@ def main():
     ty = box[1] + (box[3] - box[1]) * (0.5 if kind == "halo" else 0.66)
     d.rounded_rectangle((cx - tw / 2 - 16, ty - 8, cx + tw / 2 + 16, ty + size + 8), 20, fill=INK)
     d.text((cx - tw / 2, ty), label, font=f, fill=CREAM)
+    salt = os.environ.get("MOCK_SALT")
+    if salt:  # tests: a different drawing for each salt, as a real redraw would be
+        ImageDraw.Draw(im).rectangle((8, 8, 8 + 4 * (sum(map(ord, salt)) % 40), 20), fill=(43, 29, 46))
     im.save(o.out)
 
 

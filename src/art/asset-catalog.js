@@ -75,9 +75,9 @@ export function buildAssetRows(price = 0.0336) {
       name: `${petName(a, b)} portrait`,
       desc: `Its own fusion sticker on a flat 2D plate: ${f.color} lightened, a lighter disc behind the pet`,
       style: 'Sticker on a flat plate (2D)',
-      src: '512×512',
+      src: '372×372',
       display: '56–64 pt card, 132 pt cut-in, pick cards',
-      method: `Post: fusion.${key}'s raw on its plate (tools/post.py --fit plate)`,
+      method: `Post: fusion.${key} as it shipped, on its plate (tools/post.py --fit plate)`,
       refs: `fusion.${key}`,
       priority: key === 'fire+ice' ? 'P0' : 'P1',
       gens: 0,
@@ -90,7 +90,7 @@ export function buildAssetRows(price = 0.0336) {
   }
   for (const [key, f] of Object.entries(FUSIONS)) {
     const [a, b] = f.parts;
-    add({ id: `portrait.${key}.ascended`, cat: 'Creature', layer: 'Namecard', name: `${petName(a, b)} ascended portrait`, desc: 'Edit of its sticker: a gold halo, sparkles and a proud smile, on a gold plate with flat rays', style: 'Sticker on a flat plate (2D)', src: '512×512', display: 'pure form card', method: `Gemini edit of fusion.${key}`, refs: `fusion.${key}`, priority: 'P2', gens: 1 });
+    add({ id: `portrait.${key}.ascended`, cat: 'Creature', layer: 'Namecard', name: `${petName(a, b)} ascended portrait`, desc: 'Edit of its sticker: a gold halo, sparkles and a proud smile, on a gold plate with flat rays', style: 'Sticker on a flat plate (2D)', src: '372×372', display: 'pure form card', method: `Gemini edit of fusion.${key}`, refs: `fusion.${key} (as shipped)`, priority: 'P2', gens: 1 });
   }
 
   // --- enemies --------------------------------------------------------------------------
