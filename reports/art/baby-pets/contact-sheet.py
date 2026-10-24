@@ -4,8 +4,9 @@ and its 2D portraits as they are on disk now.
 
 usage: python3 reports/art/baby-pets/contact-sheet.py [--old 470aff4] [--out reports/art/baby-pets]
 
-Writes contact-sheet-1.jpg and contact-sheet-2.jpg (14 pets each) and contact-sheet-small.png
-(the portraits at the size a phone's namecard shows them, 48 px).
+Writes contact-sheet-1.jpg and contact-sheet-2.jpg (14 pets each), contact-sheet-small.png (the
+portraits at the size a phone's namecard shows them, 48 px) and contact-sheet-busts.jpg (the boss
+intro busts).
 """
 import argparse
 import io
@@ -106,6 +107,27 @@ def small(rows, rev):
     return out
 
 
+def busts(rev):
+    """The three boss intro busts, old (3D) next to new (2D)."""
+    keys = [("elfRuler", "Hive Queen"), ("kiteNinja", "Pagoda Crab"), ("dragonRider", "Lava Wyrm")]
+    c = 260
+    w = LABEL + 2 * (c + GAP) + GAP * 2
+    head = 70
+    out = Image.new("RGBA", (w, head + len(keys) * (c + GAP) + GAP), BG)
+    d = ImageDraw.Draw(out)
+    d.text((GAP, 14), "Boss intro busts: old (3D) next to new (2D)", font=font(24, True), fill=INK)
+    for i, t in enumerate(["OLD (3D)", "NEW (2D)"]):
+        d.text((LABEL + GAP + i * (c + GAP), 46), t, font=font(16, True), fill=INK)
+    for r, (key, name) in enumerate(keys):
+        y = head + r * (c + GAP)
+        d.text((GAP, y + c // 2 - 10), name, font=font(20, True), fill=INK)
+        for i, im in enumerate([old_file(rev, f"public/assets/gen/enemy.{key}.portrait.png"), new_file(f"public/assets/gen/enemy.{key}.portrait.png")]):
+            if im is not None:
+                im = fit(im, c)
+                out.alpha_composite(im, (LABEL + GAP + i * (c + GAP), y))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--old", default="470aff4")
@@ -116,7 +138,8 @@ def main():
     for n, part in enumerate([rows[:14], rows[14:]], 1):
         sheet(part, o.old, f"Fusion pets: old ({o.old}) next to new, the baby style ({n}/2)").convert("RGB").save(out / f"contact-sheet-{n}.jpg", quality=88)
     small(rows, o.old).convert("RGB").save(out / "contact-sheet-small.png", optimize=True)
-    print(f"wrote {out}/contact-sheet-1.jpg, contact-sheet-2.jpg, contact-sheet-small.png")
+    busts(o.old).convert("RGB").save(out / "contact-sheet-busts.jpg", quality=88)
+    print(f"wrote {out}/contact-sheet-1.jpg, contact-sheet-2.jpg, contact-sheet-small.png, contact-sheet-busts.jpg")
 
 
 if __name__ == "__main__":
