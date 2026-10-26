@@ -98,7 +98,7 @@ writeFileSync(target, html);
 // the key-visual demo: the same build, opening straight into ?kv mode
 const kvTarget = join(root, '2048-siege-kv.html');
 const kvHtml = html
-  .replace('<title>2048 Siege</title>', '<title>2048 Siege · key visual</title>')
+  .replace('<title>2048 Fusion Pet</title>', '<title>2048 Fusion Pet · key visual</title>')
   .replace('<script type="module">', '<script>window.__KV__ = true;</script>\n    <script type="module">');
 writeFileSync(kvTarget, kvHtml);
 rmSync(outDir, { recursive: true, force: true });

@@ -356,7 +356,7 @@ if (new URLSearchParams(location.search).has('capture')) {
   g.fillStyle = '#17203f';
   g.fillRect(0, 0, out.width, out.height);
   g.scale(dpr, dpr);
-  label(g, '2048 Siege: key visual proportion guide', 24, 30, { size: 26, font: HEAD });
+  label(g, '2048 Fusion Pet: key visual proportion guide', 24, 30, { size: 26, font: HEAD });
   label(g, 'Map tiles, roaming fusions and (since 2026-10-23) namecards in sticker style. Pink = guide lines, blue = ratios.', 24, 58, { size: 13, color: '#c9d3ff', bold: false });
   let y = head / dpr;
   rows.forEach((r, i) => {

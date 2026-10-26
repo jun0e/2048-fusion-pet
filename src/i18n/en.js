@@ -367,7 +367,7 @@ export const EN = {
   'hud.blocksLeft': 'Blocks left',
   'hud.coins': 'Coins',
   'hud.rotate': 'Turn your phone upright',
-  'hud.rotate.sub': '2048 Siege plays in portrait. The game waits.',
+  'hud.rotate.sub': '2048 Fusion Pet plays in portrait. The game waits.',
   'hud.combo': 'Combo',
   'coin.price': 'Price of the next swipe',
   'coin.swipe': 'Swipe',
@@ -523,7 +523,7 @@ export const EN = {
   'nc.left': '{n}s',
   'nc.charge': 'Charging: {pct}.',
   'boss.kicker': 'Boss',
-  'share.line': 'I held the siege to wave {wave} in 2048 Siege ({score} points). Can you beat it?',
+  'share.line': 'I held the siege to wave {wave} in 2048 Fusion Pet ({score} points). Can you beat it?',
   'boot.loading': 'Loading…',
   // the deck slot (src/render/frame.js) and the Language row in Settings
   'deck.at': 'at {n}',

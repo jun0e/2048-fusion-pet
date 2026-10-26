@@ -1,6 +1,6 @@
 {
-  "name": "2048 Siege",
-  "short_name": "2048 Siege",
+  "name": "2048 Fusion Pet",
+  "short_name": "Fusion Pet",
   "description": "Merge blocks into turrets and hold the siege.",
   "start_url": "./",
   "scope": "./",

@@ -1,4 +1,4 @@
-# 2048 Siege (prototype fork)
+# 2048 Fusion Pet (prototype fork)
 
 A fork of [2048 Defense](../merge-ball-td) without a castle. **The blocks are what you defend.** There is no wall and no castle health bar: enemies march down the four lanes onto the board and attack the blocks themselves. Every block has hidden health that refills at the start of each wave; a block whose health runs out is destroyed for good, and **you lose when your last block falls**.
 

@@ -57,7 +57,7 @@ export function copyCommand(line, doc = document) {
 export async function shareRun({ text, url, line }, { nav = globalThis.navigator, doc = globalThis.document, framed = inFrame() } = {}) {
   if (canShareSheet({ share: nav.share, framed, policy: doc.featurePolicy })) {
     try {
-      await nav.share({ title: '2048 Siege', text, ...(url && { url }) });
+      await nav.share({ title: '2048 Fusion Pet', text, ...(url && { url }) });
       return 'shared';
     } catch (err) {
       if (err?.name === 'AbortError') return 'closed';

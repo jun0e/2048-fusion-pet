@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Home-screen icons for 2048 Siege (web app manifest and Apple touch icon).
+"""Home-screen icons for 2048 Fusion Pet (web app manifest and Apple touch icon).
 
 A gold "2048" tile on the game's navy, with the lanes' chevrons above it.
 Needs Pillow and the macOS font Arial Rounded Bold. Writes public/icons/.

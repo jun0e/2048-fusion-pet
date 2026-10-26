@@ -365,7 +365,7 @@ export const VI = {
   'hud.blocksLeft': 'Số khối còn lại',
   'hud.coins': 'Xu',
   'hud.rotate': 'Hãy xoay dọc điện thoại',
-  'hud.rotate.sub': '2048 Siege chơi theo chiều dọc. Trò chơi đang chờ bạn.',
+  'hud.rotate.sub': '2048 Fusion Pet chơi theo chiều dọc. Trò chơi đang chờ bạn.',
   'hud.combo': 'Combo',
   'coin.price': 'Giá lần vuốt tới',
   'coin.swipe': 'Vuốt',
@@ -521,7 +521,7 @@ export const VI = {
   'nc.left': '{n}s',
   'nc.charge': 'Đang sạc: {pct}.',
   'boss.kicker': 'Trùm',
-  'share.line': 'Mình đã giữ thành tới đợt {wave} trong 2048 Siege ({score} điểm). Bạn có vượt được không?',
+  'share.line': 'Mình đã giữ thành tới đợt {wave} trong 2048 Fusion Pet ({score} điểm). Bạn có vượt được không?',
   'boot.loading': 'Đang tải…',
   // the deck slot (src/render/frame.js) and the Language row in Settings
   'deck.at': 'ở {n}',

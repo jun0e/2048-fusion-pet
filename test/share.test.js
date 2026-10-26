@@ -33,7 +33,7 @@ function browser({ share = 'ok', copy = 'ok', command = false, policy } = {}) {
 }
 
 test('the line: the score in words, and the address only where a friend can open it', () => {
-  assert.equal(LINE.text, 'I held the siege to wave 7 in 2048 Siege (12,345 points). Can you beat it?', 'the game in English, as outside a browser');
+  assert.equal(LINE.text, 'I held the siege to wave 7 in 2048 Fusion Pet (12,345 points). Can you beat it?', 'the game in English, as outside a browser');
   assert.equal(LINE.url, 'https://example.com/siege/');
   assert.equal(LINE.line, `${LINE.text} https://example.com/siege/`);
   // the viewer's sandbox and a file on disk are no link to send
@@ -44,7 +44,7 @@ test('the line: the score in words, and the address only where a friend can open
 test('a page of its own opens the share sheet, and nothing else', async () => {
   const b = browser();
   assert.equal(await shareRun(LINE, { ...b, framed: false }), 'shared');
-  assert.deepEqual(b.calls, [['share', { title: '2048 Siege', text: LINE.text, url: LINE.url }]]);
+  assert.deepEqual(b.calls, [['share', { title: '2048 Fusion Pet', text: LINE.text, url: LINE.url }]]);
 });
 
 test('closing the sheet is an answer: no copy after it', async () => {
